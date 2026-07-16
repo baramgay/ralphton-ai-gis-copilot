@@ -30,3 +30,7 @@ AI_GIS_Copilot_랄프톤_마스터프롬프트.txt
 .DS_Store
 Thumbs.db
 *.swp
+
+# Generated TypeScript metadata
+*.tsbuildinfo
+next-env.d.ts
