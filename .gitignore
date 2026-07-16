@@ -1,0 +1,32 @@
+# Dependencies and Next.js output
+node_modules/
+.next/
+out/
+
+# Local environment files (keep the empty template)
+.env*
+!.env.example
+
+# Runtime and test artifacts
+logs/
+test-results/
+playwright-report/
+coverage/
+.vitest/
+
+# Local orchestration/worktrees
+.superpowers/
+.worktrees/
+
+# Downloaded source and temporary files
+data/source/*.geojson
+*.tmp
+*.partial
+
+# The supplied requirements file contains credentials and must never be tracked
+AI_GIS_Copilot_랄프톤_마스터프롬프트.txt
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
