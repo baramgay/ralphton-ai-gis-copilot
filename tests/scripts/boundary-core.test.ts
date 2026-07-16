@@ -145,6 +145,66 @@ describe("validateBoundaryCollection", () => {
     expect(validateBoundaryCollection(collection).featureCount).toBe(150);
   });
 
+  test("rejects a CRS identifier that only starts with EPSG:4326", () => {
+    const collection = makeValidCollection();
+    collection.crs.properties.name = "urn:ogc:def:crs:EPSG::43260";
+
+    expect(() => validateBoundaryCollection(collection)).toThrow(/CRS/);
+  });
+
+  test("rejects a nonnumeric third ordinate", () => {
+    const collection = makeValidCollection();
+    collection.features[0].geometry.coordinates = [
+      squareRing(0).map(([longitude, latitude]) => [longitude, latitude, "높이"]),
+    ];
+
+    expect(() => validateBoundaryCollection(collection)).toThrow(/좌표/);
+  });
+
+  test("rejects a Polygon hole outside its exterior ring", () => {
+    const collection = makeValidCollection();
+    collection.features[0].geometry.coordinates = [
+      [
+        [128.9, 35],
+        [128.95, 35],
+        [128.95, 35.05],
+        [128.9, 35.05],
+        [128.9, 35],
+      ],
+      [
+        [129.1, 35.1],
+        [129.11, 35.1],
+        [129.11, 35.11],
+        [129.1, 35.11],
+        [129.1, 35.1],
+      ],
+    ];
+
+    expect(() => validateBoundaryCollection(collection)).toThrow(/hole.*외부 ring/);
+  });
+
+  test("rejects a Polygon hole that crosses its exterior ring", () => {
+    const collection = makeValidCollection();
+    collection.features[0].geometry.coordinates = [
+      [
+        [128.9, 35],
+        [128.95, 35],
+        [128.95, 35.05],
+        [128.9, 35.05],
+        [128.9, 35],
+      ],
+      [
+        [128.94, 35.02],
+        [128.96, 35.02],
+        [128.96, 35.03],
+        [128.94, 35.03],
+        [128.94, 35.02],
+      ],
+    ];
+
+    expect(() => validateBoundaryCollection(collection)).toThrow(/hole.*외부 ring/);
+  });
+
   test.each([
     ["FeatureCollection 형식", (collection: BoundaryCollection) => Object.assign(collection, { type: "Feature" })],
     ["CRS", (collection: BoundaryCollection) => (collection.crs.properties.name = "EPSG:3857")],
@@ -233,6 +293,7 @@ describe("buildBoundaryMetadata", () => {
       sourceUrl:
         "https://raw.githubusercontent.com/vuski/admdongkor/main/ver20260701/HangJeongDong_ver20260701.geojson",
       downloadedAt: "2026-07-16T01:02:03.000Z",
+      crs: "EPSG:4326",
       sha256: createHash("sha256").update(bytes).digest("hex"),
       featureCount: 2,
       administrativeDongCodes: ["2611051000", "2611052000"],
@@ -264,7 +325,8 @@ describe("generated boundary artifact", () => {
     const projectRoot = process.cwd();
     const metadata = JSON.parse(
       await readFile(path.join(projectRoot, "public", "data", "boundary-metadata.json"), "utf8"),
-    ) as { version: string };
+    ) as { crs?: string; version: string };
+    expect(metadata.crs).toBe("EPSG:4326");
     const bytes = await readFile(
       path.join(
         projectRoot,

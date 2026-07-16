@@ -3,6 +3,13 @@ import { createHash } from "node:crypto";
 import { booleanValid } from "@turf/boolean-valid";
 
 const VERSION_DIRECTORY_PATTERN = /^ver(\d{8})$/;
+const BOUNDARY_CRS = "EPSG:4326";
+const SUPPORTED_CRS_NAMES = new Set([
+  "CRS84",
+  "EPSG:4326",
+  "urn:ogc:def:crs:OGC:1.3:CRS84",
+  "urn:ogc:def:crs:EPSG::4326",
+]);
 const REQUIRED_STRING_PROPERTIES = [
   "adm_nm",
   "adm_cd",
@@ -98,7 +105,7 @@ function readCrsName(featureCollection) {
 
 function assertSupportedCrs(featureCollection) {
   const crsName = readCrsName(featureCollection);
-  if (!crsName || !/(?:CRS:?84|EPSG(?::+)?4326)/i.test(crsName)) {
+  if (!crsName || !SUPPORTED_CRS_NAMES.has(crsName)) {
     throw new Error("경계 CRS는 CRS84 또는 EPSG:4326이어야 합니다.");
   }
 }
@@ -134,14 +141,11 @@ function isPosition(value) {
   return (
     Array.isArray(value) &&
     value.length >= 2 &&
-    typeof value[0] === "number" &&
-    Number.isFinite(value[0]) &&
-    typeof value[1] === "number" &&
-    Number.isFinite(value[1])
+    value.every((ordinate) => typeof ordinate === "number" && Number.isFinite(ordinate))
   );
 }
 
-function ringsForGeometry(geometry, featureIndex) {
+function polygonsForGeometry(geometry, featureIndex) {
   if (!isRecord(geometry) || !["Polygon", "MultiPolygon"].includes(geometry.type)) {
     throw new Error(
       `Feature ${featureIndex}의 geometry type은 Polygon 또는 MultiPolygon이어야 합니다.`,
@@ -153,17 +157,15 @@ function ringsForGeometry(geometry, featureIndex) {
   }
 
   if (geometry.type === "Polygon") {
-    return geometry.coordinates;
+    return [geometry.coordinates];
   }
 
-  const rings = [];
   for (const polygon of geometry.coordinates) {
     if (!Array.isArray(polygon) || polygon.length === 0) {
       throw new Error(`Feature ${featureIndex}의 geometry에 빈 좌표가 있습니다.`);
     }
-    rings.push(...polygon);
   }
-  return rings;
+  return geometry.coordinates;
 }
 
 function samePosition(first, last) {
@@ -207,8 +209,90 @@ function hasProperSelfIntersection(ring) {
   return false;
 }
 
+function isPointOnSegment(point, segmentStart, segmentEnd) {
+  if (orientation(segmentStart, segmentEnd, point) !== 0) {
+    return false;
+  }
+
+  return (
+    point[0] >= Math.min(segmentStart[0], segmentEnd[0]) &&
+    point[0] <= Math.max(segmentStart[0], segmentEnd[0]) &&
+    point[1] >= Math.min(segmentStart[1], segmentEnd[1]) &&
+    point[1] <= Math.max(segmentStart[1], segmentEnd[1])
+  );
+}
+
+function segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd) {
+  const firstSideStart = orientation(firstStart, firstEnd, secondStart);
+  const firstSideEnd = orientation(firstStart, firstEnd, secondEnd);
+  const secondSideStart = orientation(secondStart, secondEnd, firstStart);
+  const secondSideEnd = orientation(secondStart, secondEnd, firstEnd);
+
+  if (firstSideStart * firstSideEnd < 0 && secondSideStart * secondSideEnd < 0) {
+    return true;
+  }
+
+  return (
+    (firstSideStart === 0 && isPointOnSegment(secondStart, firstStart, firstEnd)) ||
+    (firstSideEnd === 0 && isPointOnSegment(secondEnd, firstStart, firstEnd)) ||
+    (secondSideStart === 0 && isPointOnSegment(firstStart, secondStart, secondEnd)) ||
+    (secondSideEnd === 0 && isPointOnSegment(firstEnd, secondStart, secondEnd))
+  );
+}
+
+function ringsIntersect(firstRing, secondRing) {
+  for (let firstIndex = 0; firstIndex < firstRing.length - 1; firstIndex += 1) {
+    for (let secondIndex = 0; secondIndex < secondRing.length - 1; secondIndex += 1) {
+      if (
+        segmentsIntersect(
+          firstRing[firstIndex],
+          firstRing[firstIndex + 1],
+          secondRing[secondIndex],
+          secondRing[secondIndex + 1],
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function isPointInsideRing(point, ring) {
+  let isInside = false;
+  for (let index = 0, previousIndex = ring.length - 1; index < ring.length; index += 1) {
+    const current = ring[index];
+    const previous = ring[previousIndex];
+    const crossesLatitude = current[1] > point[1] !== previous[1] > point[1];
+    const intersectionLongitude =
+      ((previous[0] - current[0]) * (point[1] - current[1])) /
+        (previous[1] - current[1]) +
+      current[0];
+
+    if (crossesLatitude && point[0] < intersectionLongitude) {
+      isInside = !isInside;
+    }
+    previousIndex = index;
+  }
+
+  return isInside;
+}
+
+function assertHolesWithinExterior(polygons, featureIndex) {
+  for (const polygon of polygons) {
+    const [exteriorRing, ...holes] = polygon;
+    for (const hole of holes) {
+      if (ringsIntersect(exteriorRing, hole) || !isPointInsideRing(hole[0], exteriorRing)) {
+        throw new Error(`Feature ${featureIndex}의 Polygon hole이 외부 ring 안에 있지 않습니다.`);
+      }
+    }
+  }
+}
+
 function assertGeometry(geometry, featureIndex, bbox) {
-  const rings = ringsForGeometry(geometry, featureIndex);
+  const polygons = polygonsForGeometry(geometry, featureIndex);
+  const rings = polygons.flat();
   if (rings.length === 0) {
     throw new Error(`Feature ${featureIndex}의 geometry에 빈 좌표가 있습니다.`);
   }
@@ -246,6 +330,8 @@ function assertGeometry(geometry, featureIndex, bbox) {
       bbox.maximumLatitude = Math.max(bbox.maximumLatitude, latitude);
     }
   }
+
+  assertHolesWithinExterior(polygons, featureIndex);
 }
 
 export function validateBoundaryCollection(featureCollection) {
@@ -378,6 +464,7 @@ export function buildBoundaryMetadata(bytes, context) {
     version: context.version,
     sourceUrl: context.sourceUrl,
     downloadedAt: context.downloadedAt,
+    crs: BOUNDARY_CRS,
     sha256: createHash("sha256").update(bytes).digest("hex"),
     featureCount: codes.length,
     administrativeDongCodes: codes,

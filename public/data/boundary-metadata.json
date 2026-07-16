@@ -1,7 +1,8 @@
 {
   "version": "20260701",
   "sourceUrl": "https://raw.githubusercontent.com/vuski/admdongkor/master/ver20260701/HangJeongDong_ver20260701.geojson",
-  "downloadedAt": "2026-07-16T06:42:21.049Z",
+  "downloadedAt": "2026-07-16T07:04:54.145Z",
+  "crs": "EPSG:4326",
   "sha256": "cc157ec885b56db989b2bccc164c46cdefe9cd4514029f4abfb533e1fea658d4",
   "featureCount": 206,
   "administrativeDongCodes": [

@@ -58,6 +58,9 @@ async function main() {
       `경계 Feature 수 불일치: metadata=${metadata.featureCount}, actual=${summary.featureCount}`,
     );
   }
+  if (metadata.crs !== expectedMetadata.crs) {
+    throw new Error(`경계 CRS 불일치: metadata=${metadata.crs}, expected=${expectedMetadata.crs}`);
+  }
   assertSameCodes(metadata.administrativeDongCodes, summary.administrativeDongCodes);
 
   console.log(
