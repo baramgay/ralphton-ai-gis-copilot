@@ -248,7 +248,7 @@ Expected: 호출 순서·fallback·금지 필드·응답 문자열 검사 모두
 
 - [ ] **Step 1: pagination·월 불일치·중복·결측 열 테스트를 작성한다**
 
-실제 비밀을 사용하지 않는 fixture로 최신 공통월, 통·반 중복 제거, 약국 분리, 결측 진료과/시간 null 보존을 검증한다.
+실제 비밀을 사용하지 않는 fixture로 최신 공통월, 통·반 중복 제거, 약국 분리, 결측 진료과/시간 null 보존을 검증한다. 성·연령 인구는 `admmSexdAgePpltn/selectAdmmSexdAgePpltn`, 1인세대는 `admmSexdAgeOneHh/selectAdmmSexdAgeOneHh` 계약을 별도 fixture로 고정하고, 1인세대 결측 시 null을 유지한다.
 
 - [ ] **Step 2: RED 후 timeout·schema validation이 있는 어댑터를 구현한다**
 
