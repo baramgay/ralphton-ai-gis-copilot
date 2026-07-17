@@ -1,0 +1,221 @@
+import { describe, expect, test } from "vitest";
+
+import { ALLOWED_TOOLS, type AnalysisIntent } from "@/lib/analysis/intent-schema";
+import { executeAnalysisIntent, toolRegistry } from "@/lib/analysis/tool-registry";
+import type { DemoSnapshot, Facility, RegionSeries } from "@/lib/domain/schemas";
+
+const months = [
+  "2025-06",
+  "2025-07",
+  "2025-08",
+  "2025-09",
+  "2025-10",
+  "2025-11",
+  "2025-12",
+  "2026-01",
+  "2026-02",
+  "2026-03",
+  "2026-04",
+  "2026-05",
+  "2026-06",
+];
+
+function region(
+  adm_cd2: string,
+  adm_nm: string,
+  options: {
+    startPopulation?: number;
+    endPopulation?: number;
+    elderlyPopulation?: number;
+    onePersonHouseholds?: number | null;
+    lat?: number;
+    lng?: number;
+  } = {},
+): RegionSeries {
+  const startPopulation = options.startPopulation ?? 100;
+  const endPopulation = options.endPopulation ?? startPopulation;
+  const elderlyPopulation = options.elderlyPopulation ?? 20;
+  const population = Array.from({ length: 13 }, (_, index) =>
+    index === 0 ? startPopulation : index === 12 ? endPopulation : startPopulation,
+  );
+  const households = Array(13).fill(50) as number[];
+  const onePersonHouseholds = options.onePersonHouseholds === undefined ? 10 : options.onePersonHouseholds;
+
+  return {
+    adm_cd2,
+    adm_nm,
+    representativePoint: { lat: options.lat ?? 35, lng: options.lng ?? 129 },
+    areaSquareKm: 2,
+    months,
+    population,
+    households,
+    populationDensity: population.map((value) => value / 2),
+    youthPopulation: population.map(() => 10),
+    workingAgePopulation: population.map((value) => value - elderlyPopulation - 10),
+    elderlyPopulation: population.map(() => elderlyPopulation),
+    onePersonHouseholds: population.map(() => onePersonHouseholds),
+    births: population.map(() => 1),
+    deaths: population.map(() => 2),
+    naturalChange: population.map(() => -1),
+  };
+}
+
+function facility(
+  id: string,
+  type: Facility["type"],
+  adm_cd2: string,
+  adm_nm: string,
+  lat: number,
+  lng: number,
+): Facility {
+  return {
+    id,
+    name: `${adm_nm} ${type}`,
+    type,
+    adm_cd2,
+    adm_nm,
+    lat,
+    lng,
+    specialties: null,
+    hours: {
+      monday: "09:00-18:00",
+      saturday: "09:00-13:00",
+      sunday: null,
+    },
+    address: null,
+    phone: null,
+  };
+}
+
+const regionA = region("2610000001", "부산광역시 가동", { lat: 35, lng: 129 });
+const regionB = region("2610000002", "부산광역시 나동", { lat: 35.1, lng: 129.1 });
+const growthRegion = region("2610000003", "부산광역시 다동", {
+  startPopulation: 100,
+  endPopulation: 120,
+  onePersonHouseholds: null,
+  lat: 35.2,
+  lng: 129.2,
+});
+const declineRegion = region("2610000004", "부산광역시 라동", {
+  startPopulation: 100,
+  endPopulation: 80,
+  lat: 35.3,
+  lng: 129.3,
+});
+
+const medicalA = facility("medical-a", "의원", regionA.adm_cd2, regionA.adm_nm, 35, 129);
+const medicalB = facility("medical-b", "의원", regionB.adm_cd2, regionB.adm_nm, 35.1, 129.1);
+const pharmacyA = facility("pharmacy-a", "약국", regionA.adm_cd2, regionA.adm_nm, 35, 129);
+
+function snapshot(overrides: Partial<DemoSnapshot> = {}): DemoSnapshot {
+  return {
+    mode: "demo",
+    referenceMonth: "2026-06",
+    months,
+    regions: [regionA, regionB, growthRegion, declineRegion],
+    facilities: [medicalA, medicalB, pharmacyA],
+    sourceNotes: ["synthetic test fixture"],
+    ...overrides,
+  };
+}
+
+describe("toolRegistry", () => {
+  test("contains exactly the ten allowed tools", () => {
+    expect(Object.keys(toolRegistry)).toEqual([...ALLOWED_TOOLS]);
+  });
+
+  test("every tool produces the complete analysis-result contract", () => {
+    const intents: AnalysisIntent[] = ALLOWED_TOOLS.map((tool) => ({
+      tool,
+      filters:
+        tool === "compareRegions"
+          ? { compare: [regionA.adm_cd2, regionB.adm_cd2] }
+          : tool === "nearestFacilityDistance" || tool === "getRegionDetails"
+            ? { regions: [regionA.adm_cd2] }
+            : tool === "countFacilitiesWithinRadius"
+              ? { radiusKm: 2 }
+              : {},
+    })) as AnalysisIntent[];
+
+    for (const intent of intents) {
+      const result = executeAnalysisIntent(intent, snapshot());
+
+      expect(Object.keys(result).sort()).toEqual(
+        [
+          "title",
+          "summary",
+          "rankedRegions",
+          "selectedRegion",
+          "filteredFacilities",
+          "legend",
+          "formulaNotes",
+        ].sort(),
+      );
+    }
+  });
+
+  test("breaks equal ranking scores by adm_cd2", () => {
+    const result = executeAnalysisIntent(
+      { tool: "rankHospitalScarcity", filters: {} },
+      snapshot({ regions: [regionB, regionA], facilities: [medicalB, medicalA] }),
+    );
+
+    expect(result.rankedRegions.map(({ adm_cd2 }) => adm_cd2)).toEqual([
+      regionA.adm_cd2,
+      regionB.adm_cd2,
+    ]);
+  });
+
+  test("uses all non-pharmacy types as the default medical set", () => {
+    const defaultResult = executeAnalysisIntent(
+      { tool: "filterFacilitiesByTypeAndHours", filters: {} },
+      snapshot(),
+    );
+    const pharmacyResult = executeAnalysisIntent(
+      { tool: "filterFacilitiesByTypeAndHours", filters: { facilityTypes: ["약국"] } },
+      snapshot(),
+    );
+
+    expect(defaultResult.filteredFacilities.map(({ id }) => id)).toEqual(["medical-a", "medical-b"]);
+    expect(pharmacyResult.filteredFacilities.map(({ id }) => id)).toEqual(["pharmacy-a"]);
+  });
+
+  test("preserves null for nearest distance when the facility set is empty", () => {
+    const result = executeAnalysisIntent(
+      { tool: "nearestFacilityDistance", filters: { regions: [regionA.adm_cd2] } },
+      snapshot({ facilities: [] }),
+    );
+    const distanceMetric = result.selectedRegion?.metrics.find(({ unit }) => unit === "km");
+
+    expect(distanceMetric?.value).toBeNull();
+  });
+
+  test("computes 12-month population growth and decline from snapshot values", () => {
+    const growth = executeAnalysisIntent({ tool: "rankPopulationGrowthPressure", filters: {} }, snapshot());
+    const decline = executeAnalysisIntent({ tool: "rankPopulationDeclineRisk", filters: {} }, snapshot());
+
+    expect(growth.rankedRegions[0]).toMatchObject({ adm_cd2: growthRegion.adm_cd2, score: 20 });
+    expect(decline.rankedRegions[0]).toMatchObject({ adm_cd2: declineRegion.adm_cd2, score: 20 });
+  });
+
+  test("excludes missing one-person-household values instead of substituting zero", () => {
+    const result = executeAnalysisIntent({ tool: "rankSingleHouseholdRisk", filters: {} }, snapshot());
+
+    expect(result.rankedRegions.some(({ adm_cd2 }) => adm_cd2 === growthRegion.adm_cd2)).toBe(false);
+  });
+
+  test("includes complete formula metadata on every emitted metric", () => {
+    const result = executeAnalysisIntent(
+      { tool: "getRegionDetails", filters: { regions: [regionA.adm_cd2] } },
+      snapshot(),
+    );
+
+    expect(result.selectedRegion).not.toBeNull();
+    for (const metric of result.selectedRegion?.metrics ?? []) {
+      expect(Object.keys(metric).sort()).toEqual(
+        ["label", "value", "unit", "formula", "referenceMonth", "limitation"].sort(),
+      );
+      expect(metric.limitation.length).toBeGreaterThan(0);
+    }
+  });
+});

@@ -12,7 +12,7 @@
 
 - Node.js 20.9 이상, npm lockfile을 커밋하고 설치된 패키지 버전을 고정한다.
 - 실제 키·JWT·서비스키는 코드, 문서, Git, 로그, 오류, 클라이언트 정적 산출물에 넣지 않는다.
-- `.env.example`에는 명세의 변수명과 `QWEN_PRIMARY_MODEL=qwen3.7-max`, `QWEN_JSON_FALLBACK_MODEL=qwen3.7-plus`만 둔다.
+- `.env.example`에는 명세의 변수명과 `QWEN_PRIMARY_MODEL=qwen3.6-flash`, `QWEN_JSON_FALLBACK_MODEL=qwen3.7-plus`만 둔다.
 - `KAKAO_REST_API_KEY`, `DATA_GO_KR_SERVICE_KEY`, `QWEN_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`는 `server-only` 모듈에서만 읽는다.
 - 외부 키·SDK·네트워크가 없어도 모든 빠른 분석, 자연어 예시, 지도 선택, 상세 카드가 동작한다.
 - 행정동 결합 키는 `adm_cd2`, 좌표는 GeoJSON `[lng, lat]`, Kakao 생성자는 `(lat, lng)`다.

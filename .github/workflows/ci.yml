@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main, "codex/**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Unit verify
+        run: npm run verify:unit
+      - name: Install Playwright browser
+        if: ${{ hashFiles('tests/e2e/**/*.ts') != '' }}
+        run: npx playwright install --with-deps chromium
+      - name: Build for e2e
+        run: npm run build
+      - name: E2E
+        env:
+          VERIFY_E2E: "1"
+          CI: "true"
+        run: npm run test:e2e
+        continue-on-error: false

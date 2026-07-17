@@ -1,0 +1,30 @@
+{
+  "mode": "demo",
+  "versionSeed": 20260701,
+  "referenceMonth": "2026-06",
+  "generatedAt": "2026-07-16T07:32:28.305Z",
+  "sha256": "e9aa1cdc39ac348869dbb90b72a06418b0e1d4bb7a610f921b4265368362f3b4",
+  "regionCount": 206,
+  "facilityCount": 508,
+  "months": [
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06"
+  ],
+  "sourceNotes": [
+    "This is a deterministic demonstration dataset generated from the Busan administrative boundary.",
+    "Population, household, birth, and death figures are synthetic and do not reflect actual resident registration data.",
+    "Facility locations are placed inside each administrative dong using a hash-based PRNG.",
+    "Some facility specialties and hours are intentionally null to test null handling in the UI."
+  ]
+}

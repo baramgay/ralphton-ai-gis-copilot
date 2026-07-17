@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const expectedKeys = [
   "DATA_GO_KR_SERVICE_KEY",
+  "DATA_SYNC_SECRET",
   "KAKAO_REST_API_KEY",
   "NEXT_PUBLIC_KAKAO_MAP_KEY",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
@@ -30,12 +31,16 @@ describe("environment example", () => {
       });
 
     const exampleKeys = entries.map(([key]) => key);
-    const allowedPublicDefaults = new Set(["qwen3.7-max", "qwen3.7-plus"]);
+    const allowedPublicDefaults = new Set(["qwen3.6-flash", "qwen3.7-plus"]);
     const secretLikeValueFound = entries.some(
       ([, value]) => value.length > 0 && !allowedPublicDefaults.has(value),
     );
 
     expect(exampleKeys.sort()).toEqual(expectedKeys.sort());
     expect(secretLikeValueFound).toBe(false);
+    expect(Object.fromEntries(entries)).toMatchObject({
+      QWEN_PRIMARY_MODEL: "qwen3.6-flash",
+      QWEN_JSON_FALLBACK_MODEL: "qwen3.7-plus",
+    });
   });
 });
