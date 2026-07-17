@@ -18,6 +18,34 @@ export const PANEL_DEFAULTS: PanelLayout = {
   rightCollapsed: false,
 };
 
+export type LayoutPresetId = "balanced" | "map" | "analyze" | "results";
+
+export const LAYOUT_PRESETS: Record<
+  LayoutPresetId,
+  { label: string; layout: PanelLayout; hint: string }
+> = {
+  balanced: {
+    label: "균형",
+    hint: "조작·지도·결과 균등",
+    layout: { ...PANEL_DEFAULTS },
+  },
+  map: {
+    label: "지도 넓게",
+    hint: "양쪽 패널 접기",
+    layout: { left: 300, right: 360, leftCollapsed: true, rightCollapsed: true },
+  },
+  analyze: {
+    label: "분석 집중",
+    hint: "왼쪽 넓게 · 결과 좁게",
+    layout: { left: 360, right: 280, leftCollapsed: false, rightCollapsed: false },
+  },
+  results: {
+    label: "결과 집중",
+    hint: "오른쪽 넓게 · 조작 좁게",
+    layout: { left: 240, right: 440, leftCollapsed: false, rightCollapsed: false },
+  },
+};
+
 export const PANEL_LIMITS = {
   leftMin: 220,
   leftMax: 480,
@@ -147,6 +175,11 @@ export function usePanelLayout() {
     setLayout(fitToViewport(PANEL_DEFAULTS, window.innerWidth));
   }, []);
 
+  const applyPreset = useCallback((id: LayoutPresetId) => {
+    const preset = LAYOUT_PRESETS[id];
+    setLayout(fitToViewport({ ...preset.layout }, window.innerWidth));
+  }, []);
+
   const cssVars = {
     "--panel-left": layout.leftCollapsed ? "0px" : `${layout.left}px`,
     "--panel-right": layout.rightCollapsed ? "0px" : `${layout.right}px`,
@@ -162,5 +195,6 @@ export function usePanelLayout() {
     toggleRight,
     expandMap,
     resetLayout,
+    applyPreset,
   };
 }

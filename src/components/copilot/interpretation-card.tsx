@@ -7,17 +7,22 @@ type InterpretationCardProps = {
 export function InterpretationCard({ interpretation }: InterpretationCardProps) {
   return (
     <section
-      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+      className="interactive-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
       aria-labelledby="interpretation-title"
       data-testid="interpretation-card"
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 해석</p>
-          <h2 id="interpretation-title" className="mt-1 text-[14px] font-bold text-slate-950">
+          <h2 id="interpretation-title" className="mt-1 text-[14px] font-bold leading-snug text-slate-950">
             {interpretation.headline}
           </h2>
         </div>
+        {interpretation.ragCitations && interpretation.ragCitations.length > 0 ? (
+          <span className="shrink-0 rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-bold text-violet-700">
+            RAG {interpretation.ragCitations.length}
+          </span>
+        ) : null}
       </div>
 
       <div className="mt-3 space-y-3">
