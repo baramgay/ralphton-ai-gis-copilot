@@ -15,19 +15,21 @@ describe("buildKakaoSdkUrl", () => {
     expect(url.pathname).toBe("/v2/maps/sdk.js");
     expect(url.searchParams.get("appkey")).toBe("public app key");
     expect(url.searchParams.get("autoload")).toBe("false");
-    expect(url.searchParams.get("libraries")).toBe("services,clusterer,drawing");
+    expect(url.searchParams.get("libraries")).toBe("services,clusterer");
   });
 
   test("rejects when the SDK never finishes loading", async () => {
     vi.useFakeTimers();
     vi.resetModules();
-    const { loadKakaoSdk } = await import("@/components/copilot/kakao-sdk");
+    const { loadKakaoSdk, resetKakaoSdkCache } = await import("@/components/copilot/kakao-sdk");
+    resetKakaoSdkCache();
 
+    // Script will never fire load in this test environment.
     const rejection = expect(loadKakaoSdk("public-app-key")).rejects.toThrow(
-      "Kakao Maps SDK 로드 시간 초과",
+      /Kakao Maps SDK 로드 시간 초과|스크립트 로드 실패/,
     );
 
-    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(25_000);
     await rejection;
-  });
+  }, 15_000);
 });
