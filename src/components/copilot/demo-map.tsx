@@ -116,7 +116,7 @@ export function DemoMap({
         className="size-full touch-none select-none"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         role="img"
-        aria-label="부산 행정동 분석 지도"
+        aria-label="부산·경남 행정동 분석 지도"
       >
         <defs>
           <filter id="map-shadow" x="-20%" y="-20%" width="140%" height="140%">

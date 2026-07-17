@@ -2587,7 +2587,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           {index + 1}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="rank-name block truncate">{row.name}</span>
+                          <span className="rank-name block truncate">
+                            {row.name}
+                            {sidoBadge(
+                              snapshot.regions.find((region) => region.adm_cd2 === row.code)
+                                ?.adm_nm ?? "",
+                            ) ? (
+                              <span className="ml-1.5 inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                                {sidoBadge(
+                                  snapshot.regions.find((region) => region.adm_cd2 === row.code)
+                                    ?.adm_nm ?? "",
+                                )}
+                              </span>
+                            ) : null}
+                          </span>
                           <span className="rank-note mt-0.5 block">{row.note}</span>
                         </span>
                         <span className="rank-value">{row.valueLabel}</span>
@@ -2606,6 +2619,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       ) : null}
                     </div>
                   ))}
+              {(analysis.isFacilityResult
+                ? filteredFacilitiesList.length > resultLimit
+                : filteredRanked.length > resultLimit) ? (
+                <button
+                  type="button"
+                  className="w-full border-t border-slate-100 py-2.5 ui-body font-bold text-blue-700 hover:bg-slate-50"
+                  data-testid="result-load-more"
+                  onClick={() => setResultLimit((value) => value + RESULT_PAGE_STEP)}
+                >
+                  더 보기 (
+                  {(analysis.isFacilityResult
+                    ? filteredFacilitiesList.length
+                    : filteredRanked.length) - resultLimit}
+                  개 남음)
+                </button>
+              ) : null}
+              {!analysis.isFacilityResult && filteredRanked.length === 0 ? (
+                <p className="px-3.5 py-4 ui-body text-slate-500">검색 결과가 없습니다.</p>
+              ) : null}
+              {analysis.isFacilityResult && filteredFacilitiesList.length === 0 ? (
+                <p className="px-3.5 py-4 ui-body text-slate-500">검색 결과가 없습니다.</p>
+              ) : null}
             </div>
             {analysis.formulaNotes.length ? (
               <details className="border-t border-slate-100 px-3.5 py-2.5">

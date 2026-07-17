@@ -18,6 +18,12 @@ export type EmbedCacheState = {
 let memoryCache: EmbedCacheState | null = null;
 let warming: Promise<Map<string, number[]> | null> | null = null;
 
+/** Test-only: clear in-memory cache between cases (disk still skipped under VITEST). */
+export function resetEmbedCacheForTests(): void {
+  memoryCache = null;
+  warming = null;
+}
+
 function cachePath(): string {
   return path.join(process.cwd(), ".data", "rag-embed-cache.json");
 }
@@ -57,7 +63,9 @@ export async function ensureCorpusEmbeddings(
   if (warming) return warming;
 
   warming = (async () => {
-    const disk = await loadDiskCache(model);
+    // Avoid leaking local .data cache into unit tests.
+    const skipDisk = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+    const disk = skipDisk ? null : await loadDiskCache(model);
     if (disk && Object.keys(disk.vectors).length === RAG_CORPUS.length) {
       memoryCache = disk;
       return new Map(Object.entries(disk.vectors));

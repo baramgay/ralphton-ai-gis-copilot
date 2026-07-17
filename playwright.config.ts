@@ -22,8 +22,9 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      // Chromium mobile — avoid WebKit dependency on CI/dev Windows hosts.
       name: "mobile",
-      use: { ...devices["iPhone 13"] },
+      use: { ...devices["Pixel 5"] },
     },
   ],
   webServer: {

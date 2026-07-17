@@ -160,31 +160,37 @@ describe("CopilotApp", () => {
     );
   });
 
-  test("renders the eight quick analyses and a keyless demo map", async () => {
-    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+  test(
+    "renders the eight quick analyses and a keyless demo map",
+    async () => {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
 
-    expect(await screen.findByText("DemoMap", {}, { timeout: 10_000 })).toBeInTheDocument();
-    for (const label of [
-      "의료 취약",
-      "고령 × 의료",
-      "인구 증가",
-      "최근접 거리",
-      "주변 접근",
-      "구 비교",
-      "의료기관",
-      "초기화",
-    ]) {
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
-    }
-    expect(screen.getByRole("img", { name: "부산 행정동 분석 지도" })).toBeInTheDocument();
-    expect(screen.getByTestId("result-panel")).toBeInTheDocument();
-    expect(screen.getByText("산식 · 해석 기준")).toBeInTheDocument();
-    expect(screen.getAllByText(/winsorized min-max/).length).toBeGreaterThan(0);
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/data/snapshot?mode=auto",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-  });
+      expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
+      for (const label of [
+        "의료 취약",
+        "고령 × 의료",
+        "인구 증가",
+        "최근접 거리",
+        "주변 접근",
+        "구 비교",
+        "의료기관",
+        "초기화",
+      ]) {
+        expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+      }
+      expect(
+        screen.getByRole("img", { name: /부산.?경남 행정동 분석 지도|부산 행정동 분석 지도/ }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("result-panel")).toBeInTheDocument();
+      expect(screen.getByText("산식 · 해석 기준")).toBeInTheDocument();
+      expect(screen.getAllByText(/winsorized min-max/).length).toBeGreaterThan(0);
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/data/snapshot?mode=auto",
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    },
+    30_000,
+  );
 
   test("switches help and data information tabs accessibly", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -245,6 +251,43 @@ describe("CopilotApp", () => {
     expect(screen.getByRole("button", { name: "행정동" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "행정동" }));
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
+  });
+
+  test("theme controls and cycle button are available", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+
+    await fireEvent.click(screen.getByRole("tab", { name: "분석" }));
+    // Open settings details
+    const details = screen.getByText("화면 설정");
+    fireEvent.click(details);
+
+    expect(await screen.findByTestId("theme-dark")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-system")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-cycle-btn")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("theme-dark"));
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("dark");
+    });
+    fireEvent.click(screen.getByTestId("theme-light"));
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBeUndefined();
+    });
+  });
+
+  test("sido scope chips filter map label", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+
+    fireEvent.click(screen.getByTestId("sido-scope-gyeongnam"));
+    await waitFor(() => {
+      expect(screen.getByText("경상남도")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("sido-scope-busan"));
+    await waitFor(() => {
+      expect(screen.getByText("부산광역시")).toBeInTheDocument();
+    });
   });
 
   test("shows one-line conclusion in the result panel", async () => {

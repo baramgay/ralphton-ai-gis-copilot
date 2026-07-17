@@ -19,6 +19,7 @@ import {
   ensureCorpusEmbeddings,
   getEmbedCacheMeta,
   rerankWithRemoteEmbeddings,
+  resetEmbedCacheForTests,
 } from "@/lib/rag/embed-cache";
 
 function unitVector(seed: number, dim = 8): number[] {
@@ -30,6 +31,7 @@ function unitVector(seed: number, dim = 8): number[] {
 describe("embed-cache", () => {
   beforeEach(() => {
     embedMocks.createTextEmbeddings.mockReset();
+    resetEmbedCacheForTests();
   });
 
   it("returns null when remote embed fails", async () => {
