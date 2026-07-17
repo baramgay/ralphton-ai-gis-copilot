@@ -27,9 +27,6 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
   },
-  other: {
-    "color-scheme": "light dark",
-  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
