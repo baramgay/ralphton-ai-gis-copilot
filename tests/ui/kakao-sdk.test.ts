@@ -9,14 +9,15 @@ describe("buildKakaoSdkUrl", () => {
     document.querySelectorAll("script[data-kakao-maps-sdk]").forEach((script) => script.remove());
   });
 
-  test("loads Kakao Maps manually with all required libraries", () => {
+  test("loads Kakao Maps core without libraries (avoids hung library chain)", () => {
     const url = new URL(buildKakaoSdkUrl("public app key"));
 
     expect(url.origin).toBe("https://dapi.kakao.com");
     expect(url.pathname).toBe("/v2/maps/sdk.js");
     expect(url.searchParams.get("appkey")).toBe("public app key");
     expect(url.searchParams.get("autoload")).toBe("false");
-    expect(url.searchParams.get("libraries")).toBe("services,clusterer");
+    // libraries=services,clusterer hung at readyState=1 in prod — omit by default
+    expect(url.searchParams.get("libraries")).toBeNull();
   });
 
   test("rejects when the SDK never finishes loading", async () => {
@@ -30,7 +31,7 @@ describe("buildKakaoSdkUrl", () => {
       /Kakao Maps SDK 로드 시간 초과|스크립트 로드 실패/,
     );
 
-    await vi.advanceTimersByTimeAsync(16_000);
+    await vi.advanceTimersByTimeAsync(13_000);
     await rejection;
   }, 15_000);
 });

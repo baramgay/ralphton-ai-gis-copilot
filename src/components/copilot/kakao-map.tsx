@@ -63,6 +63,12 @@ export function KakaoMap({
   } | null>(null);
   const [status, setStatus] = useState("Kakao 지도를 연결하는 중…");
 
+  // Stable callbacks — avoid re-running SDK boot when parent re-renders.
+  const onErrorRef = useRef(onError);
+  const onReadyRef = useRef(onReady);
+  onErrorRef.current = onError;
+  onReadyRef.current = onReady;
+
   useEffect(() => {
     let active = true;
     let retryTimer: number | undefined;
@@ -81,14 +87,14 @@ export function KakaoMap({
           window.setTimeout(() => map.relayout?.(), 200);
           setContext({ maps, map });
           setStatus("");
-          onReady?.();
+          onReadyRef.current?.();
         })
         .catch((error: unknown) => {
           if (!active) return;
           const message =
             error instanceof Error ? error.message : "Kakao 지도를 불러오지 못했습니다.";
           setStatus(message);
-          onError(message);
+          onErrorRef.current(message);
         });
     };
 
@@ -97,7 +103,7 @@ export function KakaoMap({
       if (!containerRef.current) {
         attempts += 1;
         if (attempts > 40) {
-          onError("지도 컨테이너를 준비하지 못했습니다.");
+          onErrorRef.current("지도 컨테이너를 준비하지 못했습니다.");
           return;
         }
         retryTimer = window.setTimeout(init, 50);
@@ -118,7 +124,7 @@ export function KakaoMap({
       active = false;
       if (retryTimer) window.clearTimeout(retryTimer);
     };
-  }, [appKey, onError, onReady]);
+  }, [appKey]);
 
   useEffect(() => {
     if (!context || !containerRef.current) return;
