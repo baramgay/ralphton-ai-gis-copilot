@@ -26,6 +26,12 @@ export async function GET() {
       ),
       dataSync: Boolean(process.env.DATA_SYNC_SECRET?.trim()),
       cronAlert: Boolean(process.env.CRON_ALERT_WEBHOOK?.trim()),
+      populationLive:
+        Boolean(process.env.DATA_GO_KR_SERVICE_KEY?.trim()) &&
+        process.env.LIVE_POPULATION_DISABLED?.trim() !== "1",
+      ragRemoteEmbed:
+        process.env.RAG_REMOTE_EMBED?.trim() === "1" ||
+        Boolean(process.env.QWEN_EMBED_MODEL?.trim()),
       rag: true,
       placeIndex: true,
     },

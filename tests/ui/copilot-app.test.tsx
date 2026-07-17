@@ -119,8 +119,17 @@ describe("CopilotApp", () => {
                 publicData: false,
                 supabase: false,
                 dataSync: false,
+                populationLive: false,
+                cronAlert: false,
+                ragRemoteEmbed: false,
               },
               publishedLive: { available: false },
+              syncOps: {
+                lastStatus: "idle",
+                stale: true,
+                recommendSync: true,
+                reason: "게시된 live 스냅샷이 없습니다. 시설 동기화를 권장합니다.",
+              },
             }),
             { status: 200 },
           );

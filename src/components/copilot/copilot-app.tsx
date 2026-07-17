@@ -236,7 +236,34 @@ type CapabilityFlags = {
   publicData: boolean;
   supabase: boolean;
   dataSync: boolean;
+  cronAlert?: boolean;
+  populationLive?: boolean;
+  ragRemoteEmbed?: boolean;
 };
+
+function formatSyncStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "hybrid-live":
+      return "시설+인구 live";
+    case "facilities-live":
+      return "시설 live";
+    case "demo-only":
+      return "시연만";
+    case "failed":
+      return "실패";
+    case "idle":
+      return "대기";
+    default:
+      return status?.trim() || "알 수 없음";
+  }
+}
+
+function populationNoteFromSnapshot(notes: string[]): string | null {
+  const hit = notes.find(
+    (note) => note.includes("인구") && (note.includes("live") || note.includes("스냅샷")),
+  );
+  return hit ?? null;
+}
 
 type PublishedLiveInfo = {
   available: boolean;
@@ -523,6 +550,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             setPublishedLive(
               (health as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
             );
+          }
+          if ("syncOps" in health && (health as { syncOps?: SyncOpsInfo }).syncOps) {
+            setSyncOps((health as { syncOps: SyncOpsInfo }).syncOps);
           }
         }
         if (syncStatus && typeof syncStatus === "object") {
@@ -1495,7 +1525,29 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           </button>
                         ))}
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {dongOptions
+                        .slice(0, 6)
+                        .reduce<Array<[string, string]>>((pairs, label, index, list) => {
+                          if (index % 2 === 0 && list[index + 1]) {
+                            pairs.push([label, list[index + 1]]);
+                          }
+                          return pairs;
+                        }, [])
+                        .map(([a, b]) => (
+                          <button
+                            key={`${a}-${b}`}
+                            type="button"
+                            className="ui-chip max-w-full truncate rounded-full border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-950"
+                            title={`${a} vs ${b}`}
+                            onClick={() => applyComparePair(a, b, "dong")}
+                          >
+                            {a.split(" ").slice(-1)[0]}·{b.split(" ").slice(-1)[0]}
+                          </button>
+                        ))}
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -1767,6 +1819,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ? "border-emerald-100 bg-emerald-50 text-emerald-950"
                     : "border-amber-100 bg-amber-50 text-amber-950"
                 }`}
+                data-testid="data-mode-banner"
               >
                 <p className="ui-body font-bold">
                   {snapshot.mode === "live"
@@ -1778,6 +1831,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ? "기준월과 출처 노트를 함께 확인하세요."
                     : "정책 판단에는 원천 통계를 사용하세요. 카카오 장소만 실시간으로 보강될 수 있습니다."}
                 </p>
+                {populationNoteFromSnapshot(snapshot.sourceNotes) ? (
+                  <p className="ui-chip mt-2 font-bold opacity-95" data-testid="population-live-note">
+                    {populationNoteFromSnapshot(snapshot.sourceNotes)}
+                  </p>
+                ) : null}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1835,7 +1893,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     {syncOps.stale || syncOps.recommendSync ? "· 갱신 권장" : "· 정상"}
                   </p>
                   <p className="ui-body mt-1.5">
-                    최근 결과: {syncOps.lastStatus ?? "idle"}
+                    최근 결과: {formatSyncStatusLabel(syncOps.lastStatus)}
                     {syncOps.lastFacilityCount != null
                       ? ` · 시설 ${syncOps.lastFacilityCount.toLocaleString("ko-KR")}곳`
                       : ""}
@@ -1867,8 +1925,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           ["Kakao 장소검색", capabilities.kakaoRest],
                           ["AI 질문 해석", capabilities.qwen],
                           ["공공데이터", capabilities.publicData],
+                          ["인구 live 병합", Boolean(capabilities.populationLive)],
+                          ["RAG 원격 임베딩", Boolean(capabilities.ragRemoteEmbed)],
                           ["Supabase", capabilities.supabase],
                           ["시설 동기화", capabilities.dataSync],
+                          ["cron 실패 알림", Boolean(capabilities.cronAlert)],
                         ] as const
                       ).map(([label, on]) => (
                         <li key={label} className="flex items-center justify-between gap-2">
