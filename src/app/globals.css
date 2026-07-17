@@ -88,18 +88,38 @@ input:hover {
 
 .copilot-shell {
   display: grid;
-  grid-template-columns: var(--panel-left) minmax(0, 1fr) var(--panel-right);
+  grid-template-columns:
+    var(--panel-left) var(--resizer, 6px) minmax(0, 1fr) var(--resizer, 6px) var(--panel-right);
   width: 100%;
   height: 100dvh;
   background: #e7edf3;
 }
 
+.copilot-shell.is-resizing {
+  cursor: col-resize;
+}
+
+.copilot-shell.is-resizing .copilot-map,
+.copilot-shell.is-resizing .copilot-panel {
+  pointer-events: none;
+}
+
 .copilot-panel {
   z-index: 20;
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex-direction: column;
+  overflow: hidden;
   background: rgb(248 250 252 / 98%);
+  transition: opacity 160ms ease;
+}
+
+.copilot-panel.is-collapsed {
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+  box-shadow: none;
 }
 
 .copilot-panel-left {
@@ -110,6 +130,108 @@ input:hover {
 .copilot-panel-right {
   border-left: 1px solid rgb(203 213 225 / 80%);
   box-shadow: -8px 0 24px rgb(15 23 42 / 5%);
+}
+
+.panel-resizer {
+  position: relative;
+  z-index: 25;
+  width: 100%;
+  min-width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  outline: none;
+}
+
+.panel-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 -2px;
+}
+
+.panel-resizer-grip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 36px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transform: translate(-50%, -50%);
+  transition:
+    background-color 140ms ease,
+    height 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.panel-resizer:hover .panel-resizer-grip,
+.panel-resizer:focus-visible .panel-resizer-grip,
+.panel-resizer.is-active .panel-resizer-grip {
+  height: 56px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 4px rgb(59 130 246 / 18%);
+}
+
+.panel-resizer-disabled {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.panel-rail {
+  position: absolute;
+  z-index: 28;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transform: translateY(-50%);
+}
+
+.panel-rail-left {
+  left: 0.4rem;
+}
+
+.panel-rail-right {
+  right: 0.4rem;
+}
+
+.panel-rail-btn {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 1px solid rgb(255 255 255 / 85%);
+  border-radius: 0.55rem;
+  background: rgb(255 255 255 / 94%);
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #334155;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 12%);
+  backdrop-filter: blur(10px);
+}
+
+.panel-rail-btn:hover {
+  color: #0f172a;
+  border-color: #93c5fd;
+}
+
+.ux-hint {
+  pointer-events: none;
+  position: absolute;
+  z-index: 12;
+  bottom: 1rem;
+  left: 50%;
+  max-width: min(92vw, 28rem);
+  transform: translateX(-50%);
+  border: 1px solid rgb(255 255 255 / 80%);
+  border-radius: 999px;
+  background: rgb(15 23 42 / 82%);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #f8fafc;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 22%);
+  backdrop-filter: blur(10px);
 }
 
 .copilot-scroll {
@@ -187,9 +309,15 @@ input:hover {
     bottom: 0;
     width: min(92vw, 360px);
     max-width: 360px;
+    opacity: 1;
     transform: translateX(-105%);
     transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow: 0 0 40px rgb(15 23 42 / 18%);
+    pointer-events: auto;
+  }
+
+  .copilot-panel.is-collapsed {
+    opacity: 1;
   }
 
   .copilot-panel-left {
@@ -207,6 +335,12 @@ input:hover {
   .copilot-panel-left.sheet-open,
   .copilot-panel-right.sheet-open {
     transform: translateX(0);
+  }
+
+  .panel-resizer,
+  .panel-rail,
+  .ux-hint {
+    display: none;
   }
 
   .mobile-panel-btn {

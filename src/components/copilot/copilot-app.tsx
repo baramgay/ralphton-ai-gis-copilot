@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { Badge } from "@/components/ui/badge";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
@@ -10,8 +17,13 @@ import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import { executeAnalysisIntent } from "@/lib/analysis/tool-registry";
 import { InterpretationCard } from "./interpretation-card";
 import { MapCanvas } from "./map-canvas";
+import { PanelResizer } from "./panel-resizer";
 import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
+import { PANEL_DEFAULTS, usePanelLayout } from "./use-panel-layout";
+
+const RECENT_QUERIES_KEY = "ralphton-recent-queries-v1";
+const UX_HINT_KEY = "ralphton-ux-hint-seen-v1";
 
 type TabId = "control" | "help" | "data";
 type QuickId =
@@ -230,6 +242,93 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [snapshotMode, setSnapshotMode] = useState<"auto" | "demo">("auto");
   const [capabilities, setCapabilities] = useState<CapabilityFlags | null>(null);
   const [markerScope, setMarkerScope] = useState<"priority" | "selected">("priority");
+  const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  const [showUxHint, setShowUxHint] = useState(false);
+  const queryInputRef = useRef<HTMLInputElement>(null);
+  const {
+    layout,
+    cssVars,
+    setLeftWidth,
+    setRightWidth,
+    toggleLeft,
+    toggleRight,
+    expandMap,
+    resetLayout,
+  } = usePanelLayout();
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(RECENT_QUERIES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[];
+        if (Array.isArray(parsed)) setRecentQueries(parsed.filter((item) => typeof item === "string").slice(0, 6));
+      }
+      if (!window.localStorage.getItem(UX_HINT_KEY)) {
+        setShowUxHint(true);
+        window.setTimeout(() => {
+          setShowUxHint(false);
+          window.localStorage.setItem(UX_HINT_KEY, "1");
+        }, 6500);
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (event.key === "Escape") {
+        setSheetMode("none");
+        return;
+      }
+      if (typing) return;
+
+      if (event.key === "/" || (event.key === "k" && (event.metaKey || event.ctrlKey))) {
+        event.preventDefault();
+        setActiveTab("control");
+        setSheetMode("left");
+        queryInputRef.current?.focus();
+        return;
+      }
+      if (event.key === "[" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        toggleLeft();
+      }
+      if (event.key === "]" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        toggleRight();
+      }
+      if (event.key === "\\" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        expandMap();
+      }
+      if (event.key === "0" && event.shiftKey) {
+        event.preventDefault();
+        resetLayout();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandMap, resetLayout, toggleLeft, toggleRight]);
+
+  const rememberQuery = useCallback((text: string) => {
+    setRecentQueries((previous) => {
+      const next = [text, ...previous.filter((item) => item !== text)].slice(0, 6);
+      try {
+        window.localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -428,8 +527,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         );
         setQueryNoticeTone("error");
         setQuerySuggestions(data.suggestions?.length ? data.suggestions : [...QUERY_SUGGESTIONS]);
+        rememberQuery(trimmed);
         return;
       }
+      rememberQuery(trimmed);
       if (data.intent.filters?.radiusKm && [1, 2, 3].includes(data.intent.filters.radiusKm)) {
         setRadiusKm(data.intent.filters.radiusKm as 1 | 2 | 3);
       }
@@ -511,7 +612,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       : analysis.ranked.length === 0;
 
   return (
-    <main className="copilot-shell">
+    <main className="copilot-shell" style={cssVars}>
       <a href="#left-panel" className="skip-link">
         분석 조작 패널로 건너뛰기
       </a>
@@ -519,8 +620,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       {/* LEFT: controls only */}
       <aside
         id="left-panel"
-        className={`copilot-panel copilot-panel-left ${sheetMode === "left" ? "sheet-open" : ""}`}
+        className={`copilot-panel copilot-panel-left ${sheetMode === "left" ? "sheet-open" : ""} ${
+          layout.leftCollapsed ? "is-collapsed" : ""
+        }`}
         aria-label="분석 조작 패널"
+        aria-hidden={layout.leftCollapsed || undefined}
       >
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
@@ -537,16 +641,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <p className="mt-0.5 text-[10px] text-slate-500">기준월 {snapshot.referenceMonth}</p>
               </div>
             </div>
-            <Badge
-              variant="secondary"
-              className={`border text-[10px] ${
-                snapshot.mode === "live"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
-              }`}
-            >
-              {modeBadgeLabel(snapshot.mode)}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                className="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 hover:border-blue-300 hover:text-blue-700 md:inline-flex"
+                title="왼쪽 패널 접기 ( [ )"
+                aria-label="왼쪽 패널 접기"
+                onClick={toggleLeft}
+              >
+                ‹
+              </button>
+              <Badge
+                variant="secondary"
+                className={`border text-[10px] ${
+                  snapshot.mode === "live"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
+                }`}
+              >
+                {modeBadgeLabel(snapshot.mode)}
+              </Badge>
+            </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1 text-[9px] text-slate-500">
             <span className="rounded-full bg-slate-100 px-2 py-0.5">{dataSourceLabel(dataSource)}</span>
@@ -595,9 +710,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </label>
                   <input
                     id="analysis-query"
+                    ref={queryInputRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: 해운대 근처 병원, 고령 취약 지역"
+                    placeholder="예: 해운대 근처 병원 · / 로 포커스"
                     maxLength={1000}
                     className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-3 pr-12 text-[13px] shadow-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
@@ -639,6 +755,26 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         {suggestion}
                       </button>
                     ))}
+                  </div>
+                ) : null}
+                {recentQueries.length > 0 ? (
+                  <div className="mt-2">
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                      최근 질문
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recentQueries.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className="max-w-full truncate rounded-full border border-slate-100 bg-slate-50 px-2.5 py-1 text-[10px] text-slate-600 hover:border-blue-300 hover:bg-white hover:text-blue-700"
+                          title={item}
+                          onClick={() => setQuery(item)}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
               </section>
@@ -726,7 +862,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </section>
 
               <p className="text-[10px] leading-5 text-slate-400">
-                순위·상세·해석은 오른쪽 패널에 표시됩니다. 지도를 넓게 두고 조작만 왼쪽에 모았습니다.
+                순위·상세·해석은 오른쪽 패널에 표시됩니다. 패널 경계를 드래그해 너비를 조절할 수 있습니다.
               </p>
             </div>
           ) : activeTab === "help" ? (
@@ -737,6 +873,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <li>지도에서 행정동·시설을 선택합니다.</li>
                 <li>오른쪽에서 순위·해석·상세를 확인합니다.</li>
               </ol>
+              <div className="rounded-xl border border-slate-200 bg-white p-3 text-[11px] leading-5">
+                <p className="font-bold text-slate-900">편의 단축키 (데스크톱)</p>
+                <ul className="mt-1.5 space-y-1 text-slate-600">
+                  <li>
+                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">/</kbd> 질문 입력 포커스
+                  </li>
+                  <li>
+                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">[</kbd> /
+                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">]</kbd> 좌·우 패널 접기
+                  </li>
+                  <li>
+                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">\</kbd> 지도 넓게 (양쪽 접기)
+                  </li>
+                  <li>
+                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">Shift+0</kbd> 패널 크기 초기화
+                  </li>
+                  <li>패널 경계 드래그 · 더블클릭으로 초기화</li>
+                </ul>
+              </div>
               <div className="rounded-xl bg-slate-900 p-3 text-white">
                 <p className="text-[10px] font-bold text-blue-300">질문 예시</p>
                 {QUERY_SUGGESTIONS.slice(0, 5).map((example) => (
@@ -854,6 +1009,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         </div>
       </aside>
 
+      <PanelResizer
+        side="left"
+        width={layout.left}
+        disabled={layout.leftCollapsed}
+        label="왼쪽 패널 너비 조절"
+        onResize={setLeftWidth}
+        onReset={() => {
+          setLeftWidth(PANEL_DEFAULTS.left);
+        }}
+      />
+
       {/* CENTER: map */}
       <section className="copilot-map" aria-label="지도 영역">
         <MapCanvas
@@ -879,7 +1045,34 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           </p>
         </div>
 
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-2 max-md:bottom-20">
+        {layout.leftCollapsed ? (
+          <div className="panel-rail panel-rail-left pointer-events-auto">
+            <button
+              type="button"
+              className="panel-rail-btn"
+              title="조작 패널 열기 ( [ )"
+              aria-label="조작 패널 열기"
+              onClick={toggleLeft}
+            >
+              ›
+            </button>
+          </div>
+        ) : null}
+        {layout.rightCollapsed ? (
+          <div className="panel-rail panel-rail-right pointer-events-auto">
+            <button
+              type="button"
+              className="panel-rail-btn"
+              title="결과 패널 열기 ( ] )"
+              aria-label="결과 패널 열기"
+              onClick={toggleRight}
+            >
+              ‹
+            </button>
+          </div>
+        ) : null}
+
+        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-wrap items-center justify-center gap-2 max-md:bottom-20">
           <button
             type="button"
             className="mobile-panel-btn"
@@ -894,18 +1087,69 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           >
             결과
           </button>
+          <div className="hidden gap-1.5 md:flex">
+            <button
+              type="button"
+              className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-[10px] font-bold text-slate-700 shadow-lg backdrop-blur"
+              title="지도 넓게 ( \\ )"
+              onClick={expandMap}
+            >
+              지도 넓게
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-[10px] font-bold text-slate-700 shadow-lg backdrop-blur"
+              title="패널 크기 초기화 ( Shift+0 )"
+              onClick={resetLayout}
+            >
+              레이아웃 초기화
+            </button>
+          </div>
         </div>
+
+        {showUxHint ? (
+          <p className="ux-hint" role="status">
+            패널 경계를 드래그해 크기를 조절 · / 질문 포커스 · [ ] 패널 접기
+          </p>
+        ) : null}
       </section>
+
+      <PanelResizer
+        side="right"
+        width={layout.right}
+        disabled={layout.rightCollapsed}
+        label="오른쪽 패널 너비 조절"
+        onResize={setRightWidth}
+        onReset={() => {
+          setRightWidth(PANEL_DEFAULTS.right);
+        }}
+      />
 
       {/* RIGHT: results */}
       <aside
-        className={`copilot-panel copilot-panel-right ${sheetMode === "right" ? "sheet-open" : ""}`}
+        className={`copilot-panel copilot-panel-right ${sheetMode === "right" ? "sheet-open" : ""} ${
+          layout.rightCollapsed ? "is-collapsed" : ""
+        }`}
         aria-label="분석 결과 패널"
+        aria-hidden={layout.rightCollapsed || undefined}
         data-testid="result-panel"
       >
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 결과</p>
-          <h2 className="mt-1 text-[15px] font-bold text-slate-950">{analysis.title}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 결과</p>
+              <h2 className="mt-1 text-[15px] font-bold text-slate-950">{analysis.title}</h2>
+            </div>
+            <button
+              type="button"
+              className="hidden shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 hover:border-blue-300 hover:text-blue-700 md:inline-flex"
+              title="오른쪽 패널 접기 ( ] )"
+              aria-label="오른쪽 패널 접기"
+              onClick={toggleRight}
+            >
+              ›
+            </button>
+          </div>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">{analysis.summary}</p>
           <div className="mt-2 flex gap-1.5">
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
