@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { runLiveSync } from "@/lib/data/live-sync";
+import {
+  computeStaleness,
+  readSyncStatus,
+  writeSyncStatus,
+} from "@/lib/data/sync-status";
 
 const SyncBodySchema = z
   .object({
@@ -38,8 +43,13 @@ function readSyncSecret(request: Request): string | null {
 export async function GET() {
   const { readPublishedSnapshotMeta } = await import("@/lib/supabase/public");
   const live = await readPublishedSnapshotMeta("live");
+  const local = await readSyncStatus();
+  const publishedAt = live?.createdAt ?? local.lastSuccessAt;
+  const staleness = computeStaleness(publishedAt, local);
+
   return NextResponse.json({
     ok: true,
+    serverTime: new Date().toISOString(),
     dataSyncConfigured: Boolean(process.env.DATA_SYNC_SECRET?.trim()),
     publicDataConfigured: Boolean(process.env.DATA_GO_KR_SERVICE_KEY?.trim()),
     publishedLive: live
@@ -52,6 +62,20 @@ export async function GET() {
           mode: live.snapshot.mode,
         }
       : { available: false },
+    syncOps: {
+      lastAttemptAt: local.lastAttemptAt,
+      lastSuccessAt: local.lastSuccessAt,
+      lastStatus: local.lastStatus,
+      lastFacilityCount: local.lastFacilityCount,
+      lastError: local.lastError,
+      lastPublished: local.lastPublished,
+      recommendedIntervalHours: local.recommendedIntervalHours,
+      stale: staleness.stale,
+      recommendSync: staleness.recommendSync,
+      reason: staleness.reason,
+      hoursSincePublish: staleness.hoursSincePublish,
+      hoursSinceAttempt: staleness.hoursSinceAttempt,
+    },
   });
 }
 
@@ -95,9 +119,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const attemptedAt = new Date().toISOString();
+  await writeSyncStatus({
+    lastAttemptAt: attemptedAt,
+    lastError: null,
+  });
+
   const result = await runLiveSync({
     publish: parsed.data?.publish,
     boundaryVersion: parsed.data?.boundaryVersion,
+  });
+
+  await writeSyncStatus({
+    lastAttemptAt: attemptedAt,
+    lastStatus: result.status,
+    lastFacilityCount: result.facilityCount,
+    lastPublished: result.published,
+    lastSuccessAt: result.status !== "failed" ? attemptedAt : undefined,
+    lastError: result.status === "failed" ? result.notes.join(" ") || "동기화 실패" : null,
   });
 
   return NextResponse.json({
@@ -109,5 +148,6 @@ export async function POST(request: Request) {
     published: result.published,
     checksum: result.checksum,
     notes: result.notes,
+    attemptedAt,
   });
 }

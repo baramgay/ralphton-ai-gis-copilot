@@ -218,6 +218,21 @@ type PublishedLiveInfo = {
   mode?: string;
 };
 
+type SyncOpsInfo = {
+  lastAttemptAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastStatus?: string | null;
+  lastFacilityCount?: number | null;
+  lastError?: string | null;
+  lastPublished?: boolean | null;
+  recommendedIntervalHours?: number;
+  stale?: boolean;
+  recommendSync?: boolean;
+  reason?: string | null;
+  hoursSincePublish?: number | null;
+  hoursSinceAttempt?: number | null;
+};
+
 function toolToQuickId(tool: string): QuickId {
   const map: Record<string, QuickId> = {
     rankHospitalScarcity: "scarcity",
@@ -271,11 +286,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [lastIntent, setLastIntent] = useState<AnalysisIntent | null>(null);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
   const [publishedLive, setPublishedLive] = useState<PublishedLiveInfo | null>(null);
+  const [syncOps, setSyncOps] = useState<SyncOpsInfo | null>(null);
   const [selectedLivePlace, setSelectedLivePlace] = useState<LivePlace | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [facilityTypeFilter, setFacilityTypeFilter] = useState<string | "all">("all");
   const queryInputRef = useRef<HTMLInputElement>(null);
   const shareAppliedRef = useRef(false);
+  const staleToastShownRef = useRef(false);
   const {
     layout,
     cssVars,
@@ -478,10 +495,26 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             );
           }
         }
-        if (syncStatus && typeof syncStatus === "object" && "publishedLive" in syncStatus) {
-          setPublishedLive(
-            (syncStatus as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
-          );
+        if (syncStatus && typeof syncStatus === "object") {
+          if ("publishedLive" in syncStatus) {
+            setPublishedLive(
+              (syncStatus as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
+            );
+          }
+          if ("syncOps" in syncStatus && (syncStatus as { syncOps?: SyncOpsInfo }).syncOps) {
+            const ops = (syncStatus as { syncOps: SyncOpsInfo }).syncOps;
+            setSyncOps(ops);
+            if (
+              !staleToastShownRef.current &&
+              (ops.stale || ops.recommendSync) &&
+              ops.reason
+            ) {
+              staleToastShownRef.current = true;
+              const msg = ops.reason.length > 52 ? `${ops.reason.slice(0, 52)}…` : ops.reason;
+              setToast(msg);
+              window.setTimeout(() => setToast(null), 3200);
+            }
+          }
         }
 
         if (!shareAppliedRef.current && typeof window !== "undefined") {
@@ -1497,6 +1530,42 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ))}
                 </div>
               </section>
+
+              {syncOps ? (
+                <div
+                  className={`rounded-xl border px-3.5 py-3 ${
+                    syncOps.stale || syncOps.recommendSync
+                      ? "border-amber-200 bg-amber-50 text-amber-950"
+                      : "border-slate-200 bg-white text-slate-700"
+                  }`}
+                  data-testid="sync-ops-status"
+                  role="status"
+                >
+                  <p className="ui-body font-bold">
+                    동기화{" "}
+                    {syncOps.stale || syncOps.recommendSync ? "· 갱신 권장" : "· 정상"}
+                  </p>
+                  <p className="ui-body mt-1.5">
+                    최근 결과: {syncOps.lastStatus ?? "idle"}
+                    {syncOps.lastFacilityCount != null
+                      ? ` · 시설 ${syncOps.lastFacilityCount.toLocaleString("ko-KR")}곳`
+                      : ""}
+                  </p>
+                  {syncOps.lastAttemptAt ? (
+                    <p className="ui-chip mt-1 text-slate-600">
+                      최근 시도 {new Date(syncOps.lastAttemptAt).toLocaleString("ko-KR")}
+                    </p>
+                  ) : (
+                    <p className="ui-chip mt-1 text-slate-500">아직 동기화 기록이 없습니다</p>
+                  )}
+                  {syncOps.reason ? (
+                    <p className="ui-body mt-1.5 font-medium">{syncOps.reason}</p>
+                  ) : null}
+                  {syncOps.lastError ? (
+                    <p className="ui-body mt-1 text-rose-700">오류: {syncOps.lastError}</p>
+                  ) : null}
+                </div>
+              ) : null}
 
               {capabilities ? (
                 <details className="ui-details">

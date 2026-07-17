@@ -1,20 +1,24 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { augmentQueryWithRag } from "@/lib/rag/augment";
 import { assessQuerySafety, MAX_QUERY_LENGTH } from "@/lib/analysis/query-rules";
+import { formatRagContext } from "@/lib/rag/retrieve";
+import { getEmbedCacheMeta } from "@/lib/rag/embed-cache";
+import { retrieveRagChunksWithRemote } from "@/lib/rag/retrieve-remote";
 
 const BodySchema = z
   .object({
     query: z.string().min(1).max(MAX_QUERY_LENGTH),
     limit: z.number().int().min(1).max(10).optional(),
     tags: z.array(z.string().min(1).max(40)).max(12).optional(),
+    useRemoteEmbed: z.boolean().optional(),
   })
   .strict();
 
 /**
- * Public RAG search for debugging and future UI “근거 보기”.
- * Offline corpus only — no external vector DB required.
+ * Public RAG search for debugging and UI “근거 보기”.
+ * Default: offline hybrid BM25 + hash-embed.
+ * Optional: DashScope embedding re-rank when keys + useRemoteEmbed.
  */
 export async function POST(request: Request) {
   let json: unknown;
@@ -34,12 +38,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "처리할 수 없는 질의입니다." }, { status: 400 });
   }
 
-  const augmentation = augmentQueryWithRag(safety.query, {
-    extraTags: parsed.data.tags,
-  });
-
   const limit = parsed.data.limit ?? 4;
-  const hits = augmentation.hits.slice(0, limit).map((hit) => ({
+  const wantRemote = parsed.data.useRemoteEmbed !== false;
+  const embedDeps =
+    wantRemote && process.env.QWEN_API_KEY && process.env.QWEN_BASE_URL
+      ? {
+          apiKey: process.env.QWEN_API_KEY,
+          baseUrl: process.env.QWEN_BASE_URL,
+          model: process.env.QWEN_EMBED_MODEL,
+        }
+      : undefined;
+
+  const { hits: rawHits, remote } = await retrieveRagChunksWithRemote(
+    {
+      query: safety.query,
+      limit,
+      boostTags: parsed.data.tags,
+    },
+    embedDeps,
+  );
+
+  const hits = rawHits.map((hit) => ({
     id: hit.chunk.id,
     title: hit.chunk.title,
     body: hit.chunk.body,
@@ -55,8 +74,10 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     query: safety.query,
-    mode: "hybrid-bm25-hash-embed",
+    mode: remote ? "hybrid-bm25-hash+remote-embed" : "hybrid-bm25-hash-embed",
+    remoteEmbed: remote,
+    embedCache: getEmbedCacheMeta(),
     hits,
-    context: augmentation.context,
+    context: formatRagContext(rawHits),
   });
 }

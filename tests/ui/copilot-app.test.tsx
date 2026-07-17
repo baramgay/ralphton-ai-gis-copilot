@@ -126,7 +126,19 @@ describe("CopilotApp", () => {
         }
         if (url.includes("/api/data/sync")) {
           return new Response(
-            JSON.stringify({ ok: true, dataSyncConfigured: false, publishedLive: { available: false } }),
+            JSON.stringify({
+              ok: true,
+              dataSyncConfigured: false,
+              publishedLive: { available: false },
+              syncOps: {
+                lastStatus: "idle",
+                stale: true,
+                recommendSync: true,
+                reason: "게시된 live 스냅샷이 없습니다. 시설 동기화를 권장합니다.",
+                lastAttemptAt: null,
+                lastFacilityCount: null,
+              },
+            }),
             { status: 200 },
           );
         }
