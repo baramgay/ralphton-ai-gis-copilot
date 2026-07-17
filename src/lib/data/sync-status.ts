@@ -29,7 +29,7 @@ const DEFAULT: SyncStatusRecord = {
 let memory: SyncStatusRecord = { ...DEFAULT };
 
 function storePath(): string {
-  return path.join(process.cwd(), ".data", "sync-status.json");
+  return path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "sync-status.json");
 }
 
 export async function readSyncStatus(): Promise<SyncStatusRecord> {

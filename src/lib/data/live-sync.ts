@@ -21,7 +21,12 @@ import {
   type UpsertSnapshotInput,
 } from "@/lib/supabase/server";
 
-const DEMO_SNAPSHOT_PATH = path.join(process.cwd(), "public", "data", "demo-snapshot.json");
+const DEMO_SNAPSHOT_PATH = path.join(
+  /* turbopackIgnore: true */ process.cwd(),
+  "public",
+  "data",
+  "demo-snapshot.json",
+);
 
 const BoundaryFeatureSchema = z.object({
   type: z.literal("Feature"),
@@ -84,9 +89,10 @@ async function defaultLoadDemoSnapshot(): Promise<AnalysisSnapshot> {
 }
 
 async function defaultLoadBoundary(version: string): Promise<AssignableRegion[]> {
+  const root = /* turbopackIgnore: true */ process.cwd();
   const candidates = [
-    path.join(process.cwd(), "public", "data", `administrative-dong-${version}.geojson`),
-    path.join(process.cwd(), "public", "data", `busan-administrative-dong-${version}.geojson`),
+    path.join(root, "public", "data", `administrative-dong-${version}.geojson`),
+    path.join(root, "public", "data", `busan-administrative-dong-${version}.geojson`),
   ];
 
   let text: string | null = null;

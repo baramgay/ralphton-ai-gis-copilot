@@ -9,7 +9,12 @@ import { readPublishedSnapshotMeta } from '@/lib/supabase/public';
 import { CachedSnapshotSchema } from '@/lib/supabase/types';
 
 const ModeSchema = z.enum(['auto', 'live', 'demo']);
-const DEMO_SNAPSHOT_PATH = path.join(process.cwd(), 'public', 'data', 'demo-snapshot.json');
+const DEMO_SNAPSHOT_PATH = path.join(
+  /* turbopackIgnore: true */ process.cwd(),
+  'public',
+  'data',
+  'demo-snapshot.json',
+);
 
 let demoSnapshotPromise: Promise<DemoSnapshot> | null = null;
 
