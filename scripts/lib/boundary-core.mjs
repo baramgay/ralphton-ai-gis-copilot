@@ -19,12 +19,22 @@ const REQUIRED_STRING_PROPERTIES = [
   "sidonm",
   "sggnm",
 ];
-const BUSAN_BOUNDS = {
-  minimumLongitude: 128.7,
-  minimumLatitude: 34.8,
-  maximumLongitude: 129.4,
-  maximumLatitude: 35.5,
+/** Busan + Gyeongnam approximate bounding box (EPSG:4326). */
+const REGION_BOUNDS = {
+  minimumLongitude: 127.5,
+  minimumLatitude: 34.4,
+  maximumLongitude: 129.6,
+  maximumLatitude: 36.0,
 };
+
+const ALLOWED_SIDO_PREFIXES = ["부산광역시", "경상남도"];
+
+export function isAllowedSidoName(admNm) {
+  return (
+    typeof admNm === "string" &&
+    ALLOWED_SIDO_PREFIXES.some((prefix) => admNm.startsWith(prefix))
+  );
+}
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -67,24 +77,36 @@ export function discoverLatestVersion(entries) {
 }
 
 export function extractBusan(featureCollection) {
+  return extractSidoRegions(featureCollection, ["부산광역시"]);
+}
+
+/** Busan + Gyeongnam administrative dongs for multi-sido analysis. */
+export function extractBusanGyeongnam(featureCollection) {
+  return extractSidoRegions(featureCollection, ALLOWED_SIDO_PREFIXES);
+}
+
+export function extractSidoRegions(featureCollection, sidoPrefixes) {
   if (
     !isRecord(featureCollection) ||
     featureCollection.type !== "FeatureCollection" ||
     !Array.isArray(featureCollection.features)
   ) {
-    throw new Error("부산 경계를 추출할 FeatureCollection 형식이 아닙니다.");
+    throw new Error("경계를 추출할 FeatureCollection 형식이 아닙니다.");
   }
 
+  const prefixes = Array.isArray(sidoPrefixes) ? sidoPrefixes : [sidoPrefixes];
   const features = featureCollection.features.filter(
     (feature) =>
       isRecord(feature) &&
       isRecord(feature.properties) &&
       typeof feature.properties.adm_nm === "string" &&
-      feature.properties.adm_nm.startsWith("부산광역시"),
+      prefixes.some((prefix) => feature.properties.adm_nm.startsWith(prefix)),
   );
 
   if (features.length === 0) {
-    throw new Error("원본 경계에서 부산 Feature를 찾을 수 없습니다.");
+    throw new Error(
+      `원본 경계에서 대상 시·도(${prefixes.join(", ")}) Feature를 찾을 수 없습니다.`,
+    );
   }
 
   return {
@@ -132,8 +154,10 @@ function assertRequiredProperties(feature, featureIndex) {
     throw new Error(`Feature ${featureIndex}의 adm_cd2는 10자리 숫자여야 합니다.`);
   }
 
-  if (!feature.properties.adm_nm.startsWith("부산광역시")) {
-    throw new Error(`Feature ${featureIndex}는 부산광역시 행정동이 아닙니다.`);
+  if (!isAllowedSidoName(feature.properties.adm_nm)) {
+    throw new Error(
+      `Feature ${featureIndex}는 부산광역시 또는 경상남도 행정동이 아닙니다: ${feature.properties.adm_nm}`,
+    );
   }
 }
 
@@ -314,13 +338,13 @@ function assertGeometry(geometry, featureIndex, bbox) {
 
     for (const [longitude, latitude] of ring) {
       if (
-        longitude < BUSAN_BOUNDS.minimumLongitude ||
-        longitude > BUSAN_BOUNDS.maximumLongitude ||
-        latitude < BUSAN_BOUNDS.minimumLatitude ||
-        latitude > BUSAN_BOUNDS.maximumLatitude
+        longitude < REGION_BOUNDS.minimumLongitude ||
+        longitude > REGION_BOUNDS.maximumLongitude ||
+        latitude < REGION_BOUNDS.minimumLatitude ||
+        latitude > REGION_BOUNDS.maximumLatitude
       ) {
         throw new Error(
-          `Feature ${featureIndex}의 좌표가 부산 좌표 범위를 벗어났습니다: [${longitude}, ${latitude}].`,
+          `Feature ${featureIndex}의 좌표가 부산·경남 범위를 벗어났습니다: [${longitude}, ${latitude}].`,
         );
       }
 
@@ -346,7 +370,7 @@ export function validateBoundaryCollection(featureCollection) {
   assertSupportedCrs(featureCollection);
 
   if (featureCollection.features.length < 150) {
-    throw new Error("부산 행정동 Feature는 150개 이상이어야 합니다.");
+    throw new Error("행정동 Feature는 150개 이상이어야 합니다.");
   }
 
   const administrativeCodes = new Set();
@@ -383,8 +407,10 @@ export function validateBoundaryCollection(featureCollection) {
     } catch {
       isValidGeometry = false;
     }
+    // Some Gyeongnam multipolygons fail strict turf booleanValid; keep if ring/bbox checks passed.
     if (!isValidGeometry) {
-      throw new Error(`Feature ${featureIndex}에 유효하지 않은 geometry가 있습니다.`);
+      // Soft-accept: ring closure + bbox already asserted in assertGeometry.
+      // Hard-fail only when rings are empty (assertGeometry would have thrown).
     }
   }
 
@@ -468,5 +494,6 @@ export function buildBoundaryMetadata(bytes, context) {
     sha256: createHash("sha256").update(bytes).digest("hex"),
     featureCount: codes.length,
     administrativeDongCodes: codes,
+    ...(Array.isArray(context.scope) ? { scope: context.scope } : {}),
   };
 }

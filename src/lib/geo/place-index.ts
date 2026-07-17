@@ -1,6 +1,6 @@
 /**
- * Busan administrative dong gazetteer for NL region resolution.
- * Built from verified demo snapshot place-index.json (206 dongs).
+ * Busan + Gyeongnam administrative dong gazetteer for NL region resolution.
+ * Built from place-index.json (seeded with administrative-dong boundaries).
  */
 
 import placeIndexJson from "../../../public/data/place-index.json";

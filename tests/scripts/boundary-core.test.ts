@@ -239,7 +239,7 @@ describe("validateBoundaryCollection", () => {
       (collection: BoundaryCollection) => (collection.features[0].geometry.coordinates = []),
     ],
     [
-      "부산 좌표 범위",
+      "부산·경남 범위",
       (collection: BoundaryCollection) =>
         (collection.features[0].geometry.coordinates = [
           [

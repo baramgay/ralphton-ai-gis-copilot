@@ -6,7 +6,7 @@ test.describe("mobile sheet", () => {
   test("shows bottom sheet handle and primary tabs", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("tab", { name: "분석" })).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /부산 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /부산.?경남 AI GIS|부산 AI GIS/i })).toBeVisible();
 
     const handles = page.locator(".sheet-handle");
     await expect(handles.first()).toBeVisible();

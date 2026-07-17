@@ -117,17 +117,17 @@ describe('parseIntentWithRules', () => {
 });
 
 describe('AnalysisIntentSchema attack boundaries', () => {
-  it('allows the full 206-dong analysis while bounding oversized result requests', () => {
+  it('allows the full 511-dong analysis while bounding oversized result requests', () => {
     expect(
       AnalysisIntentSchema.safeParse({
         tool: 'rankHospitalScarcity',
-        filters: { limit: 206 },
+        filters: { limit: 511 },
       }).success,
     ).toBe(true);
     expect(
       AnalysisIntentSchema.safeParse({
         tool: 'rankHospitalScarcity',
-        filters: { limit: 251 },
+        filters: { limit: 601 },
       }).success,
     ).toBe(false);
   });

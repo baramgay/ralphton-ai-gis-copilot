@@ -269,8 +269,10 @@ export function seedSnapshot(boundary, versionSeed) {
     throw new Error("boundary는 GeoJSON FeatureCollection이어야 합니다.");
   }
 
-  if (boundary.features.length !== 206) {
-    throw new Error(`데모 스냅샷은 206개 행정동을 필요로 합니다: ${boundary.features.length}개 수신.`);
+  if (boundary.features.length < 150) {
+    throw new Error(
+      `데모 스냅샷은 150개 이상 행정동이 필요합니다: ${boundary.features.length}개 수신.`,
+    );
   }
 
   const referenceMonth = deriveReferenceMonth(versionSeed);

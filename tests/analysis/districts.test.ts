@@ -12,6 +12,8 @@ describe("districts", () => {
   it("extracts gu/gun from adm_nm", () => {
     expect(districtFromAdmName("부산광역시 해운대구 우동")).toBe("해운대구");
     expect(districtFromAdmName("부산광역시 기장군 기장읍")).toBe("기장군");
+    expect(districtFromAdmName("경상남도 창원시 의창구 용지동")).toBe("창원시");
+    expect(districtFromAdmName("경상남도 김해시 내외동")).toBe("김해시");
     expect(districtFromAdmName("중구 중앙동")).toBe("중구");
   });
 

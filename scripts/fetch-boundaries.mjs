@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildBoundaryMetadata,
   discoverLatestVersion,
-  extractBusan,
+  extractBusanGyeongnam,
   validateBoundaryCollection,
 } from "./lib/boundary-core.mjs";
 
@@ -134,16 +134,17 @@ async function main() {
   const sourceEntry = findSourceEntry(versionEntries, version);
   const sourceBytes = await fetchBytes(sourceEntry.download_url);
   const sourceCollection = parseGeoJson(sourceBytes, sourceEntry.name);
-  const busanCollection = extractBusan(sourceCollection);
-  const summary = validateBoundaryCollection(busanCollection);
+  const regionCollection = extractBusanGyeongnam(sourceCollection);
+  const summary = validateBoundaryCollection(regionCollection);
 
   // A newline-free JSON byte stream is stable across Git checkouts on every OS.
-  const publicBytes = new TextEncoder().encode(JSON.stringify(busanCollection));
+  const publicBytes = new TextEncoder().encode(JSON.stringify(regionCollection));
   const metadata = buildBoundaryMetadata(publicBytes, {
     version,
     sourceUrl: sourceEntry.download_url,
     downloadedAt: new Date().toISOString(),
     administrativeDongCodes: summary.administrativeDongCodes,
+    scope: ["부산광역시", "경상남도"],
   });
   const metadataBytes = new TextEncoder().encode(`${JSON.stringify(metadata, null, 2)}\n`);
 
@@ -157,20 +158,28 @@ async function main() {
     PROJECT_ROOT,
     "public",
     "data",
+    `administrative-dong-${version}.geojson`,
+  );
+  // Keep legacy path as a copy so older loaders still resolve.
+  const legacyPath = path.join(
+    PROJECT_ROOT,
+    "public",
+    "data",
     `busan-administrative-dong-${version}.geojson`,
   );
   const metadataPath = path.join(PROJECT_ROOT, "public", "data", "boundary-metadata.json");
 
   await atomicWrite(sourcePath, sourceBytes);
   await atomicWrite(publicPath, publicBytes);
+  await atomicWrite(legacyPath, publicBytes);
   await atomicWrite(metadataPath, metadataBytes);
 
   console.log(
-    `부산 행정동 경계 갱신 완료: ver${version}, ${summary.featureCount}개, SHA-256 ${metadata.sha256}`,
+    `부산·경남 행정동 경계 갱신 완료: ver${version}, ${summary.featureCount}개, SHA-256 ${metadata.sha256}`,
   );
 }
 
 main().catch((error) => {
-  console.error(`부산 행정동 경계 갱신 실패: ${error instanceof Error ? error.message : error}`);
+  console.error(`부산·경남 행정동 경계 갱신 실패: ${error instanceof Error ? error.message : error}`);
   process.exitCode = 1;
 });

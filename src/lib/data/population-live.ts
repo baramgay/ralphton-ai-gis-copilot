@@ -129,26 +129,67 @@ export function mergeLatestPopulation(
   return { regions, updatedCount, month, notes };
 }
 
+/** 행정표준 시도 코드: 부산 26, 경남 48 */
+export const POPULATION_CTPV_CODES = ["26", "48"] as const;
+
 export async function fetchAndMergeBusanPopulation(
   base: AnalysisSnapshot,
   serviceKey: string,
   deps: PublicDataFetchDeps = {},
   referenceMonth?: string,
 ): Promise<PopulationMergeResult> {
+  return fetchAndMergeRegionalPopulation(base, serviceKey, deps, referenceMonth, ["26"]);
+}
+
+/**
+ * Merge latest resident population for one or more ctpv codes (default 부산+경남).
+ */
+export async function fetchAndMergeRegionalPopulation(
+  base: AnalysisSnapshot,
+  serviceKey: string,
+  deps: PublicDataFetchDeps = {},
+  referenceMonth?: string,
+  ctpvCodes: readonly string[] = POPULATION_CTPV_CODES,
+): Promise<PopulationMergeResult> {
   const month = (referenceMonth ?? base.referenceMonth).replace("-", "");
+  const allRows: Array<Record<string, unknown>> = [];
+  const notes: string[] = [];
+
   try {
-    const rows = await fetchAllPublicDataPages(
-      "residentPopulation",
-      {
-        serviceKey,
-        ctpvCode: "26",
-        referenceMonth: month,
-        numOfRows: 1_000,
-      },
-      deps,
-    );
-    const indexed = indexResidentRows(rows);
-    return mergeLatestPopulation(base, indexed);
+    for (const ctpvCode of ctpvCodes) {
+      try {
+        const rows = await fetchAllPublicDataPages(
+          "residentPopulation",
+          {
+            serviceKey,
+            ctpvCode,
+            referenceMonth: month,
+            numOfRows: 1_000,
+          },
+          deps,
+        );
+        allRows.push(...rows);
+        notes.push(`인구 ctpv ${ctpvCode}: ${rows.length}행`);
+      } catch {
+        notes.push(`인구 ctpv ${ctpvCode} 요청 실패`);
+      }
+    }
+
+    if (allRows.length === 0) {
+      return {
+        regions: base.regions,
+        updatedCount: 0,
+        month: null,
+        notes: ["인구 live 요청 실패 — 인구 시계열은 기준 스냅샷을 유지합니다.", ...notes],
+      };
+    }
+
+    const indexed = indexResidentRows(allRows);
+    const merged = mergeLatestPopulation(base, indexed);
+    return {
+      ...merged,
+      notes: [...notes, ...merged.notes],
+    };
   } catch {
     return {
       regions: base.regions,

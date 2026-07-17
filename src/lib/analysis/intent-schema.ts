@@ -46,7 +46,7 @@ export const AnalysisIntentSchema = z
         requireWeekendHours: z.boolean().optional(),
         regions: z.array(z.string().min(1).max(50)).max(10).optional(),
         compare: z.array(z.string().min(1).max(50)).max(10).optional(),
-        limit: z.number().int().min(1).max(250).optional(),
+        limit: z.number().int().min(1).max(600).optional(),
       })
       .strict(),
   })

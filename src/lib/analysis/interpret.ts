@@ -18,7 +18,7 @@ function formatValue(value: number | null, unit: string): string {
 }
 
 function shortName(admNm: string): string {
-  return admNm.replace("부산광역시 ", "");
+  return admNm.replace(/^부산광역시\s*/, "").replace(/^경상남도\s*/, "");
 }
 
 /**

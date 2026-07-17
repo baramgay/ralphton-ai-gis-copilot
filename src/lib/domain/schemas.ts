@@ -67,7 +67,7 @@ export const DemoSnapshotSchema = z.object({
   mode: z.literal("demo"),
   referenceMonth: MonthSchema,
   months: z.array(MonthSchema).length(13),
-  regions: z.array(RegionSeriesSchema).length(206),
+  regions: z.array(RegionSeriesSchema).min(150),
   facilities: z.array(FacilitySchema),
   sourceNotes: z.array(z.string().min(1)),
 });

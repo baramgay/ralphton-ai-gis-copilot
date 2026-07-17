@@ -5,10 +5,11 @@ import path from "node:path";
 import { z } from "zod";
 
 import {
-  facilitiesFromMedicalRows,
-  fetchMedicalInstitutionRows,
-} from "@/lib/data/medical-facilities";
-import { fetchAndMergeBusanPopulation } from "@/lib/data/population-live";
+  facilitiesFromHiraRows,
+  fetchHiraHospitalRows,
+  resolveHiraServiceKey,
+} from "@/lib/data/hira-hospitals";
+import { fetchAndMergeRegionalPopulation } from "@/lib/data/population-live";
 import type { AssignableRegion } from "@/lib/data/region-assignment";
 import {
   AnalysisSnapshotSchema,
@@ -63,6 +64,8 @@ export interface LiveSyncResult {
 
 export interface LiveSyncOptions {
   serviceKey?: string;
+  /** HIRA hospital key (defaults to HIRA_HOSP_SERVICE_KEY / DATA_GO_KR_SERVICE_KEY). */
+  hiraServiceKey?: string;
   boundaryVersion?: string;
   publish?: boolean;
   /** Attempt partial population merge (default true when service key present). */
@@ -81,13 +84,24 @@ async function defaultLoadDemoSnapshot(): Promise<AnalysisSnapshot> {
 }
 
 async function defaultLoadBoundary(version: string): Promise<AssignableRegion[]> {
-  const filePath = path.join(
-    process.cwd(),
-    "public",
-    "data",
-    `busan-administrative-dong-${version}.geojson`,
-  );
-  const text = await readFile(filePath, "utf8");
+  const candidates = [
+    path.join(process.cwd(), "public", "data", `administrative-dong-${version}.geojson`),
+    path.join(process.cwd(), "public", "data", `busan-administrative-dong-${version}.geojson`),
+  ];
+
+  let text: string | null = null;
+  for (const filePath of candidates) {
+    try {
+      text = await readFile(filePath, "utf8");
+      break;
+    } catch {
+      // try next
+    }
+  }
+  if (!text) {
+    throw new Error(`경계 파일을 찾을 수 없습니다 (ver${version}).`);
+  }
+
   const collection = BoundaryCollectionSchema.parse(JSON.parse(text));
   return collection.features.map((feature) => ({
     adm_cd2: feature.properties.adm_cd2,
@@ -102,9 +116,9 @@ function checksumOf(snapshot: AnalysisSnapshot): string {
 
 /**
  * Build a live-capable snapshot without breaking offline demos.
- * - No service key → returns the bundled demo snapshot.
- * - With key → replaces facilities from Busan medical API when parseable.
- * - Optional population: merge latest-month resident counts onto base series.
+ * - No key → bundled demo snapshot.
+ * - With HIRA key → replace facilities from HIRA getHospBasisList (부산·경남).
+ * - Optional population: merge latest-month resident counts for ctpv 26+48.
  */
 export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSyncResult> {
   const loadDemo = options.loadDemoSnapshot ?? defaultLoadDemoSnapshot;
@@ -116,10 +130,12 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
     process.env.LIVE_POPULATION_DISABLED?.trim() !== "1";
 
   const base = await loadDemo();
-  const serviceKey = options.serviceKey?.trim() ?? process.env.DATA_GO_KR_SERVICE_KEY?.trim() ?? "";
+  const populationKey =
+    options.serviceKey?.trim() ?? process.env.DATA_GO_KR_SERVICE_KEY?.trim() ?? "";
+  const hiraKey = resolveHiraServiceKey(options.hiraServiceKey ?? options.serviceKey);
 
-  if (!serviceKey) {
-    notes.push("공공데이터 키가 없어 데모 스냅샷을 유지했습니다.");
+  if (!hiraKey) {
+    notes.push("HIRA/공공데이터 키가 없어 데모 스냅샷을 유지했습니다.");
     const checksum = checksumOf(base);
     return {
       status: "demo-only",
@@ -138,14 +154,14 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       process.env.BOUNDARY_VERSION?.trim() ??
       "20260701";
     const boundaryRegions = await loadBoundary(version);
-    const rows = await fetchMedicalInstitutionRows(
-      { serviceKey, numOfRows: 1_000 },
+    const rows = await fetchHiraHospitalRows(
+      { serviceKey: hiraKey, numOfRows: 1_000 },
       { fetch: options.fetch, timeoutMs: options.timeoutMs },
     );
-    const facilities = facilitiesFromMedicalRows(rows, boundaryRegions);
+    const facilities = facilitiesFromHiraRows(rows, boundaryRegions);
 
     if (facilities.length === 0) {
-      notes.push("의료기관 응답에서 매핑 가능한 시설이 없어 데모 시설을 유지했습니다.");
+      notes.push("HIRA 병원 응답에서 매핑 가능한 시설이 없어 데모 시설을 유지했습니다.");
       const checksum = checksumOf(base);
       return {
         status: "demo-only",
@@ -160,15 +176,16 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
 
     let populationRegions = base.regions;
     let populationUpdated = 0;
-    if (wantPopulation) {
-      const pop = await fetchAndMergeBusanPopulation(
-        base,
-        serviceKey,
-        { fetch: options.fetch, timeoutMs: options.timeoutMs },
-      );
+    if (wantPopulation && populationKey) {
+      const pop = await fetchAndMergeRegionalPopulation(base, populationKey, {
+        fetch: options.fetch,
+        timeoutMs: options.timeoutMs,
+      });
       populationRegions = pop.regions;
       populationUpdated = pop.updatedCount;
       notes.push(...pop.notes);
+    } else if (wantPopulation && !populationKey) {
+      notes.push("인구 live는 DATA_GO_KR_SERVICE_KEY가 없어 생략했습니다.");
     } else {
       notes.push("인구 live 병합이 비활성입니다(LIVE_POPULATION_DISABLED=1).");
     }
@@ -181,23 +198,23 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       facilities,
       sourceNotes: [
         ...base.sourceNotes,
-        `부산 의료기관/약국 운영시간 API로 시설 ${facilities.length}곳을 갱신했습니다.`,
+        `HIRA 병원정보서비스(v2)로 부산·경남 시설 ${facilities.length}곳을 갱신했습니다.`,
         hybrid
-          ? `인구: 최신월 일부 live 반영(${populationUpdated}개 동). 나머지 시계열은 기준 스냅샷.`
+          ? `인구: 부산·경남 최신월 일부 live 반영(${populationUpdated}개 동). 나머지 시계열은 기준 스냅샷.`
           : "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
       ],
     });
 
-    notes.push(`시설 ${facilities.length}곳을 실데이터로 교체했습니다.`);
+    notes.push(`시설 ${facilities.length}곳을 HIRA 실데이터로 교체했습니다.`);
     const checksum = checksumOf(liveSnapshot);
     let published = false;
 
     if (options.publish !== false) {
       published = await upsert({
-        id: options.snapshotId ?? `live-busan-${liveSnapshot.referenceMonth}`,
+        id: options.snapshotId ?? `live-bn-${liveSnapshot.referenceMonth}`,
         source: hybrid
-          ? "data.go.kr/MedicInstitService+residentPopulation"
-          : "data.go.kr/MedicInstitService",
+          ? "hira/hospInfoServicev2+residentPopulation"
+          : "hira/hospInfoServicev2",
         checksum,
         isPublished: true,
         snapshot: liveSnapshot,
@@ -218,8 +235,10 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       notes,
       populationUpdated,
     };
-  } catch {
-    notes.push("실데이터 동기화에 실패해 데모 스냅샷으로 폴백했습니다.");
+  } catch (error) {
+    notes.push(
+      `실데이터 동기화 실패: ${error instanceof Error ? error.message : "unknown"} — 데모 폴백.`,
+    );
     const checksum = checksumOf(base);
     return {
       status: "failed",

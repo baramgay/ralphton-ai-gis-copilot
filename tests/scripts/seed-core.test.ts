@@ -42,12 +42,13 @@ describe("seedSnapshot", () => {
     expect(first).toEqual(second);
   });
 
-  test("produces 206 regions with 13 months each", async () => {
+  test("produces all boundary regions with 13 months each", async () => {
     const boundary = JSON.parse(await readFile(BOUNDARY_PATH, "utf8"));
 
     const snapshot: DemoSnapshot = seedSnapshot(boundary, 20260701);
 
-    expect(snapshot.regions).toHaveLength(206);
+    expect(snapshot.regions).toHaveLength(boundary.features.length);
+    expect(snapshot.regions.length).toBeGreaterThanOrEqual(500);
     expect(snapshot.months).toHaveLength(13);
     expect(snapshot.regions[0].population).toHaveLength(13);
     expect(snapshot.regions[0].households).toHaveLength(13);
@@ -86,8 +87,8 @@ describe("seedSnapshot", () => {
       boundary.features.map((feature) => [feature.properties.adm_cd2, feature]),
     );
 
-    expect(snapshot.facilities.length).toBeGreaterThanOrEqual(206);
-    expect(codes.size).toBe(206);
+    expect(snapshot.facilities.length).toBeGreaterThanOrEqual(boundary.features.length);
+    expect(codes.size).toBe(boundary.features.length);
 
     for (const facility of snapshot.facilities) {
       const declaredRegion = features.get(facility.adm_cd2);
@@ -188,12 +189,12 @@ describe("buildDemoMetadata", () => {
 });
 
 describe("generated demo artifact", () => {
-  test("demo-snapshot.json is valid and contains 206 regions", async () => {
+  test("demo-snapshot.json is valid and contains busan+gyeongnam regions", async () => {
     const bytes = await readFile(SNAPSHOT_PATH);
     const snapshot = JSON.parse(bytes.toString("utf8"));
 
     expect(() => DemoSnapshotSchema.parse(snapshot)).not.toThrow();
-    expect(snapshot.regions).toHaveLength(206);
+    expect(snapshot.regions.length).toBeGreaterThanOrEqual(500);
     expect(snapshot.mode).toBe("demo");
   });
 
@@ -203,7 +204,7 @@ describe("generated demo artifact", () => {
     const expectedSha256 = createHash("sha256").update(snapshotBytes).digest("hex");
 
     expect(metadata.sha256).toBe(expectedSha256);
-    expect(metadata.regionCount).toBe(206);
+    expect(metadata.regionCount).toBeGreaterThanOrEqual(500);
   });
 
   test("every facility satisfies the Facility schema", async () => {

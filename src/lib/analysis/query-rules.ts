@@ -3,10 +3,14 @@ import {
   TOOL_CATALOG,
   scoreCatalogEntry,
 } from "./query-catalog";
-import { BUSAN_DISTRICT_LABELS, QUERY_SUGGESTIONS } from "./query-catalog-meta";
+import {
+  BUSAN_DISTRICT_LABELS,
+  DISTRICT_LABELS,
+  QUERY_SUGGESTIONS,
+} from "./query-catalog-meta";
 import { extractQuerySignals, type QuerySignals } from "./query-signals";
 
-export { BUSAN_DISTRICT_LABELS, QUERY_SUGGESTIONS };
+export { BUSAN_DISTRICT_LABELS, DISTRICT_LABELS, QUERY_SUGGESTIONS };
 export type { QuerySignals };
 
 export const MAX_QUERY_LENGTH = 1000;

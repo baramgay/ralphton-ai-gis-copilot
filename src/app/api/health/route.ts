@@ -20,6 +20,10 @@ export async function GET() {
       kakaoRest: Boolean(process.env.KAKAO_REST_API_KEY?.trim()),
       qwen: Boolean(process.env.QWEN_API_KEY?.trim() && process.env.QWEN_BASE_URL?.trim()),
       publicData: Boolean(process.env.DATA_GO_KR_SERVICE_KEY?.trim()),
+      hiraHosp: Boolean(
+        process.env.HIRA_HOSP_SERVICE_KEY?.trim() ||
+          process.env.DATA_GO_KR_SERVICE_KEY?.trim(),
+      ),
       supabase: Boolean(
         process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() &&
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim(),

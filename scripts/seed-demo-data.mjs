@@ -25,8 +25,17 @@ async function main() {
     throw new Error("경계 메타데이터에 유효한 버전이 없습니다.");
   }
 
-  const boundaryPath = path.join(PUBLIC_DATA_DIR, `busan-administrative-dong-${version}.geojson`);
-  const boundary = parseJson(await readFile(boundaryPath), "부산 공개 경계");
+  const primary = path.join(PUBLIC_DATA_DIR, `administrative-dong-${version}.geojson`);
+  const legacy = path.join(PUBLIC_DATA_DIR, `busan-administrative-dong-${version}.geojson`);
+  let boundaryPath = primary;
+  let boundaryRaw;
+  try {
+    boundaryRaw = await readFile(primary);
+  } catch {
+    boundaryRaw = await readFile(legacy);
+    boundaryPath = legacy;
+  }
+  const boundary = parseJson(boundaryRaw, "부산·경남 공개 경계");
 
   const versionSeed = Number(version);
   const snapshot = seedSnapshot(boundary, versionSeed);
@@ -41,12 +50,40 @@ async function main() {
   await writeFile(SNAPSHOT_PATH, snapshotBytes);
   await writeFile(DEMO_METADATA_PATH, metadataBytes);
 
+  // place-index for NL dong resolution (부산·경남)
+  const places = snapshot.regions.map((region) => {
+    const admNm = region.adm_nm;
+    const withoutSido = admNm
+      .replace(/^부산광역시\s*/, "")
+      .replace(/^경상남도\s*/, "")
+      .trim();
+    const parts = withoutSido.split(/\s+/);
+    const district = parts[0] ?? "";
+    const shortName = parts.slice(1).join(" ") || withoutSido;
+    return {
+      adm_cd2: region.adm_cd2,
+      adm_nm: admNm,
+      district,
+      shortName,
+    };
+  });
+  const placeIndex = {
+    version: String(version),
+    count: places.length,
+    scope: ["부산광역시", "경상남도"],
+    places,
+  };
+  await writeFile(
+    path.join(PUBLIC_DATA_DIR, "place-index.json"),
+    `${JSON.stringify(placeIndex)}\n`,
+  );
+
   console.log(
-    `부산 데모 스냅샷 생성 완료: ${snapshot.regions.length}개 행정동, ${snapshot.facilities.length}개 시설, SHA-256 ${demoMetadata.sha256}`,
+    `부산·경남 데모 스냅샷 생성 완료 (${boundaryPath}): ${snapshot.regions.length}개 행정동, ${snapshot.facilities.length}개 시설, place ${places.length}, SHA-256 ${demoMetadata.sha256}`,
   );
 }
 
 main().catch((error) => {
-  console.error(`부산 데모 스냅샷 생성 실패: ${error instanceof Error ? error.message : error}`);
+  console.error(`부산·경남 데모 스냅샷 생성 실패: ${error instanceof Error ? error.message : error}`);
   process.exitCode = 1;
 });

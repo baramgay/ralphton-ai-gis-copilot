@@ -10,8 +10,11 @@ import { parseIntentWithRules } from "@/lib/analysis/query-rules";
 import { extractQuerySignals } from "@/lib/analysis/query-signals";
 
 describe("place-index gazetteer", () => {
-  test("has 206 busan dongs", () => {
-    expect(getAllPlaces().length).toBe(206);
+  test("has busan + gyeongnam dongs", () => {
+    const places = getAllPlaces();
+    expect(places.length).toBeGreaterThanOrEqual(500);
+    expect(places.some((p) => p.adm_nm.startsWith("부산광역시"))).toBe(true);
+    expect(places.some((p) => p.adm_nm.startsWith("경상남도"))).toBe(true);
   });
 
   test("matches 송정동", () => {

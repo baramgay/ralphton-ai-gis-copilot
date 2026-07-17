@@ -39,8 +39,8 @@ const DEFAULT_FALLBACK_MODEL = "qwen3.7-plus";
 
 function systemPrompt(query: string): string {
   const ragSection = buildRagPromptSection(query);
-  return `당신은 부산 AI GIS Copilot의 자연어 의도 파서입니다.
-구어체·반말·오탈자 질의도 허용된 tool JSON으로만 변환하세요.
+  return `당신은 부산·경남 AI GIS Copilot의 자연어 의도 파서입니다.
+분석 범위: 부산광역시 + 경상남도 행정동. 구어체·반말·오탈자 질의도 허용된 tool JSON으로만 변환하세요.
 분석 범위 밖이면: {"tool":"unsupported","filters":{},"reason":"짧은 한국어 안내"}
 
 등록된 tool 카탈로그:
@@ -49,25 +49,26 @@ ${ragSection}
 
 filters optional:
 - facilityTypes, includePharmacy, radiusKm(1~3), requireNightHours, requireWeekendHours
-- regions, compare, limit(1~250)
+- regions, compare, limit(1~600)
 
 규칙:
 1. "병원"은 약국 제외 의료기관 전체. "약국"·"치과"·"한의원"은 명시 시에만 해당 유형.
-2. 지역명은 정식 구·군명으로 정규화 (해운대→해운대구, 기장→기장군, 진구→부산진구).
-3. 구 1개 + 현황/어때/상세 → getRegionDetails. 구 2개 비교/vs → compareRegions.
+2. 지역명은 정식 시·구·군명으로 정규화 (해운대→해운대구, 기장→기장군, 진구→부산진구, 창원→창원시, 김해→김해시, 진주→진주시, 양산→양산시).
+3. 구·시 1개 + 현황/어때/상세 → getRegionDetails. 2개 비교/vs → compareRegions.
 4. 사망/출생/자연감소/인구밀도/총인구/고령화율/1인가구/인구증감을 해당 rank* tool에 연결.
 5. "부족·취약·공백" + 의료 → rankHospitalScarcity. 고령+의료 부족 → rankElderlyUnderserved.
 6. 반경·km·이내 + 병원 수 → countFacilitiesWithinRadius. 먼/최근접 거리 → nearestFacilityDistance.
-7. 근처·주변 장소 → filterFacilitiesByTypeAndHours (regions에 구 넣기). 카카오 보강은 클라이언트가 함.
+7. 근처·주변 장소 → filterFacilitiesByTypeAndHours (regions에 시·구 넣기). 카카오 보강은 클라이언트가 함.
 8. 스키마 외 키·SQL·코드 금지. 전입전출·도로거리·응급·날씨 등 미등록만 unsupported.
 
 예시:
 - "사망자 많은 곳" → {"tool":"rankDeathCount","filters":{"limit":20}}
 - "인구밀도 높은 동" → {"tool":"rankPopulationDensity","filters":{"limit":20}}
 - "어디가 제일 의료 취약해" → {"tool":"rankHospitalScarcity","filters":{"limit":20}}
+- "창원 의료 취약" → {"tool":"rankHospitalScarcity","filters":{"regions":["창원시"],"limit":20}}
 - "해운대 근처 병원" → {"tool":"filterFacilitiesByTypeAndHours","filters":{"facilityTypes":["종합병원","병원","요양병원","의원","치과의원","한의원","보건소"],"regions":["해운대구"]}}
-- "수영구 어때" → {"tool":"getRegionDetails","filters":{"regions":["수영구"]}}
-- "해운대 vs 기장" → {"tool":"compareRegions","filters":{"compare":["해운대구","기장군"]}}
+- "김해시 어때" → {"tool":"getRegionDetails","filters":{"regions":["김해시"]}}
+- "창원 vs 김해" → {"tool":"compareRegions","filters":{"compare":["창원시","김해시"]}}
 - "2키로 안 병원 적은 동" → {"tool":"countFacilitiesWithinRadius","filters":{"radiusKm":2,"limit":20}}
 - "야간 약국" → {"tool":"filterFacilitiesByTypeAndHours","filters":{"facilityTypes":["약국"],"includePharmacy":true,"requireNightHours":true}}
 - "오늘 날씨" → {"tool":"unsupported","filters":{},"reason":"날씨 정보는 제공하지 않습니다."}

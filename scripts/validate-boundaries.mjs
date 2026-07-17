@@ -32,20 +32,36 @@ async function main() {
     throw new Error("경계 메타데이터 버전은 YYYYMMDD 형식이어야 합니다.");
   }
 
-  const boundaryPath = path.join(
+  const primaryPath = path.join(
+    PROJECT_ROOT,
+    "public",
+    "data",
+    `administrative-dong-${metadata.version}.geojson`,
+  );
+  const legacyPath = path.join(
     PROJECT_ROOT,
     "public",
     "data",
     `busan-administrative-dong-${metadata.version}.geojson`,
   );
-  const boundaryBytes = await readFile(boundaryPath);
-  const boundaryCollection = parseJson(boundaryBytes, "부산 공개 경계");
+
+  let boundaryPath = primaryPath;
+  let boundaryBytes;
+  try {
+    boundaryBytes = await readFile(primaryPath);
+  } catch {
+    boundaryBytes = await readFile(legacyPath);
+    boundaryPath = legacyPath;
+  }
+
+  const boundaryCollection = parseJson(boundaryBytes, "부산·경남 공개 경계");
   const summary = validateBoundaryCollection(boundaryCollection);
   const expectedMetadata = buildBoundaryMetadata(boundaryBytes, {
     version: metadata.version,
     sourceUrl: metadata.sourceUrl,
     downloadedAt: metadata.downloadedAt,
     administrativeDongCodes: summary.administrativeDongCodes,
+    scope: metadata.scope,
   });
 
   if (metadata.sha256 !== expectedMetadata.sha256) {
@@ -64,11 +80,11 @@ async function main() {
   assertSameCodes(metadata.administrativeDongCodes, summary.administrativeDongCodes);
 
   console.log(
-    `부산 행정동 경계 캐시 검증 완료: ver${metadata.version}, ${summary.featureCount}개, SHA-256 ${expectedMetadata.sha256}`,
+    `부산·경남 행정동 경계 캐시 검증 완료: ${boundaryPath}, ver${metadata.version}, ${summary.featureCount}개, SHA-256 ${expectedMetadata.sha256}`,
   );
 }
 
 main().catch((error) => {
-  console.error(`부산 행정동 경계 캐시 검증 실패: ${error instanceof Error ? error.message : error}`);
+  console.error(`부산·경남 행정동 경계 캐시 검증 실패: ${error instanceof Error ? error.message : error}`);
   process.exitCode = 1;
 });

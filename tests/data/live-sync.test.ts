@@ -48,10 +48,32 @@ const baseSnapshot: AnalysisSnapshot = {
   sourceNotes: ["demo"],
 };
 
+const hiraXml = `<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <header><resultCode>00</resultCode><resultMsg>NORMAL SERVICE.</resultMsg></header>
+  <body>
+    <items>
+      <item>
+        <yadmNm>실데이터의원</yadmNm>
+        <clCd>31</clCd>
+        <clCdNm>의원</clCdNm>
+        <YPos>35.1</YPos>
+        <XPos>129.04</XPos>
+        <ykiho>live-1</ykiho>
+        <addr>부산광역시 중구</addr>
+      </item>
+    </items>
+    <numOfRows>1</numOfRows>
+    <pageNo>1</pageNo>
+    <totalCount>1</totalCount>
+  </body>
+</response>`;
+
 describe("runLiveSync", () => {
   it("keeps demo snapshot when service key is absent", async () => {
     const result = await runLiveSync({
       serviceKey: "",
+      hiraServiceKey: "",
       loadDemoSnapshot: async () => baseSnapshot,
       upsert: async () => false,
     });
@@ -62,36 +84,34 @@ describe("runLiveSync", () => {
     expect(result.published).toBe(false);
   });
 
-  it("replaces facilities when medical API rows map into boundaries", async () => {
-    const fetch = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        response: {
-          header: { resultCode: "00" },
-          body: {
-            pageNo: 1,
-            numOfRows: 10,
-            totalCount: 1,
-            items: {
-              item: [
-                {
-                  yadmNm: "실데이터의원",
-                  clCdNm: "의원",
-                  YPos: 35.1,
-                  XPos: 129.04,
-                  ykiho: "live-1",
-                },
-              ],
-            },
+  it("replaces facilities when HIRA hospital rows map into boundaries", async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("hospInfoServicev2") || url.includes("getHospBasisList")) {
+        return {
+          ok: true,
+          text: async (): Promise<string> => hiraXml,
+        };
+      }
+      // population or other
+      return {
+        ok: true,
+        json: async () => ({
+          response: {
+            header: { resultCode: "00" },
+            body: { items: { item: [] }, totalCount: 0, pageNo: 1, numOfRows: 0 },
           },
-        },
-      }),
-    }));
+        }),
+        text: async (): Promise<string> => "",
+      };
+    });
 
     const result = await runLiveSync({
       serviceKey: "fixture-key",
+      hiraServiceKey: "fixture-hira-key",
       boundaryVersion: "20260701",
       publish: true,
+      includePopulation: false,
       fetch: fetch as unknown as typeof globalThis.fetch,
       loadDemoSnapshot: async () => baseSnapshot,
       loadBoundary: async () => [

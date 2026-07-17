@@ -28,6 +28,7 @@ import {
   listDistricts,
   listDongLabels,
   normalizeComparePair,
+  sidoFromAdmName,
   type CompareScope,
 } from "@/lib/analysis/districts";
 import {
@@ -116,7 +117,7 @@ const QUICK_ANALYSES: Array<{
 ];
 
 function compactName(region: RegionSeries): string {
-  return region.adm_nm.replace("부산광역시 ", "");
+  return region.adm_nm.replace(/^부산광역시\s*/, "").replace(/^경상남도\s*/, "");
 }
 
 function quickIntent(
@@ -125,7 +126,7 @@ function quickIntent(
   regionLimit: number,
   comparePair: [string, string] = DEFAULT_COMPARE,
 ): AnalysisIntent {
-  const limit = Math.max(1, Math.min(regionLimit, 250));
+  const limit = Math.max(1, Math.min(regionLimit, 600));
   const intents: Record<QuickId, AnalysisIntent> = {
     scarcity: { tool: "rankHospitalScarcity", filters: { limit } },
     elderly: { tool: "rankElderlyUnderserved", filters: { limit } },
@@ -164,8 +165,8 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
       rawValue === null ? 0 : finite.length <= 1 ? 50 : ((rawValue - minimum) / span) * 100;
     return {
       code: region.adm_cd2,
-      name: region.adm_nm.replace("부산광역시 ", ""),
-      district: region.adm_nm.split(" ")[1] ?? "부산",
+      name: region.adm_nm.replace(/^부산광역시\s*/, "").replace(/^경상남도\s*/, ""),
+      district: region.adm_nm.split(" ")[1] ?? "지역",
       mapScore,
       valueLabel: primaryMetric
         ? formatMetric(primaryMetric.value, primaryMetric.unit)
@@ -348,6 +349,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [selectedLivePlace, setSelectedLivePlace] = useState<LivePlace | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [facilityTypeFilter, setFacilityTypeFilter] = useState<string | "all">("all");
+  /** Map/list scope: 전체 · 부산 · 경남 */
+  const [sidoScope, setSidoScope] = useState<"all" | "busan" | "gyeongnam">("all");
   const queryInputRef = useRef<HTMLInputElement>(null);
   const shareAppliedRef = useRef(false);
   const staleToastShownRef = useRef(false);
@@ -755,6 +758,23 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return codes.size > 0 ? codes : null;
   }, [analysis?.ranked, comparePair, isCompareView, snapshot]);
 
+  const matchesSidoScope = useCallback(
+    (admNm: string) => {
+      if (sidoScope === "all") return true;
+      const sido = sidoFromAdmName(admNm);
+      if (sidoScope === "busan") return sido === "부산광역시";
+      if (sidoScope === "gyeongnam") return sido === "경상남도";
+      return true;
+    },
+    [sidoScope],
+  );
+
+  const scopedRegions = useMemo(() => {
+    if (!snapshot) return [];
+    if (sidoScope === "all") return snapshot.regions;
+    return snapshot.regions.filter((region) => matchesSidoScope(region.adm_nm));
+  }, [matchesSidoScope, sidoScope, snapshot]);
+
   const selectedRegion = snapshot?.regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   const defaultMedicalFacilities = snapshot?.facilities.filter((facility) => facility.type !== "약국") ?? [];
   const rawMapFacilities = analysis?.isFacilityResult
@@ -762,10 +782,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     : (analysis?.filteredFacilities.length ?? 0) > 0
       ? (analysis?.filteredFacilities ?? [])
       : defaultMedicalFacilities;
+  const sidoFilteredFacilities = rawMapFacilities.filter((facility) =>
+    matchesSidoScope(facility.adm_nm),
+  );
   const scopedMapFacilities =
     markerScope === "selected" && selectedRegionCode
-      ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
-      : rawMapFacilities;
+      ? sidoFilteredFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
+      : sidoFilteredFacilities;
   const mapFacilities =
     facilityTypeFilter === "all"
       ? scopedMapFacilities
@@ -825,7 +848,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const token = districtLabel.replace(/^부산광역시\s+/, "").trim();
       const intent: AnalysisIntent = {
         tool: "rankHospitalScarcity",
-        filters: { regions: [token], limit: Math.min(snapshot.regions.length, 250) },
+        filters: { regions: [token], limit: Math.min(snapshot.regions.length, 600) },
       };
       const result = executeAnalysisIntent(intent, snapshot);
       const view = resultToView("scarcity", result, `${token} 동 순위 (의료 취약)`);
@@ -1159,7 +1182,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         <div className="w-full max-w-sm rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-lg">
           <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-slate-200" />
           <div className="mb-2 h-5 w-3/4 animate-pulse rounded-lg bg-slate-200" />
-          <p className="mt-5 text-center text-sm font-medium text-slate-600">부산 공간 데이터를 준비하는 중…</p>
+          <p className="mt-5 text-center text-sm font-medium text-slate-600">부산·경남 공간 데이터를 준비하는 중…</p>
         </div>
       </main>
     );
@@ -1240,9 +1263,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 className="size-8 shrink-0 rounded-[10px] shadow-sm ring-1 ring-slate-200/80"
               />
               <div className="min-w-0">
-                <h1 className="ui-title truncate text-slate-950">부산 AI GIS</h1>
+                <h1 className="ui-title truncate text-slate-950">부산·경남 AI GIS</h1>
                 <p className="ui-chip mt-0.5 text-slate-500">
-                  {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth}
+                  {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth} ·{" "}
+                  {snapshot.regions.length.toLocaleString("ko-KR")}동
                 </p>
               </div>
             </div>
@@ -1294,7 +1318,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ref={queryInputRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: 해운대 의료 취약 어디?"
+                    placeholder="예: 창원 의료 취약 어디? 해운대 고령 밀집?"
                     maxLength={1000}
                     className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-12 ui-body-lg shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
@@ -1507,6 +1531,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         [
                           ["기장군", "강서구"],
                           ["해운대구", "부산진구"],
+                          ["창원시", "김해시"],
+                          ["진주시", "양산시"],
                           ["중구", "영도구"],
                         ] as const
                       )
@@ -1841,9 +1867,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               <div className="grid grid-cols-2 gap-2">
                 {[
                   ["기준월", snapshot.referenceMonth],
-                  ["행정동", `${snapshot.regions.length.toLocaleString("ko-KR")}개`],
+                  [
+                    "행정동",
+                    `${snapshot.regions.length.toLocaleString("ko-KR")}개 (부산·경남)`,
+                  ],
                   ["시설", `${snapshot.facilities.length.toLocaleString("ko-KR")}곳`],
                   ["지도", mapEngineLabel(kakaoMapKey, mapEngine)],
+                  ["범위", "부산광역시 + 경상남도"],
+                  ["병원 API", "HIRA 병원정보 v2"],
                 ].map(([label, value]) => (
                   <div key={label} className="ui-stat-card">
                     <p className="label">{label}</p>
@@ -2002,7 +2033,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         <MapCanvas
           kakaoMapKey={kakaoMapKey}
           boundary={boundary}
-          regions={snapshot.regions}
+          regions={scopedRegions}
           facilities={mapFacilities}
           livePlaces={livePlaces}
           scores={scores}
@@ -2018,9 +2049,38 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         />
 
         <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-2xl border border-white/80 bg-white/90 px-4 py-2.5 shadow-lg backdrop-blur max-md:left-3 max-md:translate-x-0">
+          <div className="pointer-events-auto mb-1.5 flex gap-1">
+            {(
+              [
+                ["all", "전체"],
+                ["busan", "부산"],
+                ["gyeongnam", "경남"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                data-testid={`sido-scope-${id}`}
+                className={`rounded-lg px-2 py-0.5 ui-caption font-bold transition ${
+                  sidoScope === id
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+                onClick={() => setSidoScope(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <p className="ui-caption font-bold text-blue-600">{analysis.title}</p>
           <p className="max-w-[260px] truncate ui-body font-bold text-slate-900">
-            {selectedRegion ? compactName(selectedRegion) : "부산광역시"}
+            {selectedRegion
+              ? compactName(selectedRegion)
+              : sidoScope === "busan"
+                ? "부산광역시"
+                : sidoScope === "gyeongnam"
+                  ? "경상남도"
+                  : "부산·경남"}
           </p>
           {isCompareView && focusRegionCodes ? (
             <p className="ui-caption mt-1 font-bold text-amber-800">
@@ -2327,7 +2387,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <span className="min-w-0 flex-1">
                         <span className="rank-name block truncate">{facility.name}</span>
                         <span className="rank-note mt-0.5 block">
-                          {facility.type} · {facility.adm_nm.replace("부산광역시 ", "")}
+                          {facility.type} · {facility.adm_nm.replace(/^부산광역시\s*/, "").replace(/^경상남도\s*/, "")}
                         </span>
                       </span>
                     </button>

@@ -4,7 +4,7 @@ test.describe("AI GIS Copilot core journey", () => {
   test("loads demo shell and runs quick analyses", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: /부산 AI GIS/i })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /부산.?경남 AI GIS|부산 AI GIS/i })).toBeVisible({
       timeout: 60_000,
     });
     await expect(page.getByTestId("interpretation-card")).toBeVisible();

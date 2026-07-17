@@ -84,9 +84,9 @@ export const RAG_CORPUS: RagChunk[] = [
   {
     id: "data-geometry",
     title: "행정동 경계·대표점",
-    body: "부산 206개 행정동 경계를 사용합니다. 대표점은 pointOnFeature로 동 내부에 둡니다. 분석 거리는 대표점 기준 Turf 대권 직선거리입니다.",
+    body: "부산·경남 511개 행정동 경계를 사용합니다. 대표점은 pointOnFeature로 동 내부에 둡니다. 분석 거리는 대표점 기준 Turf 대권 직선거리입니다.",
     tags: ["gis", "boundary", "geometry"],
-    keywords: ["행정동", "경계", "대표점", "206", "직선거리", "turf"],
+    keywords: ["행정동", "경계", "대표점", "511", "부산", "경남", "직선거리", "turf"],
   },
   {
     id: "kakao-live",
@@ -112,16 +112,23 @@ export const RAG_CORPUS: RagChunk[] = [
   {
     id: "busan-scope",
     title: "분석 공간 범위",
-    body: "본 코파일럿은 부산광역시 행정동 단위 분석입니다. 타 시·도 질의는 지원하지 않으며, 구·군명은 부산 16개 시군구 기준으로 해석합니다.",
-    tags: ["region", "busan"],
-    keywords: ["부산", "시군구", "행정동", "범위"],
+    body: "본 코파일럿은 부산광역시와 경상남도 행정동 단위 분석입니다. 시설은 HIRA 병원정보서비스(전국 API 중 부산·경남 필터)를 사용합니다. 그 외 시·도 질의는 지원하지 않습니다.",
+    tags: ["region", "busan", "gyeongnam"],
+    keywords: ["부산", "경남", "시군구", "행정동", "범위", "창원", "김해"],
+  },
+  {
+    id: "hira-hospitals",
+    title: "HIRA 병원 데이터",
+    body: "의료시설 live 원천은 건강보험심사평가원 병원정보서비스 v2(getHospBasisList, XML)입니다. 시도코드 210000(부산)·380000(경남). 약국·운영시간은 이 API에 없을 수 있습니다.",
+    tags: ["hira", "medical", "live"],
+    keywords: ["HIRA", "심평원", "병원", "요양기관", "시설", "live"],
   },
   {
     id: "dong-gazetteer",
     title: "행정동 지명 해석",
-    body: "질의에 동 이름(예: 우동, 송정동, 중앙동)이 있으면 place-index(206동)로 adm_cd2를 해석해 regions 필터에 넣습니다. 구 이름과 함께 쓰면 해당 구 내 동으로 범위를 좁힙니다.",
+    body: "질의에 동 이름(예: 우동, 송정동, 중앙동)이 있으면 place-index(부산·경남 행정동)로 adm_cd2를 해석해 regions 필터에 넣습니다. 시·구 이름과 함께 쓰면 해당 지역 내 동으로 범위를 좁힙니다.",
     tags: ["region", "dong", "getRegionDetails", "place-index"],
-    keywords: ["동", "행정동", "우동", "송정동", "중앙동", "지명"],
+    keywords: ["동", "행정동", "우동", "송정동", "중앙동", "지명", "창원"],
   },
   {
     id: "hybrid-rag",

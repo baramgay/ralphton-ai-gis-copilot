@@ -12,7 +12,7 @@ export default function Loading() {
             <div className="h-16 animate-pulse rounded-2xl bg-slate-100 motion-reduce:animate-none" />
             <div className="h-16 animate-pulse rounded-2xl bg-slate-100 motion-reduce:animate-none" />
           </div>
-          <p className="mt-5 text-center text-sm font-medium text-slate-600">부산 공간 데이터를 준비하는 중…</p>
+          <p className="mt-5 text-center text-sm font-medium text-slate-600">부산·경남 공간 데이터를 준비하는 중…</p>
         </div>
       </div>
     </main>

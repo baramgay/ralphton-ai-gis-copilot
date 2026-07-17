@@ -1,7 +1,7 @@
 import type { Facility } from "@/lib/domain/schemas";
 import { matchPlacesInText, type MatchedPlace } from "@/lib/geo/place-index";
 
-import { BUSAN_DISTRICT_ALIASES, BUSAN_DISTRICT_LABELS } from "./query-catalog-meta";
+import { DISTRICT_ALIASES, DISTRICT_LABELS } from "./query-catalog-meta";
 
 export type SpatialCue =
   | "nearby"
@@ -57,7 +57,7 @@ function includesAny(text: string, keywords: readonly string[]): boolean {
 }
 
 function extractDistricts(text: string): string[] {
-  const labels = [...BUSAN_DISTRICT_LABELS].sort((a, b) => b.length - a.length);
+  const labels = [...DISTRICT_LABELS].sort((a, b) => b.length - a.length);
   const found: string[] = [];
   const positions: number[] = [];
   let remaining = text;
@@ -72,8 +72,8 @@ function extractDistricts(text: string): string[] {
     remaining = remaining.split(label).join(" ");
   }
 
-  // Aliases: "해운대" → "해운대구" (only if full label not already captured)
-  const aliasEntries = Object.entries(BUSAN_DISTRICT_ALIASES).sort(
+  // Aliases: "해운대" → "해운대구", "창원" → "창원시"
+  const aliasEntries = Object.entries(DISTRICT_ALIASES).sort(
     (a, b) => b[0].length - a[0].length,
   );
   for (const [alias, full] of aliasEntries) {
