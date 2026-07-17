@@ -17,6 +17,46 @@ function formatValue(value: number | null, unit: string): string {
   return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${unit}`;
 }
 
+function shortName(admNm: string): string {
+  return admNm.replace("부산광역시 ", "");
+}
+
+/**
+ * One-line policy-style takeaway for the result header (no model calls).
+ */
+export function buildOneLineConclusion(
+  result: AnalysisResult,
+  options?: { selectedRegionCode?: string | null },
+): string {
+  const top = result.rankedRegions.slice(0, 3);
+  const selected =
+    result.rankedRegions.find((region) => region.adm_cd2 === options?.selectedRegionCode) ??
+    result.selectedRegion;
+  const facilities = result.filteredFacilities.filter((facility) => facility.type !== "약국");
+
+  if (top.length >= 2) {
+    const names = top.map((region) => shortName(region.adm_nm));
+    const metric = top[0]?.metrics[0];
+    const metricHint = metric ? `${metric.label} 기준 ` : "";
+    const selectedHint =
+      selected && top.some((region) => region.adm_cd2 === selected.adm_cd2)
+        ? ` 선택 지역은 ${shortName(selected.adm_nm)}.`
+        : "";
+    return `${metricHint}상위 ${names.length}곳은 ${names.join(" · ")}입니다.${selectedHint}`;
+  }
+
+  if (top.length === 1) {
+    const metric = top[0].metrics[0];
+    return `${shortName(top[0].adm_nm)}이(가) ${metric ? metric.label : "지표"}에서 가장 두드러집니다.`;
+  }
+
+  if (facilities.length > 0) {
+    return `조건에 맞는 의료기관 ${facilities.length}곳을 확인하세요.`;
+  }
+
+  return "표시할 순위·시설이 없습니다. 빠른 분석이나 질문을 다시 실행해 보세요.";
+}
+
 /**
  * Deterministic analysis interpretation — no model names or provider leakage.
  * Safe offline; does not call external AI.
@@ -32,8 +72,9 @@ export function interpretAnalysisResult(
     result.selectedRegion;
   const medicalFacilities = result.filteredFacilities.filter((facility) => facility.type !== "약국");
   const modeLabel = snapshot.mode === "live" ? "실데이터 혼합" : "데모 샘플";
+  const conclusion = buildOneLineConclusion(result, options);
 
-  const insights: string[] = [];
+  const insights: string[] = [conclusion];
   if (top.length > 0) {
     insights.push(
       `상위 지역: ${top
@@ -45,20 +86,18 @@ export function interpretAnalysisResult(
               : metric
                 ? formatValue(metric.value, metric.unit)
                 : "—";
-          return `${index + 1}위 ${region.adm_nm.replace("부산광역시 ", "")}(${scoreLabel})`;
+          return `${index + 1}위 ${shortName(region.adm_nm)}(${scoreLabel})`;
         })
         .join(", ")}.`,
     );
   } else if (medicalFacilities.length > 0) {
     insights.push(`조건에 맞는 의료기관 ${medicalFacilities.length}곳을 지도에 표시했습니다.`);
-  } else {
-    insights.push("표시할 순위 또는 시설이 없습니다. 조건을 완화해 보세요.");
   }
 
   if (selected) {
     const metric = selected.metrics[0];
     insights.push(
-      `선택 지역 ${selected.adm_nm.replace("부산광역시 ", "")}: ${
+      `선택 지역 ${shortName(selected.adm_nm)}: ${
         metric
           ? `${metric.label} ${formatValue(metric.value, metric.unit)}`
           : selected.score !== null
@@ -71,8 +110,8 @@ export function interpretAnalysisResult(
   insights.push(`기준월 ${snapshot.referenceMonth} · 데이터 모드 ${modeLabel}.`);
 
   const suggestions: string[] = [
-    "빠른 분석 ‘고령 인구 × 의료 부족’과 ‘2km 접근성’을 교차 확인해 수요·공급 격차를 비교하세요.",
-    "기장군 vs 강서구 비교 후 상위 행정동을 클릭하면 13개월 추세와 산식을 함께 볼 수 있습니다.",
+    "빠른 분석 ‘고령 × 의료’와 ‘주변 접근’을 교차 확인해 수요·공급 격차를 비교하세요.",
+    "구 비교에서 지역을 바꾼 뒤 「동 순위 보기」로 세부 행정동을 확인하세요.",
   ];
 
   if (result.filteredFacilities.some((facility) => facility.hours == null)) {

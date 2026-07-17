@@ -16,6 +16,8 @@ type DemoMapProps = {
   facilities: Facility[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
+  /** When set, non-listed dongs are dimmed (e.g. gu compare focus). */
+  focusRegionCodes?: Set<string> | null;
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
   legendLabel?: string;
@@ -47,6 +49,7 @@ export function DemoMap({
   facilities,
   scores,
   selectedRegionCode,
+  focusRegionCodes = null,
   radiusKm,
   showFacilities,
   legendLabel = "상대 분석값",
@@ -133,19 +136,34 @@ export function DemoMap({
               const code = feature.properties.adm_cd2;
               const isSelected = code === selectedRegionCode;
               const isHovered = code === hovered;
+              const isFocused = !focusRegionCodes || focusRegionCodes.has(code);
+              const isDimmed = Boolean(focusRegionCodes && !isFocused);
               return (
                 <path
                   key={code}
                   d={pathForFeature(feature)}
-                  fill={colorForScore(scores.get(code))}
+                  fill={isDimmed ? "#e8edf2" : colorForScore(scores.get(code))}
                   fillRule="evenodd"
-                  stroke={isSelected ? "#172554" : isHovered ? "#2563eb" : "#ffffff"}
-                  strokeWidth={isSelected ? 3.4 : isHovered ? 2.2 : 0.9}
+                  fillOpacity={isDimmed ? 0.42 : 1}
+                  stroke={
+                    isSelected
+                      ? "#172554"
+                      : isFocused && focusRegionCodes
+                        ? "#b45309"
+                        : isHovered
+                          ? "#2563eb"
+                          : "#ffffff"
+                  }
+                  strokeWidth={
+                    isSelected ? 3.4 : isFocused && focusRegionCodes ? 2.4 : isHovered ? 2.2 : 0.9
+                  }
                   vectorEffect="non-scaling-stroke"
                   className="cursor-pointer transition-colors duration-150 outline-none focus-visible:stroke-blue-950"
                   role="button"
                   tabIndex={0}
                   aria-label={`${feature.properties.adm_nm} 선택`}
+                  data-focus={isFocused ? "1" : "0"}
+                  data-dimmed={isDimmed ? "1" : "0"}
                   onPointerEnter={() => setHovered(code)}
                   onPointerLeave={() => setHovered(null)}
                   onFocus={() => setHovered(code)}

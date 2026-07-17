@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { interpretAnalysisResult } from "@/lib/analysis/interpret";
+import {
+  buildOneLineConclusion,
+  interpretAnalysisResult,
+} from "@/lib/analysis/interpret";
 import type { AnalysisResult } from "@/lib/analysis/result";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
 
@@ -75,5 +78,11 @@ describe("interpretAnalysisResult", () => {
     expect(interpretation.insights.join(" ")).toContain("중앙동");
     expect(interpretation.suggestions.length).toBeGreaterThan(0);
     expect(JSON.stringify(interpretation)).not.toMatch(/qwen|dashscope|openai/i);
+  });
+
+  it("builds a one-line policy conclusion", () => {
+    const line = buildOneLineConclusion(result, { selectedRegionCode: "2611051000" });
+    expect(line).toMatch(/중앙동|취약/);
+    expect(line.length).toBeGreaterThan(8);
   });
 });

@@ -34,6 +34,7 @@ type KakaoMapProps = {
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
+  focusRegionCodes?: Set<string> | null;
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
   legendLabel?: string;
@@ -95,6 +96,7 @@ export function KakaoMap({
   livePlaces = [],
   scores,
   selectedRegionCode,
+  focusRegionCodes = null,
   radiusKm,
   showFacilities,
   legendLabel = "상대 분석값",
@@ -240,21 +242,29 @@ export function KakaoMap({
           ? [feature.geometry.coordinates]
           : feature.geometry.coordinates;
       const region = regionByCode.get(feature.properties.adm_cd2);
+      const code = feature.properties.adm_cd2;
+      const isSelected = code === selectedRegionCode;
+      const isFocused = !focusRegionCodes || focusRegionCodes.has(code);
+      const isDimmed = Boolean(focusRegionCodes && !isFocused);
       for (const polygonCoordinates of polygons) {
         const polygon = new maps.Polygon({
           path: polygonCoordinates.map(toPath),
-          strokeWeight: feature.properties.adm_cd2 === selectedRegionCode ? 3 : 1,
-          strokeColor: feature.properties.adm_cd2 === selectedRegionCode ? "#172554" : "#ffffff",
-          strokeOpacity: 0.9,
-          fillColor: scoreColor(scores.get(feature.properties.adm_cd2)),
-          fillOpacity: feature.properties.adm_cd2 === selectedRegionCode ? 0.82 : 0.72,
+          strokeWeight: isSelected ? 3 : isFocused && focusRegionCodes ? 2.2 : 1,
+          strokeColor: isSelected
+            ? "#172554"
+            : isFocused && focusRegionCodes
+              ? "#b45309"
+              : "#ffffff",
+          strokeOpacity: isDimmed ? 0.35 : 0.9,
+          fillColor: isDimmed ? "#e8edf2" : scoreColor(scores.get(code)),
+          fillOpacity: isDimmed ? 0.28 : isSelected ? 0.82 : 0.72,
         });
         polygon.setMap(map);
-        maps.event.addListener(polygon, "click", () => onSelectRegion(feature.properties.adm_cd2));
+        maps.event.addListener(polygon, "click", () => onSelectRegion(code));
         maps.event.addListener(polygon, "mouseover", () => {
           if (region) {
             showTooltip(
-              feature.properties.adm_cd2,
+              code,
               region.representativePoint.lat,
               region.representativePoint.lng,
             );
@@ -391,6 +401,7 @@ export function KakaoMap({
     regions,
     scores,
     selectedRegionCode,
+    focusRegionCodes,
     showFacilities,
   ]);
 

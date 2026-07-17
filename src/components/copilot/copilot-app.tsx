@@ -17,7 +17,10 @@ import {
 } from "@/lib/analysis/export-csv";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
-import { interpretAnalysisResult } from "@/lib/analysis/interpret";
+import {
+  buildOneLineConclusion,
+  interpretAnalysisResult,
+} from "@/lib/analysis/interpret";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
@@ -660,6 +663,58 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     () => new Map(analysis?.ranked.map((row) => [row.code, row.mapScore]) ?? []),
     [analysis],
   );
+
+  const isCompareView = Boolean(
+    activeQuick === "compare" ||
+      lastIntent?.tool === "compareRegions" ||
+      analysis?.title.includes("지역 비교") ||
+      analysis?.title.includes(" vs "),
+  );
+
+  const oneLineConclusion = useMemo(() => {
+    if (!snapshot || !analysis) return null;
+    const rankedRegions = analysis.ranked.map((row, index) => {
+      const region = snapshot.regions.find((item) => item.adm_cd2 === row.code);
+      return {
+        adm_cd2: row.code,
+        adm_nm: region?.adm_nm ?? row.name,
+        representativePoint: region?.representativePoint ?? { lat: 0, lng: 0 },
+        areaSquareKm: region?.areaSquareKm ?? 1,
+        rank: index + 1,
+        score: row.mapScore,
+        metrics: row.metrics,
+      };
+    });
+    return buildOneLineConclusion(
+      {
+        title: analysis.title,
+        summary: analysis.summary,
+        rankedRegions,
+        selectedRegion: rankedRegions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null,
+        filteredFacilities: analysis.filteredFacilities,
+        legend: [],
+        formulaNotes: analysis.formulaNotes,
+      },
+      { selectedRegionCode },
+    );
+  }, [analysis, selectedRegionCode, snapshot]);
+
+  const focusRegionCodes = useMemo(() => {
+    if (!snapshot || !isCompareView) return null;
+    const codes = new Set<string>();
+    for (const token of comparePair) {
+      for (const region of snapshot.regions) {
+        if (region.adm_cd2 === token || region.adm_nm.includes(token)) {
+          codes.add(region.adm_cd2);
+        }
+      }
+    }
+    for (const row of analysis?.ranked ?? []) {
+      codes.add(row.code);
+    }
+    return codes.size > 0 ? codes : null;
+  }, [analysis?.ranked, comparePair, isCompareView, snapshot]);
+
   const selectedRegion = snapshot?.regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   const defaultMedicalFacilities = snapshot?.facilities.filter((facility) => facility.type !== "약국") ?? [];
   const rawMapFacilities = analysis?.isFacilityResult
@@ -791,13 +846,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const onSheetPointerUp = useCallback(() => {
     if (!sheetDragRef.current) return;
-    if (sheetHeight < 42) {
+    // Mobile sheet snaps: close · peek · half · full
+    const snaps = [40, 56, 78] as const;
+    if (sheetHeight < 36) {
       setSheetMode("none");
-      setSheetHeight(72);
+      setSheetHeight(56);
       showToast("패널 닫힘");
+    } else {
+      const nearest = snaps.reduce((best, value) =>
+        Math.abs(value - sheetHeight) < Math.abs(best - sheetHeight) ? value : best,
+      );
+      setSheetHeight(nearest);
     }
     sheetDragRef.current = null;
   }, [sheetHeight, showToast]);
+
+  const setSheetSnap = useCallback((value: 40 | 56 | 78) => {
+    setSheetHeight(value);
+    setSheetMode((mode) => (mode === "none" ? "right" : mode));
+  }, []);
 
   const selectLivePlace = useCallback((place: LiveMapPlace) => {
     setSelectedLivePlace(place as LivePlace);
@@ -1066,12 +1133,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       ? analysis.filteredFacilities.length === 0
       : analysis.ranked.length === 0;
 
-  const isCompareView = Boolean(
-    activeQuick === "compare" ||
-      lastIntent?.tool === "compareRegions" ||
-      analysis.title.includes("지역 비교"),
-  );
-
   const shellStyle = {
     ...cssVars,
     ["--sheet-height" as string]: `${sheetHeight}dvh`,
@@ -1105,6 +1166,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           aria-valuenow={Math.round(sheetHeight)}
         >
           <span className="sheet-handle-bar" />
+        </div>
+        <div className="sheet-snap-bar" role="group" aria-label="시트 높이 단계">
+          {(
+            [
+              [40, "낮게"],
+              [56, "중간"],
+              [78, "높게"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={`sheet-snap-btn ${sheetHeight === value ? "is-active" : ""}`}
+              aria-pressed={sheetHeight === value}
+              onClick={() => setSheetSnap(value)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
@@ -1807,6 +1887,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           livePlaces={livePlaces}
           scores={scores}
           selectedRegionCode={selectedRegionCode}
+          focusRegionCodes={focusRegionCodes}
           radiusKm={radiusKm}
           showFacilities={analysis.isFacilityResult}
           legendLabel={analysis.legendLabel}
@@ -1821,6 +1902,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           <p className="max-w-[260px] truncate ui-body font-bold text-slate-900">
             {selectedRegion ? compactName(selectedRegion) : "부산광역시"}
           </p>
+          {isCompareView && focusRegionCodes ? (
+            <p className="ui-caption mt-1 font-bold text-amber-800">
+              비교 강조 · {comparePair[0]} · {comparePair[1]}
+            </p>
+          ) : null}
         </div>
 
         <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 max-md:bottom-20">
@@ -1963,6 +2049,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         >
           <span className="sheet-handle-bar" />
         </div>
+        <div className="sheet-snap-bar" role="group" aria-label="결과 시트 높이 단계">
+          {(
+            [
+              [40, "낮게"],
+              [56, "중간"],
+              [78, "높게"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={`right-${value}`}
+              type="button"
+              className={`sheet-snap-btn ${sheetHeight === value ? "is-active" : ""}`}
+              aria-pressed={sheetHeight === value}
+              onClick={() => setSheetSnap(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <header className="border-b border-slate-200/80 px-4 pb-3.5 pt-4">
           <p className="section-label !mb-1 text-blue-600">결과</p>
           <h2 className="ui-display text-slate-950">{analysis.title}</h2>
@@ -1983,6 +2088,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </div>
           ) : null}
           <p className="ui-body mt-1.5 text-slate-600">{analysis.summary}</p>
+          {oneLineConclusion ? (
+            <p
+              className="result-conclusion mt-2.5"
+              data-testid="one-line-conclusion"
+              role="status"
+            >
+              <span className="result-conclusion-label">한 줄 결론</span>
+              {oneLineConclusion}
+            </p>
+          ) : null}
           <div
             className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
               snapshot.mode === "live"

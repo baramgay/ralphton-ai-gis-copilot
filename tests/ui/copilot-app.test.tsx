@@ -234,4 +234,11 @@ describe("CopilotApp", () => {
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 B")).toBeInTheDocument();
   });
+
+  test("shows one-line conclusion in the result panel", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
+    expect(screen.getByTestId("one-line-conclusion").textContent).toMatch(/한 줄 결론/);
+  });
 });

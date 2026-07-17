@@ -15,6 +15,7 @@ type MapCanvasProps = {
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
+  focusRegionCodes?: Set<string> | null;
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
   legendLabel?: string;
