@@ -1,5 +1,6 @@
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
+import type { SidoScope } from "@/lib/analysis/scope";
 
 export type ShareState = {
   tool?: string;
@@ -8,15 +9,19 @@ export type ShareState = {
   q?: string;
   markers?: "priority" | "selected";
   tab?: "control" | "help" | "data";
+  /** Map/analysis scope chip */
+  sido?: SidoScope;
 };
 
 const RADIUS_SET = new Set([1, 2, 3]);
+const SIDO_SET = new Set<SidoScope>(["all", "busan", "gyeongnam"]);
 
 export function parseShareState(search: string | URLSearchParams): ShareState {
   const params = typeof search === "string" ? new URLSearchParams(search) : search;
   const radiusRaw = Number(params.get("radius") ?? "");
   const markers = params.get("markers");
   const tab = params.get("tab");
+  const sidoRaw = params.get("sido");
   return {
     tool: params.get("tool") ?? undefined,
     region: params.get("region") ?? undefined,
@@ -24,6 +29,8 @@ export function parseShareState(search: string | URLSearchParams): ShareState {
     q: params.get("q") ?? undefined,
     markers: markers === "selected" || markers === "priority" ? markers : undefined,
     tab: tab === "control" || tab === "help" || tab === "data" ? tab : undefined,
+    sido:
+      sidoRaw && SIDO_SET.has(sidoRaw as SidoScope) ? (sidoRaw as SidoScope) : undefined,
   };
 }
 
@@ -35,13 +42,19 @@ export function buildShareSearch(state: ShareState): string {
   if (state.q) params.set("q", state.q.slice(0, 200));
   if (state.markers && state.markers !== "priority") params.set("markers", state.markers);
   if (state.tab && state.tab !== "control") params.set("tab", state.tab);
+  if (state.sido && state.sido !== "all") params.set("sido", state.sido);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
 
 export function shareStateFromIntent(
   intent: AnalysisIntent,
-  extras?: { region?: string | null; q?: string; markers?: "priority" | "selected" },
+  extras?: {
+    region?: string | null;
+    q?: string;
+    markers?: "priority" | "selected";
+    sido?: SidoScope;
+  },
 ): ShareState {
   return {
     tool: intent.tool,
@@ -49,6 +62,7 @@ export function shareStateFromIntent(
     radius: intent.filters.radiusKm as 1 | 2 | 3 | undefined,
     q: extras?.q,
     markers: extras?.markers,
+    sido: extras?.sido,
   };
 }
 

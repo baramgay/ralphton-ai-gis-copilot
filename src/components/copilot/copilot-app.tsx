@@ -70,6 +70,7 @@ import {
 } from "./use-panel-layout";
 
 const RECENT_QUERIES_KEY = "ralphton-recent-queries-v1";
+const SIDO_SCOPE_KEY = "ralphton-sido-scope-v1";
 const ONBOARD_KEY = "ralphton-onboard-v1";
 
 type TabId = "control" | "help" | "data";
@@ -437,6 +438,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   useEffect(() => {
     try {
+      const savedSido = window.localStorage.getItem(SIDO_SCOPE_KEY);
+      if (savedSido === "all" || savedSido === "busan" || savedSido === "gyeongnam") {
+        setSidoScope(savedSido);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
       const raw = window.localStorage.getItem(RECENT_QUERIES_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as string[];
@@ -622,6 +634,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           if (share.markers) setMarkerScope(share.markers);
           if (share.tab) setActiveTab(share.tab);
           if (share.q) setQuery(share.q);
+          if (share.sido) setSidoScope(share.sido);
           if (share.region) {
             const hit = nextSnapshot.regions.find(
               (region) =>
@@ -812,6 +825,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const sidoMix = useMemo(
     () => (snapshot ? countBySido(snapshot.regions) : { busan: 0, gyeongnam: 0, other: 0 }),
+    [snapshot],
+  );
+  const facilitySidoMix = useMemo(
+    () => (snapshot ? countBySido(snapshot.facilities) : { busan: 0, gyeongnam: 0, other: 0 }),
     [snapshot],
   );
 
@@ -1021,11 +1038,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         q,
         markers: markerScope,
         tab: activeTab,
+        sido: sidoScope,
       });
       const next = `${window.location.pathname}${search}`;
       window.history.replaceState(null, "", next);
     },
-    [activeTab, markerScope, radiusKm],
+    [activeTab, markerScope, radiusKm, sidoScope],
   );
 
   const copyShareLink = useCallback(async () => {
@@ -1157,10 +1175,35 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setCustomAnalysis(null);
       setResultLimit(RESULT_PAGE_STEP);
       setResultSearch("");
+      try {
+        window.localStorage.setItem(SIDO_SCOPE_KEY, next);
+      } catch {
+        /* ignore */
+      }
       showToast(`지도 범위: ${SIDO_SCOPE_LABEL[next]}`);
     },
     [showToast],
   );
+
+  const clearRecentQueries = useCallback(() => {
+    setRecentQueries([]);
+    try {
+      window.localStorage.removeItem(RECENT_QUERIES_KEY);
+    } catch {
+      /* ignore */
+    }
+    showToast("최근 질문 삭제");
+  }, [showToast]);
+
+  const copyOneLineConclusion = useCallback(async () => {
+    if (!oneLineConclusion) return;
+    try {
+      await navigator.clipboard.writeText(oneLineConclusion);
+      showToast("한 줄 결론 복사됨");
+    } catch {
+      showToast("복사 실패");
+    }
+  }, [oneLineConclusion, showToast]);
 
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();
@@ -1471,6 +1514,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 {queryNotice ? (
                   <p
                     role="status"
+                    aria-live={queryNoticeTone === "error" ? "assertive" : "polite"}
+                    data-testid="query-notice"
                     className={`mt-2.5 rounded-lg px-3 py-2.5 ui-body ${
                       queryNoticeTone === "error"
                         ? "bg-rose-50 text-rose-700"
@@ -1500,8 +1545,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 ) : null}
                 {recentQueries.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="ui-caption mb-1.5">최근 질문</p>
+                  <div className="mt-3" data-testid="recent-queries">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <p className="ui-caption">최근 질문</p>
+                      <button
+                        type="button"
+                        className="ui-caption font-bold text-slate-500 underline-offset-2 hover:text-rose-600 hover:underline"
+                        data-testid="clear-recent-queries"
+                        onClick={clearRecentQueries}
+                      >
+                        지우기
+                      </button>
+                    </div>
                     <div className="flex flex-wrap gap-1.5">
                       {recentQueries.slice(0, 4).map((item) => (
                         <button
@@ -2003,6 +2058,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     "부산 / 경남 동",
                     `${sidoMix.busan.toLocaleString("ko-KR")} / ${sidoMix.gyeongnam.toLocaleString("ko-KR")}`,
                   ],
+                  [
+                    "부산 / 경남 시설",
+                    `${facilitySidoMix.busan.toLocaleString("ko-KR")} / ${facilitySidoMix.gyeongnam.toLocaleString("ko-KR")}`,
+                  ],
                   ["시설", `${snapshot.facilities.length.toLocaleString("ko-KR")}곳`],
                   ["지도", mapEngineLabel(kakaoMapKey, mapEngine)],
                   ["병원 API", "HIRA v2"],
@@ -2464,14 +2523,22 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ) : null}
           <p className="ui-body mt-1.5 text-slate-600">{analysis.summary}</p>
           {oneLineConclusion ? (
-            <p
-              className="result-conclusion mt-2.5"
-              data-testid="one-line-conclusion"
-              role="status"
-            >
-              <span className="result-conclusion-label">한 줄 결론</span>
-              {oneLineConclusion}
-            </p>
+            <div className="result-conclusion mt-2.5" data-testid="one-line-conclusion">
+              <div className="mb-0.5 flex items-center justify-between gap-2">
+                <span className="result-conclusion-label !mb-0">한 줄 결론</span>
+                <button
+                  type="button"
+                  className="ui-caption font-bold text-blue-700 hover:underline"
+                  data-testid="copy-conclusion"
+                  onClick={() => void copyOneLineConclusion()}
+                >
+                  복사
+                </button>
+              </div>
+              <p role="status" aria-live="polite">
+                {oneLineConclusion}
+              </p>
+            </div>
           ) : null}
           <div
             className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${

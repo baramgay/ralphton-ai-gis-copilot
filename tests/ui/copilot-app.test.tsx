@@ -290,6 +290,13 @@ describe("CopilotApp", () => {
     });
   });
 
+  test("copy conclusion button appears after analysis", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
+    expect(screen.getByTestId("copy-conclusion")).toBeInTheDocument();
+  });
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
