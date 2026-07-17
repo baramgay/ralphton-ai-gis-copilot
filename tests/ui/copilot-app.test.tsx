@@ -87,6 +87,7 @@ const boundary = {
 
 describe("CopilotApp", () => {
   beforeEach(() => {
+    window.localStorage.setItem("ralphton-onboard-v1", "1");
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -160,7 +161,7 @@ describe("CopilotApp", () => {
       "인구 증가",
       "최근접 거리",
       "주변 접근",
-      "기장 vs 강서",
+      "구 비교",
       "의료기관",
       "초기화",
     ]) {
@@ -222,5 +223,15 @@ describe("CopilotApp", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "결과" }));
     expect(screen.getByTestId("result-panel").className).toMatch(/sheet-open/);
+  });
+
+  test("shows compare picker when gu compare is selected", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    fireEvent.click(screen.getByRole("button", { name: "구 비교" }));
+    expect(await screen.findByTestId("compare-picker")).toBeInTheDocument();
+    expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
+    expect(screen.getByLabelText("비교 지역 B")).toBeInTheDocument();
   });
 });

@@ -41,6 +41,7 @@ npm run dev
 - `QWEN_API_KEY`, `QWEN_BASE_URL`: 서버 전용 자연어 파서 설정
 - `QWEN_PRIMARY_MODEL` (기본 `qwen3.6-flash`), `QWEN_JSON_FALLBACK_MODEL` (기본 `qwen3.7-plus`): 의도 JSON 파싱용 가성비 모델. DashScope OpenAI 호환 endpoint 사용
 - `DATA_SYNC_SECRET`: `POST /api/data/sync` 보호용 공유 비밀(없으면 동기화 비활성)
+- `CRON_SECRET`: Vercel Cron `GET /api/cron/sync` 인증(일 1회 UTC 15:00≈KST 00:00, `publish:true`)
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`: 공개 스냅샷 읽기
 - `SUPABASE_SERVICE_ROLE_KEY`: 서버 전용 동기화 권한
 

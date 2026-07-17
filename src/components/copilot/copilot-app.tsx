@@ -21,6 +21,11 @@ import { interpretAnalysisResult } from "@/lib/analysis/interpret";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
+  DEFAULT_COMPARE,
+  listDistricts,
+  normalizeComparePair,
+} from "@/lib/analysis/districts";
+import {
   applyFollowUpMerge,
   buildShareSearch,
   isFollowUpQuery,
@@ -42,7 +47,7 @@ import {
 } from "./use-panel-layout";
 
 const RECENT_QUERIES_KEY = "ralphton-recent-queries-v1";
-const UX_HINT_KEY = "ralphton-ux-hint-seen-v1";
+const ONBOARD_KEY = "ralphton-onboard-v1";
 
 type TabId = "control" | "help" | "data";
 type QuickId =
@@ -100,7 +105,7 @@ const QUICK_ANALYSES: Array<{
   { id: "growth", label: "인구 증가", subtitle: "최근 1년 변화", symbol: "↗", tone: "bg-emerald-50 text-emerald-600" },
   { id: "nearest", label: "최근접 거리", subtitle: "가장 가까운 병원", symbol: "⌖", tone: "bg-sky-50 text-sky-600" },
   { id: "radius", label: "주변 접근", subtitle: "반경 안 기관 수", symbol: "◉", tone: "bg-blue-50 text-blue-600" },
-  { id: "compare", label: "기장 vs 강서", subtitle: "두 구 비교", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
+  { id: "compare", label: "구 비교", subtitle: "두 지역 선택", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
   { id: "facilities", label: "의료기관", subtitle: "병원·의원 목록", symbol: "◆", tone: "bg-cyan-50 text-cyan-700" },
   { id: "reset", label: "초기화", subtitle: "처음부터", symbol: "↺", tone: "bg-slate-100 text-slate-600" },
 ];
@@ -109,7 +114,12 @@ function compactName(region: RegionSeries): string {
   return region.adm_nm.replace("부산광역시 ", "");
 }
 
-function quickIntent(id: QuickId, radiusKm: 1 | 2 | 3, regionLimit: number): AnalysisIntent {
+function quickIntent(
+  id: QuickId,
+  radiusKm: 1 | 2 | 3,
+  regionLimit: number,
+  comparePair: [string, string] = DEFAULT_COMPARE,
+): AnalysisIntent {
   const limit = Math.max(1, Math.min(regionLimit, 250));
   const intents: Record<QuickId, AnalysisIntent> = {
     scarcity: { tool: "rankHospitalScarcity", filters: { limit } },
@@ -117,7 +127,7 @@ function quickIntent(id: QuickId, radiusKm: 1 | 2 | 3, regionLimit: number): Ana
     growth: { tool: "rankPopulationGrowthPressure", filters: { limit } },
     nearest: { tool: "nearestFacilityDistance", filters: { limit } },
     radius: { tool: "countFacilitiesWithinRadius", filters: { radiusKm, limit } },
-    compare: { tool: "compareRegions", filters: { compare: ["기장군", "강서구"] } },
+    compare: { tool: "compareRegions", filters: { compare: [...comparePair] } },
     facilities: { tool: "filterFacilitiesByTypeAndHours", filters: {} },
     reset: { tool: "rankHospitalScarcity", filters: { limit } },
   };
@@ -176,9 +186,23 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
   };
 }
 
-function executeQuickAnalysis(snapshot: AnalysisSnapshot, id: QuickId, radiusKm: 1 | 2 | 3): AnalysisView {
-  const result = executeAnalysisIntent(quickIntent(id, radiusKm, snapshot.regions.length), snapshot);
-  return resultToView(id, result, id === "facilities" ? "전체 의료기관" : undefined);
+function executeQuickAnalysis(
+  snapshot: AnalysisSnapshot,
+  id: QuickId,
+  radiusKm: 1 | 2 | 3,
+  comparePair: [string, string] = DEFAULT_COMPARE,
+): AnalysisView {
+  const result = executeAnalysisIntent(
+    quickIntent(id, radiusKm, snapshot.regions.length, comparePair),
+    snapshot,
+  );
+  const titleOverride =
+    id === "facilities"
+      ? "전체 의료기관"
+      : id === "compare"
+        ? `${comparePair[0]} vs ${comparePair[1]}`
+        : undefined;
+  return resultToView(id, result, titleOverride);
 }
 
 function modeBadgeLabel(mode: AnalysisSnapshot["mode"]): string {
@@ -282,7 +306,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [capabilities, setCapabilities] = useState<CapabilityFlags | null>(null);
   const [markerScope, setMarkerScope] = useState<"priority" | "selected">("priority");
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
-  const [showUxHint, setShowUxHint] = useState(false);
+  const [showOnboard, setShowOnboard] = useState(false);
+  const [comparePair, setComparePair] = useState<[string, string]>(DEFAULT_COMPARE);
   const [lastIntent, setLastIntent] = useState<AnalysisIntent | null>(null);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
   const [publishedLive, setPublishedLive] = useState<PublishedLiveInfo | null>(null);
@@ -358,12 +383,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         const parsed = JSON.parse(raw) as string[];
         if (Array.isArray(parsed)) setRecentQueries(parsed.filter((item) => typeof item === "string").slice(0, 6));
       }
-      if (!window.localStorage.getItem(UX_HINT_KEY)) {
-        setShowUxHint(true);
-        window.setTimeout(() => {
-          setShowUxHint(false);
-          window.localStorage.setItem(UX_HINT_KEY, "1");
-        }, 6500);
+      if (!window.localStorage.getItem(ONBOARD_KEY)) {
+        setShowOnboard(true);
       }
     } catch {
       /* ignore storage errors */
@@ -418,7 +439,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         !event.metaKey &&
         !event.ctrlKey
       ) {
-        const list = customAnalysis?.ranked ?? (snapshot ? executeQuickAnalysis(snapshot, activeQuick, radiusKm).ranked : []);
+        const list =
+          customAnalysis?.ranked ??
+          (snapshot ? executeQuickAnalysis(snapshot, activeQuick, radiusKm, comparePair).ranked : []);
         if (list.length === 0) return;
         event.preventDefault();
         const current = list.findIndex((row) => row.code === selectedRegionCode);
@@ -438,6 +461,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     activeQuick,
+    comparePair,
     customAnalysis,
     expandMap,
     radiusKm,
@@ -555,7 +579,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           }
         }
 
-        const initial = executeQuickAnalysis(nextSnapshot, "scarcity", 2);
+        const districts = listDistricts(nextSnapshot.regions);
+        if (districts.length >= 2) {
+          setComparePair((current) => normalizeComparePair(current[0], current[1], districts));
+        }
+
+        const initial = executeQuickAnalysis(nextSnapshot, "scarcity", 2, DEFAULT_COMPARE);
         setSelectedRegionCode((current) => current ?? initial.ranked[0]?.code ?? nextSnapshot.regions[0]?.adm_cd2 ?? null);
       })
       .catch((error: unknown) => {
@@ -565,10 +594,41 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return () => controller.abort();
   }, [boundaryVersion, snapshotMode]);
 
-  const analysis = useMemo(
-    () => customAnalysis ?? (snapshot ? executeQuickAnalysis(snapshot, activeQuick, radiusKm) : null),
-    [snapshot, activeQuick, radiusKm, customAnalysis],
+  const districtOptions = useMemo(
+    () => (snapshot ? listDistricts(snapshot.regions) : [...DEFAULT_COMPARE]),
+    [snapshot],
   );
+
+  const analysis = useMemo(
+    () =>
+      customAnalysis ??
+      (snapshot ? executeQuickAnalysis(snapshot, activeQuick, radiusKm, comparePair) : null),
+    [snapshot, activeQuick, radiusKm, customAnalysis, comparePair],
+  );
+
+  const dismissOnboard = useCallback(() => {
+    setShowOnboard(false);
+    try {
+      window.localStorage.setItem(ONBOARD_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const runOnboardExample = useCallback(() => {
+    dismissOnboard();
+    setActiveTab("control");
+    setActiveQuick("scarcity");
+    setCustomAnalysis(null);
+    setSelectedFacilityId(null);
+    setDrillTrail([]);
+    if (snapshot) {
+      const next = executeQuickAnalysis(snapshot, "scarcity", radiusKm, comparePair);
+      if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
+    }
+    setSheetMode("right");
+    showToast("의료 취약 분석 시작");
+  }, [comparePair, dismissOnboard, radiusKm, showToast, snapshot]);
 
   const interpretation = useMemo(() => {
     if (!snapshot || !analysis) return null;
@@ -690,11 +750,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setDrillTrail([]);
     setActiveQuick("compare");
     setCustomAnalysis(null);
-    setLastIntent({ tool: "compareRegions", filters: { compare: ["기장군", "강서구"] } });
-    const next = executeQuickAnalysis(snapshot, "compare", radiusKm);
+    setLastIntent({ tool: "compareRegions", filters: { compare: [...comparePair] } });
+    const next = executeQuickAnalysis(snapshot, "compare", radiusKm, comparePair);
     if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
     showToast("구 비교로 돌아감");
-  }, [radiusKm, showToast, snapshot]);
+  }, [comparePair, radiusKm, showToast, snapshot]);
+
+  const applyComparePair = useCallback(
+    (nextA: string, nextB: string) => {
+      if (!snapshot) return;
+      const pair = normalizeComparePair(nextA, nextB, listDistricts(snapshot.regions));
+      setComparePair(pair);
+      setActiveQuick("compare");
+      setCustomAnalysis(null);
+      setDrillTrail([]);
+      setLastIntent({ tool: "compareRegions", filters: { compare: [...pair] } });
+      const next = executeQuickAnalysis(snapshot, "compare", radiusKm, pair);
+      if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
+      setSheetMode("right");
+      showToast(`${pair[0]} vs ${pair[1]}`);
+    },
+    [radiusKm, showToast, snapshot],
+  );
 
   const onSheetPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -808,7 +885,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (id: QuickId) => {
       if (id === "reset") {
         setActiveQuick("scarcity");
-        const next = snapshot ? executeQuickAnalysis(snapshot, "scarcity", 2) : null;
+        const next = snapshot ? executeQuickAnalysis(snapshot, "scarcity", 2, comparePair) : null;
         setSelectedRegionCode(next?.ranked[0]?.code ?? snapshot?.regions[0]?.adm_cd2 ?? null);
         setRadiusKm(2);
         setQuery("");
@@ -824,15 +901,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setCustomAnalysis(null);
       setSelectedFacilityId(null);
       if (id !== "compare") setDrillTrail([]);
-      const next = snapshot ? executeQuickAnalysis(snapshot, id, radiusKm) : null;
+      if (id === "compare") {
+        setLastIntent({ tool: "compareRegions", filters: { compare: [...comparePair] } });
+      }
+      const next = snapshot ? executeQuickAnalysis(snapshot, id, radiusKm, comparePair) : null;
       if (next?.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
       else if (next?.filteredFacilities[0]) {
         setSelectedRegionCode(next.filteredFacilities[0].adm_cd2);
         setSelectedFacilityId(next.filteredFacilities[0].id);
       }
       setActiveTab("control");
+      if (id === "compare") setSheetMode("right");
     },
-    [radiusKm, snapshot],
+    [comparePair, radiusKm, snapshot],
   );
 
   const runRadius = useCallback(
@@ -1204,11 +1285,80 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         {item.symbol}
                       </span>
                       <span className="mt-1.5 block ui-body font-bold text-slate-900">{item.label}</span>
-                      <span className="ui-caption mt-0.5 block text-slate-500">{item.subtitle}</span>
+                      <span className="ui-caption mt-0.5 block text-slate-500">
+                        {item.id === "compare"
+                          ? `${comparePair[0]} · ${comparePair[1]}`
+                          : item.subtitle}
+                      </span>
                     </button>
                   ))}
                 </div>
               </section>
+
+              {(activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
+                <section
+                  className="rounded-xl border border-amber-200 bg-amber-50/70 p-3"
+                  data-testid="compare-picker"
+                >
+                  <p className="ui-body font-bold text-amber-950">비교할 구·군</p>
+                  <p className="ui-caption mt-1 text-amber-900/80">두 지역을 고르면 바로 다시 계산합니다</p>
+                  <div className="mt-2.5 grid grid-cols-2 gap-2">
+                    <label className="block">
+                      <span className="ui-caption mb-1 block">A</span>
+                      <select
+                        className="w-full rounded-lg border border-amber-200 bg-white px-2 py-2 ui-body font-bold text-slate-900"
+                        value={comparePair[0]}
+                        aria-label="비교 지역 A"
+                        onChange={(event) => applyComparePair(event.target.value, comparePair[1])}
+                      >
+                        {districtOptions.map((name) => (
+                          <option key={`a-${name}`} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="ui-caption mb-1 block">B</span>
+                      <select
+                        className="w-full rounded-lg border border-amber-200 bg-white px-2 py-2 ui-body font-bold text-slate-900"
+                        value={comparePair[1]}
+                        aria-label="비교 지역 B"
+                        onChange={(event) => applyComparePair(comparePair[0], event.target.value)}
+                      >
+                        {districtOptions.map((name) => (
+                          <option key={`b-${name}`} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        ["기장군", "강서구"],
+                        ["해운대구", "부산진구"],
+                        ["중구", "영도구"],
+                      ] as const
+                    )
+                      .filter(
+                        ([a, b]) =>
+                          districtOptions.includes(a) && districtOptions.includes(b),
+                      )
+                      .map(([a, b]) => (
+                        <button
+                          key={`${a}-${b}`}
+                          type="button"
+                          className="ui-chip rounded-full border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-950"
+                          onClick={() => applyComparePair(a, b)}
+                        >
+                          {a.replace(/[구현군]$/, "")}·{b.replace(/[구현군]$/, "")}
+                        </button>
+                      ))}
+                  </div>
+                </section>
+              )}
 
               <section>
                 <h2 className="section-label">3. 접근 반경</h2>
@@ -1736,10 +1886,46 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           </div>
         </div>
 
-        {showUxHint ? (
-          <p className="ux-hint" role="status">
-            패널 경계를 드래그해 크기를 조절 · / 질문 포커스 · [ ] 패널 접기
-          </p>
+        {showOnboard ? (
+          <div
+            className="onboard-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboard-title"
+            data-testid="onboard-card"
+          >
+            <p className="ui-caption font-bold text-blue-300">30초 시작</p>
+            <h2 id="onboard-title" className="ui-title mt-1 text-white">
+              이렇게 써 보세요
+            </h2>
+            <ol className="mt-3 space-y-2 ui-body text-slate-200">
+              <li>
+                <span className="font-bold text-white">1.</span> 왼쪽에서 「의료 취약」을 누릅니다
+              </li>
+              <li>
+                <span className="font-bold text-white">2.</span> 지도에서 행정동을 고릅니다
+              </li>
+              <li>
+                <span className="font-bold text-white">3.</span> 오른쪽에서 순위·해석을 확인합니다
+              </li>
+            </ol>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-full bg-blue-500 px-3.5 py-2 ui-chip font-bold text-white hover:bg-blue-400"
+                onClick={runOnboardExample}
+              >
+                의료 취약 실행
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-white/30 bg-white/10 px-3.5 py-2 ui-chip font-bold text-slate-100 hover:bg-white/15"
+                onClick={dismissOnboard}
+              >
+                바로 시작
+              </button>
+            </div>
+          </div>
         ) : null}
       </section>
 

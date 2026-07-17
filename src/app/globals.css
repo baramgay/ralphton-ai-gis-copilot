@@ -402,6 +402,32 @@ input:hover {
   backdrop-filter: blur(10px);
 }
 
+.onboard-card {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: 5.5rem;
+  width: min(92vw, 22rem);
+  transform: translateX(-50%);
+  border: 1px solid rgb(148 163 184 / 35%);
+  border-radius: 1.15rem;
+  background: rgb(15 23 42 / 94%);
+  padding: 1rem 1.1rem 1.05rem;
+  box-shadow: 0 18px 48px rgb(15 23 42 / 35%);
+  backdrop-filter: blur(14px);
+  animation: toast-in 200ms ease;
+}
+
+@media (max-width: 767px) {
+  .onboard-card {
+    bottom: 6.5rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    transform: none;
+  }
+}
+
 /* Floating toast */
 .ui-toast {
   position: fixed;
