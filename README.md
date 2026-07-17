@@ -27,6 +27,7 @@ npm run dev
 - 8개 빠른 분석, 행정동 클릭, 순위·상세 지표·13개월 추세 동기화
 - “병원”은 약국을 제외한 전체 의료기관으로 해석하고 약국은 명시 요청 때만 포함
 - Qwen JSON 의도 파서: primary 재시도, fallback, 규칙 기반 demo 순서의 안전한 폴백
+- 오프라인 RAG: 도구·지표·한계 지식 코퍼스 검색(BM25-lite)을 AI 프롬프트·해석 카드에 주입 (`POST /api/rag/search`)
 - 공공데이터 정규화 계층과 선택적 Supabase 공개 스냅샷 캐시
 - 400px 데스크톱 분석 패널과 모바일 bottom sheet, 키보드 지도 선택, reduced-motion 대응
 

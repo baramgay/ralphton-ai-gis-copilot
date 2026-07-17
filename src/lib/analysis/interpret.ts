@@ -1,11 +1,13 @@
 import type { AnalysisResult } from "@/lib/analysis/result";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
+import { enrichInterpretationWithRag } from "@/lib/rag/augment";
 
 export type Interpretation = {
   headline: string;
   insights: string[];
   suggestions: string[];
   caveats: string[];
+  ragCitations?: Array<{ id: string; title: string }>;
 };
 
 function formatValue(value: number | null, unit: string): string {
@@ -86,10 +88,13 @@ export function interpretAnalysisResult(
       : "실데이터 시설과 검증 스냅샷 인구가 혼합될 수 있습니다. 출처 탭에서 한계를 확인하세요.",
   ];
 
-  return {
+  const base: Interpretation = {
     headline: result.title ? `${result.title} — 해석 요약` : "분석 해석",
     insights,
     suggestions: suggestions.slice(0, 3),
     caveats: caveats.filter(Boolean).slice(0, 5),
   };
+
+  // Offline RAG: method caveats + next-step suggestions from curated corpus
+  return enrichInterpretationWithRag(base, result, result.title);
 }

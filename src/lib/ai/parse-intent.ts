@@ -8,6 +8,7 @@ import {
   resolveQueryWithRules,
   type QueryEnrichment,
 } from "@/lib/analysis/query-rules";
+import { augmentQueryWithRag, buildRagPromptSection } from "@/lib/rag/augment";
 
 export interface ParseIntentDeps extends QwenClientDeps {
   primaryModel?: string;
@@ -21,18 +22,24 @@ export interface ParseIntentResult {
   suggestions?: string[];
   enrichment?: QueryEnrichment;
   parser?: "ai" | "rules" | "hybrid";
+  rag?: {
+    citations: Array<{ id: string; title: string }>;
+    hitCount: number;
+  };
 }
 
 const DEFAULT_PRIMARY_MODEL = "qwen3.6-flash";
 const DEFAULT_FALLBACK_MODEL = "qwen3.7-plus";
 
-function systemPrompt(): string {
+function systemPrompt(query: string): string {
+  const ragSection = buildRagPromptSection(query);
   return `당신은 부산 AI GIS Copilot의 자연어 의도 파서입니다.
 구어체·반말·오탈자 질의도 허용된 tool JSON으로만 변환하세요.
 분석 범위 밖이면: {"tool":"unsupported","filters":{},"reason":"짧은 한국어 안내"}
 
 등록된 tool 카탈로그:
 ${buildAiToolGuide()}
+${ragSection}
 
 filters optional:
 - facilityTypes, includePharmacy, radiusKm(1~3), requireNightHours, requireWeekendHours
@@ -85,7 +92,7 @@ async function callAiParser(
   const raw = await createQwenCompletion(deps, {
     model,
     messages: [
-      { role: "system", content: systemPrompt() },
+      { role: "system", content: systemPrompt(query) },
       { role: "user", content: `사용자 질의: "${query}"` },
     ],
     temperature: 0.1,
@@ -107,35 +114,46 @@ async function callAiParser(
   return AnalysisIntentSchema.parse(raw);
 }
 
+function attachRagMeta(query: string, result: ParseIntentResult): ParseIntentResult {
+  const rag = augmentQueryWithRag(query, { intent: result.intent });
+  return {
+    ...result,
+    rag: {
+      citations: rag.citations,
+      hitCount: rag.hits.length,
+    },
+  };
+}
+
 function fromRules(query: string): ParseIntentResult {
   const resolved = resolveQueryWithRules(query);
 
   if (resolved.kind === "intent") {
-    return {
+    return attachRagMeta(query, {
       intent: resolved.intent,
       mode: "demo",
       notice: resolved.notice,
       enrichment: resolved.enrichment,
       parser: "rules",
-    };
+    });
   }
 
   if (resolved.kind === "unsafe") {
-    return {
+    return attachRagMeta(query, {
       intent: null,
       mode: "demo",
       notice: resolved.notice,
       parser: "rules",
-    };
+    });
   }
 
-  return {
+  return attachRagMeta(query, {
     intent: null,
     mode: "demo",
     notice: resolved.notice,
     suggestions: resolved.suggestions,
     parser: "rules",
-  };
+  });
 }
 
 export async function parseIntentWithFallbacks(
@@ -188,13 +206,13 @@ export async function parseIntentWithFallbacks(
       }
 
       // Prefer AI intent when valid; keep rule enrichment for Kakao nearby cues.
-      return {
+      return attachRagMeta(safety.query, {
         intent: parsed as AnalysisIntent,
         mode: "live",
         notice: "질문을 분석에 반영했습니다.",
         enrichment: ruleResult.enrichment,
         parser: ruleResult.enrichment ? "hybrid" : "ai",
-      };
+      });
     } catch {
       // retry / fallback model
     }

@@ -130,6 +130,9 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/api/rag/search")) {
+          return new Response(JSON.stringify({ ok: true, hits: [], context: "" }), { status: 200 });
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );

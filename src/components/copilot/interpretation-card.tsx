@@ -50,6 +50,21 @@ export function InterpretationCard({ interpretation }: InterpretationCardProps) 
             ))}
           </ul>
         </details>
+
+        {interpretation.ragCitations && interpretation.ragCitations.length > 0 ? (
+          <details className="rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2" data-testid="rag-citations">
+            <summary className="cursor-pointer text-[10px] font-bold text-violet-800">
+              근거 지식 (RAG)
+            </summary>
+            <ul className="mt-2 space-y-1 text-[10px] leading-5 text-violet-900/80">
+              {interpretation.ragCitations.map((cite) => (
+                <li key={cite.id}>
+                  · <span className="font-mono text-[9px] text-violet-600">{cite.id}</span> {cite.title}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </div>
     </section>
   );
