@@ -26,6 +26,128 @@ html[data-density="compact"] .quick-tile {
   padding: 0.4rem !important;
 }
 
+/* Dark theme */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .copilot-shell {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] .copilot-panel {
+  background: rgb(15 23 42 / 96%);
+  border-color: rgb(51 65 85 / 80%);
+}
+
+html[data-theme="dark"] .copilot-panel-left {
+  border-right-color: rgb(51 65 85 / 80%);
+  box-shadow: 8px 0 24px rgb(0 0 0 / 35%);
+}
+
+html[data-theme="dark"] .copilot-panel-right {
+  border-left-color: rgb(51 65 85 / 80%);
+  box-shadow: -8px 0 24px rgb(0 0 0 / 35%);
+}
+
+html[data-theme="dark"] .copilot-map {
+  background: #111827;
+}
+
+html[data-theme="dark"] .section-label {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .rank-row:hover {
+  background: rgb(30 41 59 / 80%);
+}
+
+html[data-theme="dark"] .rank-row.is-selected {
+  background: rgb(30 58 138 / 35%);
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
+html[data-theme="dark"] .map-float-bar,
+html[data-theme="dark"] .panel-edge-toggle {
+  background: rgb(15 23 42 / 94%);
+  border-color: rgb(71 85 105 / 80%);
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] .map-float-btn {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .map-float-btn:hover {
+  background: #1e293b;
+  border-color: #334155;
+  color: #93c5fd;
+}
+
+html[data-theme="dark"] .empty-state {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+html[data-theme="dark"] .score-bar {
+  background: #1e293b;
+}
+
+html[data-theme="dark"] .ui-toast {
+  background: rgb(226 232 240 / 95%);
+  color: #0f172a;
+}
+
+/* High contrast */
+html[data-theme="contrast"] {
+  color-scheme: dark;
+  --background: #000;
+  --foreground: #fff;
+}
+
+html[data-theme="contrast"] body,
+html[data-theme="contrast"] .copilot-shell {
+  background: #000;
+  color: #fff;
+}
+
+html[data-theme="contrast"] .copilot-panel {
+  background: #000;
+  border-color: #fff;
+}
+
+html[data-theme="contrast"] .copilot-map {
+  background: #111;
+}
+
+html[data-theme="contrast"] button,
+html[data-theme="contrast"] .rank-row,
+html[data-theme="contrast"] .map-float-bar,
+html[data-theme="contrast"] .panel-edge-toggle {
+  border-color: #fff !important;
+  outline-color: #fff;
+}
+
+html[data-theme="contrast"] .map-float-btn.is-active,
+html[data-theme="contrast"] .rank-row.is-selected {
+  background: #fff !important;
+  color: #000 !important;
+}
+
+html[data-theme="contrast"] .score-bar > span {
+  background: #fff;
+}
+
+html[data-theme="contrast"] a:focus-visible,
+html[data-theme="contrast"] button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -465,17 +587,26 @@ input:hover {
     inset: 0;
   }
 
+  /* Bottom sheet panels (height drag via --sheet-height) */
   .copilot-panel {
     position: absolute;
     z-index: 30;
-    top: 0;
+    top: auto;
+    right: 0;
     bottom: 0;
-    width: min(92vw, 360px);
-    max-width: 360px;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    height: var(--sheet-height, 72dvh);
+    max-height: 92dvh;
     opacity: 1;
-    transform: translateX(-105%);
-    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 0 40px rgb(15 23 42 / 18%);
+    border-radius: 1.1rem 1.1rem 0 0;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgb(203 213 225 / 80%);
+    transform: translateY(108%);
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 -12px 40px rgb(15 23 42 / 22%);
     pointer-events: auto;
   }
 
@@ -483,21 +614,24 @@ input:hover {
     opacity: 1;
   }
 
-  .copilot-panel-left {
-    left: 0;
-    border-right: 1px solid rgb(203 213 225 / 80%);
-  }
-
-  .copilot-panel-right {
-    right: 0;
-    left: auto;
-    transform: translateX(105%);
-    border-left: 1px solid rgb(203 213 225 / 80%);
-  }
-
   .copilot-panel-left.sheet-open,
   .copilot-panel-right.sheet-open {
-    transform: translateX(0);
+    transform: translateY(0);
+  }
+
+  .sheet-handle {
+    display: flex;
+    justify-content: center;
+    padding: 0.55rem 0 0.2rem;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .sheet-handle-bar {
+    width: 2.5rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    background: #cbd5e1;
   }
 
   .panel-resizer,
@@ -508,6 +642,12 @@ input:hover {
 
   .mobile-panel-btn {
     display: inline-flex;
+  }
+}
+
+@media (min-width: 901px) {
+  .sheet-handle {
+    display: none;
   }
 }
 

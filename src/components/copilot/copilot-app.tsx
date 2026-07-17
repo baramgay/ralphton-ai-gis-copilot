@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type FormEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -288,8 +289,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     applyPreset,
   } = usePanelLayout();
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
+  const [theme, setTheme] = useState<"light" | "dark" | "contrast">("light");
   const [toast, setToast] = useState<string | null>(null);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>("balanced");
+  const [drillTrail, setDrillTrail] = useState<string[]>([]);
+  const [sheetHeight, setSheetHeight] = useState(72);
+  const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -302,6 +307,33 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       delete document.documentElement.dataset.density;
     };
   }, [density]);
+
+  useEffect(() => {
+    if (theme === "light") {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = theme;
+    }
+    try {
+      window.localStorage.setItem("ralphton-theme", theme);
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, [theme]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("ralphton-theme");
+      if (stored === "dark" || stored === "contrast" || stored === "light") {
+        setTheme(stored);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -360,10 +392,45 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         event.preventDefault();
         resetLayout();
       }
+
+      // Rank list keyboard navigation
+      if (
+        (event.key === "ArrowDown" ||
+          event.key === "ArrowUp" ||
+          event.key === "j" ||
+          event.key === "k") &&
+        !event.metaKey &&
+        !event.ctrlKey
+      ) {
+        const list = customAnalysis?.ranked ?? (snapshot ? executeQuickAnalysis(snapshot, activeQuick, radiusKm).ranked : []);
+        if (list.length === 0) return;
+        event.preventDefault();
+        const current = list.findIndex((row) => row.code === selectedRegionCode);
+        const delta =
+          event.key === "ArrowDown" || event.key === "j" ? 1 : -1;
+        const nextIndex = Math.max(0, Math.min(list.length - 1, (current < 0 ? 0 : current) + delta));
+        const next = list[nextIndex];
+        if (next) {
+          setSelectedFacilityId(null);
+          setSelectedLivePlace(null);
+          setSelectedRegionCode(next.code);
+          setSheetMode((mode) => (mode === "none" ? "right" : mode));
+        }
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expandMap, resetLayout, toggleLeft, toggleRight]);
+  }, [
+    activeQuick,
+    customAnalysis,
+    expandMap,
+    radiusKm,
+    resetLayout,
+    selectedRegionCode,
+    snapshot,
+    toggleLeft,
+    toggleRight,
+  ]);
 
   const rememberQuery = useCallback((text: string) => {
     setRecentQueries((previous) => {
@@ -565,6 +632,64 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setSelectedRegionCode(code);
   }, []);
 
+  const drillIntoDistrict = useCallback(
+    (districtLabel: string) => {
+      if (!snapshot) return;
+      const token = districtLabel.replace(/^부산광역시\s+/, "").trim();
+      const intent: AnalysisIntent = {
+        tool: "rankHospitalScarcity",
+        filters: { regions: [token], limit: Math.min(snapshot.regions.length, 250) },
+      };
+      const result = executeAnalysisIntent(intent, snapshot);
+      const view = resultToView("scarcity", result, `${token} 동 순위 (의료 취약)`);
+      setCustomAnalysis(view);
+      setActiveQuick("scarcity");
+      setLastIntent(intent);
+      setDrillTrail((trail) => [...trail, token]);
+      if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+      setSheetMode("right");
+      showToast(`${token} 동으로 드릴다운`);
+    },
+    [showToast, snapshot],
+  );
+
+  const exitDrill = useCallback(() => {
+    if (!snapshot) return;
+    setDrillTrail([]);
+    setActiveQuick("compare");
+    setCustomAnalysis(null);
+    setLastIntent({ tool: "compareRegions", filters: { compare: ["기장군", "강서구"] } });
+    const next = executeQuickAnalysis(snapshot, "compare", radiusKm);
+    if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
+    showToast("구 비교로 돌아감");
+  }, [radiusKm, showToast, snapshot]);
+
+  const onSheetPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      sheetDragRef.current = { startY: event.clientY, startH: sheetHeight };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [sheetHeight],
+  );
+
+  const onSheetPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!sheetDragRef.current) return;
+    const delta = sheetDragRef.current.startY - event.clientY;
+    const vh = window.innerHeight || 800;
+    const next = Math.max(36, Math.min(92, sheetDragRef.current.startH + (delta / vh) * 100));
+    setSheetHeight(next);
+  }, []);
+
+  const onSheetPointerUp = useCallback(() => {
+    if (!sheetDragRef.current) return;
+    if (sheetHeight < 42) {
+      setSheetMode("none");
+      setSheetHeight(72);
+      showToast("패널 닫힘");
+    }
+    sheetDragRef.current = null;
+  }, [sheetHeight, showToast]);
+
   const selectLivePlace = useCallback((place: LiveMapPlace) => {
     setSelectedLivePlace(place as LivePlace);
     setSelectedFacilityId(null);
@@ -660,11 +785,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         setQuerySuggestions([]);
         setCustomAnalysis(null);
         setSelectedFacilityId(null);
+        setDrillTrail([]);
         return;
       }
       setActiveQuick(id);
       setCustomAnalysis(null);
       setSelectedFacilityId(null);
+      if (id !== "compare") setDrillTrail([]);
       const next = snapshot ? executeQuickAnalysis(snapshot, id, radiusKm) : null;
       if (next?.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
       else if (next?.filteredFacilities[0]) {
@@ -826,8 +953,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       ? analysis.filteredFacilities.length === 0
       : analysis.ranked.length === 0;
 
+  const isCompareView = Boolean(
+    activeQuick === "compare" ||
+      lastIntent?.tool === "compareRegions" ||
+      analysis.title.includes("지역 비교"),
+  );
+
+  const shellStyle = {
+    ...cssVars,
+    ["--sheet-height" as string]: `${sheetHeight}dvh`,
+  };
+
   return (
-    <main className="copilot-shell" style={cssVars}>
+    <main className="copilot-shell" style={shellStyle}>
       <a href="#left-panel" className="skip-link">
         분석 조작 패널로 건너뛰기
       </a>
@@ -841,6 +979,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         aria-label="분석 조작 패널"
         aria-hidden={layout.leftCollapsed || undefined}
       >
+        <div
+          className="sheet-handle"
+          onPointerDown={onSheetPointerDown}
+          onPointerMove={onSheetPointerMove}
+          onPointerUp={onSheetPointerUp}
+          onPointerCancel={onSheetPointerUp}
+          aria-label="패널 높이 조절"
+          role="slider"
+          aria-valuemin={36}
+          aria-valuemax={92}
+          aria-valuenow={Math.round(sheetHeight)}
+        >
+          <span className="sheet-handle-bar" />
+        </div>
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -1081,6 +1233,30 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </button>
                   ))}
                 </div>
+                <div className="mt-1.5 flex gap-1">
+                  {(
+                    [
+                      ["light", "라이트"],
+                      ["dark", "다크"],
+                      ["contrast", "고대비"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={theme === id}
+                      className={`flex-1 rounded-lg py-1.5 text-[10px] font-bold ${
+                        theme === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                      }`}
+                      onClick={() => {
+                        setTheme(id);
+                        showToast(`테마: ${label}`);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </section>
 
               <section>
@@ -1215,9 +1391,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">\</kbd> 지도 넓게 (양쪽 접기)
                   </li>
                   <li>
-                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">Shift+0</kbd> 패널 크기 초기화
-                  </li>
-                  <li>패널 경계 드래그 · 더블클릭으로 초기화</li>
+                  <span className="kbd">Shift+0</span> 패널 크기 초기화
+                </li>
+                <li>
+                  <span className="kbd">↑</span>/<span className="kbd">↓</span> 또는{" "}
+                  <span className="kbd">j</span>/<span className="kbd">k</span> 순위 이동
+                </li>
+                <li>패널 경계 드래그 · 모바일 시트 핸들로 높이 조절</li>
+                <li>구 비교 결과에서 「동 순위 보기」로 드릴다운</li>
                 </ul>
               </div>
               <div className="rounded-xl bg-slate-900 p-3 text-white">
@@ -1486,9 +1667,39 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         aria-hidden={layout.rightCollapsed || undefined}
         data-testid="result-panel"
       >
+        <div
+          className="sheet-handle"
+          onPointerDown={onSheetPointerDown}
+          onPointerMove={onSheetPointerMove}
+          onPointerUp={onSheetPointerUp}
+          onPointerCancel={onSheetPointerUp}
+          aria-label="결과 패널 높이 조절"
+          role="slider"
+          aria-valuemin={36}
+          aria-valuemax={92}
+          aria-valuenow={Math.round(sheetHeight)}
+        >
+          <span className="sheet-handle-bar" />
+        </div>
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
           <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 결과</p>
           <h2 className="mt-1 text-[15px] font-bold text-slate-950">{analysis.title}</h2>
+          {drillTrail.length > 0 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px]" data-testid="drill-trail">
+              <button
+                type="button"
+                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-bold text-amber-900"
+                onClick={exitDrill}
+              >
+                구 비교
+              </button>
+              {drillTrail.map((token) => (
+                <span key={token} className="text-slate-500">
+                  › {token}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <p className="mt-1 text-[11px] leading-5 text-slate-500">{analysis.summary}</p>
           <div
             className={`mt-2 rounded-lg border px-2.5 py-1.5 text-[10px] leading-5 ${
@@ -1613,18 +1824,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </button>
                   ))
                 : analysis.ranked.slice(0, 10).map((row, index) => (
-                    <button
+                    <div
                       key={row.code}
-                      type="button"
-                      className={`rank-row flex w-full flex-col gap-1.5 px-3 py-2.5 text-left ${
+                      className={`rank-row flex w-full flex-col gap-1.5 px-3 py-2.5 ${
                         row.code === selectedRegionCode ? "is-selected" : ""
                       }`}
-                      onPointerDown={() => selectRegion(row.code)}
-                      onClick={(event) => {
-                        if (event.detail === 0) selectRegion(row.code);
-                      }}
                     >
-                      <span className="flex w-full items-center gap-2">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 text-left"
+                        onPointerDown={() => selectRegion(row.code)}
+                        onClick={(event) => {
+                          if (event.detail === 0) selectRegion(row.code);
+                        }}
+                      >
                         <span
                           className={`grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-black ${
                             index < 3 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
@@ -1639,11 +1852,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         <span className="text-[12px] font-black tabular-nums text-blue-700">
                           {row.valueLabel}
                         </span>
-                      </span>
+                      </button>
                       <span className="score-bar ml-8" aria-hidden>
                         <span style={{ width: `${Math.max(6, Math.min(100, row.mapScore))}%` }} />
                       </span>
-                    </button>
+                      {isCompareView ? (
+                        <button
+                          type="button"
+                          className="ml-8 self-start rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-blue-800"
+                          onClick={() => drillIntoDistrict(row.name)}
+                        >
+                          동 순위 보기
+                        </button>
+                      ) : null}
+                    </div>
                   ))}
             </div>
             {analysis.formulaNotes.length ? (
