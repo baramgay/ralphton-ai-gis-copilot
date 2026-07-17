@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
 export function buildContentSecurityPolicy(isProduction: boolean): string {
+  // Kakao Maps loads secondary scripts/tiles from multiple daumcdn hosts.
   const scriptSources = [
     "'self'",
     "'unsafe-inline'",
     ...(isProduction ? [] : ["'unsafe-eval'"]),
     "https://dapi.kakao.com",
     "https://t1.daumcdn.net",
+    "https://*.daumcdn.net",
+    "https://*.kakao.com",
   ];
 
   return [
@@ -16,10 +19,21 @@ export function buildContentSecurityPolicy(isProduction: boolean): string {
     "frame-ancestors 'none'",
     "object-src 'none'",
     `script-src ${scriptSources.join(" ")}`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://*.kakao.com https://*.daum.net https://dapi.kakao.com https://*.supabase.co",
+    "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://*.kakao.com",
+    "img-src 'self' data: blob: https: http:",
+    "font-src 'self' data: https://*.daumcdn.net https://*.kakao.com",
+    [
+      "connect-src 'self'",
+      "https://*.kakao.com",
+      "https://*.daum.net",
+      "https://*.daumcdn.net",
+      "https://dapi.kakao.com",
+      "https://*.supabase.co",
+      "wss://*.kakao.com",
+    ].join(" "),
+    "worker-src 'self' blob:",
+    "child-src 'self' blob:",
+    "frame-src 'self' https://*.kakao.com https://*.daum.net",
   ].join("; ");
 }
 

@@ -11,5 +11,7 @@ describe("content security policy", () => {
     const policy = buildContentSecurityPolicy(true);
     expect(policy).toContain("https://dapi.kakao.com");
     expect(policy).toContain("https://t1.daumcdn.net");
+    expect(policy).toContain("https://*.daumcdn.net");
+    expect(policy).toContain("worker-src 'self' blob:");
   });
 });

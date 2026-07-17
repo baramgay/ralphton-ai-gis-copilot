@@ -485,9 +485,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       >
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <h1 className="truncate text-[14px] font-bold tracking-tight text-slate-950">부산 AI GIS</h1>
-              <p className="mt-0.5 text-[10px] text-slate-500">기준월 {snapshot.referenceMonth}</p>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <img
+                src="/brand-mark.svg"
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 shrink-0 rounded-[10px] shadow-sm ring-1 ring-slate-200/80"
+              />
+              <div className="min-w-0">
+                <h1 className="truncate text-[14px] font-bold tracking-tight text-slate-950">부산 AI GIS</h1>
+                <p className="mt-0.5 text-[10px] text-slate-500">기준월 {snapshot.referenceMonth}</p>
+              </div>
             </div>
             <Badge
               variant="secondary"
@@ -523,8 +532,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 type="button"
                 role="tab"
                 aria-selected={activeTab === id}
-                className={`rounded-[9px] px-2 py-1.5 text-[11px] font-semibold ${
-                  activeTab === id ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"
+                className={`rounded-[9px] px-2 py-1.5 text-[11px] font-semibold transition hover:text-slate-800 ${
+                  activeTab === id ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:bg-white/60"
                 }`}
                 onClick={() => setActiveTab(id)}
               >
