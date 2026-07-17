@@ -81,7 +81,7 @@ export function buildKakaoSdkUrl(appKey: string): string {
   return url.toString();
 }
 
-function mapsReady(maps: KakaoMapsNamespace | undefined): maps is KakaoMapsNamespace {
+function isMapsReady(maps: KakaoMapsNamespace | undefined): boolean {
   return Boolean(
     maps && typeof maps.LatLng === "function" && typeof maps.Map === "function",
   );
@@ -140,7 +140,7 @@ export function loadKakaoSdk(appKey: string): Promise<KakaoMapsNamespace> {
       try {
         maps.load(() => {
           const ready = window.kakao?.maps;
-          if (mapsReady(ready)) {
+          if (ready && isMapsReady(ready)) {
             finishOk(ready);
             return;
           }
@@ -157,14 +157,16 @@ export function loadKakaoSdk(appKey: string): Promise<KakaoMapsNamespace> {
       }
     };
 
+    const existingMaps = window.kakao?.maps;
+
     // 1) 이미 완전 초기화됨
-    if (mapsReady(window.kakao?.maps)) {
-      finishOk(window.kakao!.maps);
+    if (existingMaps && isMapsReady(existingMaps)) {
+      finishOk(existingMaps);
       return;
     }
 
     // 2) 스크립트는 로드됐지만 load() 미호출
-    if (window.kakao?.maps && typeof window.kakao.maps.load === "function") {
+    if (existingMaps && typeof existingMaps.load === "function") {
       afterLoad();
       return;
     }
