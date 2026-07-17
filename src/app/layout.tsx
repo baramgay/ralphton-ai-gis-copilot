@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/ui/theme";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,7 +29,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script
+          // Prevent light flash before React hydrates theme from localStorage / system.
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );
