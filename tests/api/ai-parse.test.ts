@@ -40,10 +40,8 @@ describe('parseIntentWithFallbacks', () => {
     const result = await parseIntentWithFallbacks('약국', { fetch });
 
     expect(result.mode).toBe('demo');
-    expect(result.intent).toEqual({
-      tool: 'filterFacilitiesByTypeAndHours',
-      filters: { facilityTypes: ['약국'] },
-    });
+    expect(result.intent?.tool).toBe('filterFacilitiesByTypeAndHours');
+    expect(result.intent?.filters.facilityTypes).toEqual(['약국']);
     expect(fetch).not.toHaveBeenCalled();
     expect(result.notice).toBeDefined();
     expectPrivacySafe(result);
@@ -62,10 +60,9 @@ describe('parseIntentWithFallbacks', () => {
       fetch,
     });
 
-    expect(result).toEqual({
-      intent: { tool: 'rankHospitalScarcity', filters: {} },
-      mode: 'live',
-    });
+    expect(result.intent).toEqual({ tool: 'rankHospitalScarcity', filters: {} });
+    expect(result.mode).toBe('live');
+    expect(result.parser).toBe('ai');
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -143,10 +140,8 @@ describe('parseIntentWithFallbacks', () => {
     });
 
     expect(result.mode).toBe('demo');
-    expect(result.intent).toEqual({
-      tool: 'filterFacilitiesByTypeAndHours',
-      filters: { facilityTypes: ['약국'] },
-    });
+    expect(result.intent?.tool).toBe('filterFacilitiesByTypeAndHours');
+    expect(result.intent?.filters.facilityTypes).toEqual(['약국']);
     expect(fetch).toHaveBeenCalledTimes(3);
     expectPrivacySafe(result);
   });
@@ -161,7 +156,7 @@ describe('parseIntentWithFallbacks', () => {
     });
 
     expect(result.mode).toBe('demo');
-    expect(result.intent).toEqual({ tool: 'rankElderlyUnderserved', filters: {} });
+    expect(result.intent?.tool).toBe('rankElderlyUnderserved');
     expect(fetch).not.toHaveBeenCalled();
     expectPrivacySafe(result);
   });
@@ -182,10 +177,8 @@ describe('parseIntentWithFallbacks', () => {
     });
 
     expect(result.mode).toBe('demo');
-    expect(result.intent).toEqual({
-      tool: 'filterFacilitiesByTypeAndHours',
-      filters: { facilityTypes: ['약국'] },
-    });
+    expect(result.intent?.tool).toBe('filterFacilitiesByTypeAndHours');
+    expect(result.intent?.filters.facilityTypes).toEqual(['약국']);
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
@@ -206,10 +199,8 @@ describe('parseIntentWithFallbacks', () => {
     });
 
     expect(result.mode).toBe('demo');
-    expect(result.intent).toEqual({
-      tool: 'filterFacilitiesByTypeAndHours',
-      filters: { facilityTypes: ['약국'] },
-    });
+    expect(result.intent?.tool).toBe('filterFacilitiesByTypeAndHours');
+    expect(result.intent?.filters.facilityTypes).toEqual(['약국']);
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
@@ -294,10 +285,8 @@ describe('/api/ai/parse', () => {
     const response = await POST(createRequest({ query: '약국' }));
     const json = await responseBody(response);
 
-    expect(json.intent).toEqual({
-      tool: 'filterFacilitiesByTypeAndHours',
-      filters: { facilityTypes: ['약국'] },
-    });
+    expect(json.intent?.tool).toBe('filterFacilitiesByTypeAndHours');
+    expect(json.intent?.filters?.facilityTypes).toEqual(['약국']);
     expect(json.mode).toBe('demo');
     expect(json.notice).toBeDefined();
     expectPrivacySafe(json);

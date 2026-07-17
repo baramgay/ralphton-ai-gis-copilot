@@ -1,10 +1,8 @@
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import type { Interpretation } from "@/lib/analysis/interpret";
 import type { AnalysisResult } from "@/lib/analysis/result";
-import type { EmbeddingClientDeps } from "./embeddings";
 
 import { formatRagContext, retrieveRagChunks, type RagHit } from "./retrieve";
-import { retrieveRagChunksWithRemote } from "./retrieve-remote";
 
 export type RagAugmentation = {
   hits: RagHit[];
@@ -15,6 +13,7 @@ export type RagAugmentation = {
 
 /**
  * Retrieve knowledge for a free-form query, optionally biased by tool/metric tags.
+ * Client-safe (offline hybrid only).
  */
 export function augmentQueryWithRag(
   query: string,
@@ -30,33 +29,6 @@ export function augmentQueryWithRag(
     context: formatRagContext(hits),
     citations: hits.map((hit) => ({ id: hit.chunk.id, title: hit.chunk.title })),
     remote: false,
-  };
-}
-
-/**
- * Same as offline RAG, with optional DashScope embedding re-rank (server parse path).
- */
-export async function augmentQueryWithRagRemote(
-  query: string,
-  extras?: {
-    intent?: AnalysisIntent | null;
-    extraTags?: string[];
-    embedDeps?: EmbeddingClientDeps;
-  },
-): Promise<RagAugmentation> {
-  const boostTags = [
-    ...(extras?.intent ? [extras.intent.tool] : []),
-    ...(extras?.extraTags ?? []),
-  ];
-  const { hits, remote } = await retrieveRagChunksWithRemote(
-    { query, limit: 4, boostTags },
-    extras?.embedDeps,
-  );
-  return {
-    hits,
-    context: formatRagContext(hits),
-    citations: hits.map((hit) => ({ id: hit.chunk.id, title: hit.chunk.title })),
-    remote,
   };
 }
 

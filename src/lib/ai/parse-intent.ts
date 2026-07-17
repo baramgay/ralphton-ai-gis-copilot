@@ -8,16 +8,16 @@ import {
   resolveQueryWithRules,
   type QueryEnrichment,
 } from "@/lib/analysis/query-rules";
-import {
-  augmentQueryWithRag,
-  augmentQueryWithRagRemote,
-  buildRagPromptSection,
-} from "@/lib/rag/augment";
+import { augmentQueryWithRag, buildRagPromptSection } from "@/lib/rag/augment";
+import { augmentQueryWithRagRemote } from "@/lib/rag/augment-remote";
 
 export interface ParseIntentDeps extends QwenClientDeps {
   primaryModel?: string;
   fallbackModel?: string;
-  /** Prefer remote embed re-rank for RAG when API keys exist (default true). */
+  /**
+   * Optional remote embed re-rank for RAG (server only).
+   * Default: env RAG_REMOTE_EMBED=1 or QWEN_EMBED_MODEL set.
+   */
   useRemoteRagEmbed?: boolean;
 }
 
@@ -136,7 +136,10 @@ async function attachRagMetaAsync(
   result: ParseIntentResult,
   deps: ParseIntentDeps,
 ): Promise<ParseIntentResult> {
-  const wantRemote = deps.useRemoteRagEmbed !== false;
+  const wantRemote =
+    deps.useRemoteRagEmbed === true ||
+    process.env.RAG_REMOTE_EMBED?.trim() === "1" ||
+    Boolean(process.env.QWEN_EMBED_MODEL?.trim());
   const embedDeps =
     wantRemote && deps.apiKey?.trim() && deps.baseUrl?.trim()
       ? {
