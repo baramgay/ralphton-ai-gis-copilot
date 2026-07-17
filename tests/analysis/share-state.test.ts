@@ -38,6 +38,11 @@ describe("share-state", () => {
     expect(search).not.toContain("sido=");
   });
 
+  test("parses busan sido from query string", () => {
+    const parsed = parseShareState("tool=rankHospitalScarcity&sido=busan");
+    expect(parsed.sido).toBe("busan");
+  });
+
   test("detects follow-up queries", () => {
     expect(isFollowUpQuery("이 동만 병원")).toBe(true);
     expect(isFollowUpQuery("반경 3km로")).toBe(true);

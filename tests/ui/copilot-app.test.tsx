@@ -297,6 +297,16 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("copy-conclusion")).toBeInTheDocument();
   });
 
+  test("facility list shows sort controls", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    fireEvent.click(screen.getByRole("button", { name: "의료기관" }));
+    expect(await screen.findByTestId("facility-sort-name")).toBeInTheDocument();
+    expect(screen.getByTestId("facility-sort-type")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("facility-sort-type"));
+    expect(screen.getByTestId("facility-sort-type")).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

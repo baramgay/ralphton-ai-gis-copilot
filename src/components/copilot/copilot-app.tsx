@@ -71,6 +71,7 @@ import {
 
 const RECENT_QUERIES_KEY = "ralphton-recent-queries-v1";
 const SIDO_SCOPE_KEY = "ralphton-sido-scope-v1";
+const DENSITY_KEY = "ralphton-density-v1";
 const ONBOARD_KEY = "ralphton-onboard-v1";
 
 type TabId = "control" | "help" | "data";
@@ -382,6 +383,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [sidoScope, setSidoScope] = useState<SidoScope>("all");
   const [resultSearch, setResultSearch] = useState("");
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
+  /** Facility list sort when showing facilities */
+  const [facilitySort, setFacilitySort] = useState<"name" | "type">("name");
+  const [reloadToken, setReloadToken] = useState(0);
+  const densityHydratedRef = useRef(false);
   const queryInputRef = useRef<HTMLInputElement>(null);
   const shareAppliedRef = useRef(false);
   const staleToastShownRef = useRef(false);
@@ -411,6 +416,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   useEffect(() => {
     document.documentElement.dataset.density = density;
+    if (densityHydratedRef.current) {
+      try {
+        window.localStorage.setItem(DENSITY_KEY, density);
+      } catch {
+        /* ignore */
+      }
+    }
     return () => {
       delete document.documentElement.dataset.density;
     };
@@ -419,6 +431,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // Hydrate theme preference once; bootstrap script already painted resolved theme.
   useEffect(() => {
     setThemePreference(readStoredTheme());
+    try {
+      const d = window.localStorage.getItem(DENSITY_KEY);
+      if (d === "comfortable" || d === "compact") setDensity(d);
+    } catch {
+      /* ignore */
+    }
+    densityHydratedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -508,6 +527,35 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           showToast(`테마: ${THEME_LABELS[next]}`);
           return next;
         });
+      }
+
+      // Digit 1/2/3 — map scope: 전체 / 부산 / 경남
+      if (
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (event.key === "1" || event.key === "2" || event.key === "3")
+      ) {
+        event.preventDefault();
+        const map: Record<string, SidoScope> = {
+          "1": "all",
+          "2": "busan",
+          "3": "gyeongnam",
+        };
+        const next = map[event.key];
+        if (next) {
+          setSidoScope(next);
+          setCustomAnalysis(null);
+          setResultLimit(RESULT_PAGE_STEP);
+          setResultSearch("");
+          try {
+            window.localStorage.setItem(SIDO_SCOPE_KEY, next);
+          } catch {
+            /* ignore */
+          }
+          showToast(`지도 범위: ${SIDO_SCOPE_LABEL[next]}`);
+        }
       }
 
       // Rank list keyboard navigation
@@ -679,7 +727,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         setLoadError(error instanceof Error ? error.message : "데이터 로드 중 오류가 발생했습니다.");
       });
     return () => controller.abort();
-  }, [boundaryVersion, snapshotMode]);
+  }, [boundaryVersion, snapshotMode, reloadToken]);
 
   const districtOptions = useMemo(
     () => (snapshot ? listDistricts(snapshot.regions) : [...DEFAULT_COMPARE]),
@@ -873,15 +921,26 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const filteredFacilitiesList = useMemo(() => {
     if (!analysis) return [];
     const q = resultSearch.trim().toLowerCase();
-    const list = analysis.filteredFacilities;
-    if (!q) return list;
-    return list.filter(
-      (facility) =>
-        facility.name.toLowerCase().includes(q) ||
-        facility.adm_nm.toLowerCase().includes(q) ||
-        facility.type.includes(q),
-    );
-  }, [analysis, resultSearch]);
+    let list = analysis.filteredFacilities;
+    if (q) {
+      list = list.filter(
+        (facility) =>
+          facility.name.toLowerCase().includes(q) ||
+          facility.adm_nm.toLowerCase().includes(q) ||
+          facility.type.includes(q),
+      );
+    }
+    const sorted = [...list];
+    if (facilitySort === "type") {
+      sorted.sort(
+        (a, b) =>
+          a.type.localeCompare(b.type, "ko") || a.name.localeCompare(b.name, "ko"),
+      );
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    }
+    return sorted;
+  }, [analysis, facilitySort, resultSearch]);
 
   const visibleRanked = filteredRanked.slice(0, resultLimit);
   const visibleFacilities = filteredFacilitiesList.slice(0, resultLimit);
@@ -1322,10 +1381,26 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   if (loadError) {
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-100 p-6">
-        <section className="max-w-md rounded-3xl border border-red-100 bg-white p-8 text-center shadow-xl">
+      <main className="grid min-h-screen place-items-center bg-[var(--surface-0,#f1f5f9)] p-6">
+        <section
+          className="max-w-md rounded-3xl border border-rose-200 bg-[var(--surface-2,#fff)] p-8 text-center shadow-xl"
+          role="alert"
+        >
           <h1 className="text-lg font-bold text-slate-950">지도를 준비하지 못했습니다</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">{loadError}</p>
+          <button
+            type="button"
+            className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-sm"
+            data-testid="reload-data"
+            onClick={() => {
+              setLoadError(null);
+              setSnapshot(null);
+              setBoundary(null);
+              setReloadToken((value) => value + 1);
+            }}
+          >
+            다시 불러오기
+          </button>
         </section>
       </main>
     );
@@ -1333,8 +1408,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   if (!snapshot || !boundary || !analysis) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#e7edf3] p-6" aria-busy="true">
-        <div className="w-full max-w-sm rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-lg">
+      <main
+        className="grid min-h-screen place-items-center bg-[var(--surface-0,#e7edf3)] p-6"
+        aria-busy="true"
+      >
+        <div className="w-full max-w-sm rounded-3xl border border-slate-200/80 bg-[var(--surface-2,#fff)] p-6 shadow-lg">
           <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-slate-200" />
           <div className="mb-2 h-5 w-3/4 animate-pulse rounded-lg bg-slate-200" />
           <p className="mt-5 text-center text-sm font-medium text-slate-600">부산·경남 공간 데이터를 준비하는 중…</p>
@@ -1997,6 +2075,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <span className="kbd">Shift+D</span> 테마 순환 (시스템→라이트→다크→고대비)
                     </li>
                     <li>
+                      <span className="kbd">1</span>/<span className="kbd">2</span>/
+                      <span className="kbd">3</span> 범위 전체·부산·경남
+                    </li>
+                    <li>
                       <span className="kbd">j</span>/<span className="kbd">k</span> 순위 이동 (대안)
                     </li>
                   </ul>
@@ -2656,6 +2738,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   data-testid="result-search"
                 />
               </label>
+              {analysis.isFacilityResult ? (
+                <div className="mt-2 flex gap-1" role="group" aria-label="시설 정렬">
+                  {(
+                    [
+                      ["name", "이름순"],
+                      ["type", "유형순"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      data-testid={`facility-sort-${id}`}
+                      aria-pressed={facilitySort === id}
+                      className={`flex-1 rounded-lg py-1.5 ui-caption font-bold ${
+                        facilitySort === id
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                      onClick={() => setFacilitySort(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <div className="divide-y divide-slate-100">
               {analysis.isFacilityResult

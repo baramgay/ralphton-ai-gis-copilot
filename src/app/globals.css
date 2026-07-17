@@ -1399,3 +1399,53 @@ a {
     backdrop-filter: none;
   }
 }
+
+/* Print: result-focused one-pager */
+@media print {
+  body {
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .copilot-shell {
+    display: block !important;
+    height: auto !important;
+  }
+
+  .copilot-panel-left,
+  .copilot-map,
+  .panel-resizer,
+  .panel-edge-toggle,
+  .map-float-bar,
+  .mobile-panel-btn,
+  .sheet-handle,
+  .sheet-snap-bar,
+  .skip-link,
+  .ui-toast,
+  .onboard-card {
+    display: none !important;
+  }
+
+  .copilot-panel-right {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .result-conclusion {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+    break-inside: avoid;
+  }
+
+  .rank-row {
+    break-inside: avoid;
+  }
+}
