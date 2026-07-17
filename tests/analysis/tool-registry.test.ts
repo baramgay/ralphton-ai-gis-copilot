@@ -120,9 +120,32 @@ function snapshot(overrides: Partial<DemoSnapshot> = {}): DemoSnapshot {
 }
 
 describe("toolRegistry", () => {
-  test("contains exactly the ten allowed tools", () => {
-    expect(Object.keys(toolRegistry)).toEqual([...ALLOWED_TOOLS]);
+  test("contains exactly the allowed tools", () => {
+    expect(Object.keys(toolRegistry).sort()).toEqual([...ALLOWED_TOOLS].sort());
   });
+
+  test("ranks administrative dongs by death count", () => {
+    const highDeath = region("2610000091", "부산광역시 고사망동", {
+      startPopulation: 1000,
+      endPopulation: 1000,
+    });
+    highDeath.deaths = Array(13).fill(30) as number[];
+    const lowDeath = region("2610000092", "부산광역시 저사망동", {
+      startPopulation: 1000,
+      endPopulation: 1000,
+    });
+    lowDeath.deaths = Array(13).fill(3) as number[];
+
+    const result = executeAnalysisIntent(
+      { tool: "rankDeathCount", filters: { limit: 10 } },
+      snapshot({ regions: [lowDeath, highDeath] }),
+    );
+
+    expect(result.rankedRegions[0]?.adm_cd2).toBe("2610000091");
+    expect(result.rankedRegions[0]?.score).toBe(30);
+    expect(result.title).toContain("사망");
+  });
+
 
   test("every tool produces the complete analysis-result contract", () => {
     const intents: AnalysisIntent[] = ALLOWED_TOOLS.map((tool) => ({

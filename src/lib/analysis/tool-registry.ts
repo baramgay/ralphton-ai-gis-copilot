@@ -516,6 +516,212 @@ export function rankSingleHouseholdRisk(intent: AnalysisIntent, snapshot: Analys
   });
 }
 
+export function rankDeathCount(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const deaths = numericValueAt(region.deaths, index);
+    const population = numericValueAt(region.population, index);
+    const perTenThousand = percentage(deaths, population) === null || population === null || population <= 0
+      ? null
+      : (deaths! / population) * 10_000;
+    return analysisRegion(region, deaths, [
+      metric(
+        "기준월 사망 수",
+        deaths,
+        "명",
+        "스냅샷 기준월 사망 등록 건수",
+        snapshot.referenceMonth,
+        "원인별 사망·전출·말소와 다른 통계일 수 있으며 전입·전출은 포함하지 않습니다.",
+      ),
+      metric(
+        "인구 1만 명당 사망",
+        perTenThousand,
+        "명",
+        "기준월 사망 수 ÷ 총인구 × 10,000",
+        snapshot.referenceMonth,
+        "소규모 행정동은 비율이 크게 요동칠 수 있습니다.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "사망 수가 많은 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "사망 수 데이터가 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 기준월 사망 수가 많은 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: [
+      "순위는 기준월 절대 사망 수입니다. 상세 카드의 1만 명당 지표로 규모 차이를 함께 보세요.",
+      "출생−사망 자연증가와 달리 이동(전입·전출)은 반영하지 않습니다.",
+    ],
+  });
+}
+
+export function rankBirthCount(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const births = numericValueAt(region.births, index);
+    const population = numericValueAt(region.population, index);
+    const perTenThousand =
+      births === null || population === null || population <= 0
+        ? null
+        : (births / population) * 10_000;
+    return analysisRegion(region, births, [
+      metric(
+        "기준월 출생 수",
+        births,
+        "명",
+        "스냅샷 기준월 출생 등록 건수",
+        snapshot.referenceMonth,
+        "출생 신고 시점 기준이며 실제 거주지와 다를 수 있습니다.",
+      ),
+      metric(
+        "인구 1만 명당 출생",
+        perTenThousand,
+        "명",
+        "기준월 출생 수 ÷ 총인구 × 10,000",
+        snapshot.referenceMonth,
+        "소규모 행정동은 비율이 크게 요동칠 수 있습니다.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "출생 수가 많은 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "출생 수 데이터가 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 기준월 출생 수가 많은 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["순위는 기준월 절대 출생 수이며 전입·전출은 포함하지 않습니다."],
+  });
+}
+
+export function rankNaturalDecrease(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const naturalChange = numericValueAt(region.naturalChange, index);
+    const decrease = naturalChange === null ? null : -naturalChange;
+    return analysisRegion(region, decrease, [
+      metric(
+        "자연감소(사망−출생)",
+        decrease,
+        "명",
+        "기준월 사망 수 − 출생 수 (자연증가의 부호 반전)",
+        snapshot.referenceMonth,
+        "전입·전출은 포함하지 않습니다. 값이 음수면 같은 달 자연증가 상태입니다.",
+      ),
+      metric(
+        "자연증가",
+        naturalChange,
+        "명",
+        "출생 수 − 사망 수",
+        snapshot.referenceMonth,
+        "전입·전출 미포함.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "자연감소가 큰 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "자연증가·감소 데이터가 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 자연감소(사망−출생)가 큰 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["자연감소 = 사망 − 출생. 이동 인구는 반영하지 않습니다."],
+  });
+}
+
+export function rankPopulationDensity(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const density = numericValueAt(region.populationDensity, index);
+    return analysisRegion(region, density, [
+      metric(
+        "인구밀도",
+        density,
+        "명/km²",
+        "총인구 ÷ 행정동 면적(km²)",
+        snapshot.referenceMonth,
+        "대표 면적 기준이며 실제 거주 가능 면적과 다를 수 있습니다.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+  return result({
+    title: "인구밀도가 높은 지역",
+    summary: `${rankedRegions.length}개 행정동을 인구밀도 높은 순으로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["인구밀도 = 총인구 ÷ 행정동 면적(km²)."],
+  });
+}
+
+export function rankPopulationSize(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const population = numericValueAt(region.population, index);
+    return analysisRegion(region, population, [
+      metric("총인구", population, "명", "기준월 주민 수", snapshot.referenceMonth, "전입·전출 순이동은 별도 지표입니다."),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+  return result({
+    title: "총인구가 많은 지역",
+    summary: `${rankedRegions.length}개 행정동을 총인구 많은 순으로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["기준월 절대 인구 수 순위입니다."],
+  });
+}
+
+export function rankElderlyRatio(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const elderly = numericValueAt(region.elderlyPopulation, index);
+    const population = numericValueAt(region.population, index);
+    const ratio = percentage(elderly, population);
+    return analysisRegion(region, ratio, [
+      metric(
+        "고령화율",
+        ratio,
+        "%",
+        "65세 이상 인구 ÷ 총인구 × 100",
+        snapshot.referenceMonth,
+        "의료 공급과 결합한 취약 분석은 ‘고령 × 의료’ 질의를 사용하세요.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+  return result({
+    title: "고령화율이 높은 지역",
+    summary: `${rankedRegions.length}개 행정동을 고령인구 비율 높은 순으로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["고령화율 = 65세 이상 ÷ 총인구 × 100."],
+  });
+}
+
 export function filterFacilitiesByTypeAndHours(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const facilities = filteredFacilities(intent, snapshot, true);
   const selected = regionByRequestedToken(intent, snapshot);
@@ -662,6 +868,12 @@ export const toolRegistry = {
   rankPopulationGrowthPressure,
   rankPopulationDeclineRisk,
   rankSingleHouseholdRisk,
+  rankDeathCount,
+  rankBirthCount,
+  rankNaturalDecrease,
+  rankPopulationDensity,
+  rankPopulationSize,
+  rankElderlyRatio,
   filterFacilitiesByTypeAndHours,
   compareRegions,
   nearestFacilityDistance,

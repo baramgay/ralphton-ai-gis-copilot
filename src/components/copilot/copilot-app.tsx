@@ -166,6 +166,12 @@ function toolToQuickId(tool: string): QuickId {
     rankPopulationGrowthPressure: "growth",
     rankPopulationDeclineRisk: "growth",
     rankSingleHouseholdRisk: "scarcity",
+    rankDeathCount: "growth",
+    rankBirthCount: "growth",
+    rankNaturalDecrease: "growth",
+    rankPopulationDensity: "growth",
+    rankPopulationSize: "growth",
+    rankElderlyRatio: "elderly",
     filterFacilitiesByTypeAndHours: "facilities",
     compareRegions: "compare",
     nearestFacilityDistance: "nearest",
@@ -374,6 +380,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         intent?: AnalysisIntent | null;
         notice?: string;
         suggestions?: string[];
+        enrichment?: { kakaoPlacesQuery?: string; kakaoCategory?: "HP8" | "PM9" };
       };
       if (!response.ok || !data.intent?.tool) {
         setQueryNotice(
@@ -406,10 +413,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           : "success",
       );
 
-      // Enrich with Kakao REST when query mentions live places / pharmacy / hospital nearby.
-      if (/근처|주변|실시간|카카오|찾아|위치/.test(trimmed) && selectedRegion) {
-        const keyword = /약국/.test(trimmed) ? "약국" : /병원|의원|의료/.test(trimmed) ? "병원" : trimmed.slice(0, 20);
-        void loadLivePlacesNearSelection(selectedRegion, keyword);
+      const regionForKakao =
+        snapshot.regions.find((region) => region.adm_cd2 === exactResult.selectedRegion?.adm_cd2) ??
+        selectedRegion ??
+        snapshot.regions[0] ??
+        null;
+      if (data.enrichment?.kakaoPlacesQuery && regionForKakao) {
+        void loadLivePlacesNearSelection(regionForKakao, data.enrichment.kakaoPlacesQuery);
+      } else if (/근처|주변|실시간|카카오|찾아/.test(trimmed) && regionForKakao) {
+        const keyword = /약국/.test(trimmed)
+          ? "약국"
+          : /병원|의원|의료/.test(trimmed)
+            ? "병원"
+            : trimmed.slice(0, 20);
+        void loadLivePlacesNearSelection(regionForKakao, keyword);
       }
     } catch {
       setQueryNotice("오프라인 상태입니다. 빠른 분석은 계속 사용할 수 있습니다.");

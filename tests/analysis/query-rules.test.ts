@@ -22,7 +22,8 @@ describe('parseIntentWithRules', () => {
         },
       },
     ],
-    ['고령', { tool: 'rankElderlyUnderserved' }],
+    ['고령 의료 부족', { tool: 'rankElderlyUnderserved' }],
+    ['고령화율 높은 동', { tool: 'rankElderlyRatio' }],
     ['인구증가', { tool: 'rankPopulationGrowthPressure' }],
     [
       '기장군과 강서구 비교',
@@ -53,6 +54,9 @@ describe('parseIntentWithRules', () => {
     ['의료 취약 지역', { tool: 'rankHospitalScarcity' }],
     ['1인가구 많은 동', { tool: 'rankSingleHouseholdRisk' }],
     ['해운대구 상세', { tool: 'getRegionDetails', filters: { regions: ['해운대구'] } }],
+    ['사망자 많은 곳', { tool: 'rankDeathCount' }],
+    ['출생이 많은 지역', { tool: 'rankBirthCount' }],
+    ['자연감소가 큰 곳', { tool: 'rankNaturalDecrease' }],
   ])('parses "%s" to the expected intent', (query, expected) => {
     const intent = parseIntentWithRules(query);
 
