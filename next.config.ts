@@ -65,8 +65,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
-  // Keep Node fs/crypto helpers out of client NFT traces where possible.
-  serverExternalPackages: ["server-only"],
   async headers() {
     return [
       {
