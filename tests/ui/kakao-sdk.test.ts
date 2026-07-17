@@ -5,6 +5,7 @@ import { buildKakaoSdkUrl } from "@/components/copilot/kakao-sdk";
 describe("buildKakaoSdkUrl", () => {
   afterEach(() => {
     vi.useRealTimers();
+    document.getElementById("kakao-maps-sdk")?.remove();
     document.querySelectorAll("script[data-kakao-maps-sdk]").forEach((script) => script.remove());
   });
 
@@ -29,7 +30,7 @@ describe("buildKakaoSdkUrl", () => {
       /Kakao Maps SDK 로드 시간 초과|스크립트 로드 실패/,
     );
 
-    await vi.advanceTimersByTimeAsync(25_000);
+    await vi.advanceTimersByTimeAsync(16_000);
     await rejection;
   }, 15_000);
 });

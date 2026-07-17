@@ -3,8 +3,9 @@ import { describe, expect, test } from "vitest";
 import { buildContentSecurityPolicy } from "../../next.config";
 
 describe("content security policy", () => {
-  test("does not allow eval in production", () => {
-    expect(buildContentSecurityPolicy(true)).not.toContain("'unsafe-eval'");
+  test("allows unsafe-eval so Kakao Maps SDK can initialize", () => {
+    // Kakao Maps main bundle calls eval("document.namespaces") — required in prod too.
+    expect(buildContentSecurityPolicy(true)).toContain("'unsafe-eval'");
   });
 
   test("allows the Kakao SDK hosts", () => {

@@ -1,12 +1,14 @@
 import type { NextConfig } from "next";
 
 export function buildContentSecurityPolicy(isProduction: boolean): string {
-  // Kakao Maps loads secondary scripts/tiles from multiple daumcdn hosts.
-  // Explicit hosts: some browsers are picky with CSP host wildcards for scripts.
+  // Kakao Maps (t1.daumcdn.net/mapjsapi/js/main/*/kakao.js) uses eval("document.namespaces").
+  // Without 'unsafe-eval' the SDK never finishes load → DemoMap fallback.
+  // See wiki [[method-kakao-maps-nextjs]] / eum-jido-next kakaoMaps.ts (no CSP there).
+  void isProduction;
   const scriptSources = [
     "'self'",
     "'unsafe-inline'",
-    ...(isProduction ? [] : ["'unsafe-eval'"]),
+    "'unsafe-eval'",
     "https://dapi.kakao.com",
     "https://t1.daumcdn.net",
     "https://ssl.daumcdn.net",
@@ -16,14 +18,16 @@ export function buildContentSecurityPolicy(isProduction: boolean): string {
     "https://*.kakao.com",
   ];
 
+  const scriptElem = scriptSources.join(" ");
+
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    `script-src ${scriptSources.join(" ")}`,
-    "script-src-elem 'self' 'unsafe-inline' https://dapi.kakao.com https://t1.daumcdn.net https://ssl.daumcdn.net https://mts.daumcdn.net https://*.daumcdn.net https://*.kakao.com",
+    `script-src ${scriptElem}`,
+    `script-src-elem ${scriptElem}`,
     "style-src 'self' 'unsafe-inline' https://t1.daumcdn.net https://ssl.daumcdn.net https://*.daumcdn.net https://*.kakao.com",
     "img-src 'self' data: blob: https: http:",
     "font-src 'self' data: https://t1.daumcdn.net https://ssl.daumcdn.net https://*.daumcdn.net https://*.kakao.com",
@@ -39,7 +43,7 @@ export function buildContentSecurityPolicy(isProduction: boolean): string {
       "https://*.supabase.co",
       "wss://*.kakao.com",
     ].join(" "),
-    "worker-src 'self' blob: https://dapi.kakao.com https://*.daumcdn.net",
+    "worker-src 'self' blob: https://dapi.kakao.com https://t1.daumcdn.net https://*.daumcdn.net",
     "child-src 'self' blob:",
     "frame-src 'self' https://*.kakao.com https://*.daum.net",
   ].join("; ");
