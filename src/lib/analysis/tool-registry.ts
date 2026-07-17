@@ -519,14 +519,30 @@ export function rankSingleHouseholdRisk(intent: AnalysisIntent, snapshot: Analys
 export function filterFacilitiesByTypeAndHours(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const facilities = filteredFacilities(intent, snapshot, true);
   const selected = regionByRequestedToken(intent, snapshot);
+  const night = Boolean(intent.filters.requireNightHours);
+  const weekend = Boolean(intent.filters.requireWeekendHours);
+  const types = intent.filters.facilityTypes?.join("·") ?? "의료기관";
+
+  let summary = `조건에 맞는 시설 ${facilities.length}개를 찾았습니다.`;
+  if (facilities.length === 0) {
+    if (night || weekend) {
+      summary =
+        "요청하신 운영시간 조건을 만족하는 시설 데이터가 없습니다. 운영시간 값이 비어 있는 시설은 추정하지 않고 제외합니다. 종류만 지정해 다시 물어보시면 위치를 볼 수 있습니다.";
+    } else {
+      summary = `요청 조건(${types})에 해당하는 시설 데이터가 현재 스냅샷에 없습니다. 다른 시설 종류나 빠른 분석으로 이어서 볼 수 있습니다.`;
+    }
+  }
 
   return result({
-    title: "의료기관 검색",
-    summary: `조건에 맞는 시설 ${facilities.length}개를 찾았습니다.`,
+    title: night ? "야간 운영 의료기관" : weekend ? "주말 운영 의료기관" : "의료기관 검색",
+    summary,
     selectedRegion: selected ? analysisRegion(selected, null, detailMetrics(selected, snapshot.referenceMonth)) : null,
     filteredFacilities: facilities,
     legend: SINGLE_COLOR_LEGEND,
-    formulaNotes: ["시설 종류가 명시되지 않으면 약국을 제외한 모든 의료기관 유형을 대상으로 합니다."],
+    formulaNotes: [
+      "시설 종류가 명시되지 않으면 약국을 제외한 모든 의료기관 유형을 대상으로 합니다.",
+      "운영시간·진료과 값이 없는 시설은 해당 조건에서 제외하며 추측하지 않습니다.",
+    ],
   });
 }
 
@@ -629,7 +645,10 @@ export function getRegionDetails(intent: AnalysisIntent, snapshot: AnalysisSnaps
 
   return result({
     title: region ? `${region.adm_nm} 상세` : "지역 상세",
-    summary: region ? `${snapshot.referenceMonth} 기준 인구·세대·연령·자연증가 지표입니다.` : "요청한 지역을 찾을 수 없습니다.",
+    summary: region
+      ? `${snapshot.referenceMonth} 기준 인구·세대·연령·자연증가 지표입니다.`
+      : "요청하신 지역명과 일치하는 행정동 데이터가 없습니다. 구·군 이름(예: 해운대구, 기장군)으로 다시 물어봐 주세요.",
+    rankedRegions: selectedRegion ? [{ ...selectedRegion, rank: 1 }] : [],
     selectedRegion,
     filteredFacilities: facilities,
     legend: SINGLE_COLOR_LEGEND,

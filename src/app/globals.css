@@ -4,6 +4,8 @@
   color-scheme: light;
   --background: #f4f7fb;
   --foreground: #0f172a;
+  --panel-left: 300px;
+  --panel-right: 360px;
 }
 
 * {
@@ -23,9 +25,7 @@ body {
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgb(219 234 254 / 65%), transparent 34rem),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
@@ -44,7 +44,7 @@ button {
 
 .copilot-shell {
   display: grid;
-  grid-template-columns: 400px minmax(0, 1fr);
+  grid-template-columns: var(--panel-left) minmax(0, 1fr) var(--panel-right);
   width: 100%;
   height: 100dvh;
   background: #e7edf3;
@@ -55,14 +55,17 @@ button {
   display: flex;
   min-height: 0;
   flex-direction: column;
-  border-right: 1px solid rgb(203 213 225 / 75%);
-  background: rgb(248 250 252 / 96%);
-  box-shadow: 10px 0 30px rgb(15 23 42 / 7%);
-  backdrop-filter: blur(24px) saturate(1.2);
+  background: rgb(248 250 252 / 98%);
 }
 
-.mobile-sheet-toggle {
-  display: none;
+.copilot-panel-left {
+  border-right: 1px solid rgb(203 213 225 / 80%);
+  box-shadow: 8px 0 24px rgb(15 23 42 / 5%);
+}
+
+.copilot-panel-right {
+  border-left: 1px solid rgb(203 213 225 / 80%);
+  box-shadow: -8px 0 24px rgb(15 23 42 / 5%);
 }
 
 .copilot-scroll {
@@ -81,12 +84,46 @@ button {
   overflow: hidden;
 }
 
-@media (max-width: 767px) {
-  html,
-  body {
-    min-height: 100%;
-  }
+.mobile-panel-btn {
+  display: none;
+  border: 1px solid rgb(255 255 255 / 80%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 92%);
+  padding: 0.55rem 0.95rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f172a;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+  backdrop-filter: blur(12px);
+}
 
+.skip-link {
+  position: absolute;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-150%);
+  border-radius: 0.75rem;
+  background: #0f172a;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --panel-left: 260px;
+    --panel-right: 300px;
+  }
+}
+
+@media (max-width: 900px) {
   .copilot-shell {
     position: relative;
     display: block;
@@ -100,52 +137,34 @@ button {
   .copilot-panel {
     position: absolute;
     z-index: 30;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 44dvh;
-    min-height: 310px;
-    max-height: 72dvh;
-    overflow: hidden;
-    border: 1px solid rgb(255 255 255 / 70%);
-    border-bottom: 0;
-    border-radius: 26px 26px 0 0;
-    background: rgb(248 250 252 / 94%);
-    box-shadow: 0 -14px 45px rgb(15 23 42 / 18%);
-    transition: height 260ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .copilot-panel.sheet-expanded {
-    height: 72dvh;
-  }
-
-  .mobile-sheet-toggle {
-    position: absolute;
-    z-index: 2;
     top: 0;
-    left: 50%;
-    display: grid;
-    width: 72px;
-    height: 20px;
-    place-items: center;
-    border: 0;
-    background: transparent;
-    transform: translateX(-50%);
+    bottom: 0;
+    width: min(92vw, 360px);
+    max-width: 360px;
+    transform: translateX(-105%);
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 0 40px rgb(15 23 42 / 18%);
   }
 
-  .mobile-sheet-toggle > span {
-    width: 38px;
-    height: 4px;
-    border-radius: 999px;
-    background: #cbd5e1;
+  .copilot-panel-left {
+    left: 0;
+    border-right: 1px solid rgb(203 213 225 / 80%);
   }
 
-  .copilot-panel > header {
-    display: none;
+  .copilot-panel-right {
+    right: 0;
+    left: auto;
+    transform: translateX(105%);
+    border-left: 1px solid rgb(203 213 225 / 80%);
   }
 
-  .copilot-panel > nav {
-    padding-top: 17px;
+  .copilot-panel-left.sheet-open,
+  .copilot-panel-right.sheet-open {
+    transform: translateX(0);
+  }
+
+  .mobile-panel-btn {
+    display: inline-flex;
   }
 }
 
@@ -170,69 +189,9 @@ a {
   outline-offset: 3px;
 }
 
-.skip-link {
-  position: absolute;
-  z-index: 100;
-  top: 0.75rem;
-  left: 0.75rem;
-  transform: translateY(-150%);
-  border-radius: 0.75rem;
-  background: #0f172a;
-  padding: 0.6rem 0.9rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-}
-
-.skip-link:focus {
-  transform: translateY(0);
-}
-
-.mobile-sheet-meta {
-  display: none;
-}
-
-@media (max-width: 767px) {
-  .mobile-sheet-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    border-bottom: 1px solid rgb(226 232 240 / 90%);
-    padding: 1.35rem 1rem 0.65rem;
-  }
-
-  .quick-analysis-grid {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding-bottom: 0.25rem;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .quick-analysis-grid > button {
-    flex: 0 0 46%;
-    min-width: 9.5rem;
-    scroll-snap-align: start;
-  }
-}
-
 @media (prefers-reduced-transparency: reduce) {
   .copilot-panel {
     background: #f8fafc;
     backdrop-filter: none;
-  }
-}
-
-@media (prefers-contrast: more) {
-  .copilot-panel {
-    border-right-color: #64748b;
-  }
-
-  :focus-visible {
-    outline-width: 3px;
-    outline-offset: 2px;
   }
 }

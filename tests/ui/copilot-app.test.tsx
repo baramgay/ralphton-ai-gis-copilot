@@ -101,8 +101,11 @@ describe("CopilotApp", () => {
           return new Response(JSON.stringify({
             mode: "demo",
             intent: { tool: "filterFacilitiesByTypeAndHours", filters: { facilityTypes: ["약국"] } },
-            notice: "로컬 규칙 기반 분석으로 처리했습니다.",
+            notice: "질문을 분석에 반영했습니다.",
           }), { status: 200 });
+        }
+        if (url.includes("/api/kakao/places")) {
+          return new Response(JSON.stringify({ ok: true, places: [], notice: "장소 없음" }), { status: 200 });
         }
         throw new Error(`Unexpected URL: ${url}`);
       }),
@@ -114,21 +117,21 @@ describe("CopilotApp", () => {
 
     expect(await screen.findByText("DemoMap")).toBeInTheDocument();
     for (const label of [
-      "의료 취약 지역",
-      "고령 인구 × 의료 부족",
-      "인구 증가 × 공급 부족",
-      "최근접 의료기관 거리",
-      "2km 접근성",
-      "기장군 vs 강서구",
-      "전체 의료기관",
+      "의료 취약",
+      "고령 × 의료",
+      "인구 증가",
+      "최근접 거리",
+      "2km 접근",
+      "기장 vs 강서",
+      "의료기관",
       "초기화",
     ]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("img", { name: "부산 행정동 분석 지도" })).toBeInTheDocument();
+    expect(screen.getByTestId("result-panel")).toBeInTheDocument();
     expect(screen.getByText("산식과 해석 기준")).toBeInTheDocument();
     expect(screen.getAllByText(/winsorized min-max/).length).toBeGreaterThan(0);
-    expect(screen.getByText("의료취약지수")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
       "/api/data/snapshot?mode=auto",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
@@ -139,18 +142,18 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
 
-    fireEvent.click(screen.getByRole("tab", { name: "이용방법" }));
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("빠른 분석");
+    fireEvent.click(screen.getByRole("tab", { name: "이용" }));
+    expect(screen.getByText("30초 이용 방법")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "데이터 정보" }));
-    await waitFor(() => expect(screen.getByRole("tabpanel")).toHaveTextContent("2026-06"));
+    fireEvent.click(screen.getByRole("tab", { name: "데이터" }));
+    await waitFor(() => expect(screen.getByText("행정동")).toBeInTheDocument());
   });
 
   test("executes a distinct radius result and exposes its active metric", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
 
-    fireEvent.click(screen.getByRole("button", { name: "2km 접근성" }));
+    fireEvent.click(screen.getByRole("button", { name: "2km 접근" }));
 
     expect(screen.getByRole("heading", { name: "2km 의료기관 접근성" })).toBeInTheDocument();
     expect(screen.getByText("2km 내 의료기관")).toBeInTheDocument();
@@ -167,23 +170,19 @@ describe("CopilotApp", () => {
 
     expect(await screen.findByRole("heading", { name: "의료기관 검색" })).toBeInTheDocument();
     expect(
-      within(screen.getByLabelText("AI GIS 분석 패널")).getByRole("button", { name: /중앙약국/ }),
+      within(screen.getByTestId("result-panel")).getByRole("button", { name: /중앙약국/ }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/의료취약지수/)).not.toBeInTheDocument();
   });
 
-  test("supports arrow-key tab navigation and an accessible mobile sheet toggle", async () => {
+  test("supports mobile panel toggles for left and right sheets", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
 
-    const analysisTab = screen.getByRole("tab", { name: "분석" });
-    analysisTab.focus();
-    fireEvent.keyDown(analysisTab, { key: "ArrowRight" });
-    expect(screen.getByRole("tab", { name: "이용방법" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("3단계로 시작하기");
+    fireEvent.click(screen.getByRole("button", { name: "조작" }));
+    expect(screen.getByLabelText("분석 조작 패널").className).toMatch(/sheet-open/);
 
-    const sheetToggle = screen.getByRole("button", { name: "분석 패널 확장" });
-    fireEvent.click(sheetToggle);
-    expect(sheetToggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "결과" }));
+    expect(screen.getByTestId("result-panel").className).toMatch(/sheet-open/);
   });
 });

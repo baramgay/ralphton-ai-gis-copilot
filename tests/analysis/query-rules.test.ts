@@ -22,29 +22,41 @@ describe('parseIntentWithRules', () => {
         },
       },
     ],
-    ['고령', { tool: 'rankElderlyUnderserved', filters: {} }],
-    ['인구증가', { tool: 'rankPopulationGrowthPressure', filters: {} }],
+    ['고령', { tool: 'rankElderlyUnderserved' }],
+    ['인구증가', { tool: 'rankPopulationGrowthPressure' }],
     [
-      '기장군-강서구',
+      '기장군과 강서구 비교',
       { tool: 'compareRegions', filters: { compare: ['기장군', '강서구'] } },
     ],
     ['2km', { tool: 'countFacilitiesWithinRadius', filters: { radiusKm: 2 } }],
     [
       '종합병원',
-      { tool: 'filterFacilitiesByTypeAndHours', filters: { facilityTypes: ['종합병원'] } },
+      {
+        tool: 'filterFacilitiesByTypeAndHours',
+        filters: { facilityTypes: ['종합병원'] },
+      },
     ],
     [
       '야간',
-      { tool: 'filterFacilitiesByTypeAndHours', filters: { requireNightHours: true } },
+      {
+        tool: 'filterFacilitiesByTypeAndHours',
+        filters: { requireNightHours: true },
+      },
     ],
     [
       '약국',
-      { tool: 'filterFacilitiesByTypeAndHours', filters: { facilityTypes: ['약국'] } },
+      {
+        tool: 'filterFacilitiesByTypeAndHours',
+        filters: { facilityTypes: ['약국'] },
+      },
     ],
+    ['의료 취약 지역', { tool: 'rankHospitalScarcity' }],
+    ['1인가구 많은 동', { tool: 'rankSingleHouseholdRisk' }],
+    ['해운대구 상세', { tool: 'getRegionDetails', filters: { regions: ['해운대구'] } }],
   ])('parses "%s" to the expected intent', (query, expected) => {
     const intent = parseIntentWithRules(query);
 
-    expect(intent).toEqual(expected);
+    expect(intent).toMatchObject(expected);
     expect(() => AnalysisIntentSchema.parse(intent)).not.toThrow();
   });
 

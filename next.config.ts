@@ -19,7 +19,7 @@ export function buildContentSecurityPolicy(isProduction: boolean): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.kakao.com https://*.daum.net https://*.supabase.co",
+    "connect-src 'self' https://*.kakao.com https://*.daum.net https://dapi.kakao.com https://*.supabase.co",
   ].join("; ");
 }
 

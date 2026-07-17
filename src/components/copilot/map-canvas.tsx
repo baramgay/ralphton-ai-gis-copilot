@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { DemoMap } from "./demo-map";
 import { KakaoMap } from "./kakao-map";
@@ -18,12 +18,22 @@ type MapCanvasProps = {
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
+  onEngineChange?: (engine: "kakao" | "demo") => void;
 };
 
 export function MapCanvas(props: MapCanvasProps) {
   const [kakaoFailed, setKakaoFailed] = useState(false);
-  const handleError = useCallback(() => setKakaoFailed(true), []);
-  const { kakaoMapKey, ...mapProps } = props;
+  const { kakaoMapKey, onEngineChange, ...mapProps } = props;
+
+  const handleError = useCallback(() => {
+    setKakaoFailed(true);
+    onEngineChange?.("demo");
+  }, [onEngineChange]);
+
+  useEffect(() => {
+    if (kakaoMapKey && !kakaoFailed) onEngineChange?.("kakao");
+    else onEngineChange?.("demo");
+  }, [kakaoFailed, kakaoMapKey, onEngineChange]);
 
   if (kakaoMapKey && !kakaoFailed) {
     return <KakaoMap appKey={kakaoMapKey} {...mapProps} onError={handleError} />;
