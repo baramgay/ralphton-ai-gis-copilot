@@ -4,6 +4,7 @@ import {
   DEFAULT_COMPARE,
   districtFromAdmName,
   listDistricts,
+  listDongLabels,
   normalizeComparePair,
 } from "@/lib/analysis/districts";
 
@@ -28,5 +29,13 @@ describe("districts", () => {
     expect(normalizeComparePair("기장군", "기장군", available)).toEqual(["기장군", "중구"]);
     expect(normalizeComparePair("없는구", "해운대구", available)[1]).toBe("해운대구");
     expect(normalizeComparePair("", "", [])).toEqual(DEFAULT_COMPARE);
+  });
+
+  it("lists dong labels for pairwise compare", () => {
+    const labels = listDongLabels([
+      { adm_nm: "부산광역시 중구 중앙동", adm_cd2: "2611051000" },
+      { adm_nm: "부산광역시 해운대구 우동", adm_cd2: "2635010500" },
+    ]);
+    expect(labels).toEqual(["중구 중앙동", "해운대구 우동"]);
   });
 });

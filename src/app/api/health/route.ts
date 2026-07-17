@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 
+import {
+  computeStaleness,
+  readSyncStatus,
+} from "@/lib/data/sync-status";
 import { readPublishedSnapshotMeta } from "@/lib/supabase/public";
 
 export async function GET() {
   const liveMeta = await readPublishedSnapshotMeta("live");
+  const syncLocal = await readSyncStatus();
+  const publishedAt = liveMeta?.createdAt ?? syncLocal.lastSuccessAt;
+  const staleness = computeStaleness(publishedAt, syncLocal);
 
   return NextResponse.json({
     status: "ok",
@@ -18,6 +25,7 @@ export async function GET() {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim(),
       ),
       dataSync: Boolean(process.env.DATA_SYNC_SECRET?.trim()),
+      cronAlert: Boolean(process.env.CRON_ALERT_WEBHOOK?.trim()),
       rag: true,
       placeIndex: true,
     },
@@ -33,5 +41,15 @@ export async function GET() {
           checksum: liveMeta.checksum,
         }
       : { available: false },
+    syncOps: {
+      lastAttemptAt: syncLocal.lastAttemptAt,
+      lastSuccessAt: syncLocal.lastSuccessAt,
+      lastStatus: syncLocal.lastStatus,
+      lastFacilityCount: syncLocal.lastFacilityCount,
+      lastError: syncLocal.lastError,
+      stale: staleness.stale,
+      recommendSync: staleness.recommendSync,
+      reason: staleness.reason,
+    },
   });
 }

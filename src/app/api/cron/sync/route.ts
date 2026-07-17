@@ -49,12 +49,34 @@ export async function GET(request: Request) {
     lastError: result.status === "failed" ? result.notes.join(" ") || "동기화 실패" : null,
   });
 
+  if (result.status === "failed") {
+    const webhook = process.env.CRON_ALERT_WEBHOOK?.trim();
+    if (webhook) {
+      try {
+        await fetch(webhook, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: `[랄프톤] 시설 sync cron 실패 · ${attemptedAt}\n${result.notes.join(" ")}`,
+            status: result.status,
+            attemptedAt,
+            notes: result.notes,
+          }),
+          signal: AbortSignal.timeout(8_000),
+        });
+      } catch {
+        /* alert best-effort */
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: result.status !== "failed",
     source: "cron",
     status: result.status,
     facilityCount: result.facilityCount,
     published: result.published,
+    populationUpdated: result.populationUpdated ?? 0,
     referenceMonth: result.snapshot.referenceMonth,
     attemptedAt,
     notes: result.notes,

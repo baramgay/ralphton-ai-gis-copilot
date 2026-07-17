@@ -19,6 +19,16 @@ export function listDistricts(regions: Array<{ adm_nm: string }>): string[] {
   return [...set].sort((a, b) => a.localeCompare(b, "ko"));
 }
 
+/** Compact dong labels for pairwise compare (unique within Busan list). */
+export function listDongLabels(regions: Array<{ adm_nm: string; adm_cd2: string }>): string[] {
+  return regions
+    .map((region) => region.adm_nm.replace(/^부산광역시\s*/, "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+export type CompareScope = "gu" | "dong";
+
 export const DEFAULT_COMPARE: [string, string] = ["기장군", "강서구"];
 
 export function normalizeComparePair(

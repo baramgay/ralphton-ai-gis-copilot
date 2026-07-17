@@ -26,7 +26,9 @@ import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
   DEFAULT_COMPARE,
   listDistricts,
+  listDongLabels,
   normalizeComparePair,
+  type CompareScope,
 } from "@/lib/analysis/districts";
 import {
   applyFollowUpMerge,
@@ -311,6 +313,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [showOnboard, setShowOnboard] = useState(false);
   const [comparePair, setComparePair] = useState<[string, string]>(DEFAULT_COMPARE);
+  const [compareScope, setCompareScope] = useState<CompareScope>("gu");
   const [lastIntent, setLastIntent] = useState<AnalysisIntent | null>(null);
   const [publishedAt, setPublishedAt] = useState<string | null>(null);
   const [publishedLive, setPublishedLive] = useState<PublishedLiveInfo | null>(null);
@@ -602,6 +605,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [snapshot],
   );
 
+  const dongOptions = useMemo(
+    () => (snapshot ? listDongLabels(snapshot.regions) : []),
+    [snapshot],
+  );
+
+  const compareOptions = compareScope === "dong" ? dongOptions : districtOptions;
+
   const analysis = useMemo(
     () =>
       customAnalysis ??
@@ -812,10 +822,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }, [comparePair, radiusKm, showToast, snapshot]);
 
   const applyComparePair = useCallback(
-    (nextA: string, nextB: string) => {
+    (nextA: string, nextB: string, scope: CompareScope = compareScope) => {
       if (!snapshot) return;
-      const pair = normalizeComparePair(nextA, nextB, listDistricts(snapshot.regions));
+      const pool =
+        scope === "dong" ? listDongLabels(snapshot.regions) : listDistricts(snapshot.regions);
+      const pair = normalizeComparePair(nextA, nextB, pool);
       setComparePair(pair);
+      setCompareScope(scope);
       setActiveQuick("compare");
       setCustomAnalysis(null);
       setDrillTrail([]);
@@ -825,7 +838,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setSheetMode("right");
       showToast(`${pair[0]} vs ${pair[1]}`);
     },
-    [radiusKm, showToast, snapshot],
+    [compareScope, radiusKm, showToast, snapshot],
   );
 
   const onSheetPointerDown = useCallback(
@@ -1380,18 +1393,56 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   className="rounded-xl border border-amber-200 bg-amber-50/70 p-3"
                   data-testid="compare-picker"
                 >
-                  <p className="ui-body font-bold text-amber-950">비교할 구·군</p>
-                  <p className="ui-caption mt-1 text-amber-900/80">두 지역을 고르면 바로 다시 계산합니다</p>
+                  <p className="ui-body font-bold text-amber-950">비교 대상</p>
+                  <p className="ui-caption mt-1 text-amber-900/80">
+                    구·군 합산 또는 행정동 1:1 비교
+                  </p>
+                  <div className="mt-2 flex gap-1">
+                    {(
+                      [
+                        ["gu", "구·군"],
+                        ["dong", "행정동"],
+                      ] as const
+                    ).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        aria-pressed={compareScope === id}
+                        className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
+                          compareScope === id
+                            ? "bg-amber-900 text-white"
+                            : "bg-white text-amber-950 border border-amber-200"
+                        }`}
+                        onClick={() => {
+                          const pool =
+                            id === "dong"
+                              ? dongOptions
+                              : districtOptions;
+                          if (pool.length < 2) return;
+                          const next = normalizeComparePair(pool[0], pool[1], pool);
+                          applyComparePair(next[0], next[1], id);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   <div className="mt-2.5 grid grid-cols-2 gap-2">
                     <label className="block">
                       <span className="ui-caption mb-1 block">A</span>
                       <select
                         className="w-full rounded-lg border border-amber-200 bg-white px-2 py-2 ui-body font-bold text-slate-900"
-                        value={comparePair[0]}
+                        value={
+                          compareOptions.includes(comparePair[0])
+                            ? comparePair[0]
+                            : (compareOptions[0] ?? "")
+                        }
                         aria-label="비교 지역 A"
-                        onChange={(event) => applyComparePair(event.target.value, comparePair[1])}
+                        onChange={(event) =>
+                          applyComparePair(event.target.value, comparePair[1], compareScope)
+                        }
                       >
-                        {districtOptions.map((name) => (
+                        {compareOptions.map((name) => (
                           <option key={`a-${name}`} value={name}>
                             {name}
                           </option>
@@ -1402,11 +1453,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <span className="ui-caption mb-1 block">B</span>
                       <select
                         className="w-full rounded-lg border border-amber-200 bg-white px-2 py-2 ui-body font-bold text-slate-900"
-                        value={comparePair[1]}
+                        value={
+                          compareOptions.includes(comparePair[1])
+                            ? comparePair[1]
+                            : (compareOptions[1] ?? compareOptions[0] ?? "")
+                        }
                         aria-label="비교 지역 B"
-                        onChange={(event) => applyComparePair(comparePair[0], event.target.value)}
+                        onChange={(event) =>
+                          applyComparePair(comparePair[0], event.target.value, compareScope)
+                        }
                       >
-                        {districtOptions.map((name) => (
+                        {compareOptions.map((name) => (
                           <option key={`b-${name}`} value={name}>
                             {name}
                           </option>
@@ -1414,29 +1471,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       </select>
                     </label>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {(
-                      [
-                        ["기장군", "강서구"],
-                        ["해운대구", "부산진구"],
-                        ["중구", "영도구"],
-                      ] as const
-                    )
-                      .filter(
-                        ([a, b]) =>
-                          districtOptions.includes(a) && districtOptions.includes(b),
+                  {compareScope === "gu" ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          ["기장군", "강서구"],
+                          ["해운대구", "부산진구"],
+                          ["중구", "영도구"],
+                        ] as const
                       )
-                      .map(([a, b]) => (
-                        <button
-                          key={`${a}-${b}`}
-                          type="button"
-                          className="ui-chip rounded-full border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-950"
-                          onClick={() => applyComparePair(a, b)}
-                        >
-                          {a.replace(/[구현군]$/, "")}·{b.replace(/[구현군]$/, "")}
-                        </button>
-                      ))}
-                  </div>
+                        .filter(
+                          ([a, b]) =>
+                            districtOptions.includes(a) && districtOptions.includes(b),
+                        )
+                        .map(([a, b]) => (
+                          <button
+                            key={`${a}-${b}`}
+                            type="button"
+                            className="ui-chip rounded-full border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-950"
+                            onClick={() => applyComparePair(a, b, "gu")}
+                          >
+                            {a.replace(/[구현군]$/, "")}·{b.replace(/[구현군]$/, "")}
+                          </button>
+                        ))}
+                    </div>
+                  ) : null}
                 </section>
               )}
 

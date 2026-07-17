@@ -8,11 +8,17 @@ import {
   resolveQueryWithRules,
   type QueryEnrichment,
 } from "@/lib/analysis/query-rules";
-import { augmentQueryWithRag, buildRagPromptSection } from "@/lib/rag/augment";
+import {
+  augmentQueryWithRag,
+  augmentQueryWithRagRemote,
+  buildRagPromptSection,
+} from "@/lib/rag/augment";
 
 export interface ParseIntentDeps extends QwenClientDeps {
   primaryModel?: string;
   fallbackModel?: string;
+  /** Prefer remote embed re-rank for RAG when API keys exist (default true). */
+  useRemoteRagEmbed?: boolean;
 }
 
 export interface ParseIntentResult {
@@ -125,6 +131,43 @@ function attachRagMeta(query: string, result: ParseIntentResult): ParseIntentRes
   };
 }
 
+async function attachRagMetaAsync(
+  query: string,
+  result: ParseIntentResult,
+  deps: ParseIntentDeps,
+): Promise<ParseIntentResult> {
+  const wantRemote = deps.useRemoteRagEmbed !== false;
+  const embedDeps =
+    wantRemote && deps.apiKey?.trim() && deps.baseUrl?.trim()
+      ? {
+          apiKey: deps.apiKey,
+          baseUrl: deps.baseUrl,
+          model: process.env.QWEN_EMBED_MODEL,
+          fetch: deps.fetch,
+        }
+      : undefined;
+
+  if (!embedDeps) {
+    return attachRagMeta(query, result);
+  }
+
+  try {
+    const rag = await augmentQueryWithRagRemote(query, {
+      intent: result.intent,
+      embedDeps,
+    });
+    return {
+      ...result,
+      rag: {
+        citations: rag.citations,
+        hitCount: rag.hits.length,
+      },
+    };
+  } catch {
+    return attachRagMeta(query, result);
+  }
+}
+
 function fromRules(query: string): ParseIntentResult {
   const resolved = resolveQueryWithRules(query);
 
@@ -180,7 +223,7 @@ export async function parseIntentWithFallbacks(
   const ruleResult = fromRules(safety.query);
 
   if (!apiKey || !baseUrl) {
-    return ruleResult;
+    return attachRagMetaAsync(safety.query, ruleResult, deps);
   }
 
   for (const model of [primaryModel, primaryModel, fallbackModel]) {
@@ -189,50 +232,70 @@ export async function parseIntentWithFallbacks(
 
       if ("unsupported" in parsed && parsed.unsupported) {
         if (ruleResult.intent) {
-          return {
-            ...ruleResult,
-            mode: "live",
-            parser: "hybrid",
-            notice: ruleResult.notice,
-          };
+          return attachRagMetaAsync(
+            safety.query,
+            {
+              ...ruleResult,
+              mode: "live",
+              parser: "hybrid",
+              notice: ruleResult.notice,
+            },
+            deps,
+          );
         }
-        return {
-          intent: null,
-          mode: "live",
-          notice: parsed.reason,
-          suggestions: [...QUERY_SUGGESTIONS],
-          parser: "ai",
-        };
+        return attachRagMetaAsync(
+          safety.query,
+          {
+            intent: null,
+            mode: "live",
+            notice: parsed.reason,
+            suggestions: [...QUERY_SUGGESTIONS],
+            parser: "ai",
+          },
+          deps,
+        );
       }
 
       // Prefer AI intent when valid; keep rule enrichment for Kakao nearby cues.
-      return attachRagMeta(safety.query, {
-        intent: parsed as AnalysisIntent,
-        mode: "live",
-        notice: "질문을 분석에 반영했습니다.",
-        enrichment: ruleResult.enrichment,
-        parser: ruleResult.enrichment ? "hybrid" : "ai",
-      });
+      return attachRagMetaAsync(
+        safety.query,
+        {
+          intent: parsed as AnalysisIntent,
+          mode: "live",
+          notice: "질문을 분석에 반영했습니다.",
+          enrichment: ruleResult.enrichment,
+          parser: ruleResult.enrichment ? "hybrid" : "ai",
+        },
+        deps,
+      );
     } catch {
       // retry / fallback model
     }
   }
 
   if (ruleResult.intent) {
-    return {
-      ...ruleResult,
-      notice: ruleResult.notice ?? "질문을 분석에 반영했습니다.",
-      parser: "rules",
-    };
+    return attachRagMetaAsync(
+      safety.query,
+      {
+        ...ruleResult,
+        notice: ruleResult.notice ?? "질문을 분석에 반영했습니다.",
+        parser: "rules",
+      },
+      deps,
+    );
   }
 
-  return {
-    intent: null,
-    mode: "demo",
-    notice:
-      ruleResult.notice ??
-      "지금은 자동 해석에 실패했습니다. 빠른 분석 버튼이나 예시 질문으로 이어서 볼 수 있습니다.",
-    suggestions: ruleResult.suggestions ?? [...QUERY_SUGGESTIONS],
-    parser: "rules",
-  };
+  return attachRagMetaAsync(
+    safety.query,
+    {
+      intent: null,
+      mode: "demo",
+      notice:
+        ruleResult.notice ??
+        "지금은 자동 해석에 실패했습니다. 빠른 분석 버튼이나 예시 질문으로 이어서 볼 수 있습니다.",
+      suggestions: ruleResult.suggestions ?? [...QUERY_SUGGESTIONS],
+      parser: "rules",
+    },
+    deps,
+  );
 }

@@ -30,3 +30,19 @@ jobs:
           CI: "true"
         run: npm run test:e2e
         continue-on-error: false
+
+  smoke-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19"
+      - name: Production smoke
+        env:
+          SMOKE_BASE_URL: https://ralphton-ai-gis-copilot.vercel.app
+        run: node scripts/smoke.mjs

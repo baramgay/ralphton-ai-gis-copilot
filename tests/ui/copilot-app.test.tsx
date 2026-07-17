@@ -233,6 +233,9 @@ describe("CopilotApp", () => {
     expect(await screen.findByTestId("compare-picker")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 B")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "행정동" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "행정동" }));
+    expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
   });
 
   test("shows one-line conclusion in the result panel", async () => {
