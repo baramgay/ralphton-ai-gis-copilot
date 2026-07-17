@@ -8,6 +8,8 @@ export type CsvRankRow = {
   name: string;
   valueLabel: string;
   note: string;
+  /** 부산 | 경남 | empty */
+  sido?: string;
 };
 
 export type CsvFacilityRow = {
@@ -16,6 +18,7 @@ export type CsvFacilityRow = {
   type: string;
   region: string;
   address: string;
+  sido?: string;
 };
 
 export function toCsv(headers: string[], rows: string[][]): string {
@@ -45,10 +48,11 @@ export function rankedToCsv(
     ["출처", dataSource],
     ["내보낸시각", new Date().toISOString()],
   ];
-  const header = ["순위", "행정동코드", "이름", "값", "비고"];
+  const header = ["순위", "행정동코드", "시도시", "이름", "값", "비고"];
   const body = rows.map((row) => [
     String(row.rank),
     row.code,
+    row.sido ?? "",
     row.name,
     row.valueLabel,
     row.note,
@@ -76,8 +80,15 @@ export function facilitiesToCsv(
     ["출처", dataSource],
     ["내보낸시각", new Date().toISOString()],
   ];
-  const header = ["ID", "시설명", "유형", "행정동", "주소"];
-  const body = rows.map((row) => [row.id, row.name, row.type, row.region, row.address]);
+  const header = ["ID", "시설명", "유형", "시도시", "행정동", "주소"];
+  const body = rows.map((row) => [
+    row.id,
+    row.name,
+    row.type,
+    row.sido ?? "",
+    row.region,
+    row.address,
+  ]);
   const metaBlock = meta.map(([k, v]) => `${k},${escapeCsvCell(v)}`).join("\r\n");
   return `\uFEFF${metaBlock}\r\n\r\n${toCsv(header, body).replace(/^\uFEFF/, "")}`;
 }

@@ -22,8 +22,13 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "부산·경남 AI GIS 코파일럿",
-    description: "부산·경남 행정동 의료·인구 접근성 분석",
+    description:
+      "부산·경남 511개 행정동 의료·인구 접근성 · HIRA 병원 · 자연어 분석",
     type: "website",
+    locale: "ko_KR",
+  },
+  other: {
+    "color-scheme": "light dark",
   },
 };
 

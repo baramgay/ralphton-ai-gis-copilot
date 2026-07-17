@@ -38,6 +38,13 @@ export async function GET() {
         Boolean(process.env.QWEN_EMBED_MODEL?.trim()),
       rag: true,
       placeIndex: true,
+      scopeBusanGyeongnam: true,
+    },
+    scope: {
+      regions: ["부산광역시", "경상남도"],
+      hospitalApi: "hira/hospInfoServicev2",
+      hiraSidoCd: ["210000", "380000"],
+      populationCtpv: ["26", "48"],
     },
     publishedLive: liveMeta
       ? {

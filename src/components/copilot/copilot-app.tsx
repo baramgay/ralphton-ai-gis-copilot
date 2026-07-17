@@ -1052,6 +1052,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         snapshot.mode,
         analysis.filteredFacilities.map((facility) => ({
           id: facility.id,
+          sido: sidoBadge(facility.adm_nm) ?? "",
           name: facility.name,
           type: facility.type,
           region: facility.adm_nm,
@@ -1067,13 +1068,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       stamp,
       dataSource,
       snapshot.mode,
-      analysis.ranked.map((row, index) => ({
-        rank: index + 1,
-        code: row.code,
-        name: row.name,
-        valueLabel: row.valueLabel,
-        note: row.note,
-      })),
+      analysis.ranked.map((row, index) => {
+        const adm =
+          snapshot.regions.find((region) => region.adm_cd2 === row.code)?.adm_nm ?? row.name;
+        return {
+          rank: index + 1,
+          code: row.code,
+          sido: sidoBadge(adm) ?? "",
+          name: row.name,
+          valueLabel: row.valueLabel,
+          note: row.note,
+        };
+      }),
     );
     downloadTextFile(`ralphton-rank-${stamp}.csv`, csv);
     showToast("순위 CSV 저장");
@@ -1196,13 +1202,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
       const selectedName =
         snapshot.regions.find((region) => region.adm_cd2 === selectedRegionCode)?.adm_nm ?? null;
-      const mergedIntent = applyFollowUpMerge(
+      let mergedIntent = applyFollowUpMerge(
         trimmed,
         data.intent,
         lastIntent,
         selectedRegionCode,
         selectedName,
       );
+      // Map/analysis sido chip scopes NL results when the parser left regions open.
+      const scopedRegionsFilter = applySidoScopeToRegions(
+        mergedIntent.filters?.regions,
+        sidoScope,
+      );
+      if (scopedRegionsFilter) {
+        mergedIntent = {
+          ...mergedIntent,
+          filters: { ...mergedIntent.filters, regions: scopedRegionsFilter },
+        };
+      }
 
       if (mergedIntent.filters?.radiusKm && [1, 2, 3].includes(mergedIntent.filters.radiusKm)) {
         setRadiusKm(mergedIntent.filters.radiusKm as 1 | 2 | 3);
@@ -1922,6 +1939,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <span className="kbd">Shift+0</span> 패널 크기 초기화
                     </li>
                     <li>
+                      <span className="kbd">Shift+D</span> 테마 순환 (시스템→라이트→다크→고대비)
+                    </li>
+                    <li>
                       <span className="kbd">j</span>/<span className="kbd">k</span> 순위 이동 (대안)
                     </li>
                   </ul>
@@ -1930,7 +1950,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
               <div className="rounded-xl bg-slate-900 p-3.5 text-white">
                 <p className="ui-caption font-bold text-blue-300">바로 써볼 질문</p>
-                {QUERY_SUGGESTIONS.slice(0, 5).map((example) => (
+                {QUERY_SUGGESTIONS.slice(0, 6).map((example) => (
                   <button
                     key={example}
                     type="button"
@@ -1977,12 +1997,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ["기준월", snapshot.referenceMonth],
                   [
                     "행정동",
-                    `${snapshot.regions.length.toLocaleString("ko-KR")}개 (부산·경남)`,
+                    `${snapshot.regions.length.toLocaleString("ko-KR")}개`,
+                  ],
+                  [
+                    "부산 / 경남 동",
+                    `${sidoMix.busan.toLocaleString("ko-KR")} / ${sidoMix.gyeongnam.toLocaleString("ko-KR")}`,
                   ],
                   ["시설", `${snapshot.facilities.length.toLocaleString("ko-KR")}곳`],
                   ["지도", mapEngineLabel(kakaoMapKey, mapEngine)],
-                  ["범위", "부산광역시 + 경상남도"],
-                  ["병원 API", "HIRA 병원정보 v2"],
+                  ["병원 API", "HIRA v2"],
+                  ["화면 범위", SIDO_SCOPE_LABEL[sidoScope]],
+                  ["지도 시설 상한", `${MAP_FACILITY_CAP.toLocaleString("ko-KR")}곳`],
                 ].map(([label, value]) => (
                   <div key={label} className="ui-stat-card">
                     <p className="label">{label}</p>
@@ -1990,6 +2015,41 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 ))}
               </div>
+
+              <section className="rounded-xl border border-slate-200 bg-white p-3.5" data-testid="facility-type-breakdown">
+                <p className="ui-body font-bold text-slate-800">시설 유형 분포</p>
+                <p className="ui-caption mt-1 mb-2">현재 스냅샷 기준 · 약국 포함</p>
+                <ul className="space-y-1.5">
+                  {(() => {
+                    const counts = new Map<string, number>();
+                    for (const facility of snapshot.facilities) {
+                      counts.set(facility.type, (counts.get(facility.type) ?? 0) + 1);
+                    }
+                    return [...counts.entries()]
+                      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+                      .map(([type, count]) => (
+                        <li
+                          key={type}
+                          className="flex items-center justify-between gap-2 ui-body text-slate-700"
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="size-2.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: FACILITY_TYPE_COLORS[type as Facility["type"]] ?? "#64748b",
+                              }}
+                              aria-hidden
+                            />
+                            <span className="truncate">{type}</span>
+                          </span>
+                          <span className="font-bold tabular-nums">
+                            {count.toLocaleString("ko-KR")}
+                          </span>
+                        </li>
+                      ));
+                  })()}
+                </ul>
+              </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-3.5">
                 <p className="ui-body font-bold text-slate-800">데이터 소스 선택</p>
@@ -2581,10 +2641,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       >
                         <span
                           className={`grid size-7 shrink-0 place-items-center rounded-full ui-chip font-black ${
-                            index < 3 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
+                            (analysis.ranked.findIndex((item) => item.code === row.code) < 3
+                              ? "bg-slate-900 text-white"
+                              : "bg-slate-100 text-slate-500")
                           }`}
+                          title={`표시 ${index + 1} · 전체 순위 ${analysis.ranked.findIndex((item) => item.code === row.code) + 1}`}
                         >
-                          {index + 1}
+                          {analysis.ranked.findIndex((item) => item.code === row.code) + 1 ||
+                            index + 1}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="rank-name block truncate">
