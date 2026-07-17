@@ -3,13 +3,10 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Lightweight health — keep imports minimal so serverless cold start stays reliable.
- * Optional modules loaded dynamically inside try/catch.
- */
+/** Zero heavy deps — pure capability probe for serverless reliability. */
 export async function GET() {
-  const base = {
-    status: "ok" as const,
+  return NextResponse.json({
+    status: "ok",
     serverTime: new Date().toISOString(),
     capabilities: {
       kakaoMapsJs: Boolean(process.env.NEXT_PUBLIC_KAKAO_MAP_KEY?.trim()),
@@ -41,58 +38,16 @@ export async function GET() {
       hiraSidoCd: ["210000", "380000"],
       populationCtpv: ["26", "48"],
     },
-  };
-
-  try {
-    const { computeStaleness, readSyncStatus } = await import("@/lib/data/sync-status");
-    const { readPublishedSnapshotMeta } = await import("@/lib/supabase/public");
-
-    const liveMeta = await readPublishedSnapshotMeta("live");
-    const syncLocal = await readSyncStatus();
-    const publishedAt = liveMeta?.createdAt ?? syncLocal.lastSuccessAt;
-    const staleness = computeStaleness(publishedAt, syncLocal);
-
-    return NextResponse.json({
-      ...base,
-      publishedLive: liveMeta
-        ? {
-            available: true,
-            createdAt: liveMeta.createdAt,
-            source: liveMeta.source,
-            referenceMonth: liveMeta.snapshot.referenceMonth,
-            mode: liveMeta.snapshot.mode,
-            facilityCount: liveMeta.snapshot.facilities.length,
-            regionCount: liveMeta.snapshot.regions.length,
-            checksum: liveMeta.checksum,
-          }
-        : { available: false },
-      syncOps: {
-        lastAttemptAt: syncLocal.lastAttemptAt,
-        lastSuccessAt: syncLocal.lastSuccessAt,
-        lastStatus: syncLocal.lastStatus,
-        lastFacilityCount: syncLocal.lastFacilityCount,
-        lastError: syncLocal.lastError,
-        stale: staleness.stale,
-        recommendSync: staleness.recommendSync,
-        reason: staleness.reason,
-      },
-    });
-  } catch (error) {
-    // Still report capabilities if optional deps fail on cold start.
-    return NextResponse.json({
-      ...base,
-      publishedLive: { available: false },
-      syncOps: {
-        lastAttemptAt: null,
-        lastSuccessAt: null,
-        lastStatus: "idle",
-        lastFacilityCount: null,
-        lastError: error instanceof Error ? error.message : "optional health deps failed",
-        stale: true,
-        recommendSync: true,
-        reason: "동기화 상태 조회 실패 — 기본 상태만 반환",
-      },
-      degraded: true,
-    });
-  }
+    publishedLive: { available: false },
+    syncOps: {
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastStatus: "idle",
+      lastFacilityCount: null,
+      lastError: null,
+      stale: true,
+      recommendSync: true,
+      reason: "경량 health — 상세 동기화 상태는 /api/data/sync 참고",
+    },
+  });
 }
