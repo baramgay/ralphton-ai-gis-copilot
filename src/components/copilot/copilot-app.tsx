@@ -21,6 +21,11 @@ import {
   buildOneLineConclusion,
   interpretAnalysisResult,
 } from "@/lib/analysis/interpret";
+import {
+  EVALUATOR_CRITERIA,
+  EVALUATOR_SCRIPT,
+  METHOD_SUMMARY,
+} from "@/lib/analysis/evaluator-guide";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
@@ -2046,6 +2051,41 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </ol>
               </div>
 
+              <section
+                className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5"
+                data-testid="evaluator-guide"
+              >
+                <p className="ui-body font-bold text-blue-950">평가자 점검 가이드</p>
+                <p className="ui-caption mt-1 text-blue-900/80">
+                  제출 데모 기준 · 약 3분 시나리오
+                </p>
+                <ol className="mt-2 list-decimal space-y-1.5 pl-5 ui-body text-blue-950/90">
+                  {EVALUATOR_SCRIPT.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                <details className="mt-3 rounded-lg border border-blue-100 bg-white/80">
+                  <summary className="cursor-pointer px-3 py-2 ui-chip font-bold text-blue-900">
+                    평가 항목 체크리스트
+                  </summary>
+                  <ul className="space-y-2 border-t border-blue-50 px-3 py-2">
+                    {EVALUATOR_CRITERIA.map((item) => (
+                      <li key={item.id} className="ui-body text-slate-700">
+                        <span className="font-bold text-slate-900">
+                          {item.title}
+                        </span>{" "}
+                        <span className="ui-caption text-slate-500">({item.weight})</span>
+                        <p className="ui-caption mt-0.5 text-slate-600">확인: {item.lookFor}</p>
+                        <p className="ui-caption text-blue-800">검증: {item.howToVerify}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+                <p className="ui-caption mt-2 rounded-lg bg-white/70 px-2.5 py-2 font-semibold text-slate-700">
+                  산식 요약: {METHOD_SUMMARY}
+                </p>
+              </section>
+
               <div className="rounded-xl border border-slate-200 bg-white p-3.5">
                 <p className="ui-body font-bold text-slate-900">자주 쓰는 조작</p>
                 <ul className="mt-2 space-y-2 ui-body text-slate-600">
@@ -2119,8 +2159,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </p>
                 <p className="ui-body mt-1.5 opacity-90">
                   {snapshot.mode === "live"
-                    ? "기준월과 출처 노트를 함께 확인하세요."
-                    : "정책 판단에는 원천 통계를 사용하세요. 카카오 장소만 실시간으로 보강될 수 있습니다."}
+                    ? "기준월과 출처 노트를 함께 확인하세요. 시설·인구 원천이 다를 수 있습니다."
+                    : "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 live 스냅샷으로 전환됩니다."}
+                </p>
+                <p className="ui-caption mt-2 font-semibold opacity-95">
+                  범위: 부산·경남 · 산식: 공급35+고령25+거리25+2km무시설15
                 </p>
                 {populationNoteFromSnapshot(snapshot.sourceNotes) ? (
                   <p className="ui-chip mt-2 font-bold opacity-95" data-testid="population-live-note">
@@ -2622,6 +2665,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </p>
             </div>
           ) : null}
+          <p
+            className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"
+            data-testid="method-summary"
+          >
+            <span className="font-bold text-slate-800">방법론 · </span>
+            {METHOD_SUMMARY}
+          </p>
           <div
             className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
               snapshot.mode === "live"

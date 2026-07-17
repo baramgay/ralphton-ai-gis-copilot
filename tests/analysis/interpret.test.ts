@@ -77,6 +77,7 @@ describe("interpretAnalysisResult", () => {
     expect(interpretation.headline).toContain("의료 취약");
     expect(interpretation.insights.join(" ")).toContain("중앙동");
     expect(interpretation.suggestions.length).toBeGreaterThan(0);
+    expect(interpretation.suggestions.join(" ")).toMatch(/평가자|부산|경남|비교/);
     expect(JSON.stringify(interpretation)).not.toMatch(/qwen|dashscope|openai/i);
   });
 

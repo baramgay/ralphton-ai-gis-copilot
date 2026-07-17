@@ -226,7 +226,8 @@ describe("CopilotApp", () => {
     expect(
       within(screen.getByTestId("result-panel")).getByRole("button", { name: /중앙약국/ }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/의료취약지수/)).not.toBeInTheDocument();
+    // Facility search should not use scarcity ranking title
+    expect(screen.queryByRole("heading", { name: /의료 취약/ })).not.toBeInTheDocument();
   });
 
   test("supports mobile panel toggles for left and right sheets", async () => {
@@ -295,6 +296,15 @@ describe("CopilotApp", () => {
     await screen.findByText("DemoMap", {}, { timeout: 10_000 });
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("copy-conclusion")).toBeInTheDocument();
+  });
+
+  test("help tab shows evaluator guide and method summary on results", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    expect(await screen.findByTestId("method-summary")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "이용" }));
+    expect(await screen.findByTestId("evaluator-guide")).toBeInTheDocument();
+    expect(screen.getByText(/평가자 점검 가이드/)).toBeInTheDocument();
   });
 
   test("facility list shows sort controls", async () => {

@@ -295,10 +295,12 @@ export function seedSnapshot(boundary, versionSeed) {
     regions,
     facilities,
     sourceNotes: [
-      "This is a deterministic demonstration dataset generated from the Busan administrative boundary.",
-      "Population, household, birth, and death figures are synthetic and do not reflect actual resident registration data.",
-      "Facility locations are placed inside each administrative dong using a hash-based PRNG.",
-      "Some facility specialties and hours are intentionally null to test null handling in the UI.",
+      "부산·경남 행정동 경계를 기준으로 만든 결정론적 시연 데이터입니다.",
+      "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+      "시설 위치는 행정동 내부 대표점 주변 PRNG 배치이며 실제 요양기관 좌표가 아닙니다.",
+      "진료과·운영시간 null은 UI의 ‘데이터 없음’ 처리를 검증하기 위한 의도적 값입니다.",
+      "실데이터 연결 시 시설은 HIRA 병원정보(v2), 인구는 행정안전부 주민인구 API를 사용합니다.",
+      "분석 거리는 행정동 대표점 기준 직선거리이며 도로·대중교통 접근성과 다를 수 있습니다.",
     ],
   };
 }

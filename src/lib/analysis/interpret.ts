@@ -126,7 +126,8 @@ export function interpretAnalysisResult(
 
   const suggestions: string[] = [
     "빠른 분석 ‘고령 × 의료’와 ‘주변 접근’을 교차 확인해 수요·공급 격차를 비교하세요.",
-    "구 비교에서 지역을 바꾼 뒤 「동 순위 보기」로 세부 행정동을 확인하세요.",
+    "지도 칩으로 부산/경남을 나눈 뒤, 구 비교 → 「동 순위 보기」로 세부 행정동을 확인하세요.",
+    "이용 탭의 평가자 가이드 시나리오(3분)로 핵심 기능을 순서대로 점검할 수 있습니다.",
   ];
 
   if (result.filteredFacilities.some((facility) => facility.hours == null)) {

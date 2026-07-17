@@ -1,6 +1,8 @@
-# 부산 AI GIS Copilot
+# 부산·경남 AI GIS Copilot
 
-부산 206개 행정동의 의료·인구 접근성을 지도와 자연어로 탐색하는 Next.js 데모입니다. API 키가 전혀 없어도 결정론적 샘플 데이터와 SVG `DemoMap`으로 전체 분석 흐름이 동작합니다.
+부산광역시·경상남도 행정동(약 511개)의 의료·인구 접근성을 지도와 자연어로 탐색하는 Next.js 앱입니다. API 키가 없어도 결정론적 시연 데이터와 SVG `DemoMap`으로 전체 분석 흐름이 동작합니다.
+
+**프로덕션:** https://ralphton-ai-gis-copilot.vercel.app
 
 ## 가장 빠른 실행
 
@@ -8,11 +10,10 @@ Windows 탐색기에서 `실행하기.cmd`를 더블클릭합니다.
 
 - 첫 실행에는 Node.js와 npm을 확인하고 필요한 패키지를 설치한 뒤 production build를 만듭니다.
 - 3000번부터 사용 가능한 포트를 찾아 서버를 시작하고 브라우저를 엽니다.
-- 실행 상태와 포트는 `logs/` 아래에 기록됩니다.
-- 종료할 때는 `종료하기.cmd`를 더블클릭합니다. 이 프로젝트가 소유한 프로세스만 확인 후 종료합니다.
+- 종료할 때는 `종료하기.cmd`를 더블클릭합니다.
 - 개발 중에는 `실행하기-개발모드.cmd`를 사용할 수 있습니다.
 
-필수 환경은 Node.js 20.9 이상입니다. 명령줄에서는 다음과 같이 실행할 수 있습니다.
+필수 환경은 Node.js 20.9 이상입니다.
 
 ```powershell
 npm install
@@ -21,72 +22,50 @@ npm run dev
 
 ## 구현된 기능
 
-- 부산 행정동 206개 경계 기반 choropleth, 시설 marker/cluster, 1·2·3km 접근 반경
-- Kakao Maps SDK 선택 연동과 키 없는 SVG `DemoMap` 자동 대체
-- 의료 취약, 고령 수요, 인구 증가 압력, 최근접 거리, 반경 접근성, 지역 비교 등 10개 Tool Registry
-- 8개 빠른 분석, 행정동 클릭, 순위·상세 지표·13개월 추세 동기화
-- “병원”은 약국을 제외한 전체 의료기관으로 해석하고 약국은 명시 요청 때만 포함
-- Qwen JSON 의도 파서: primary 재시도, fallback, 규칙 기반 demo 순서의 안전한 폴백
-- 하이브리드 RAG: BM25-lite + 해시 임베딩 코사인(선택적 DashScope 임베딩 훅) · `POST /api/rag/search`
-- 행정동 지명 사전(206동 place-index): 동 이름 질의 → adm_cd2 regions 해석
-- 공공데이터 정규화 계층과 선택적 Supabase 공개 스냅샷 캐시
-- 400px 데스크톱 분석 패널과 모바일 bottom sheet, 키보드 지도 선택, reduced-motion 대응
+- **범위:** 부산·경남 행정동 경계 기반 choropleth, 시설 marker/cluster, 1·2·3km 접근 반경
+- **지도:** Kakao Maps SDK 선택 연동 · 키 없는 SVG `DemoMap` 자동 대체 · 전체/부산/경남 칩
+- **분석:** 의료 취약, 고령 수요, 인구 증가 압력, 최근접 거리, 반경 접근성, 지역 비교 등 Tool Registry
+- **UI:** 8개 빠른 분석, 순위·상세·13개월 추세, 구·동 비교, 한 줄 결론, 다크/시스템/고대비
+- **NL:** 규칙 파서 + 선택적 Qwen JSON 파서, 하이브리드 RAG, 행정동 지명 사전(place-index)
+- **실데이터:** HIRA 병원정보 v2(시도 210000·380000), 주민인구 live 병합, Supabase 공개 스냅샷, cron sync
+- **평가자 가이드:** 이용 탭에 3분 시나리오·체크리스트·산식 요약
 
 ## 환경 변수
 
 `.env.example`을 `.env.local`로 복사해 필요한 값만 채웁니다. 빈 상태가 정상적인 Demo 모드입니다.
 
-- `NEXT_PUBLIC_KAKAO_MAP_KEY`: Kakao JavaScript 지도 공개 키
-- `DATA_GO_KR_SERVICE_KEY`, `KAKAO_REST_API_KEY`: 서버 전용 공공·공간 데이터 키
-- `QWEN_API_KEY`, `QWEN_BASE_URL`: 서버 전용 자연어 파서 설정
-- `QWEN_PRIMARY_MODEL` (기본 `qwen3.6-flash`), `QWEN_JSON_FALLBACK_MODEL` (기본 `qwen3.7-plus`): 의도 JSON 파싱용 가성비 모델. DashScope OpenAI 호환 endpoint 사용
-- `DATA_SYNC_SECRET`: `POST /api/data/sync` 보호용 공유 비밀(없으면 동기화 비활성)
-- `CRON_SECRET`: Vercel Cron `GET /api/cron/sync` 인증(일 1회 UTC 15:00≈KST 00:00, `publish:true`)
-- `CRON_ALERT_WEBHOOK`: cron 실패 시 POST 알림(Slack 등)
-- `LIVE_POPULATION_DISABLED=1`: 인구 live 병합 끄기(기본은 시설+인구 최신월 병합 시도)
-- 배포 smoke: `SMOKE_BASE_URL=https://... npm run smoke`
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`: 공개 스냅샷 읽기
-- `SUPABASE_SERVICE_ROLE_KEY`: 서버 전용 동기화 권한
+| 변수 | 용도 |
+|------|------|
+| `NEXT_PUBLIC_KAKAO_MAP_KEY` | Kakao JS 지도 |
+| `KAKAO_REST_API_KEY` | 카카오 로컬 REST |
+| `DATA_GO_KR_SERVICE_KEY` | 공공데이터(인구 등) |
+| `HIRA_HOSP_SERVICE_KEY` | HIRA 병원 API(없으면 DATA_GO 키 재사용) |
+| `QWEN_*` | 자연어 파서·임베딩 |
+| `DATA_SYNC_SECRET` / `CRON_SECRET` | 동기화·cron |
+| `CRON_ALERT_WEBHOOK` | cron 실패 알림 |
+| `LIVE_POPULATION_DISABLED=1` | 인구 live 끄기 |
+| Supabase 공개/서비스 롤 | 스냅샷 캐시 |
 
-서비스 역할 키와 AI·공공데이터 키는 브라우저 코드에 전달하지 않습니다.
+서비스 역할 키와 AI·공공데이터 키는 브라우저에 노출하지 않습니다.
 
 ## 데이터와 산식
 
-기본 스냅샷은 기능 시연을 위한 합성 데이터입니다. 인구·세대·시설 값은 실제 정책 판단에 사용할 수 없습니다.
+**시연 모드 기본 스냅샷은 합성 데이터**입니다. 인구·시설 좌표는 실제 정책 판단에 쓸 수 없습니다.
 
-- 기준월: 모든 입력에 공통으로 존재하는 최신 월
-- 추세: 13개월 입력으로 최근 12개월 변화 계산
-- 자연증가: 출생 − 사망, 전입·전출 미포함
-- 대표점: Turf `pointOnFeature`로 행정동 내부에 배치
-- 최근접 거리: 대표점에서 시설까지의 대권 직선거리
 - 의료취약지수: 공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%
-- 결측 1인가구·운영시간은 0으로 추정하지 않고 “데이터 없음”으로 유지
+- 거리: 행정동 대표점(`pointOnFeature`) 기준 대권 직선거리
+- 자연증가: 출생 − 사망 (전입·전출 미포함)
+- 결측 운영시간·진료과는 0으로 추정하지 않음
 
-## 검증 명령
+실데이터 모드: HIRA `getHospBasisList` + 주민인구 최신월 병합(선택).
+
+## 검증
 
 ```powershell
-npm run data:boundaries
-npm run data:seed
 npm test
 npm run typecheck
-npm run lint
 npm run build
-npm run verify
-# optional: VERIFY_E2E=1 npm run verify   (Playwright 포함)
-# optional live facilities: DATA_SYNC_SECRET + DATA_GO_KR_SERVICE_KEY 후 POST /api/data/sync
+npm run smoke   # 기본: 프로덕션 URL
 ```
 
-Windows 실행기만 확인하려면 다음 명령을 사용합니다.
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows.ps1
-```
-
-## 주요 경로
-
-- `src/lib/analysis/tool-registry.ts`: 허용된 10개 분석 도구
-- `src/lib/gis/`: 좌표·거리·반경·취약지수 계산
-- `src/components/copilot/`: 분석 패널, Kakao/SVG 지도, 상세 UI
-- `scripts/`: 경계 검증, 데모 생성, Windows 검증
-- `supabase/migrations/`: 선택적 캐시 스키마와 RLS
-- `public/data/`: 검증된 부산 경계와 데모 스냅샷
+평가자 3분 시나리오는 앱 **이용 탭 → 평가자 점검 가이드**에 있습니다.
