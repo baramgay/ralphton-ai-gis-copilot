@@ -10,12 +10,26 @@ import {
 } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  downloadTextFile,
+  facilitiesToCsv,
+  rankedToCsv,
+} from "@/lib/analysis/export-csv";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
+import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
 import { interpretAnalysisResult } from "@/lib/analysis/interpret";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
+import {
+  applyFollowUpMerge,
+  buildShareSearch,
+  isFollowUpQuery,
+  parseShareState,
+} from "@/lib/analysis/share-state";
 import { executeAnalysisIntent } from "@/lib/analysis/tool-registry";
+import { FACILITY_TYPE_COLORS } from "@/lib/gis/facility-style";
 import { InterpretationCard } from "./interpretation-card";
+import type { LiveMapPlace } from "./kakao-map";
 import { MapCanvas } from "./map-canvas";
 import { PanelResizer } from "./panel-resizer";
 import { TrendChart } from "./trend-chart";
@@ -57,16 +71,11 @@ type AnalysisView = {
   isFacilityResult: boolean;
 };
 
-type LivePlace = {
-  id: string;
-  name: string;
+type LivePlace = LiveMapPlace & {
   categoryName: string;
   phone: string | null;
   address: string | null;
   roadAddress: string | null;
-  lat: number;
-  lng: number;
-  distanceMeters: number | null;
 };
 
 type CopilotAppProps = {
@@ -195,6 +204,15 @@ type CapabilityFlags = {
   dataSync: boolean;
 };
 
+type PublishedLiveInfo = {
+  available: boolean;
+  createdAt?: string | null;
+  source?: string | null;
+  referenceMonth?: string;
+  facilityCount?: number;
+  mode?: string;
+};
+
 function toolToQuickId(tool: string): QuickId {
   const map: Record<string, QuickId> = {
     rankHospitalScarcity: "scarcity",
@@ -244,7 +262,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [markerScope, setMarkerScope] = useState<"priority" | "selected">("priority");
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [showUxHint, setShowUxHint] = useState(false);
+  const [lastIntent, setLastIntent] = useState<AnalysisIntent | null>(null);
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const [publishedLive, setPublishedLive] = useState<PublishedLiveInfo | null>(null);
+  const [selectedLivePlace, setSelectedLivePlace] = useState<LivePlace | null>(null);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [facilityTypeFilter, setFacilityTypeFilter] = useState<string | "all">("all");
   const queryInputRef = useRef<HTMLInputElement>(null);
+  const shareAppliedRef = useRef(false);
   const {
     layout,
     cssVars,
@@ -337,6 +362,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         (response) => {
           if (!response.ok) throw new Error("데모 데이터를 불러오지 못했습니다.");
           setDataSource(response.headers.get("x-data-source") ?? "unknown");
+          setPublishedAt(response.headers.get("x-published-at"));
           return response.json() as Promise<AnalysisSnapshot>;
         },
       ),
@@ -349,15 +375,67 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       fetch("/api/health", { signal: controller.signal })
         .then((response) => (response.ok ? response.json() : null))
         .catch(() => null),
+      fetch("/api/data/sync", { signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null),
     ])
-      .then(([nextSnapshot, nextBoundary, health]) => {
+      .then(([nextSnapshot, nextBoundary, health, syncStatus]) => {
         setSnapshot(nextSnapshot);
         setBoundary(nextBoundary);
         if (health && typeof health === "object" && "capabilities" in health) {
           setCapabilities((health as { capabilities: CapabilityFlags }).capabilities);
+          if ("publishedLive" in health) {
+            setPublishedLive(
+              (health as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
+            );
+          }
         }
+        if (syncStatus && typeof syncStatus === "object" && "publishedLive" in syncStatus) {
+          setPublishedLive(
+            (syncStatus as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
+          );
+        }
+
+        if (!shareAppliedRef.current && typeof window !== "undefined") {
+          shareAppliedRef.current = true;
+          const share = parseShareState(window.location.search);
+          if (share.radius) setRadiusKm(share.radius);
+          if (share.markers) setMarkerScope(share.markers);
+          if (share.tab) setActiveTab(share.tab);
+          if (share.q) setQuery(share.q);
+          if (share.region) {
+            const hit = nextSnapshot.regions.find(
+              (region) =>
+                region.adm_cd2 === share.region || region.adm_nm.includes(share.region ?? ""),
+            );
+            if (hit) setSelectedRegionCode(hit.adm_cd2);
+          }
+          if (share.tool) {
+            const parsed = AnalysisIntentSchema.safeParse({
+              tool: share.tool,
+              filters: {
+                radiusKm: share.radius,
+                limit: nextSnapshot.regions.length,
+                regions: share.region ? [share.region] : undefined,
+              },
+            });
+            if (parsed.success) {
+              const quickId = toolToQuickId(parsed.data.tool);
+              const result = executeAnalysisIntent(parsed.data, nextSnapshot);
+              setActiveQuick(quickId);
+              setCustomAnalysis(resultToView(quickId, result));
+              setLastIntent(parsed.data);
+              if (result.selectedRegion) setSelectedRegionCode(result.selectedRegion.adm_cd2);
+              else if (result.rankedRegions[0]) {
+                setSelectedRegionCode(result.rankedRegions[0].adm_cd2);
+              }
+              return;
+            }
+          }
+        }
+
         const initial = executeQuickAnalysis(nextSnapshot, "scarcity", 2);
-        setSelectedRegionCode(initial.ranked[0]?.code ?? nextSnapshot.regions[0]?.adm_cd2 ?? null);
+        setSelectedRegionCode((current) => current ?? initial.ranked[0]?.code ?? nextSnapshot.regions[0]?.adm_cd2 ?? null);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -408,10 +486,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     : (analysis?.filteredFacilities.length ?? 0) > 0
       ? (analysis?.filteredFacilities ?? [])
       : defaultMedicalFacilities;
-  const mapFacilities =
+  const scopedMapFacilities =
     markerScope === "selected" && selectedRegionCode
       ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
       : rawMapFacilities;
+  const mapFacilities =
+    facilityTypeFilter === "all"
+      ? scopedMapFacilities
+      : scopedMapFacilities.filter((facility) => facility.type === facilityTypeFilter);
   const selectedFacilities = mapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode);
   const selectedFacility =
     analysis?.filteredFacilities.find((facility) => facility.id === selectedFacilityId) ?? null;
@@ -451,13 +533,84 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const selectFacility = useCallback((facility: Facility) => {
     setSelectedFacilityId(facility.id);
+    setSelectedLivePlace(null);
     setSelectedRegionCode(facility.adm_cd2);
   }, []);
 
   const selectRegion = useCallback((code: string) => {
     setSelectedFacilityId(null);
+    setSelectedLivePlace(null);
     setSelectedRegionCode(code);
   }, []);
+
+  const selectLivePlace = useCallback((place: LiveMapPlace) => {
+    setSelectedLivePlace(place as LivePlace);
+    setSelectedFacilityId(null);
+  }, []);
+
+  const pushShareUrl = useCallback(
+    (intent: AnalysisIntent | null, regionCode: string | null, q?: string) => {
+      if (typeof window === "undefined") return;
+      const search = buildShareSearch({
+        tool: intent?.tool,
+        region: regionCode ?? undefined,
+        radius: radiusKm,
+        q,
+        markers: markerScope,
+        tab: activeTab,
+      });
+      const next = `${window.location.pathname}${search}`;
+      window.history.replaceState(null, "", next);
+    },
+    [activeTab, markerScope, radiusKm],
+  );
+
+  const copyShareLink = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareNotice("공유 링크를 복사했습니다.");
+    } catch {
+      setShareNotice("링크 복사에 실패했습니다. 주소창 URL을 복사하세요.");
+    }
+    window.setTimeout(() => setShareNotice(null), 2500);
+  }, []);
+
+  const exportCurrentCsv = useCallback(() => {
+    if (!snapshot || !analysis) return;
+    const stamp = snapshot.referenceMonth;
+    if (analysis.isFacilityResult) {
+      const csv = facilitiesToCsv(
+        analysis.title,
+        stamp,
+        dataSource,
+        snapshot.mode,
+        analysis.filteredFacilities.map((facility) => ({
+          id: facility.id,
+          name: facility.name,
+          type: facility.type,
+          region: facility.adm_nm,
+          address: facility.address ?? "",
+        })),
+      );
+      downloadTextFile(`ralphton-facilities-${stamp}.csv`, csv);
+      return;
+    }
+    const csv = rankedToCsv(
+      analysis.title,
+      stamp,
+      dataSource,
+      snapshot.mode,
+      analysis.ranked.map((row, index) => ({
+        rank: index + 1,
+        code: row.code,
+        name: row.name,
+        valueLabel: row.valueLabel,
+        note: row.note,
+      })),
+    );
+    downloadTextFile(`ralphton-rank-${stamp}.csv`, csv);
+  }, [analysis, dataSource, snapshot]);
 
   const runQuick = useCallback(
     (id: QuickId) => {
@@ -531,30 +684,49 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         return;
       }
       rememberQuery(trimmed);
-      if (data.intent.filters?.radiusKm && [1, 2, 3].includes(data.intent.filters.radiusKm)) {
-        setRadiusKm(data.intent.filters.radiusKm as 1 | 2 | 3);
-      }
       if (!snapshot) return;
-      const quickId = toolToQuickId(data.intent.tool);
-      const exactResult = executeAnalysisIntent(data.intent, snapshot);
+
+      const selectedName =
+        snapshot.regions.find((region) => region.adm_cd2 === selectedRegionCode)?.adm_nm ?? null;
+      const mergedIntent = applyFollowUpMerge(
+        trimmed,
+        data.intent,
+        lastIntent,
+        selectedRegionCode,
+        selectedName,
+      );
+
+      if (mergedIntent.filters?.radiusKm && [1, 2, 3].includes(mergedIntent.filters.radiusKm)) {
+        setRadiusKm(mergedIntent.filters.radiusKm as 1 | 2 | 3);
+      }
+      const quickId = toolToQuickId(mergedIntent.tool);
+      const exactResult = executeAnalysisIntent(mergedIntent, snapshot);
       const nextView = resultToView(quickId, exactResult);
       setActiveQuick(quickId);
       setCustomAnalysis(nextView);
+      setLastIntent(mergedIntent);
       setSelectedFacilityId(exactResult.filteredFacilities[0]?.id ?? null);
-      if (exactResult.selectedRegion) setSelectedRegionCode(exactResult.selectedRegion.adm_cd2);
-      else if (exactResult.filteredFacilities[0]) {
-        setSelectedRegionCode(exactResult.filteredFacilities[0].adm_cd2);
-      }
+      setSelectedLivePlace(null);
+      const nextRegionCode =
+        exactResult.selectedRegion?.adm_cd2 ??
+        exactResult.filteredFacilities[0]?.adm_cd2 ??
+        exactResult.rankedRegions[0]?.adm_cd2 ??
+        selectedRegionCode;
+      if (nextRegionCode) setSelectedRegionCode(nextRegionCode);
       setActiveTab("control");
-      setQueryNotice(data.notice ?? "질문을 분석에 반영했습니다.");
+      const followNote = isFollowUpQuery(trimmed)
+        ? " 이전 선택 지역·조건을 이어서 반영했습니다."
+        : "";
+      setQueryNotice((data.notice ?? "질문을 분석에 반영했습니다.") + followNote);
       setQueryNoticeTone(
         exactResult.filteredFacilities.length === 0 && exactResult.rankedRegions.length === 0
           ? "neutral"
           : "success",
       );
+      pushShareUrl(mergedIntent, nextRegionCode, trimmed);
 
       const regionForKakao =
-        snapshot.regions.find((region) => region.adm_cd2 === exactResult.selectedRegion?.adm_cd2) ??
+        snapshot.regions.find((region) => region.adm_cd2 === nextRegionCode) ??
         selectedRegion ??
         snapshot.regions[0] ??
         null;
@@ -856,10 +1028,64 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </button>
                   ))}
                 </div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                      facilityTypeFilter === "all"
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                    onClick={() => setFacilityTypeFilter("all")}
+                  >
+                    전체 유형
+                  </button>
+                  {Object.entries(FACILITY_TYPE_COLORS).map(([type, color]) => (
+                    <button
+                      key={type}
+                      type="button"
+                      className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                        facilityTypeFilter === type ? "text-white" : "text-slate-700"
+                      }`}
+                      style={{
+                        backgroundColor:
+                          facilityTypeFilter === type ? color : `${color}22`,
+                        border: `1px solid ${color}`,
+                      }}
+                      onClick={() =>
+                        setFacilityTypeFilter((current) => (current === type ? "all" : type))
+                      }
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
                 <p className="mt-1.5 text-[10px] leading-5 text-slate-400">
-                  우선 표시는 선택 동·고득점 동 시설을 먼저 올립니다. 클러스터는 SDK 2단 로드 시 자동.
+                  우선 표시·유형 필터·클러스터(2단 로드)로 핀 밀도를 조절합니다.
                 </p>
               </section>
+
+              {selectedRegion && lastIntent ? (
+                <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-2.5">
+                  <p className="text-[9px] font-bold text-blue-700">후속 질문 예시</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {[
+                      "이 동만 병원 보여줘",
+                      "반경 3km로",
+                      "이 결과에서 약국만",
+                    ].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] text-blue-800"
+                        onClick={() => setQuery(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
               <p className="text-[10px] leading-5 text-slate-400">
                 순위·상세·해석은 오른쪽 패널에 표시됩니다. 패널 경계를 드래그해 너비를 조절할 수 있습니다.
@@ -986,6 +1212,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       DATA_SYNC_SECRET이 없으면 시설 동기화 API는 비활성입니다.
                     </p>
                   )}
+                  {publishedLive?.available ? (
+                    <div className="mt-2 rounded-lg bg-emerald-50 px-2 py-1.5 text-[10px] leading-5 text-emerald-900">
+                      <p className="font-bold">게시된 실데이터 스냅샷</p>
+                      <p>기준월 {publishedLive.referenceMonth ?? "—"}</p>
+                      <p>
+                        갱신{" "}
+                        {publishedLive.createdAt
+                          ? new Date(publishedLive.createdAt).toLocaleString("ko-KR")
+                          : "시각 없음"}
+                      </p>
+                      <p>시설 {publishedLive.facilityCount?.toLocaleString("ko-KR") ?? "—"}곳</p>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                      게시된 live 스냅샷이 없습니다. 동기화 후 auto 모드에서 사용됩니다.
+                    </p>
+                  )}
+                  {publishedAt ? (
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      현재 로드 캐시 시각: {new Date(publishedAt).toLocaleString("ko-KR")}
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -1035,6 +1283,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           legendLabel={analysis.legendLabel}
           onSelectRegion={selectRegion}
           onSelectFacility={selectFacility}
+          onSelectLivePlace={selectLivePlace}
           onEngineChange={setMapEngine}
         />
 
@@ -1151,7 +1400,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </button>
           </div>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">{analysis.summary}</p>
-          <div className="mt-2 flex gap-1.5">
+          <div
+            className={`mt-2 rounded-lg border px-2.5 py-1.5 text-[10px] leading-5 ${
+              snapshot.mode === "live"
+                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
+                : "border-amber-100 bg-amber-50 text-amber-900"
+            }`}
+            data-testid="data-provenance"
+          >
+            <span className="font-bold">
+              {snapshot.mode === "live" ? "실데이터" : "데모 데이터"}
+            </span>
+            {" · "}기준월 {snapshot.referenceMonth}
+            {" · "}
+            {dataSourceLabel(dataSource)}
+            {publishedAt
+              ? ` · 게시 ${new Date(publishedAt).toLocaleDateString("ko-KR")}`
+              : ""}
+            {snapshot.mode === "demo"
+              ? " · 정책 판단용 원천 통계 아님"
+              : " · 인구 시계열은 기준 스냅샷 유지 가능"}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
               {analysis.isFacilityResult
                 ? `${analysis.filteredFacilities.length}개 시설`
@@ -1162,7 +1432,36 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 선택 {currentRank}위
               </span>
             ) : null}
+            <button
+              type="button"
+              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:border-blue-300"
+              onClick={exportCurrentCsv}
+            >
+              CSV 내보내기
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:border-blue-300"
+              onClick={() => {
+                pushShareUrl(
+                  lastIntent ?? {
+                    tool: "rankHospitalScarcity",
+                    filters: { limit: snapshot.regions.length, radiusKm },
+                  },
+                  selectedRegionCode,
+                  query || undefined,
+                );
+                void copyShareLink();
+              }}
+            >
+              링크 복사
+            </button>
           </div>
+          {shareNotice ? (
+            <p className="mt-1.5 text-[10px] font-semibold text-emerald-700" role="status">
+              {shareNotice}
+            </p>
+          ) : null}
         </header>
 
         <div className="copilot-scroll space-y-4 px-3 pb-8 pt-3">
@@ -1254,6 +1553,23 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </article>
               ) : null}
 
+              {selectedLivePlace ? (
+                <article className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 p-2.5 text-[10px] text-slate-600">
+                  <p className="text-[9px] font-bold text-violet-700">카카오 실시간 장소</p>
+                  <p className="mt-1 font-bold text-violet-900">{selectedLivePlace.name}</p>
+                  <p className="mt-1">{selectedLivePlace.categoryName}</p>
+                  <p className="mt-1">
+                    {selectedLivePlace.roadAddress ?? selectedLivePlace.address ?? "주소 없음"}
+                  </p>
+                  <p className="mt-1">
+                    전화 {selectedLivePlace.phone ?? "데이터 없음"}
+                    {selectedLivePlace.distanceMeters != null
+                      ? ` · ${selectedLivePlace.distanceMeters}m`
+                      : ""}
+                  </p>
+                </article>
+              ) : null}
+
               {!analysis.isFacilityResult && selectedAnalysisRegion?.metrics.length ? (
                 <div className="mt-3 grid grid-cols-2 gap-1.5">
                   {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
@@ -1325,13 +1641,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   <button
                     key={place.id}
                     type="button"
-                    className="w-full py-2 text-left hover:bg-slate-50"
-                    onClick={() => {
-                      // Focus map on place by selecting nearest known region if possible
-                      if (selectedRegion) {
-                        setSelectedRegionCode(selectedRegion.adm_cd2);
-                      }
-                    }}
+                    className={`w-full py-2 text-left hover:bg-slate-50 ${
+                      selectedLivePlace?.id === place.id ? "bg-violet-50" : ""
+                    }`}
+                    onClick={() => selectLivePlace(place)}
                   >
                     <p className="text-xs font-bold text-slate-800">{place.name}</p>
                     <p className="mt-0.5 text-[10px] text-slate-400">

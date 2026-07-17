@@ -33,6 +33,29 @@ function readSyncSecret(request: Request): string | null {
 }
 
 /**
+ * Public status of live cache (no secrets). Used by data tab.
+ */
+export async function GET() {
+  const { readPublishedSnapshotMeta } = await import("@/lib/supabase/public");
+  const live = await readPublishedSnapshotMeta("live");
+  return NextResponse.json({
+    ok: true,
+    dataSyncConfigured: Boolean(process.env.DATA_SYNC_SECRET?.trim()),
+    publicDataConfigured: Boolean(process.env.DATA_GO_KR_SERVICE_KEY?.trim()),
+    publishedLive: live
+      ? {
+          available: true,
+          createdAt: live.createdAt,
+          source: live.source,
+          referenceMonth: live.snapshot.referenceMonth,
+          facilityCount: live.snapshot.facilities.length,
+          mode: live.snapshot.mode,
+        }
+      : { available: false },
+  });
+}
+
+/**
  * Optional live snapshot refresh. Requires DATA_SYNC_SECRET.
  * Never echoes credentials or upstream provider payloads.
  */

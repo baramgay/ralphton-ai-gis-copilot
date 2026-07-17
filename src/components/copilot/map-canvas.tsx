@@ -20,6 +20,7 @@ type MapCanvasProps = {
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
+  onSelectLivePlace?: (place: LiveMapPlace) => void;
   onEngineChange?: (engine: "kakao" | "demo") => void;
 };
 
@@ -27,7 +28,7 @@ export function MapCanvas(props: MapCanvasProps) {
   const [kakaoFailed, setKakaoFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-  const { kakaoMapKey, onEngineChange, livePlaces, ...mapProps } = props;
+  const { kakaoMapKey, onEngineChange, livePlaces, onSelectLivePlace, ...mapProps } = props;
 
   const handleError = useCallback(
     (message: string) => {
@@ -63,6 +64,7 @@ export function MapCanvas(props: MapCanvasProps) {
         appKey={kakaoMapKey}
         {...mapProps}
         livePlaces={livePlaces}
+        onSelectLivePlace={onSelectLivePlace}
         onError={handleError}
         onReady={handleReady}
       />

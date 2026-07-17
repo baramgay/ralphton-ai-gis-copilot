@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const cacheMocks = vi.hoisted(() => ({
-  readPublishedSnapshot: vi.fn(),
+  readPublishedSnapshotMeta: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/public', () => ({
-  readPublishedSnapshot: cacheMocks.readPublishedSnapshot,
+  readPublishedSnapshotMeta: cacheMocks.readPublishedSnapshotMeta,
 }));
 
 import { GET } from '@/app/api/data/snapshot/route';
@@ -22,7 +22,7 @@ function request(mode?: string) {
 
 describe('/api/data/snapshot', () => {
   beforeEach(() => {
-    cacheMocks.readPublishedSnapshot.mockReset();
+    cacheMocks.readPublishedSnapshotMeta.mockReset();
   });
 
   it('returns the validated static demo without consulting Supabase in demo mode', async () => {
@@ -33,11 +33,11 @@ describe('/api/data/snapshot', () => {
     expect(body.mode).toBe('demo');
     expect(body.months).toHaveLength(13);
     expect(body.regions).toHaveLength(206);
-    expect(cacheMocks.readPublishedSnapshot).not.toHaveBeenCalled();
+    expect(cacheMocks.readPublishedSnapshotMeta).not.toHaveBeenCalled();
   });
 
   it('falls back to the demo snapshot when optional cache is unavailable', async () => {
-    cacheMocks.readPublishedSnapshot.mockResolvedValueOnce(null);
+    cacheMocks.readPublishedSnapshotMeta.mockResolvedValueOnce(null);
 
     const response = await GET(request('auto'));
     const body = await response.json();
@@ -45,7 +45,7 @@ describe('/api/data/snapshot', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('x-data-source')).toBe('demo-fallback');
     expect(body.mode).toBe('demo');
-    expect(cacheMocks.readPublishedSnapshot).toHaveBeenCalledWith('live');
+    expect(cacheMocks.readPublishedSnapshotMeta).toHaveBeenCalledWith('live');
   });
 
   it('returns a validated published cache hit', async () => {
@@ -64,13 +64,18 @@ describe('/api/data/snapshot', () => {
       '2025-12',
       '2026-01',
     ];
-    cacheMocks.readPublishedSnapshot.mockResolvedValueOnce({
-      mode: 'live',
-      referenceMonth: '2026-01',
-      months,
-      regions: [],
-      facilities: [],
-      sourceNotes: ['fixture'],
+    cacheMocks.readPublishedSnapshotMeta.mockResolvedValueOnce({
+      snapshot: {
+        mode: 'live',
+        referenceMonth: '2026-01',
+        months,
+        regions: [],
+        facilities: [],
+        sourceNotes: ['fixture'],
+      },
+      createdAt: '2026-07-17T00:00:00.000Z',
+      source: 'fixture',
+      checksum: 'a'.repeat(64),
     });
 
     const response = await GET(request('live'));
@@ -78,8 +83,9 @@ describe('/api/data/snapshot', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('x-data-source')).toBe('supabase-cache');
+    expect(response.headers.get('x-published-at')).toBe('2026-07-17T00:00:00.000Z');
     expect(body.mode).toBe('live');
-    expect(cacheMocks.readPublishedSnapshot).toHaveBeenCalledWith('live');
+    expect(cacheMocks.readPublishedSnapshotMeta).toHaveBeenCalledWith('live');
   });
 
   it('rejects an unsupported mode without exposing internals', async () => {
@@ -88,6 +94,6 @@ describe('/api/data/snapshot', () => {
 
     expect(response.status).toBe(400);
     expect(text).not.toMatch(/supabase|service.?role|key|stack/i);
-    expect(cacheMocks.readPublishedSnapshot).not.toHaveBeenCalled();
+    expect(cacheMocks.readPublishedSnapshotMeta).not.toHaveBeenCalled();
   });
 });

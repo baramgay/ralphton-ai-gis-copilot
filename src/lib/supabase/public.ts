@@ -35,9 +35,16 @@ export function createPublicClient(): SupabaseClient {
   return client;
 }
 
-export async function readPublishedSnapshot(
+export type PublishedSnapshotMeta = {
+  snapshot: PublishedSnapshot;
+  createdAt: string | null;
+  source: string | null;
+  checksum: string | null;
+};
+
+export async function readPublishedSnapshotMeta(
   mode: "demo" | "live",
-): Promise<PublishedSnapshot | null> {
+): Promise<PublishedSnapshotMeta | null> {
   const client = getPublicSupabaseClient();
 
   if (!client) {
@@ -47,7 +54,7 @@ export async function readPublishedSnapshot(
   try {
     const { data, error } = await client
       .from("data_snapshots")
-      .select("payload")
+      .select("payload, created_at, source, checksum")
       .eq("is_published", true)
       .eq("mode", mode)
       .order("created_at", { ascending: false })
@@ -59,10 +66,21 @@ export async function readPublishedSnapshot(
     }
 
     const parsed = CachedSnapshotSchema.safeParse(data.payload);
-    return parsed.success ? parsed.data : null;
+    if (!parsed.success) return null;
+    return {
+      snapshot: parsed.data,
+      createdAt: typeof data.created_at === "string" ? data.created_at : null,
+      source: typeof data.source === "string" ? data.source : null,
+      checksum: typeof data.checksum === "string" ? data.checksum : null,
+    };
   } catch {
-    // The cache is optional. Transport and provider errors must leave the
-    // bundled demo path available without leaking provider details.
     return null;
   }
+}
+
+export async function readPublishedSnapshot(
+  mode: "demo" | "live",
+): Promise<PublishedSnapshot | null> {
+  const meta = await readPublishedSnapshotMeta(mode);
+  return meta?.snapshot ?? null;
 }

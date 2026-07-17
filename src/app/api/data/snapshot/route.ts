@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { DemoSnapshotSchema, type DemoSnapshot } from '@/lib/domain/schemas';
-import { readPublishedSnapshot } from '@/lib/supabase/public';
+import { readPublishedSnapshotMeta } from '@/lib/supabase/public';
 import { CachedSnapshotSchema } from '@/lib/supabase/types';
 
 const ModeSchema = z.enum(['auto', 'live', 'demo']);
@@ -26,11 +26,20 @@ function loadDemoSnapshot(): Promise<DemoSnapshot> {
   return demoSnapshotPromise;
 }
 
-function snapshotResponse(snapshot: unknown, source: 'supabase-cache' | 'demo' | 'demo-fallback') {
+function snapshotResponse(
+  snapshot: { mode?: string; referenceMonth?: string; facilities?: unknown[]; regions?: unknown[] },
+  source: 'supabase-cache' | 'demo' | 'demo-fallback',
+  publishedAt?: string | null,
+) {
   return NextResponse.json(snapshot, {
     headers: {
       'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
       'X-Data-Source': source,
+      'X-Snapshot-Mode': String(snapshot.mode ?? ''),
+      'X-Reference-Month': String(snapshot.referenceMonth ?? ''),
+      'X-Facility-Count': String(snapshot.facilities?.length ?? 0),
+      'X-Region-Count': String(snapshot.regions?.length ?? 0),
+      ...(publishedAt ? { 'X-Published-At': publishedAt } : {}),
     },
   });
 }
@@ -52,14 +61,14 @@ export async function GET(request: Request) {
   // "auto" prefers the newest published live snapshot and then falls back to
   // the bundled demo. The public cache adapter intentionally accepts only
   // concrete database modes.
-  const cached = await readPublishedSnapshot(mode.data === 'auto' ? 'live' : mode.data);
-  const validatedCache = CachedSnapshotSchema.safeParse(cached);
+  const cachedMeta = await readPublishedSnapshotMeta(mode.data === 'auto' ? 'live' : mode.data);
+  const validatedCache = CachedSnapshotSchema.safeParse(cachedMeta?.snapshot);
 
   if (
     validatedCache.success &&
     (mode.data === 'auto' || validatedCache.data.mode === mode.data)
   ) {
-    return snapshotResponse(validatedCache.data, 'supabase-cache');
+    return snapshotResponse(validatedCache.data, 'supabase-cache', cachedMeta?.createdAt);
   }
 
   return snapshotResponse(await loadDemoSnapshot(), 'demo-fallback');

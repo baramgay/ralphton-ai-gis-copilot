@@ -42,7 +42,26 @@ export type KakaoMapsNamespace = {
     fillColor: string;
     fillOpacity: number;
   }) => KakaoOverlay;
-  Marker: new (options: { position: KakaoLatLng; title?: string }) => KakaoMarker;
+  Marker: new (options: {
+    position: KakaoLatLng;
+    title?: string;
+    image?: object;
+    zIndex?: number;
+  }) => KakaoMarker & { setZIndex?(z: number): void };
+  MarkerImage?: new (
+    src: string,
+    size: object,
+    options?: { offset?: object },
+  ) => object;
+  Size?: new (width: number, height: number) => object;
+  Point?: new (x: number, y: number) => object;
+  CustomOverlay?: new (options: {
+    content: HTMLElement | string;
+    position: KakaoLatLng;
+    xAnchor?: number;
+    yAnchor?: number;
+    zIndex?: number;
+  }) => KakaoOverlay & { setPosition?(position: KakaoLatLng): void };
   MarkerClusterer?: new (options: {
     map: KakaoMapInstance;
     averageCenter: boolean;
@@ -59,7 +78,11 @@ export type KakaoMapsNamespace = {
     fillOpacity: number;
   }) => KakaoOverlay;
   event: {
-    addListener(target: object, eventName: string, handler: () => void): void;
+    addListener(
+      target: object,
+      eventName: string,
+      handler: ((...args: unknown[]) => void) | (() => void),
+    ): void;
   };
   readyState?: number;
 };

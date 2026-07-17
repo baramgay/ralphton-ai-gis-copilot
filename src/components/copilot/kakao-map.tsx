@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
+
 import {
   ensureMarkerClusterer,
   loadKakaoSdk,
@@ -19,6 +21,9 @@ export type LiveMapPlace = {
   lng: number;
   categoryName?: string;
   distanceMeters?: number | null;
+  phone?: string | null;
+  address?: string | null;
+  roadAddress?: string | null;
 };
 
 type KakaoMapProps = {
@@ -34,9 +39,21 @@ type KakaoMapProps = {
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
+  onSelectLivePlace?: (place: LiveMapPlace) => void;
   onError: (message: string) => void;
   onReady?: () => void;
 };
+
+function makeTooltipElement(text: string): HTMLDivElement {
+  const el = document.createElement("div");
+  el.className = "kakao-map-tooltip";
+  el.textContent = text;
+  el.style.cssText =
+    "padding:6px 10px;border-radius:10px;background:rgba(15,23,42,.9);color:#fff;" +
+    "font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 8px 20px rgba(15,23,42,.25);" +
+    "pointer-events:none;transform:translateY(-4px);";
+  return el;
+}
 
 const LEGEND_COLORS = ["#eff6ff", "#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"];
 const PLAIN_MARKER_CAP = 80;
@@ -83,6 +100,7 @@ export function KakaoMap({
   legendLabel = "상대 분석값",
   onSelectRegion,
   onSelectFacility,
+  onSelectLivePlace,
   onError,
   onReady,
 }: KakaoMapProps) {
@@ -90,6 +108,7 @@ export function KakaoMap({
   const overlaysRef = useRef<KakaoOverlay[]>([]);
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
   const liveMarkersRef = useRef<KakaoOverlay[]>([]);
+  const tooltipRef = useRef<KakaoOverlay | null>(null);
   const clustererRef = useRef<KakaoMarkerClusterer | null>(null);
   const [context, setContext] = useState<{
     maps: KakaoMapsNamespace;
@@ -189,16 +208,38 @@ export function KakaoMap({
     plainMarkersRef.current = [];
     for (const marker of liveMarkersRef.current) marker.setMap(null);
     liveMarkersRef.current = [];
+    tooltipRef.current?.setMap(null);
+    tooltipRef.current = null;
     clustererRef.current?.clear();
     clustererRef.current = null;
 
     const toPath = (ring: Position[]) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng));
+    const regionByCode = new Map(regions.map((region) => [region.adm_cd2, region]));
+
+    const showTooltip = (code: string, lat: number, lng: number) => {
+      if (typeof maps.CustomOverlay !== "function") return;
+      tooltipRef.current?.setMap(null);
+      const region = regionByCode.get(code);
+      const score = scores.get(code);
+      const label = region
+        ? `${region.adm_nm.replace("부산광역시 ", "")}${score != null ? ` · ${score.toFixed(0)}` : ""}`
+        : code;
+      const overlay = new maps.CustomOverlay({
+        content: makeTooltipElement(label),
+        position: new maps.LatLng(lat, lng),
+        yAnchor: 1.4,
+        zIndex: 10,
+      });
+      overlay.setMap(map);
+      tooltipRef.current = overlay;
+    };
 
     for (const feature of boundary.features) {
       const polygons =
         feature.geometry.type === "Polygon"
           ? [feature.geometry.coordinates]
           : feature.geometry.coordinates;
+      const region = regionByCode.get(feature.properties.adm_cd2);
       for (const polygonCoordinates of polygons) {
         const polygon = new maps.Polygon({
           path: polygonCoordinates.map(toPath),
@@ -206,10 +247,23 @@ export function KakaoMap({
           strokeColor: feature.properties.adm_cd2 === selectedRegionCode ? "#172554" : "#ffffff",
           strokeOpacity: 0.9,
           fillColor: scoreColor(scores.get(feature.properties.adm_cd2)),
-          fillOpacity: 0.72,
+          fillOpacity: feature.properties.adm_cd2 === selectedRegionCode ? 0.82 : 0.72,
         });
         polygon.setMap(map);
         maps.event.addListener(polygon, "click", () => onSelectRegion(feature.properties.adm_cd2));
+        maps.event.addListener(polygon, "mouseover", () => {
+          if (region) {
+            showTooltip(
+              feature.properties.adm_cd2,
+              region.representativePoint.lat,
+              region.representativePoint.lng,
+            );
+          }
+        });
+        maps.event.addListener(polygon, "mouseout", () => {
+          tooltipRef.current?.setMap(null);
+          tooltipRef.current = null;
+        });
         overlaysRef.current.push(polygon);
       }
     }
@@ -237,8 +291,7 @@ export function KakaoMap({
       map.setLevel?.(6);
     }
 
-    const useCluster =
-      clustererReady && typeof maps.MarkerClusterer === "function";
+    const useCluster = clustererReady && typeof maps.MarkerClusterer === "function";
     const cap = useCluster ? CLUSTER_MARKER_CAP : PLAIN_MARKER_CAP;
     const markerFacilities = prioritizeFacilities(
       facilities,
@@ -247,17 +300,36 @@ export function KakaoMap({
       cap,
     );
 
-    if (markerFacilities.length > 0) {
-      const markers = markerFacilities.map((facility) => {
-        const marker = new maps.Marker({
-          position: new maps.LatLng(facility.lat, facility.lng),
-          title: `${facility.name} · ${facility.type}`,
-        });
-        if (onSelectFacility) {
-          maps.event.addListener(marker, "click", () => onSelectFacility(facility));
+    const makeFacilityMarker = (facility: Facility) => {
+      const position = new maps.LatLng(facility.lat, facility.lng);
+      let image: object | undefined;
+      if (typeof maps.MarkerImage === "function" && typeof maps.Size === "function") {
+        try {
+          image = new maps.MarkerImage(
+            facilityMarkerImageDataUri(facility.type),
+            new maps.Size(28, 28),
+            typeof maps.Point === "function"
+              ? { offset: new maps.Point(14, 14) }
+              : undefined,
+          );
+        } catch {
+          image = undefined;
         }
-        return marker;
+      }
+      const marker = new maps.Marker({
+        position,
+        title: `${facility.name} · ${facility.type}`,
+        image,
+        zIndex: facility.adm_cd2 === selectedRegionCode ? 5 : 1,
       });
+      if (onSelectFacility) {
+        maps.event.addListener(marker, "click", () => onSelectFacility(facility));
+      }
+      return marker;
+    };
+
+    if (markerFacilities.length > 0) {
+      const markers = markerFacilities.map(makeFacilityMarker);
 
       if (useCluster) {
         try {
@@ -282,12 +354,13 @@ export function KakaoMap({
       }
     }
 
-    // Kakao REST live places — separate layer (not clustered)
     for (const place of livePlaces.slice(0, 20)) {
       const marker = new maps.Marker({
         position: new maps.LatLng(place.lat, place.lng),
         title: `실시간 · ${place.name}`,
+        zIndex: 8,
       });
+      maps.event.addListener(marker, "click", () => onSelectLivePlace?.(place));
       marker.setMap(map);
       liveMarkersRef.current.push(marker);
     }
@@ -301,6 +374,8 @@ export function KakaoMap({
       plainMarkersRef.current = [];
       for (const marker of liveMarkersRef.current) marker.setMap(null);
       liveMarkersRef.current = [];
+      tooltipRef.current?.setMap(null);
+      tooltipRef.current = null;
       clustererRef.current?.clear();
       clustererRef.current = null;
     };
@@ -310,6 +385,7 @@ export function KakaoMap({
     facilities,
     livePlaces,
     onSelectFacility,
+    onSelectLivePlace,
     onSelectRegion,
     radiusKm,
     regions,
@@ -341,9 +417,9 @@ export function KakaoMap({
           </p>
         </div>
       ) : null}
-      <div className="absolute bottom-5 right-4 w-44 rounded-2xl border border-white/80 bg-white/92 p-3 shadow-xl">
+      <div className="absolute bottom-5 right-4 w-48 rounded-2xl border border-white/80 bg-white/92 p-3 shadow-xl">
         <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
-          <span>{legendLabel}</span>
+          <span className="truncate">{legendLabel}</span>
           <span>높음</span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full">
@@ -351,6 +427,9 @@ export function KakaoMap({
             <span key={color} className="flex-1" style={{ backgroundColor: color }} />
           ))}
         </div>
+        <p className="mt-2 text-[9px] leading-4 text-slate-400">
+          행정동 호버 시 이름·점수 · 시설 핀 색은 유형별
+        </p>
       </div>
     </div>
   );
