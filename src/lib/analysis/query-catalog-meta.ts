@@ -18,6 +18,22 @@ export const BUSAN_DISTRICT_LABELS = [
   "기장군",
 ] as const;
 
+/** Colloquial short names → official district labels (longer aliases first in extraction). */
+export const BUSAN_DISTRICT_ALIASES: Record<string, string> = {
+  해운대: "해운대구",
+  부산진: "부산진구",
+  진구: "부산진구",
+  동래: "동래구",
+  영도: "영도구",
+  기장: "기장군",
+  금정: "금정구",
+  연제: "연제구",
+  수영: "수영구",
+  사상: "사상구",
+  사하: "사하구",
+  강서: "강서구",
+};
+
 export const QUERY_SUGGESTIONS = [
   "고령 인구 대비 병원이 부족한 곳",
   "의료 취약 지역 순위",
@@ -36,4 +52,11 @@ export const QUERY_SUGGESTIONS = [
   "약국만 보여줘",
   "인구가 늘어나는 지역",
   "1인가구 비중이 높은 동",
+  "어디가 제일 의료 취약해",
+  "수영구 인구 현황",
+  "야간 진료 병원",
+  "주말 여는 약국",
+  "해운대 vs 수영 비교",
+  "3km 반경 접근성",
+  "치과 많은 곳",
 ] as const;

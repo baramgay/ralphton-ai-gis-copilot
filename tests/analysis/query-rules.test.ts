@@ -57,6 +57,14 @@ describe('parseIntentWithRules', () => {
     ['사망자 많은 곳', { tool: 'rankDeathCount' }],
     ['출생이 많은 지역', { tool: 'rankBirthCount' }],
     ['자연감소가 큰 곳', { tool: 'rankNaturalDecrease' }],
+    ['어디가 제일 의료 취약해', { tool: 'rankHospitalScarcity' }],
+    ['수영구 어때', { tool: 'getRegionDetails', filters: { regions: ['수영구'] } }],
+    ['해운대 근처 병원', { tool: 'filterFacilitiesByTypeAndHours' }],
+    ['해운대 vs 기장', { tool: 'compareRegions', filters: { compare: ['해운대구', '기장군'] } }],
+    ['2키로 안 병원 적은 동', { tool: 'countFacilitiesWithinRadius', filters: { radiusKm: 2 } }],
+    ['인구 많은 동', { tool: 'rankPopulationSize' }],
+    ['치과 보여줘', { tool: 'filterFacilitiesByTypeAndHours', filters: { facilityTypes: ['치과의원'] } }],
+    ['병원까지 먼 곳', { tool: 'nearestFacilityDistance' }],
   ])('parses "%s" to the expected intent', (query, expected) => {
     const intent = parseIntentWithRules(query);
 

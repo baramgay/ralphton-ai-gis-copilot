@@ -249,6 +249,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [queryNoticeTone, setQueryNoticeTone] = useState<"neutral" | "error" | "success">("neutral");
   const [querySuggestions, setQuerySuggestions] = useState<string[]>([]);
   const [isParsing, setIsParsing] = useState(false);
+  const [parseStage, setParseStage] = useState<"idle" | "intent" | "analyze" | "done">("idle");
   const [customAnalysis, setCustomAnalysis] = useState<AnalysisView | null>(null);
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>(null);
   const [sheetMode, setSheetMode] = useState<"left" | "right" | "none">("none");
@@ -658,7 +659,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const trimmed = query.trim();
     if (!trimmed) return;
     setIsParsing(true);
-    setQueryNotice(null);
+    setParseStage("intent");
+    setQueryNotice("의도 파악 중…");
     setQueryNoticeTone("neutral");
     setQuerySuggestions([]);
     try {
@@ -674,6 +676,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         enrichment?: { kakaoPlacesQuery?: string; kakaoCategory?: "HP8" | "PM9" };
       };
       if (!response.ok || !data.intent?.tool) {
+        setParseStage("idle");
         setQueryNotice(
           data.notice ??
             "이 질문으로는 바로 분석하기 어렵습니다. 예시 질문을 눌러 보세요.",
@@ -685,6 +688,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       }
       rememberQuery(trimmed);
       if (!snapshot) return;
+
+      setParseStage("analyze");
+      setQueryNotice("분석 실행 중…");
 
       const selectedName =
         snapshot.regions.find((region) => region.adm_cd2 === selectedRegionCode)?.adm_nm ?? null;
@@ -717,6 +723,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const followNote = isFollowUpQuery(trimmed)
         ? " 이전 선택 지역·조건을 이어서 반영했습니다."
         : "";
+      setParseStage("done");
       setQueryNotice((data.notice ?? "질문을 분석에 반영했습니다.") + followNote);
       setQueryNoticeTone(
         exactResult.filteredFacilities.length === 0 && exactResult.rankedRegions.length === 0
@@ -741,11 +748,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         void loadLivePlacesNearSelection(regionForKakao, keyword);
       }
     } catch {
+      setParseStage("idle");
       setQueryNotice("오프라인 상태입니다. 빠른 분석은 계속 사용할 수 있습니다.");
       setQueryNoticeTone("error");
       setQuerySuggestions([...QUERY_SUGGESTIONS].slice(0, 4));
     } finally {
       setIsParsing(false);
+      window.setTimeout(() => setParseStage("idle"), 1200);
     }
   };
 
@@ -813,27 +822,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <p className="mt-0.5 text-[10px] text-slate-500">기준월 {snapshot.referenceMonth}</p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                className="hidden rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 hover:border-blue-300 hover:text-blue-700 md:inline-flex"
-                title="왼쪽 패널 접기 ( [ )"
-                aria-label="왼쪽 패널 접기"
-                onClick={toggleLeft}
-              >
-                ‹
-              </button>
-              <Badge
-                variant="secondary"
-                className={`border text-[10px] ${
-                  snapshot.mode === "live"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-amber-200 bg-amber-50 text-amber-800"
-                }`}
-              >
-                {modeBadgeLabel(snapshot.mode)}
-              </Badge>
-            </div>
+            <Badge
+              variant="secondary"
+              className={`border text-[10px] ${
+                snapshot.mode === "live"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-amber-200 bg-amber-50 text-amber-800"
+              }`}
+            >
+              {modeBadgeLabel(snapshot.mode)}
+            </Badge>
           </div>
           <div className="mt-2 flex flex-wrap gap-1 text-[9px] text-slate-500">
             <span className="rounded-full bg-slate-100 px-2 py-0.5">{dataSourceLabel(dataSource)}</span>
@@ -898,6 +896,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     {isParsing ? "…" : "↑"}
                   </button>
                 </form>
+                {parseStage === "intent" || parseStage === "analyze" ? (
+                  <div
+                    className="mt-2 flex items-center gap-2 rounded-lg bg-blue-50 px-2.5 py-2 text-[11px] text-blue-800"
+                    role="status"
+                    data-testid="parse-stage"
+                  >
+                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-blue-500" />
+                    {parseStage === "intent" ? "1/2 의도 파악 중" : "2/2 분석 실행 중"}
+                  </div>
+                ) : null}
                 {queryNotice ? (
                   <p
                     role="status"
@@ -1294,33 +1302,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           </p>
         </div>
 
-        {layout.leftCollapsed ? (
-          <div className="panel-rail panel-rail-left pointer-events-auto">
-            <button
-              type="button"
-              className="panel-rail-btn"
-              title="조작 패널 열기 ( [ )"
-              aria-label="조작 패널 열기"
-              onClick={toggleLeft}
-            >
-              ›
-            </button>
-          </div>
-        ) : null}
-        {layout.rightCollapsed ? (
-          <div className="panel-rail panel-rail-right pointer-events-auto">
-            <button
-              type="button"
-              className="panel-rail-btn"
-              title="결과 패널 열기 ( ] )"
-              aria-label="결과 패널 열기"
-              onClick={toggleRight}
-            >
-              ‹
-            </button>
-          </div>
-        ) : null}
-
         <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-wrap items-center justify-center gap-2 max-md:bottom-20">
           <button
             type="button"
@@ -1384,21 +1365,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         data-testid="result-panel"
       >
         <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 결과</p>
-              <h2 className="mt-1 text-[15px] font-bold text-slate-950">{analysis.title}</h2>
-            </div>
-            <button
-              type="button"
-              className="hidden shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 hover:border-blue-300 hover:text-blue-700 md:inline-flex"
-              title="오른쪽 패널 접기 ( ] )"
-              aria-label="오른쪽 패널 접기"
-              onClick={toggleRight}
-            >
-              ›
-            </button>
-          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 결과</p>
+          <h2 className="mt-1 text-[15px] font-bold text-slate-950">{analysis.title}</h2>
           <p className="mt-1 text-[11px] leading-5 text-slate-500">{analysis.summary}</p>
           <div
             className={`mt-2 rounded-lg border px-2.5 py-1.5 text-[10px] leading-5 ${
@@ -1659,6 +1627,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           </section>
         </div>
       </aside>
+
+      {/* Edge toggles: just outside each sidebar, vertical center */}
+      <button
+        type="button"
+        className="panel-edge-toggle panel-edge-toggle-left"
+        title={layout.leftCollapsed ? "조작 패널 열기 ( [ )" : "조작 패널 접기 ( [ )"}
+        aria-label={layout.leftCollapsed ? "조작 패널 열기" : "조작 패널 접기"}
+        aria-pressed={!layout.leftCollapsed}
+        onClick={toggleLeft}
+      >
+        {layout.leftCollapsed ? "›" : "‹"}
+      </button>
+      <button
+        type="button"
+        className="panel-edge-toggle panel-edge-toggle-right"
+        title={layout.rightCollapsed ? "결과 패널 열기 ( ] )" : "결과 패널 접기 ( ] )"}
+        aria-label={layout.rightCollapsed ? "결과 패널 열기" : "결과 패널 접기"}
+        aria-pressed={!layout.rightCollapsed}
+        onClick={toggleRight}
+      >
+        {layout.rightCollapsed ? "‹" : "›"}
+      </button>
     </main>
   );
 }

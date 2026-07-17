@@ -87,6 +87,7 @@ input:hover {
 }
 
 .copilot-shell {
+  position: relative;
   display: grid;
   grid-template-columns:
     var(--panel-left) var(--resizer, 6px) minmax(0, 1fr) var(--resizer, 6px) var(--panel-right);
@@ -177,42 +178,51 @@ input:hover {
   opacity: 0;
 }
 
-.panel-rail {
+/* Sidebar edge toggles: just outside each panel, vertical center of shell */
+.panel-edge-toggle {
   position: absolute;
-  z-index: 28;
   top: 50%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  transform: translateY(-50%);
-}
-
-.panel-rail-left {
-  left: 0.4rem;
-}
-
-.panel-rail-right {
-  right: 0.4rem;
-}
-
-.panel-rail-btn {
+  z-index: 45;
   display: grid;
   place-items: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  border: 1px solid rgb(255 255 255 / 85%);
-  border-radius: 0.55rem;
-  background: rgb(255 255 255 / 94%);
-  font-size: 0.7rem;
+  width: 1.65rem;
+  height: 3rem;
+  border: 1px solid rgb(203 213 225 / 90%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 96%);
+  font-size: 0.85rem;
   font-weight: 800;
+  line-height: 1;
   color: #334155;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 12%);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 14%);
   backdrop-filter: blur(10px);
+  transform: translateY(-50%);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
 
-.panel-rail-btn:hover {
-  color: #0f172a;
+.panel-edge-toggle:hover {
   border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 10px 24px rgb(37 99 235 / 18%);
+}
+
+.panel-edge-toggle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Left sidebar outer edge (toward map): after panel + resizer */
+.panel-edge-toggle-left {
+  left: calc(var(--panel-left) + var(--resizer, 6px) + 4px);
+}
+
+/* Right sidebar outer edge (toward map): before panel + resizer */
+.panel-edge-toggle-right {
+  right: calc(var(--panel-right) + var(--resizer, 6px) + 4px);
 }
 
 .ux-hint {
@@ -338,7 +348,7 @@ input:hover {
   }
 
   .panel-resizer,
-  .panel-rail,
+  .panel-edge-toggle,
   .ux-hint {
     display: none;
   }

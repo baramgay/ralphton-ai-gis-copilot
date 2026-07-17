@@ -12,7 +12,10 @@ export type { QuerySignals };
 export const MAX_QUERY_LENGTH = 1000;
 
 /** Minimum catalog score to accept a rule-based intent. */
-const INTENT_SCORE_THRESHOLD = 48;
+const INTENT_SCORE_THRESHOLD = 42;
+/** Soft accept when one tool clearly wins and has a primary metric cue. */
+const SOFT_SCORE_THRESHOLD = 32;
+const SOFT_SCORE_GAP = 10;
 
 const DANGEROUS_KEYWORDS = [
   "shell",
@@ -165,12 +168,13 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   const best = ranked[0];
   const second = ranked[1];
 
-  if (best && best.score >= INTENT_SCORE_THRESHOLD) {
-    // Prefer clearer winner; if tied closely and second is compare with 2 districts, keep best.
-    if (second && best.score - second.score < 6 && second.score >= INTENT_SCORE_THRESHOLD) {
-      // keep best (already sorted)
-    }
+  const clearWinner =
+    best &&
+    best.score >= SOFT_SCORE_THRESHOLD &&
+    (!second || best.score - second.score >= SOFT_SCORE_GAP);
+  const hardWinner = best && best.score >= INTENT_SCORE_THRESHOLD;
 
+  if (best && (hardWinner || clearWinner)) {
     const filters = withLimit(best.entry.build(signals));
     const intent = AnalysisIntentSchema.parse({
       tool: best.entry.id,
@@ -186,7 +190,21 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     };
   }
 
-  // Nearby place queries without enough chart tool score → still surface facility list + kakao enrichment
+  // District-only soft path: "수영구 어때" style
+  if (signals.districts.length === 1 && signals.metrics.size === 0) {
+    const intent = AnalysisIntentSchema.parse({
+      tool: "getRegionDetails",
+      filters: withLimit({ regions: [signals.districts[0]] }, 50),
+    });
+    return {
+      kind: "intent",
+      intent,
+      notice: `${signals.districts[0]} 상세 지표를 표시합니다. 순위·비교를 원하시면 지표를 함께 적어 주세요.`,
+      score: 50,
+    };
+  }
+
+  // Nearby place queries without enough chart tool score → facility list + kakao enrichment
   if (signals.spatial.has("nearby") || signals.metrics.has("kakaoLive")) {
     const intent = AnalysisIntentSchema.parse({
       tool: "filterFacilitiesByTypeAndHours",
@@ -196,6 +214,7 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
           : signals.facilityTypes.length > 0
             ? signals.facilityTypes
             : ["종합병원", "병원", "요양병원", "의원", "치과의원", "한의원", "보건소"],
+        regions: signals.districts.length ? signals.districts.slice(0, 3) : undefined,
       }),
     });
     return {
@@ -207,11 +226,34 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     };
   }
 
+  // Facility type only: "치과 보여줘"
+  if (signals.facilityTypes.length > 0 || signals.metrics.has("pharmacy")) {
+    const intent = AnalysisIntentSchema.parse({
+      tool: "filterFacilitiesByTypeAndHours",
+      filters: withLimit({
+        facilityTypes: signals.includePharmacy
+          ? signals.facilityTypes.length
+            ? signals.facilityTypes
+            : ["약국"]
+          : signals.facilityTypes,
+        includePharmacy: signals.includePharmacy || undefined,
+        regions: signals.districts.length ? signals.districts.slice(0, 3) : undefined,
+      }),
+    });
+    return {
+      kind: "intent",
+      intent,
+      notice: "요청하신 시설 유형을 지도에 표시했습니다.",
+      score: 50,
+      enrichment: buildEnrichment(signals),
+    };
+  }
+
   return {
     kind: "unsupported",
     intent: null,
     notice:
-      "질문을 해석했지만 현재 등록된 분석 도구와 충분히 맞지 않습니다. 아래 예시처럼 지표·지역·거리를 넣어 물어보시면 바로 연결됩니다. 새 GIS 레이어가 추가되면 같은 방식으로 자동 확장됩니다.",
+      "질문을 해석했지만 현재 등록된 분석 도구와 충분히 맞지 않습니다. 예: 「사망자 많은 곳」, 「해운대 근처 병원」, 「기장 vs 강서 비교」, 「2km 병원 적은 동」처럼 지표·지역·거리를 넣어 주세요.",
     suggestions: topSuggestions(signals),
   };
 }
