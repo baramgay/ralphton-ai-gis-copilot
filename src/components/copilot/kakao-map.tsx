@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  ensureMarkerClusterer,
   loadKakaoSdk,
   type KakaoMapInstance,
   type KakaoMapsNamespace,
@@ -11,11 +12,21 @@ import {
 } from "./kakao-sdk";
 import type { BoundaryCollection, Facility, Position, RegionSeries } from "./types";
 
+export type LiveMapPlace = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  categoryName?: string;
+  distanceMeters?: number | null;
+};
+
 type KakaoMapProps = {
   appKey: string;
   boundary: BoundaryCollection;
   regions: RegionSeries[];
   facilities: Facility[];
+  livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
   radiusKm: 1 | 2 | 3;
@@ -28,6 +39,8 @@ type KakaoMapProps = {
 };
 
 const LEGEND_COLORS = ["#eff6ff", "#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"];
+const PLAIN_MARKER_CAP = 80;
+const CLUSTER_MARKER_CAP = 350;
 
 function scoreColor(score: number | undefined): string {
   if (score == null) return "#e8eef5";
@@ -38,11 +51,31 @@ function scoreColor(score: number | undefined): string {
   return "#eff6ff";
 }
 
+/** Prefer selected dong, then high analysis score regions. */
+function prioritizeFacilities(
+  facilities: Facility[],
+  selectedRegionCode: string | null,
+  scores: Map<string, number>,
+  cap: number,
+): Facility[] {
+  if (facilities.length <= cap) return facilities;
+  const ranked = [...facilities].sort((left, right) => {
+    const leftSelected = left.adm_cd2 === selectedRegionCode ? 1 : 0;
+    const rightSelected = right.adm_cd2 === selectedRegionCode ? 1 : 0;
+    if (leftSelected !== rightSelected) return rightSelected - leftSelected;
+    const leftScore = scores.get(left.adm_cd2) ?? -1;
+    const rightScore = scores.get(right.adm_cd2) ?? -1;
+    return rightScore - leftScore;
+  });
+  return ranked.slice(0, cap);
+}
+
 export function KakaoMap({
   appKey,
   boundary,
   regions,
   facilities,
+  livePlaces = [],
   scores,
   selectedRegionCode,
   radiusKm,
@@ -56,14 +89,15 @@ export function KakaoMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const overlaysRef = useRef<KakaoOverlay[]>([]);
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
+  const liveMarkersRef = useRef<KakaoOverlay[]>([]);
   const clustererRef = useRef<KakaoMarkerClusterer | null>(null);
   const [context, setContext] = useState<{
     maps: KakaoMapsNamespace;
     map: KakaoMapInstance;
+    clustererReady: boolean;
   } | null>(null);
   const [status, setStatus] = useState("Kakao 지도를 연결하는 중…");
 
-  // Stable callbacks — avoid re-running SDK boot when parent re-renders.
   const onErrorRef = useRef(onError);
   const onReadyRef = useRef(onReady);
   onErrorRef.current = onError;
@@ -82,12 +116,18 @@ export function KakaoMap({
             center: new maps.LatLng(35.1796, 129.0756),
             level: 8,
           });
-          // Force tile layout after flex/grid size settles.
           window.setTimeout(() => map.relayout?.(), 0);
           window.setTimeout(() => map.relayout?.(), 200);
-          setContext({ maps, map });
+          // Map first — clusterer is optional 2nd stage (must not block paint/tests).
+          setContext({ maps, map, clustererReady: false });
           setStatus("");
           onReadyRef.current?.();
+          void ensureMarkerClusterer().then((clustererReady) => {
+            if (!active || !clustererReady) return;
+            setContext((previous) =>
+              previous ? { ...previous, clustererReady: true } : previous,
+            );
+          });
         })
         .catch((error: unknown) => {
           if (!active) return;
@@ -110,7 +150,6 @@ export function KakaoMap({
         return;
       }
       const el = containerRef.current;
-      // Wait briefly for real layout; jsdom/tests have 0 size so cap retries low.
       if ((el.clientWidth < 8 || el.clientHeight < 8) && attempts < 2) {
         attempts += 1;
         retryTimer = window.setTimeout(init, 16);
@@ -142,18 +181,19 @@ export function KakaoMap({
 
   useEffect(() => {
     if (!context) return;
-    const { maps, map } = context;
+    const { maps, map, clustererReady } = context;
 
     for (const overlay of overlaysRef.current) overlay.setMap(null);
     overlaysRef.current = [];
     for (const marker of plainMarkersRef.current) marker.setMap(null);
     plainMarkersRef.current = [];
+    for (const marker of liveMarkersRef.current) marker.setMap(null);
+    liveMarkersRef.current = [];
     clustererRef.current?.clear();
     clustererRef.current = null;
 
     const toPath = (ring: Position[]) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng));
 
-    // Limit polygon work for first paint reliability; still cover all features.
     for (const feature of boundary.features) {
       const polygons =
         feature.geometry.type === "Polygon"
@@ -194,10 +234,19 @@ export function KakaoMap({
       map.setCenter(
         new maps.LatLng(selected.representativePoint.lat, selected.representativePoint.lng),
       );
+      map.setLevel?.(6);
     }
 
-    // Cap markers to keep map interactive; cluster when available.
-    const markerFacilities = facilities.slice(0, 400);
+    const useCluster =
+      clustererReady && typeof maps.MarkerClusterer === "function";
+    const cap = useCluster ? CLUSTER_MARKER_CAP : PLAIN_MARKER_CAP;
+    const markerFacilities = prioritizeFacilities(
+      facilities,
+      selectedRegionCode,
+      scores,
+      cap,
+    );
+
     if (markerFacilities.length > 0) {
       const markers = markerFacilities.map((facility) => {
         const marker = new maps.Marker({
@@ -210,25 +259,37 @@ export function KakaoMap({
         return marker;
       });
 
-      try {
-        if (typeof maps.MarkerClusterer === "function") {
-          const clusterer = new maps.MarkerClusterer({
+      if (useCluster) {
+        try {
+          const clusterer = new maps.MarkerClusterer!({
             map,
             averageCenter: true,
             minLevel: 6,
           });
           clusterer.addMarkers(markers);
           clustererRef.current = clusterer;
-        } else {
-          throw new Error("clusterer unavailable");
+        } catch {
+          for (const marker of markers) {
+            marker.setMap(map);
+            plainMarkersRef.current.push(marker);
+          }
         }
-      } catch {
-        // Clusterer optional — plain markers still show Kakao basemap.
+      } else {
         for (const marker of markers) {
           marker.setMap(map);
           plainMarkersRef.current.push(marker);
         }
       }
+    }
+
+    // Kakao REST live places — separate layer (not clustered)
+    for (const place of livePlaces.slice(0, 20)) {
+      const marker = new maps.Marker({
+        position: new maps.LatLng(place.lat, place.lng),
+        title: `실시간 · ${place.name}`,
+      });
+      marker.setMap(map);
+      liveMarkersRef.current.push(marker);
     }
 
     map.relayout?.();
@@ -238,6 +299,8 @@ export function KakaoMap({
       overlaysRef.current = [];
       for (const marker of plainMarkersRef.current) marker.setMap(null);
       plainMarkersRef.current = [];
+      for (const marker of liveMarkersRef.current) marker.setMap(null);
+      liveMarkersRef.current = [];
       clustererRef.current?.clear();
       clustererRef.current = null;
     };
@@ -245,12 +308,14 @@ export function KakaoMap({
     boundary,
     context,
     facilities,
+    livePlaces,
     onSelectFacility,
     onSelectRegion,
     radiusKm,
     regions,
     scores,
     selectedRegionCode,
+    showFacilities,
   ]);
 
   return (
@@ -258,6 +323,7 @@ export function KakaoMap({
       className="relative size-full min-h-[320px] bg-[#dfe8ef]"
       data-facilities-mode={showFacilities ? "all" : "analysis"}
       data-map-engine="kakao"
+      data-clusterer={context?.clustererReady ? "on" : "off"}
     >
       <div
         ref={containerRef}
@@ -266,6 +332,7 @@ export function KakaoMap({
       />
       <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
         Kakao Maps
+        {context?.clustererReady ? " · 클러스터" : ""}
       </div>
       {status ? (
         <div className="pointer-events-none absolute inset-0 grid place-items-center bg-slate-100/50">

@@ -752,8 +752,141 @@ export function filterFacilitiesByTypeAndHours(intent: AnalysisIntent, snapshot:
   });
 }
 
+function districtLabel(region: RegionSeries): string {
+  // "부산광역시 해운대구 우동" → 해운대구
+  const parts = region.adm_nm.split(/\s+/).filter(Boolean);
+  const withGu = parts.find((part) => /[구현군]$/.test(part));
+  return withGu ?? parts[1] ?? region.adm_nm;
+}
+
+function sumNullable(values: Array<number | null>): number | null {
+  const finite = values.filter((value): value is number => value !== null && Number.isFinite(value));
+  if (finite.length === 0) return null;
+  return finite.reduce((sum, value) => sum + value, 0);
+}
+
+/**
+ * District/gu-level comparison when compare tokens are present.
+ * Falls back to dong list when tokens do not match.
+ */
 export function compareRegions(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
-  const regions = scopedRegions(intent, snapshot).sort((left, right) => left.adm_cd2.localeCompare(right.adm_cd2));
+  const tokens = (intent.filters.compare ?? intent.filters.regions ?? [])
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const referenceMonth = snapshot.referenceMonth;
+
+  if (tokens.length >= 1) {
+    const groups = tokens.map((token) => ({
+      token,
+      matched: snapshot.regions.filter((region) => regionMatches(region, token)),
+    }));
+    const nonEmpty = groups.filter((group) => group.matched.length > 0);
+
+    if (nonEmpty.length >= 1) {
+      const rollup = nonEmpty.map((group) => {
+        const populations = group.matched.map((region) =>
+          latestValue(region, region.population, referenceMonth),
+        );
+        const elderly = group.matched.map((region) =>
+          latestValue(region, region.elderlyPopulation, referenceMonth),
+        );
+        const births = group.matched.map((region) =>
+          latestValue(region, region.births, referenceMonth),
+        );
+        const deaths = group.matched.map((region) =>
+          latestValue(region, region.deaths, referenceMonth),
+        );
+        const population = sumNullable(populations);
+        const elderlyPop = sumNullable(elderly);
+        const birthSum = sumNullable(births);
+        const deathSum = sumNullable(deaths);
+        const natural =
+          birthSum === null || deathSum === null ? null : birthSum - deathSum;
+        const elderlyRatio = percentage(elderlyPop, population);
+        const area = group.matched.reduce((sum, region) => sum + region.areaSquareKm, 0);
+        const density = population === null || area <= 0 ? null : population / area;
+        const facilityCount = snapshot.facilities.filter(
+          (facility) =>
+            facility.type !== "약국" &&
+            group.matched.some((region) => region.adm_cd2 === facility.adm_cd2),
+        ).length;
+        const per10k =
+          population === null || population <= 0
+            ? null
+            : (facilityCount / population) * 10_000;
+        const rep = group.matched[0];
+        const label =
+          /[구현군]$/.test(group.token) || group.token.includes("구") || group.token.includes("군")
+            ? group.token
+            : districtLabel(rep);
+
+        // Synthetic display name for rank panel
+        const labeled = {
+          ...rep,
+          adm_nm: `부산광역시 ${label}`,
+        };
+
+        return analysisRegion(labeled, per10k, [
+          metric(
+            "비교 지역",
+            group.matched.length,
+            "개 동",
+            label,
+            referenceMonth,
+            `${group.matched.length}개 행정동 합산`,
+          ),
+          metric("총인구(합)", population, "명", "소속 행정동 총인구 합", referenceMonth, "구·군 단위 롤업"),
+          metric(
+            "고령비율",
+            elderlyRatio,
+            "%",
+            "고령인구 합 ÷ 총인구 합 × 100",
+            referenceMonth,
+            "구·군 단위 롤업",
+          ),
+          metric("인구밀도", density, "명/km²", "총인구 합 ÷ 면적 합", referenceMonth, "구·군 단위 롤업"),
+          metric("자연증가(합)", natural, "명", "출생 합 − 사망 합", referenceMonth, "전입·전출 미포함"),
+          metric(
+            "의료기관(약국 제외)",
+            facilityCount,
+            "개소",
+            "소속 동 시설 수",
+            referenceMonth,
+            "데모·스냅샷 기준",
+          ),
+          metric(
+            "인구 1만명당 의료기관",
+            per10k,
+            "개소",
+            "의료기관 수 ÷ 총인구 × 10,000",
+            referenceMonth,
+            "공급 밀도 비교용",
+          ),
+        ]);
+      });
+
+      const ordered = ranked(rollup, "ascending", rollup.length, true);
+      const labels = nonEmpty.map((group) => group.token).join(" · ");
+      const dongTotal = nonEmpty.reduce((count, group) => count + group.matched.length, 0);
+
+      return result({
+        title: `지역 비교 · ${labels}`,
+        summary: `${nonEmpty.length}개 구·군 단위로 인구·고령·의료 공급을 합산 비교합니다. (하위 ${dongTotal}개 행정동)`,
+        rankedRegions: ordered,
+        selectedRegion: ordered[0] ?? null,
+        legend: SINGLE_COLOR_LEGEND,
+        formulaNotes: [
+          "구·군 토큰에 매칭되는 행정동 지표를 합산합니다.",
+          "인구 1만명당 의료기관이 낮을수록 공급이 상대적으로 부족합니다.",
+          "모든 지표는 동일 기준월을 사용합니다.",
+        ],
+      });
+    }
+  }
+
+  const regions = scopedRegions(intent, snapshot).sort((left, right) =>
+    left.adm_cd2.localeCompare(right.adm_cd2),
+  );
   const compared = regions.map((region, index) => ({
     ...analysisRegion(region, null, detailMetrics(region, snapshot.referenceMonth)),
     rank: index + 1,

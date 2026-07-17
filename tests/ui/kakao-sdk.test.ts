@@ -20,6 +20,12 @@ describe("buildKakaoSdkUrl", () => {
     expect(url.searchParams.get("libraries")).toBeNull();
   });
 
+  test("exports dedicated clusterer CDN URL for 2-stage load", async () => {
+    const { KAKAO_CLUSTERER_URL } = await import("@/components/copilot/kakao-sdk");
+    expect(KAKAO_CLUSTERER_URL).toContain("clusterer");
+    expect(KAKAO_CLUSTERER_URL).toContain("t1.daumcdn.net");
+  });
+
   test("rejects when the SDK never finishes loading", async () => {
     vi.useFakeTimers();
     vi.resetModules();

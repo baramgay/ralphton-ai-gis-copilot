@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { DemoMap } from "./demo-map";
-import { KakaoMap } from "./kakao-map";
+import { KakaoMap, type LiveMapPlace } from "./kakao-map";
 import { resetKakaoSdkCache } from "./kakao-sdk";
 import type { BoundaryCollection, Facility, RegionSeries } from "./types";
 
@@ -12,6 +12,7 @@ type MapCanvasProps = {
   boundary: BoundaryCollection;
   regions: RegionSeries[];
   facilities: Facility[];
+  livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
   radiusKm: 1 | 2 | 3;
@@ -26,7 +27,7 @@ export function MapCanvas(props: MapCanvasProps) {
   const [kakaoFailed, setKakaoFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-  const { kakaoMapKey, onEngineChange, ...mapProps } = props;
+  const { kakaoMapKey, onEngineChange, livePlaces, ...mapProps } = props;
 
   const handleError = useCallback(
     (message: string) => {
@@ -61,6 +62,7 @@ export function MapCanvas(props: MapCanvasProps) {
         key={`kakao-${retryToken}`}
         appKey={kakaoMapKey}
         {...mapProps}
+        livePlaces={livePlaces}
         onError={handleError}
         onReady={handleReady}
       />

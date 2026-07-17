@@ -156,8 +156,32 @@ function executeQuickAnalysis(snapshot: AnalysisSnapshot, id: QuickId, radiusKm:
 }
 
 function modeBadgeLabel(mode: AnalysisSnapshot["mode"]): string {
-  return mode === "live" ? "실데이터" : "데모";
+  return mode === "live" ? "데이터: 실데이터" : "데이터: 데모";
 }
+
+function dataSourceLabel(source: string): string {
+  if (source === "demo") return "출처: 로컬 데모";
+  if (source === "demo-fallback") return "출처: 데모(폴백)";
+  if (source === "supabase-cache") return "출처: Supabase 캐시";
+  if (source === "loading") return "출처: 로딩 중";
+  return `출처: ${source}`;
+}
+
+function mapEngineLabel(kakaoMapKey: string, mapEngine: "kakao" | "demo" | "unknown"): string {
+  if (!kakaoMapKey) return "지도: DemoMap";
+  if (mapEngine === "demo") return "지도: DemoMap(폴백)";
+  if (mapEngine === "kakao") return "지도: Kakao";
+  return "지도: Kakao 연결 중";
+}
+
+type CapabilityFlags = {
+  kakaoMapsJs: boolean;
+  kakaoRest: boolean;
+  qwen: boolean;
+  publicData: boolean;
+  supabase: boolean;
+  dataSync: boolean;
+};
 
 function toolToQuickId(tool: string): QuickId {
   const map: Record<string, QuickId> = {
@@ -203,25 +227,36 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [mapEngine, setMapEngine] = useState<"kakao" | "demo" | "unknown">(
     kakaoMapKey ? "kakao" : "demo",
   );
+  const [snapshotMode, setSnapshotMode] = useState<"auto" | "demo">("auto");
+  const [capabilities, setCapabilities] = useState<CapabilityFlags | null>(null);
+  const [markerScope, setMarkerScope] = useState<"priority" | "selected">("priority");
 
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
-      fetch("/api/data/snapshot?mode=auto", { signal: controller.signal }).then((response) => {
-        if (!response.ok) throw new Error("데모 데이터를 불러오지 못했습니다.");
-        setDataSource(response.headers.get("x-data-source") ?? "unknown");
-        return response.json() as Promise<AnalysisSnapshot>;
-      }),
+      fetch(`/api/data/snapshot?mode=${snapshotMode}`, { signal: controller.signal }).then(
+        (response) => {
+          if (!response.ok) throw new Error("데모 데이터를 불러오지 못했습니다.");
+          setDataSource(response.headers.get("x-data-source") ?? "unknown");
+          return response.json() as Promise<AnalysisSnapshot>;
+        },
+      ),
       fetch(`/data/busan-administrative-dong-${boundaryVersion}.geojson`, {
         signal: controller.signal,
       }).then((response) => {
         if (!response.ok) throw new Error("행정동 경계를 불러오지 못했습니다.");
         return response.json() as Promise<BoundaryCollection>;
       }),
+      fetch("/api/health", { signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null),
     ])
-      .then(([nextSnapshot, nextBoundary]) => {
+      .then(([nextSnapshot, nextBoundary, health]) => {
         setSnapshot(nextSnapshot);
         setBoundary(nextBoundary);
+        if (health && typeof health === "object" && "capabilities" in health) {
+          setCapabilities((health as { capabilities: CapabilityFlags }).capabilities);
+        }
         const initial = executeQuickAnalysis(nextSnapshot, "scarcity", 2);
         setSelectedRegionCode(initial.ranked[0]?.code ?? nextSnapshot.regions[0]?.adm_cd2 ?? null);
       })
@@ -230,7 +265,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         setLoadError(error instanceof Error ? error.message : "데이터 로드 중 오류가 발생했습니다.");
       });
     return () => controller.abort();
-  }, [boundaryVersion]);
+  }, [boundaryVersion, snapshotMode]);
 
   const analysis = useMemo(
     () => customAnalysis ?? (snapshot ? executeQuickAnalysis(snapshot, activeQuick, radiusKm) : null),
@@ -269,11 +304,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   );
   const selectedRegion = snapshot?.regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   const defaultMedicalFacilities = snapshot?.facilities.filter((facility) => facility.type !== "약국") ?? [];
-  const mapFacilities = analysis?.isFacilityResult
+  const rawMapFacilities = analysis?.isFacilityResult
     ? analysis.filteredFacilities
     : (analysis?.filteredFacilities.length ?? 0) > 0
       ? (analysis?.filteredFacilities ?? [])
       : defaultMedicalFacilities;
+  const mapFacilities =
+    markerScope === "selected" && selectedRegionCode
+      ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
+      : rawMapFacilities;
   const selectedFacilities = mapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode);
   const selectedFacility =
     analysis?.filteredFacilities.find((facility) => facility.id === selectedFacilityId) ?? null;
@@ -509,11 +548,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               {modeBadgeLabel(snapshot.mode)}
             </Badge>
           </div>
-          <div className="mt-2 flex flex-wrap gap-1 text-[9px] text-slate-400">
-            <span className="rounded-full bg-slate-100 px-2 py-0.5">{dataSource === "demo" ? "로컬 데모" : dataSource}</span>
+          <div className="mt-2 flex flex-wrap gap-1 text-[9px] text-slate-500">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5">{dataSourceLabel(dataSource)}</span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5">
-              지도 {kakaoMapKey ? "Kakao" : "Demo"}
-              {mapEngine === "demo" && kakaoMapKey ? "→폴백" : ""}
+              {mapEngineLabel(kakaoMapKey, mapEngine)}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5">
+              기준월 {snapshot.referenceMonth}
             </span>
           </div>
         </header>
@@ -655,6 +696,35 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </div>
               </section>
 
+              <section>
+                <h2 className="mb-2 text-[11px] font-bold uppercase tracking-[.08em] text-slate-500">
+                  지도 마커
+                </h2>
+                <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                  {(
+                    [
+                      ["priority", "우선 표시"],
+                      ["selected", "선택 동만"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={markerScope === id}
+                      className={`flex-1 rounded-lg py-2 text-[11px] font-bold ${
+                        markerScope === id ? "bg-slate-900 text-white" : "text-slate-500"
+                      }`}
+                      onClick={() => setMarkerScope(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[10px] leading-5 text-slate-400">
+                  우선 표시는 선택 동·고득점 동 시설을 먼저 올립니다. 클러스터는 SDK 2단 로드 시 자동.
+                </p>
+              </section>
+
               <p className="text-[10px] leading-5 text-slate-400">
                 순위·상세·해석은 오른쪽 패널에 표시됩니다. 지도를 넓게 두고 조작만 왼쪽에 모았습니다.
               </p>
@@ -691,7 +761,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ["행정동", `${snapshot.regions.length}`],
                   ["시설", `${snapshot.facilities.length}`],
                   ["경계", boundaryVersion],
-                  ["모드", snapshot.mode],
+                  ["스냅샷 모드", snapshot.mode],
+                  ["기준월", snapshot.referenceMonth],
+                  ["출처 헤더", dataSource],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl border border-slate-200 bg-white p-2.5">
                     <p className="text-[9px] text-slate-400">{label}</p>
@@ -699,12 +771,80 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 ))}
               </div>
+
+              <section className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[10px] font-bold text-slate-700">스냅샷 선택</p>
+                <div className="mt-2 flex gap-1">
+                  {(
+                    [
+                      ["auto", "자동(실데이터 우선)"],
+                      ["demo", "로컬 데모"],
+                    ] as const
+                  ).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={`flex-1 rounded-lg py-2 text-[10px] font-bold ${
+                        snapshotMode === mode
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                      onClick={() => setSnapshotMode(mode)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {capabilities ? (
+                <section className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-[10px] font-bold text-slate-700">서버 연동 상태</p>
+                  <ul className="mt-2 space-y-1 text-[10px] leading-5">
+                    {(
+                      [
+                        ["Kakao 지도 JS", capabilities.kakaoMapsJs],
+                        ["Kakao REST", capabilities.kakaoRest],
+                        ["Qwen 파서", capabilities.qwen],
+                        ["공공데이터", capabilities.publicData],
+                        ["Supabase", capabilities.supabase],
+                        ["시설 동기화", capabilities.dataSync],
+                      ] as const
+                    ).map(([label, on]) => (
+                      <li key={label} className="flex items-center justify-between gap-2">
+                        <span>{label}</span>
+                        <span
+                          className={`font-bold ${on ? "text-emerald-600" : "text-slate-400"}`}
+                        >
+                          {on ? "연결" : "미설정"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {capabilities.dataSync ? (
+                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                      시설 live sync: <code className="rounded bg-slate-100 px-1">POST /api/data/sync</code>
+                      {" "}(헤더 <code className="rounded bg-slate-100 px-1">x-sync-secret</code>)
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[10px] leading-5 text-amber-800">
+                      DATA_SYNC_SECRET이 없으면 시설 동기화 API는 비활성입니다.
+                    </p>
+                  )}
+                </section>
+              ) : null}
+
               {snapshot.mode === "demo" ? (
                 <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-900">
-                  인구·시설은 시연용 합성 데이터일 수 있습니다. 실시간 장소는 카카오 REST가 있을 때만 보강됩니다.
+                  인구·시설은 시연용 합성 데이터일 수 있습니다. 실시간 장소는 카카오 REST가 있을 때만
+                  보강됩니다. 정책 판단에는 원천 통계를 사용하세요.
                 </p>
-              ) : null}
-              {snapshot.sourceNotes.slice(0, 3).map((note) => (
+              ) : (
+                <p className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-900">
+                  실데이터 스냅샷 모드입니다. 출처 노트와 기준월을 함께 확인하세요.
+                </p>
+              )}
+              {snapshot.sourceNotes.slice(0, 5).map((note) => (
                 <p key={note} className="text-[10px] leading-5 text-slate-500">
                   · {note}
                 </p>
@@ -721,6 +861,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           boundary={boundary}
           regions={snapshot.regions}
           facilities={mapFacilities}
+          livePlaces={livePlaces}
           scores={scores}
           selectedRegionCode={selectedRegionCode}
           radiusKm={radiusKm}
@@ -937,13 +1078,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </p>
               ) : (
                 livePlaces.map((place) => (
-                  <div key={place.id} className="py-2">
+                  <button
+                    key={place.id}
+                    type="button"
+                    className="w-full py-2 text-left hover:bg-slate-50"
+                    onClick={() => {
+                      // Focus map on place by selecting nearest known region if possible
+                      if (selectedRegion) {
+                        setSelectedRegionCode(selectedRegion.adm_cd2);
+                      }
+                    }}
+                  >
                     <p className="text-xs font-bold text-slate-800">{place.name}</p>
                     <p className="mt-0.5 text-[10px] text-slate-400">
+                      {place.categoryName ? `${place.categoryName} · ` : ""}
                       {place.roadAddress ?? place.address ?? "주소 없음"}
                       {place.distanceMeters != null ? ` · ${place.distanceMeters}m` : ""}
                     </p>
-                  </div>
+                  </button>
                 ))
               )}
             </div>

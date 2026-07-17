@@ -71,9 +71,14 @@ declare global {
 }
 
 const SCRIPT_ID = "kakao-maps-sdk";
+const CLUSTERER_SCRIPT_ID = "kakao-maps-clusterer";
+/** Official clusterer bundle — load AFTER core SDK (never via libraries= param). */
+export const KAKAO_CLUSTERER_URL =
+  "https://t1.daumcdn.net/mapjsapi/js/libs/clusterer/1.1.1/clusterer.js";
 const LOAD_TIMEOUT_MS = 12_000;
 
 let readyPromise: Promise<KakaoMapsNamespace> | null = null;
+let clustererPromise: Promise<boolean> | null = null;
 
 /** Core map only — do not pass libraries= (services/clusterer chain can hang). */
 export function buildKakaoSdkUrl(appKey: string): string {
@@ -81,6 +86,62 @@ export function buildKakaoSdkUrl(appKey: string): string {
   url.searchParams.set("appkey", appKey.trim());
   url.searchParams.set("autoload", "false");
   return url.toString();
+}
+
+/**
+ * 2-stage clusterer: inject clusterer.js only after core Map is ready.
+ * Returns false on failure — callers fall back to plain markers.
+ */
+export function ensureMarkerClusterer(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (typeof window.kakao?.maps?.MarkerClusterer === "function") {
+    return Promise.resolve(true);
+  }
+  if (clustererPromise) return clustererPromise;
+
+  clustererPromise = new Promise<boolean>((resolve) => {
+    let settled = false;
+    const done = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (!ok) clustererPromise = null;
+      resolve(ok);
+    };
+
+    const existing = document.getElementById(CLUSTERER_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existing) {
+      if (typeof window.kakao?.maps?.MarkerClusterer === "function") {
+        done(true);
+        return;
+      }
+      existing.addEventListener(
+        "load",
+        () => done(typeof window.kakao?.maps?.MarkerClusterer === "function"),
+        { once: true },
+      );
+      existing.addEventListener("error", () => done(false), { once: true });
+      window.setTimeout(
+        () => done(typeof window.kakao?.maps?.MarkerClusterer === "function"),
+        3_000,
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = CLUSTERER_SCRIPT_ID;
+    script.async = true;
+    script.charset = "UTF-8";
+    script.src = KAKAO_CLUSTERER_URL;
+    script.onload = () => done(typeof window.kakao?.maps?.MarkerClusterer === "function");
+    script.onerror = () => done(false);
+    document.head.appendChild(script);
+    window.setTimeout(
+      () => done(typeof window.kakao?.maps?.MarkerClusterer === "function"),
+      4_000,
+    );
+  });
+
+  return clustererPromise;
 }
 
 function isMapsReady(maps: KakaoMapsNamespace | undefined): boolean {
@@ -250,7 +311,9 @@ export function loadKakaoSdk(appKey: string): Promise<KakaoMapsNamespace> {
 
 export function resetKakaoSdkCache(): void {
   readyPromise = null;
+  clustererPromise = null;
   if (typeof document === "undefined") return;
   document.getElementById(SCRIPT_ID)?.remove();
+  document.getElementById(CLUSTERER_SCRIPT_ID)?.remove();
   document.querySelectorAll("script[data-kakao-maps-sdk]").forEach((node) => node.remove());
 }
