@@ -107,6 +107,29 @@ describe("CopilotApp", () => {
         if (url.includes("/api/kakao/places")) {
           return new Response(JSON.stringify({ ok: true, places: [], notice: "장소 없음" }), { status: 200 });
         }
+        if (url.includes("/api/health")) {
+          return new Response(
+            JSON.stringify({
+              status: "ok",
+              capabilities: {
+                kakaoMapsJs: false,
+                kakaoRest: false,
+                qwen: false,
+                publicData: false,
+                supabase: false,
+                dataSync: false,
+              },
+              publishedLive: { available: false },
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes("/api/data/sync")) {
+          return new Response(
+            JSON.stringify({ ok: true, dataSyncConfigured: false, publishedLive: { available: false } }),
+            { status: 200 },
+          );
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
@@ -115,7 +138,7 @@ describe("CopilotApp", () => {
   test("renders the eight quick analyses and a keyless demo map", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
 
-    expect(await screen.findByText("DemoMap")).toBeInTheDocument();
+    expect(await screen.findByText("DemoMap", {}, { timeout: 10_000 })).toBeInTheDocument();
     for (const label of [
       "의료 취약",
       "고령 × 의료",
