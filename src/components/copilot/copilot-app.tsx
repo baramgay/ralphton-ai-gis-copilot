@@ -10,7 +10,6 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import {
   downloadTextFile,
   facilitiesToCsv,
@@ -96,14 +95,14 @@ const QUICK_ANALYSES: Array<{
   symbol: string;
   tone: string;
 }> = [
-  { id: "scarcity", label: "의료 취약", subtitle: "공급 부족 종합", symbol: "+", tone: "bg-rose-50 text-rose-600" },
-  { id: "elderly", label: "고령 × 의료", subtitle: "고령 수요 대비", symbol: "◎", tone: "bg-violet-50 text-violet-600" },
-  { id: "growth", label: "인구 증가", subtitle: "12개월 압력", symbol: "↗", tone: "bg-emerald-50 text-emerald-600" },
-  { id: "nearest", label: "최근접 거리", subtitle: "대표점 직선", symbol: "⌖", tone: "bg-sky-50 text-sky-600" },
-  { id: "radius", label: "2km 접근", subtitle: "반경 내 기관", symbol: "◉", tone: "bg-blue-50 text-blue-600" },
-  { id: "compare", label: "기장 vs 강서", subtitle: "동 단위 비교", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
-  { id: "facilities", label: "의료기관", subtitle: "약국 제외", symbol: "◆", tone: "bg-cyan-50 text-cyan-700" },
-  { id: "reset", label: "초기화", subtitle: "첫 화면", symbol: "↺", tone: "bg-slate-100 text-slate-600" },
+  { id: "scarcity", label: "의료 취약", subtitle: "어디가 부족한가", symbol: "+", tone: "bg-rose-50 text-rose-600" },
+  { id: "elderly", label: "고령 × 의료", subtitle: "노인 수요 대비", symbol: "◎", tone: "bg-violet-50 text-violet-600" },
+  { id: "growth", label: "인구 증가", subtitle: "최근 1년 변화", symbol: "↗", tone: "bg-emerald-50 text-emerald-600" },
+  { id: "nearest", label: "최근접 거리", subtitle: "가장 가까운 병원", symbol: "⌖", tone: "bg-sky-50 text-sky-600" },
+  { id: "radius", label: "주변 접근", subtitle: "반경 안 기관 수", symbol: "◉", tone: "bg-blue-50 text-blue-600" },
+  { id: "compare", label: "기장 vs 강서", subtitle: "두 구 비교", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
+  { id: "facilities", label: "의료기관", subtitle: "병원·의원 목록", symbol: "◆", tone: "bg-cyan-50 text-cyan-700" },
+  { id: "reset", label: "초기화", subtitle: "처음부터", symbol: "↺", tone: "bg-slate-100 text-slate-600" },
 ];
 
 function compactName(region: RegionSeries): string {
@@ -1004,28 +1003,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 className="size-8 shrink-0 rounded-[10px] shadow-sm ring-1 ring-slate-200/80"
               />
               <div className="min-w-0">
-                <h1 className="truncate text-[14px] font-bold tracking-tight text-slate-950">부산 AI GIS</h1>
-                <p className="mt-0.5 text-[10px] text-slate-500">기준월 {snapshot.referenceMonth}</p>
+                <h1 className="ui-title truncate text-slate-950">부산 AI GIS</h1>
+                <p className="ui-chip mt-0.5 text-slate-500">
+                  {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth}
+                </p>
               </div>
             </div>
-            <Badge
-              variant="secondary"
-              className={`border text-[10px] ${
-                snapshot.mode === "live"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
-              }`}
+            <span
+              className={`ui-status ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
+              title={modeBadgeLabel(snapshot.mode)}
             >
-              {modeBadgeLabel(snapshot.mode)}
-            </Badge>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1 text-[9px] text-slate-500">
-            <span className="rounded-full bg-slate-100 px-2 py-0.5">{dataSourceLabel(dataSource)}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5">
-              {mapEngineLabel(kakaoMapKey, mapEngine)}
-            </span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5">
-              기준월 {snapshot.referenceMonth}
+              {snapshot.mode === "live" ? "실데이터" : "시연"}
             </span>
           </div>
         </header>
@@ -1044,7 +1032,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 type="button"
                 role="tab"
                 aria-selected={activeTab === id}
-                className={`rounded-[9px] px-2 py-1.5 text-[11px] font-semibold transition hover:text-slate-800 ${
+                className={`rounded-[9px] px-2 py-2 ui-body font-semibold transition hover:text-slate-800 ${
                   activeTab === id ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:bg-white/60"
                 }`}
                 onClick={() => setActiveTab(id)}
@@ -1057,9 +1045,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
         <div className="copilot-scroll px-3 pb-6 pt-3">
           {activeTab === "control" ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <section>
-                <h2 className="section-label">질문</h2>
+                <h2 className="section-label">1. 질문하기</h2>
                 <form className="relative" onSubmit={submitQuery}>
                   <label htmlFor="analysis-query" className="sr-only">
                     분석 질의
@@ -1069,25 +1057,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ref={queryInputRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: 송정동 현황, 해운대 vs 기장 · / 포커스"
+                    placeholder="예: 해운대 의료 취약 어디?"
                     maxLength={1000}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-3 pr-12 text-[13px] shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-12 ui-body-lg shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
                   <button
                     type="submit"
                     aria-label="질의 실행"
                     disabled={isParsing || !query.trim()}
-                    className="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-[9px] bg-blue-600 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-200"
+                    className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-[10px] bg-blue-600 ui-body font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-200"
                   >
                     {isParsing ? "…" : "↑"}
                   </button>
                 </form>
-                <div className="chip-scroll mt-2" aria-label="추천 질문">
-                  {QUERY_SUGGESTIONS.slice(0, 8).map((item) => (
+                <div className="chip-scroll mt-2.5" aria-label="추천 질문">
+                  {QUERY_SUGGESTIONS.slice(0, 6).map((item) => (
                     <button
                       key={item}
                       type="button"
-                      className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] text-slate-600 transition hover:border-blue-300 hover:text-blue-700"
+                      className="ui-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 transition hover:border-blue-300 hover:text-blue-700"
                       onClick={() => {
                         setQuery(item);
                         queryInputRef.current?.focus();
@@ -1099,18 +1087,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </div>
                 {parseStage === "intent" || parseStage === "analyze" ? (
                   <div
-                    className="mt-2 flex items-center gap-2 rounded-lg bg-blue-50 px-2.5 py-2 text-[11px] text-blue-800"
+                    className="mt-2.5 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 ui-body text-blue-800"
                     role="status"
                     data-testid="parse-stage"
                   >
                     <span className="inline-block size-1.5 animate-pulse rounded-full bg-blue-500" />
-                    {parseStage === "intent" ? "1/2 의도 파악 중" : "2/2 분석 실행 중"}
+                    {parseStage === "intent" ? "질문을 이해하는 중…" : "분석을 실행하는 중…"}
                   </div>
                 ) : null}
                 {queryNotice ? (
                   <p
                     role="status"
-                    className={`mt-2 rounded-lg px-2.5 py-2 text-[11px] leading-5 ${
+                    className={`mt-2.5 rounded-lg px-3 py-2.5 ui-body ${
                       queryNoticeTone === "error"
                         ? "bg-rose-50 text-rose-700"
                         : queryNoticeTone === "success"
@@ -1127,7 +1115,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <button
                         key={suggestion}
                         type="button"
-                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] text-slate-600 hover:border-blue-300 hover:text-blue-700"
+                        className="ui-chip rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-blue-300 hover:text-blue-700"
                         onClick={() => {
                           setQuery(suggestion);
                           setQuerySuggestions([]);
@@ -1139,16 +1127,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 ) : null}
                 {recentQueries.length > 0 ? (
-                  <div className="mt-2">
-                    <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                      최근 질문
-                    </p>
+                  <div className="mt-3">
+                    <p className="ui-caption mb-1.5">최근 질문</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {recentQueries.map((item) => (
+                      {recentQueries.slice(0, 4).map((item) => (
                         <button
                           key={item}
                           type="button"
-                          className="max-w-full truncate rounded-full border border-slate-100 bg-slate-50 px-2.5 py-1 text-[10px] text-slate-600 hover:border-blue-300 hover:bg-white hover:text-blue-700"
+                          className="ui-chip max-w-full truncate rounded-full border border-slate-100 bg-slate-50 px-3 py-1.5 text-slate-600 hover:border-blue-300 hover:bg-white hover:text-blue-700"
                           title={item}
                           onClick={() => setQuery(item)}
                         >
@@ -1161,8 +1147,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </section>
 
               <section>
-                <h2 className="section-label">빠른 분석</h2>
-                <div className="grid grid-cols-2 gap-1.5">
+                <h2 className="section-label">2. 빠른 분석</h2>
+                <p className="ui-caption mb-2 -mt-1">클릭 한 번으로 바로 결과 확인</p>
+                <div className="grid grid-cols-2 gap-2">
                   {QUICK_ANALYSES.map((item) => (
                     <button
                       key={item.id}
@@ -1174,93 +1161,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       onClick={(event) => {
                         if (event.detail === 0) runQuick(item.id);
                       }}
-                      className={`quick-tile min-h-[58px] rounded-xl border p-2 text-left transition active:scale-[.98] ${
+                      className={`quick-tile min-h-[64px] rounded-xl border p-2.5 text-left transition active:scale-[.98] ${
                         activeQuick === item.id && item.id !== "reset"
                           ? "border-blue-300 bg-blue-50/60 shadow-sm"
                           : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                     >
-                      <span className={`inline-grid size-6 place-items-center rounded-md text-xs font-bold ${item.tone}`}>
+                      <span className={`inline-grid size-7 place-items-center rounded-md text-sm font-bold ${item.tone}`}>
                         {item.symbol}
                       </span>
-                      <span className="mt-1 block text-[11px] font-bold text-slate-800">{item.label}</span>
-                      <span className="block text-[9px] text-slate-400">{item.subtitle}</span>
+                      <span className="mt-1.5 block ui-body font-bold text-slate-900">{item.label}</span>
+                      <span className="ui-caption mt-0.5 block text-slate-500">{item.subtitle}</span>
                     </button>
                   ))}
                 </div>
               </section>
 
               <section>
-                <h2 className="section-label">레이아웃 · 밀도</h2>
-                <div className="grid grid-cols-2 gap-1">
-                  {(Object.keys(LAYOUT_PRESETS) as LayoutPresetId[]).map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      title={LAYOUT_PRESETS[id].hint}
-                      aria-pressed={layoutPreset === id}
-                      className={`rounded-lg border px-2 py-1.5 text-left text-[10px] font-bold transition ${
-                        layoutPreset === id
-                          ? "border-slate-900 bg-slate-900 text-white"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-blue-300"
-                      }`}
-                      onClick={() => applyLayoutPreset(id)}
-                    >
-                      {LAYOUT_PRESETS[id].label}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-1.5 flex gap-1">
-                  {(
-                    [
-                      ["comfortable", "여유"],
-                      ["compact", "밀도"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={density === id}
-                      className={`flex-1 rounded-lg py-1.5 text-[10px] font-bold ${
-                        density === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-                      }`}
-                      onClick={() => {
-                        setDensity(id);
-                        showToast(id === "compact" ? "밀도 높은 UI" : "여유 있는 UI");
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-1.5 flex gap-1">
-                  {(
-                    [
-                      ["light", "라이트"],
-                      ["dark", "다크"],
-                      ["contrast", "고대비"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={theme === id}
-                      className={`flex-1 rounded-lg py-1.5 text-[10px] font-bold ${
-                        theme === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-                      }`}
-                      onClick={() => {
-                        setTheme(id);
-                        showToast(`테마: ${label}`);
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h2 className="section-label">접근 반경</h2>
+                <h2 className="section-label">3. 접근 반경</h2>
                 <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
                   {([1, 2, 3] as const).map((radius) => (
                     <button
@@ -1268,7 +1186,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       type="button"
                       aria-label={`${radius}km 반경`}
                       aria-pressed={radiusKm === radius}
-                      className={`flex-1 rounded-lg py-2 text-[11px] font-bold ${
+                      className={`flex-1 rounded-lg py-2.5 ui-body font-bold ${
                         radiusKm === radius ? "bg-slate-900 text-white" : "text-slate-500"
                       }`}
                       onPointerDown={() => runRadius(radius)}
@@ -1282,71 +1200,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </div>
               </section>
 
-              <section>
-                <h2 className="mb-2 text-[11px] font-bold uppercase tracking-[.08em] text-slate-500">
-                  지도 마커
-                </h2>
-                <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
-                  {(
-                    [
-                      ["priority", "우선 표시"],
-                      ["selected", "선택 동만"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={markerScope === id}
-                      className={`flex-1 rounded-lg py-2 text-[11px] font-bold ${
-                        markerScope === id ? "bg-slate-900 text-white" : "text-slate-500"
-                      }`}
-                      onClick={() => setMarkerScope(id)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                      facilityTypeFilter === "all"
-                        ? "bg-slate-900 text-white"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                    onClick={() => setFacilityTypeFilter("all")}
-                  >
-                    전체 유형
-                  </button>
-                  {Object.entries(FACILITY_TYPE_COLORS).map(([type, color]) => (
-                    <button
-                      key={type}
-                      type="button"
-                      className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                        facilityTypeFilter === type ? "text-white" : "text-slate-700"
-                      }`}
-                      style={{
-                        backgroundColor:
-                          facilityTypeFilter === type ? color : `${color}22`,
-                        border: `1px solid ${color}`,
-                      }}
-                      onClick={() =>
-                        setFacilityTypeFilter((current) => (current === type ? "all" : type))
-                      }
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-1.5 text-[10px] leading-5 text-slate-400">
-                  우선 표시·유형 필터·클러스터(2단 로드)로 핀 밀도를 조절합니다.
-                </p>
-              </section>
-
               {selectedRegion && lastIntent ? (
-                <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-2.5">
-                  <p className="text-[9px] font-bold text-blue-700">후속 질문 예시</p>
-                  <div className="mt-1.5 flex flex-wrap gap-1">
+                <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+                  <p className="ui-caption font-bold text-blue-800">이어서 묻기</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {[
                       "이 동만 병원 보여줘",
                       "반경 3km로",
@@ -1355,7 +1212,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <button
                         key={item}
                         type="button"
-                        className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] text-blue-800"
+                        className="ui-chip rounded-full border border-blue-200 bg-white px-2.5 py-1 text-blue-900"
                         onClick={() => setQuery(item)}
                       >
                         {item}
@@ -1365,49 +1222,211 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </section>
               ) : null}
 
-              <p className="text-[10px] leading-5 text-slate-400">
-                순위·상세·해석은 오른쪽 패널에 표시됩니다. 패널 경계를 드래그해 너비를 조절할 수 있습니다.
+              <details className="ui-details">
+                <summary>지도 표시 옵션</summary>
+                <div className="ui-details-body space-y-3">
+                  <div>
+                    <p className="ui-caption mb-1.5">마커 범위</p>
+                    <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                      {(
+                        [
+                          ["priority", "우선 표시"],
+                          ["selected", "선택 동만"],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-pressed={markerScope === id}
+                          className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
+                            markerScope === id ? "bg-slate-900 text-white" : "text-slate-500"
+                          }`}
+                          onClick={() => setMarkerScope(id)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="ui-caption mb-1.5">시설 유형</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        className={`ui-chip rounded-full px-2.5 py-1 font-bold ${
+                          facilityTypeFilter === "all"
+                            ? "bg-slate-900 text-white"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                        onClick={() => setFacilityTypeFilter("all")}
+                      >
+                        전체
+                      </button>
+                      {Object.entries(FACILITY_TYPE_COLORS).map(([type, color]) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className={`ui-chip rounded-full px-2.5 py-1 font-bold ${
+                            facilityTypeFilter === type ? "text-white" : "text-slate-700"
+                          }`}
+                          style={{
+                            backgroundColor:
+                              facilityTypeFilter === type ? color : `${color}22`,
+                            border: `1px solid ${color}`,
+                          }}
+                          onClick={() =>
+                            setFacilityTypeFilter((current) => (current === type ? "all" : type))
+                          }
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <details className="ui-details">
+                <summary>화면 설정</summary>
+                <div className="ui-details-body space-y-3">
+                  <div>
+                    <p className="ui-caption mb-1.5">패널 배치</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(Object.keys(LAYOUT_PRESETS) as LayoutPresetId[]).map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          title={LAYOUT_PRESETS[id].hint}
+                          aria-pressed={layoutPreset === id}
+                          className={`rounded-lg border px-2 py-2 text-left ui-chip font-bold transition ${
+                            layoutPreset === id
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-blue-300"
+                          }`}
+                          onClick={() => applyLayoutPreset(id)}
+                        >
+                          {LAYOUT_PRESETS[id].label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="ui-caption mb-1.5">글자·여백 밀도</p>
+                    <div className="flex gap-1">
+                      {(
+                        [
+                          ["comfortable", "여유"],
+                          ["compact", "촘촘"],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-pressed={density === id}
+                          className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
+                            density === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                          onClick={() => {
+                            setDensity(id);
+                            showToast(id === "compact" ? "촘촘한 화면" : "여유 있는 화면");
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="ui-caption mb-1.5">테마</p>
+                    <div className="flex gap-1">
+                      {(
+                        [
+                          ["light", "라이트"],
+                          ["dark", "다크"],
+                          ["contrast", "고대비"],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-pressed={theme === id}
+                          className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
+                            theme === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                          }`}
+                          onClick={() => {
+                            setTheme(id);
+                            showToast(`테마: ${label}`);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <p className="ui-caption text-center text-slate-400">
+                결과는 오른쪽 패널 · 지도에서 동을 눌러 자세히 보기
               </p>
             </div>
           ) : activeTab === "help" ? (
-            <div className="space-y-3 text-[12px] text-slate-600">
-              <p className="font-bold text-slate-900">30초 이용 방법</p>
-              <ol className="list-decimal space-y-2 pl-4 text-[11px] leading-5">
-                <li>빠른 분석 또는 질문을 실행합니다.</li>
-                <li>지도에서 행정동·시설을 선택합니다.</li>
-                <li>오른쪽에서 순위·해석·상세를 확인합니다.</li>
-              </ol>
-              <div className="rounded-xl border border-slate-200 bg-white p-3 text-[11px] leading-5">
-                <p className="font-bold text-slate-900">편의 단축키 (데스크톱)</p>
-                <ul className="mt-1.5 space-y-1 text-slate-600">
+            <div className="space-y-4">
+              <div>
+                <p className="ui-title text-slate-900">이렇게 쓰세요</p>
+                <ol className="mt-3 list-decimal space-y-2.5 pl-5 ui-body text-slate-700">
                   <li>
-                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">/</kbd> 질문 입력 포커스
+                    <span className="font-bold text-slate-900">질문</span> 또는{" "}
+                    <span className="font-bold text-slate-900">빠른 분석</span>을 실행합니다.
                   </li>
                   <li>
-                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">[</kbd> /
-                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">]</kbd> 좌·우 패널 접기
+                    <span className="font-bold text-slate-900">지도</span>에서 행정동·시설을 선택합니다.
                   </li>
                   <li>
-                    <kbd className="rounded bg-slate-100 px-1 font-mono text-[10px]">\</kbd> 지도 넓게 (양쪽 접기)
+                    <span className="font-bold text-slate-900">오른쪽</span>에서 순위·해석·상세를 확인합니다.
                   </li>
-                  <li>
-                  <span className="kbd">Shift+0</span> 패널 크기 초기화
-                </li>
-                <li>
-                  <span className="kbd">↑</span>/<span className="kbd">↓</span> 또는{" "}
-                  <span className="kbd">j</span>/<span className="kbd">k</span> 순위 이동
-                </li>
-                <li>패널 경계 드래그 · 모바일 시트 핸들로 높이 조절</li>
-                <li>구 비교 결과에서 「동 순위 보기」로 드릴다운</li>
-                </ul>
+                </ol>
               </div>
-              <div className="rounded-xl bg-slate-900 p-3 text-white">
-                <p className="text-[10px] font-bold text-blue-300">질문 예시</p>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="ui-body font-bold text-slate-900">자주 쓰는 조작</p>
+                <ul className="mt-2 space-y-2 ui-body text-slate-600">
+                  <li>
+                    <span className="kbd">/</span> 질문 입력으로 이동
+                  </li>
+                  <li>
+                    <span className="kbd">↑</span>
+                    <span className="kbd">↓</span> 순위 목록 이동
+                  </li>
+                  <li>
+                    <span className="kbd">[</span>
+                    <span className="kbd">]</span> 좌·우 패널 접기
+                  </li>
+                  <li>구 비교 결과 → 「동 순위 보기」로 한 단계 더</li>
+                </ul>
+                <details className="mt-3">
+                  <summary className="ui-chip cursor-pointer font-bold text-slate-500">더 많은 단축키</summary>
+                  <ul className="mt-2 space-y-1.5 ui-chip text-slate-500">
+                    <li>
+                      <span className="kbd">\</span> 지도만 넓게 보기
+                    </li>
+                    <li>
+                      <span className="kbd">Shift+0</span> 패널 크기 초기화
+                    </li>
+                    <li>
+                      <span className="kbd">j</span>/<span className="kbd">k</span> 순위 이동 (대안)
+                    </li>
+                  </ul>
+                </details>
+              </div>
+
+              <div className="rounded-xl bg-slate-900 p-3.5 text-white">
+                <p className="ui-caption font-bold text-blue-300">바로 써볼 질문</p>
                 {QUERY_SUGGESTIONS.slice(0, 5).map((example) => (
                   <button
                     key={example}
                     type="button"
-                    className="mt-1.5 block w-full rounded-lg bg-white/10 px-2 py-1.5 text-left text-[11px] text-slate-200"
+                    className="mt-2 block w-full rounded-lg bg-white/10 px-3 py-2 text-left ui-body text-slate-100 hover:bg-white/15"
                     onClick={() => {
                       setQuery(example);
                       setActiveTab("control");
@@ -1419,36 +1438,54 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </div>
             </div>
           ) : (
-            <div className="space-y-3 text-[11px] text-slate-600">
+            <div className="space-y-4">
+              <div
+                className={`rounded-xl border p-3.5 ${
+                  snapshot.mode === "live"
+                    ? "border-emerald-100 bg-emerald-50 text-emerald-950"
+                    : "border-amber-100 bg-amber-50 text-amber-950"
+                }`}
+              >
+                <p className="ui-body font-bold">
+                  {snapshot.mode === "live"
+                    ? "지금 실데이터 스냅샷을 보고 있습니다"
+                    : "지금 시연용 데이터를 보고 있습니다"}
+                </p>
+                <p className="ui-body mt-1.5 opacity-90">
+                  {snapshot.mode === "live"
+                    ? "기준월과 출처 노트를 함께 확인하세요."
+                    : "정책 판단에는 원천 통계를 사용하세요. 카카오 장소만 실시간으로 보강될 수 있습니다."}
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  ["행정동", `${snapshot.regions.length}`],
-                  ["시설", `${snapshot.facilities.length}`],
-                  ["경계", boundaryVersion],
-                  ["스냅샷 모드", snapshot.mode],
                   ["기준월", snapshot.referenceMonth],
-                  ["출처 헤더", dataSource],
+                  ["행정동", `${snapshot.regions.length.toLocaleString("ko-KR")}개`],
+                  ["시설", `${snapshot.facilities.length.toLocaleString("ko-KR")}곳`],
+                  ["지도", mapEngineLabel(kakaoMapKey, mapEngine)],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-xl border border-slate-200 bg-white p-2.5">
-                    <p className="text-[9px] text-slate-400">{label}</p>
-                    <p className="mt-1 font-bold text-slate-900">{value}</p>
+                  <div key={label} className="ui-stat-card">
+                    <p className="label">{label}</p>
+                    <p className="value">{value}</p>
                   </div>
                 ))}
               </div>
 
-              <section className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[10px] font-bold text-slate-700">스냅샷 선택</p>
-                <div className="mt-2 flex gap-1">
+              <section className="rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="ui-body font-bold text-slate-800">데이터 소스 선택</p>
+                <p className="ui-caption mt-1 mb-2">실데이터가 있으면 자동으로 우선합니다</p>
+                <div className="flex gap-1">
                   {(
                     [
-                      ["auto", "자동(실데이터 우선)"],
-                      ["demo", "로컬 데모"],
+                      ["auto", "자동"],
+                      ["demo", "시연만"],
                     ] as const
                   ).map(([mode, label]) => (
                     <button
                       key={mode}
                       type="button"
-                      className={`flex-1 rounded-lg py-2 text-[10px] font-bold ${
+                      className={`flex-1 rounded-lg py-2.5 ui-body font-bold ${
                         snapshotMode === mode
                           ? "bg-slate-900 text-white"
                           : "bg-slate-100 text-slate-600"
@@ -1462,79 +1499,69 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </section>
 
               {capabilities ? (
-                <section className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-[10px] font-bold text-slate-700">서버 연동 상태</p>
-                  <ul className="mt-2 space-y-1 text-[10px] leading-5">
-                    {(
-                      [
-                        ["Kakao 지도 JS", capabilities.kakaoMapsJs],
-                        ["Kakao REST", capabilities.kakaoRest],
-                        ["Qwen 파서", capabilities.qwen],
-                        ["공공데이터", capabilities.publicData],
-                        ["Supabase", capabilities.supabase],
-                        ["시설 동기화", capabilities.dataSync],
-                      ] as const
-                    ).map(([label, on]) => (
-                      <li key={label} className="flex items-center justify-between gap-2">
-                        <span>{label}</span>
-                        <span
-                          className={`font-bold ${on ? "text-emerald-600" : "text-slate-400"}`}
-                        >
-                          {on ? "연결" : "미설정"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  {capabilities.dataSync ? (
-                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
-                      시설 live sync: <code className="rounded bg-slate-100 px-1">POST /api/data/sync</code>
-                      {" "}(헤더 <code className="rounded bg-slate-100 px-1">x-sync-secret</code>)
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-[10px] leading-5 text-amber-800">
-                      DATA_SYNC_SECRET이 없으면 시설 동기화 API는 비활성입니다.
-                    </p>
-                  )}
-                  {publishedLive?.available ? (
-                    <div className="mt-2 rounded-lg bg-emerald-50 px-2 py-1.5 text-[10px] leading-5 text-emerald-900">
-                      <p className="font-bold">게시된 실데이터 스냅샷</p>
-                      <p>기준월 {publishedLive.referenceMonth ?? "—"}</p>
-                      <p>
-                        갱신{" "}
-                        {publishedLive.createdAt
-                          ? new Date(publishedLive.createdAt).toLocaleString("ko-KR")
-                          : "시각 없음"}
+                <details className="ui-details">
+                  <summary>연결 상태 · 기술 정보</summary>
+                  <div className="ui-details-body space-y-3">
+                    <ul className="space-y-2 ui-body">
+                      {(
+                        [
+                          ["Kakao 지도", capabilities.kakaoMapsJs],
+                          ["Kakao 장소검색", capabilities.kakaoRest],
+                          ["AI 질문 해석", capabilities.qwen],
+                          ["공공데이터", capabilities.publicData],
+                          ["Supabase", capabilities.supabase],
+                          ["시설 동기화", capabilities.dataSync],
+                        ] as const
+                      ).map(([label, on]) => (
+                        <li key={label} className="flex items-center justify-between gap-2">
+                          <span className="text-slate-600">{label}</span>
+                          <span className={`font-bold ${on ? "text-emerald-600" : "text-slate-400"}`}>
+                            {on ? "연결됨" : "미설정"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {publishedLive?.available ? (
+                      <div className="rounded-lg bg-emerald-50 px-3 py-2 ui-body text-emerald-900">
+                        <p className="font-bold">게시된 실데이터</p>
+                        <p className="mt-1">기준월 {publishedLive.referenceMonth ?? "—"}</p>
+                        <p>
+                          갱신{" "}
+                          {publishedLive.createdAt
+                            ? new Date(publishedLive.createdAt).toLocaleString("ko-KR")
+                            : "시각 없음"}
+                        </p>
+                        <p>시설 {publishedLive.facilityCount?.toLocaleString("ko-KR") ?? "—"}곳</p>
+                      </div>
+                    ) : (
+                      <p className="ui-body text-slate-500">
+                        게시된 실데이터 스냅샷이 없습니다.
                       </p>
-                      <p>시설 {publishedLive.facilityCount?.toLocaleString("ko-KR") ?? "—"}곳</p>
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
-                      게시된 live 스냅샷이 없습니다. 동기화 후 auto 모드에서 사용됩니다.
+                    )}
+                    {publishedAt ? (
+                      <p className="ui-caption">
+                        현재 화면 로드: {new Date(publishedAt).toLocaleString("ko-KR")}
+                      </p>
+                    ) : null}
+                    <p className="ui-caption text-slate-400">
+                      경계 버전 {boundaryVersion} · {dataSourceLabel(dataSource)}
                     </p>
-                  )}
-                  {publishedAt ? (
-                    <p className="mt-1 text-[10px] text-slate-500">
-                      현재 로드 캐시 시각: {new Date(publishedAt).toLocaleString("ko-KR")}
-                    </p>
-                  ) : null}
-                </section>
+                  </div>
+                </details>
               ) : null}
 
-              {snapshot.mode === "demo" ? (
-                <p className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-900">
-                  인구·시설은 시연용 합성 데이터일 수 있습니다. 실시간 장소는 카카오 REST가 있을 때만
-                  보강됩니다. 정책 판단에는 원천 통계를 사용하세요.
-                </p>
-              ) : (
-                <p className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-900">
-                  실데이터 스냅샷 모드입니다. 출처 노트와 기준월을 함께 확인하세요.
-                </p>
-              )}
-              {snapshot.sourceNotes.slice(0, 5).map((note) => (
-                <p key={note} className="text-[10px] leading-5 text-slate-500">
-                  · {note}
-                </p>
-              ))}
+              {snapshot.sourceNotes.length > 0 ? (
+                <details className="ui-details">
+                  <summary>출처 노트</summary>
+                  <div className="ui-details-body space-y-1.5">
+                    {snapshot.sourceNotes.slice(0, 6).map((note) => (
+                      <p key={note} className="ui-body text-slate-600">
+                        · {note}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </div>
           )}
         </div>
@@ -1570,9 +1597,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           onEngineChange={setMapEngine}
         />
 
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-2xl border border-white/80 bg-white/90 px-4 py-2 shadow-lg backdrop-blur max-md:left-3 max-md:translate-x-0">
-          <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600">{analysis.title}</p>
-          <p className="max-w-[240px] truncate text-xs font-bold text-slate-900">
+        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-2xl border border-white/80 bg-white/90 px-4 py-2.5 shadow-lg backdrop-blur max-md:left-3 max-md:translate-x-0">
+          <p className="ui-caption font-bold text-blue-600">{analysis.title}</p>
+          <p className="max-w-[260px] truncate ui-body font-bold text-slate-900">
             {selectedRegion ? compactName(selectedRegion) : "부산광역시"}
           </p>
         </div>
@@ -1681,17 +1708,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         >
           <span className="sheet-handle-bar" />
         </div>
-        <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
-          <p className="text-[10px] font-bold uppercase tracking-[.08em] text-blue-600">분석 결과</p>
-          <h2 className="mt-1 text-[15px] font-bold text-slate-950">{analysis.title}</h2>
+        <header className="border-b border-slate-200/80 px-4 pb-3.5 pt-4">
+          <p className="section-label !mb-1 text-blue-600">결과</p>
+          <h2 className="ui-display text-slate-950">{analysis.title}</h2>
           {drillTrail.length > 0 ? (
-            <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px]" data-testid="drill-trail">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 ui-chip" data-testid="drill-trail">
               <button
                 type="button"
-                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-bold text-amber-900"
+                className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-bold text-amber-900"
                 onClick={exitDrill}
               >
-                구 비교
+                구 비교로
               </button>
               {drillTrail.map((token) => (
                 <span key={token} className="text-slate-500">
@@ -1700,9 +1727,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ))}
             </div>
           ) : null}
-          <p className="mt-1 text-[11px] leading-5 text-slate-500">{analysis.summary}</p>
+          <p className="ui-body mt-1.5 text-slate-600">{analysis.summary}</p>
           <div
-            className={`mt-2 rounded-lg border px-2.5 py-1.5 text-[10px] leading-5 ${
+            className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
               snapshot.mode === "live"
                 ? "border-emerald-100 bg-emerald-50 text-emerald-900"
                 : "border-amber-100 bg-amber-50 text-amber-900"
@@ -1710,39 +1737,32 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             data-testid="data-provenance"
           >
             <span className="font-bold">
-              {snapshot.mode === "live" ? "실데이터" : "데모 데이터"}
+              {snapshot.mode === "live" ? "실데이터" : "시연 데이터"}
             </span>
             {" · "}기준월 {snapshot.referenceMonth}
-            {" · "}
-            {dataSourceLabel(dataSource)}
-            {publishedAt
-              ? ` · 게시 ${new Date(publishedAt).toLocaleDateString("ko-KR")}`
-              : ""}
-            {snapshot.mode === "demo"
-              ? " · 정책 판단용 원천 통계 아님"
-              : " · 인구 시계열은 기준 스냅샷 유지 가능"}
+            {snapshot.mode === "demo" ? " · 정책 판단용 아님" : ""}
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <span className="ui-chip rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
               {analysis.isFacilityResult
                 ? `${analysis.filteredFacilities.length}개 시설`
                 : `${analysis.ranked.length}개 동`}
             </span>
             {currentRank > 0 ? (
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              <span className="ui-chip rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
                 선택 {currentRank}위
               </span>
             ) : null}
             <button
               type="button"
-              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:border-blue-300"
+              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
               onClick={exportCurrentCsv}
             >
-              CSV 내보내기
+              CSV
             </button>
             <button
               type="button"
-              className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:border-blue-300"
+              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
               onClick={() => {
                 pushShareUrl(
                   lastIntent ?? {
@@ -1755,11 +1775,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 void copyShareLink();
               }}
             >
-              링크 복사
+              공유
             </button>
           </div>
           {shareNotice ? (
-            <p className="mt-1.5 text-[10px] font-semibold text-emerald-700" role="status">
+            <p className="ui-chip mt-2 font-semibold text-emerald-700" role="status">
               {shareNotice}
             </p>
           ) : null}
@@ -1768,10 +1788,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         <div className="copilot-scroll space-y-4 px-3 pb-8 pt-3">
           {emptyResult ? (
             <section className="empty-state">
-              <p className="text-[12px] font-bold text-slate-800">표시할 결과가 없습니다</p>
-              <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                운영시간·진료과처럼 원천에 없는 값은 추정하지 않습니다. 빠른 분석이나 추천 질문으로
-                이어서 볼 수 있습니다.
+              <p className="ui-body-lg font-bold text-slate-800">표시할 결과가 없습니다</p>
+              <p className="ui-body mt-1.5 text-slate-500">
+                없는 값은 추정하지 않습니다. 아래 분석으로 다시 시작해 보세요.
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                 {(["scarcity", "elderly", "radius"] as QuickId[]).map((id) => {
@@ -1781,7 +1800,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <button
                       key={id}
                       type="button"
-                      className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-bold text-white"
+                      className="ui-chip rounded-full bg-slate-900 px-3.5 py-1.5 font-bold text-white"
                       onClick={() => runQuick(id)}
                     >
                       {item.label}
@@ -1793,8 +1812,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ) : null}
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-3 py-2 text-[10px] font-bold text-slate-500">
-              {analysis.isFacilityResult ? "시설 목록" : "상위 순위"}
+            <div className="border-b border-slate-100 px-3.5 py-2.5 ui-caption font-bold text-slate-500">
+              {analysis.isFacilityResult ? "시설 목록" : "상위 순위 · 지도와 연동"}
             </div>
             <div className="divide-y divide-slate-100">
               {analysis.isFacilityResult
@@ -1802,7 +1821,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <button
                       key={facility.id}
                       type="button"
-                      className={`rank-row flex w-full items-center gap-2 px-3 py-2.5 text-left ${
+                      className={`rank-row flex w-full items-center gap-2.5 px-3.5 py-3 text-left ${
                         facility.id === selectedFacilityId ? "is-selected" : ""
                       }`}
                       onPointerDown={() => selectFacility(facility)}
@@ -1816,8 +1835,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-bold text-slate-800">{facility.name}</span>
-                        <span className="block text-[10px] text-slate-400">
+                        <span className="rank-name block truncate">{facility.name}</span>
+                        <span className="rank-note mt-0.5 block">
                           {facility.type} · {facility.adm_nm.replace("부산광역시 ", "")}
                         </span>
                       </span>
@@ -1826,40 +1845,38 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 : analysis.ranked.slice(0, 10).map((row, index) => (
                     <div
                       key={row.code}
-                      className={`rank-row flex w-full flex-col gap-1.5 px-3 py-2.5 ${
+                      className={`rank-row flex w-full flex-col gap-1.5 px-3.5 py-3 ${
                         row.code === selectedRegionCode ? "is-selected" : ""
                       }`}
                     >
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 text-left"
+                        className="flex w-full items-center gap-2.5 text-left"
                         onPointerDown={() => selectRegion(row.code)}
                         onClick={(event) => {
                           if (event.detail === 0) selectRegion(row.code);
                         }}
                       >
                         <span
-                          className={`grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-black ${
+                          className={`grid size-7 shrink-0 place-items-center rounded-full ui-chip font-black ${
                             index < 3 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
                           }`}
                         >
                           {index + 1}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-bold text-slate-800">{row.name}</span>
-                          <span className="block text-[10px] text-slate-400">{row.note}</span>
+                          <span className="rank-name block truncate">{row.name}</span>
+                          <span className="rank-note mt-0.5 block">{row.note}</span>
                         </span>
-                        <span className="text-[12px] font-black tabular-nums text-blue-700">
-                          {row.valueLabel}
-                        </span>
+                        <span className="rank-value">{row.valueLabel}</span>
                       </button>
-                      <span className="score-bar ml-8" aria-hidden>
+                      <span className="score-bar ml-9" aria-hidden>
                         <span style={{ width: `${Math.max(6, Math.min(100, row.mapScore))}%` }} />
                       </span>
                       {isCompareView ? (
                         <button
                           type="button"
-                          className="ml-8 self-start rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-blue-800"
+                          className="ui-chip ml-9 self-start rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-bold text-blue-800"
                           onClick={() => drillIntoDistrict(row.name)}
                         >
                           동 순위 보기
@@ -1869,9 +1886,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ))}
             </div>
             {analysis.formulaNotes.length ? (
-              <details className="border-t border-slate-100 px-3 py-2 text-[10px] text-slate-500">
-                <summary className="cursor-pointer font-bold text-slate-600">산식과 해석 기준</summary>
-                <ul className="mt-2 space-y-1 leading-5">
+              <details className="border-t border-slate-100 px-3.5 py-2.5">
+                <summary className="ui-chip cursor-pointer font-bold text-slate-600">
+                  산식 · 해석 기준
+                </summary>
+                <ul className="mt-2 space-y-1.5 ui-chip text-slate-500">
                   {analysis.formulaNotes.map((note) => (
                     <li key={note}>· {note}</li>
                   ))}
@@ -1883,13 +1902,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           {interpretation ? <InterpretationCard interpretation={interpretation} /> : null}
 
           {selectedRegion ? (
-            <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-[10px] font-semibold text-blue-600">선택 행정동</p>
-              <h3 className="mt-1 text-sm font-black text-slate-950">{compactName(selectedRegion)}</h3>
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+              <p className="ui-caption font-bold text-blue-600">선택한 행정동</p>
+              <h3 className="ui-title mt-1 text-slate-950">{compactName(selectedRegion)}</h3>
 
               {selectedFacility ? (
-                <article className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-2.5 text-[10px] text-slate-600">
-                  <p className="font-bold text-cyan-800">{selectedFacility.name}</p>
+                <article className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 ui-body text-slate-700">
+                  <p className="font-bold text-cyan-900">{selectedFacility.name}</p>
                   <p className="mt-1">{selectedFacility.type}</p>
                   <p className="mt-1">{selectedFacility.address ?? selectedFacility.adm_nm}</p>
                   <p className="mt-1">전화 {selectedFacility.phone ?? "데이터 없음"}</p>
@@ -1897,8 +1916,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ) : null}
 
               {selectedLivePlace ? (
-                <article className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 p-2.5 text-[10px] text-slate-600">
-                  <p className="text-[9px] font-bold text-violet-700">카카오 실시간 장소</p>
+                <article className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 p-3 ui-body text-slate-700">
+                  <p className="ui-caption font-bold text-violet-700">실시간 장소</p>
                   <p className="mt-1 font-bold text-violet-900">{selectedLivePlace.name}</p>
                   <p className="mt-1">{selectedLivePlace.categoryName}</p>
                   <p className="mt-1">
@@ -1914,11 +1933,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ) : null}
 
               {!analysis.isFacilityResult && selectedAnalysisRegion?.metrics.length ? (
-                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
-                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-2.5 py-2">
-                      <p className="text-[9px] font-semibold text-blue-700">{metric.label}</p>
-                      <p className="mt-1 text-sm font-black tabular-nums text-slate-950">
+                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2.5">
+                      <p className="ui-caption font-semibold text-blue-700">{metric.label}</p>
+                      <p className="mt-1 ui-body-lg font-black tabular-nums text-slate-950">
                         {formatMetric(metric.value, metric.unit)}
                       </p>
                     </div>

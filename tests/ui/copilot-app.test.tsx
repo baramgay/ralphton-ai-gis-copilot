@@ -147,7 +147,7 @@ describe("CopilotApp", () => {
       "고령 × 의료",
       "인구 증가",
       "최근접 거리",
-      "2km 접근",
+      "주변 접근",
       "기장 vs 강서",
       "의료기관",
       "초기화",
@@ -156,7 +156,7 @@ describe("CopilotApp", () => {
     }
     expect(screen.getByRole("img", { name: "부산 행정동 분석 지도" })).toBeInTheDocument();
     expect(screen.getByTestId("result-panel")).toBeInTheDocument();
-    expect(screen.getByText("산식과 해석 기준")).toBeInTheDocument();
+    expect(screen.getByText("산식 · 해석 기준")).toBeInTheDocument();
     expect(screen.getAllByText(/winsorized min-max/).length).toBeGreaterThan(0);
     expect(fetch).toHaveBeenCalledWith(
       "/api/data/snapshot?mode=auto",
@@ -169,7 +169,7 @@ describe("CopilotApp", () => {
     await screen.findByText("DemoMap");
 
     fireEvent.click(screen.getByRole("tab", { name: "이용" }));
-    expect(screen.getByText("30초 이용 방법")).toBeInTheDocument();
+    expect(screen.getByText("이렇게 쓰세요")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "데이터" }));
     await waitFor(() => expect(screen.getByText("행정동")).toBeInTheDocument());
@@ -179,7 +179,7 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
 
-    fireEvent.click(screen.getByRole("button", { name: "2km 접근" }));
+    fireEvent.click(screen.getByRole("button", { name: "주변 접근" }));
 
     expect(screen.getByRole("heading", { name: "2km 의료기관 접근성" })).toBeInTheDocument();
     expect(screen.getByText("2km 내 의료기관")).toBeInTheDocument();
