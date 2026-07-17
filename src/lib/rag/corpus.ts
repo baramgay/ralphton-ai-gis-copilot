@@ -116,4 +116,25 @@ export const RAG_CORPUS: RagChunk[] = [
     tags: ["region", "busan"],
     keywords: ["부산", "시군구", "행정동", "범위"],
   },
+  {
+    id: "dong-gazetteer",
+    title: "행정동 지명 해석",
+    body: "질의에 동 이름(예: 우동, 송정동, 중앙동)이 있으면 place-index(206동)로 adm_cd2를 해석해 regions 필터에 넣습니다. 구 이름과 함께 쓰면 해당 구 내 동으로 범위를 좁힙니다.",
+    tags: ["region", "dong", "getRegionDetails", "place-index"],
+    keywords: ["동", "행정동", "우동", "송정동", "중앙동", "지명"],
+  },
+  {
+    id: "hybrid-rag",
+    title: "하이브리드 RAG",
+    body: "지식 검색은 BM25-lite 어휘 점수와 해시 임베딩 코사인 유사도를 가중합합니다. 네트워크 없이도 동작하며, DashScope 임베딩 API가 있으면 서버에서 선택적으로 보강할 수 있습니다.",
+    tags: ["rag", "hybrid", "embedding"],
+    keywords: ["RAG", "검색", "임베딩", "근거", "지식"],
+  },
+  {
+    id: "export-share",
+    title: "내보내기·공유",
+    body: "분석 결과는 CSV 내보내기와 URL 공유(tool·region·radius·q)를 지원합니다. 출처·기준월 메타가 CSV 상단에 포함됩니다.",
+    tags: ["export", "share"],
+    keywords: ["CSV", "내보내기", "공유", "링크"],
+  },
 ];

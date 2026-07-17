@@ -1,4 +1,5 @@
 import type { Facility } from "@/lib/domain/schemas";
+import { matchPlacesInText, type MatchedPlace } from "@/lib/geo/place-index";
 
 import { BUSAN_DISTRICT_ALIASES, BUSAN_DISTRICT_LABELS } from "./query-catalog-meta";
 
@@ -35,6 +36,8 @@ export type QuerySignals = {
   raw: string;
   normalized: string;
   districts: string[];
+  /** Matched administrative dongs (from place-index gazetteer). */
+  dongs: MatchedPlace[];
   radiusKm: 1 | 2 | 3 | null;
   facilityTypes: Facility["type"][];
   spatial: Set<SpatialCue>;
@@ -142,8 +145,16 @@ export function extractQuerySignals(query: string): QuerySignals {
   const normalized = raw.replace(/\s+/g, " ");
   const text = normalized;
   const districts = extractDistricts(text);
+  const dongs = matchPlacesInText(text);
   const radiusKm = extractRadiusKm(text.toLowerCase());
   const facilityTypes = extractFacilityTypes(text);
+
+  // If dong matched but district missing, infer district for scoping UI
+  for (const dong of dongs) {
+    if (dong.district && !districts.includes(dong.district)) {
+      districts.push(dong.district);
+    }
+  }
 
   const spatial = new Set<SpatialCue>();
   const metrics = new Set<MetricCue>();
@@ -422,10 +433,16 @@ export function extractQuerySignals(query: string): QuerySignals {
     }
   }
 
+  // Dong mention alone is a strong detail cue
+  if (dongs.length > 0 && metrics.size === 0 && !spatial.has("compare")) {
+    spatial.add("detail");
+  }
+
   return {
     raw,
     normalized,
     districts,
+    dongs,
     radiusKm,
     facilityTypes,
     spatial,

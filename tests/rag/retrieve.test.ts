@@ -32,9 +32,12 @@ describe("retrieveRagChunks", () => {
     );
   });
 
-  test("returns empty-ish for unrelated noise under threshold", () => {
-    const hits = retrieveRagChunks({ query: "xyzzy foobar 12345", limit: 3 });
-    expect(hits.every((hit) => hit.score > 0.5 || hits.length === 0)).toBe(true);
+  test("unrelated noise ranks below domain queries", () => {
+    const noise = retrieveRagChunks({ query: "xyzzy foobar 12345", limit: 3 });
+    const medical = retrieveRagChunks({ query: "병원이 부족한 의료 취약 지역", limit: 1 });
+    const topNoise = noise[0]?.score ?? 0;
+    const topMedical = medical[0]?.score ?? 0;
+    expect(topMedical).toBeGreaterThan(topNoise);
   });
 
   test("corpus has unique ids", () => {

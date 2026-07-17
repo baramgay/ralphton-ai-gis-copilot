@@ -190,8 +190,23 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     };
   }
 
+  // Dong-only soft path: "송정동 현황"
+  if (signals.dongs.length >= 1 && signals.metrics.size === 0 && !signals.spatial.has("compare")) {
+    const codes = signals.dongs.slice(0, 5).map((dong) => dong.adm_cd2);
+    const intent = AnalysisIntentSchema.parse({
+      tool: "getRegionDetails",
+      filters: withLimit({ regions: codes }, 50),
+    });
+    return {
+      kind: "intent",
+      intent,
+      notice: `${signals.dongs.map((d) => d.shortName).join("·")} 상세 지표를 표시합니다.`,
+      score: 56,
+    };
+  }
+
   // District-only soft path: "수영구 어때" style
-  if (signals.districts.length === 1 && signals.metrics.size === 0) {
+  if (signals.districts.length === 1 && signals.metrics.size === 0 && signals.dongs.length === 0) {
     const intent = AnalysisIntentSchema.parse({
       tool: "getRegionDetails",
       filters: withLimit({ regions: [signals.districts[0]] }, 50),

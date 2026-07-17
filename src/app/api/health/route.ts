@@ -18,6 +18,8 @@ export async function GET() {
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim(),
       ),
       dataSync: Boolean(process.env.DATA_SYNC_SECRET?.trim()),
+      rag: true,
+      placeIndex: true,
     },
     publishedLive: liveMeta
       ? {

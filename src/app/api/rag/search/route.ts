@@ -45,12 +45,17 @@ export async function POST(request: Request) {
     body: hit.chunk.body,
     tags: hit.chunk.tags,
     score: Number(hit.score.toFixed(3)),
+    lexicalScore:
+      hit.lexicalScore !== undefined ? Number(hit.lexicalScore.toFixed(3)) : undefined,
+    vectorScore:
+      hit.vectorScore !== undefined ? Number(hit.vectorScore.toFixed(3)) : undefined,
     reasons: hit.reasons,
   }));
 
   return NextResponse.json({
     ok: true,
     query: safety.query,
+    mode: "hybrid-bm25-hash-embed",
     hits,
     context: augmentation.context,
   });

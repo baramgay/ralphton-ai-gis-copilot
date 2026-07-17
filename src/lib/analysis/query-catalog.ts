@@ -30,7 +30,7 @@ function medicalTypes(signals: QuerySignals): AnalysisIntent["filters"]["facilit
   return [...allMedical];
 }
 
-/** Attach district scope for rank/list tools when user named gu/gun. */
+/** Attach dong/district scope when user named places. Prefer adm_cd2 for dongs. */
 function scopeFilters(
   base: AnalysisIntent["filters"],
   signals: QuerySignals,
@@ -38,11 +38,19 @@ function scopeFilters(
 ): AnalysisIntent["filters"] {
   if (mode === "compare") return base;
   if (base.regions?.length || base.compare?.length) return base;
+
+  // Exact dong codes first (strongest)
+  if (signals.dongs.length > 0) {
+    return {
+      ...base,
+      regions: signals.dongs.slice(0, 8).map((dong) => dong.adm_cd2),
+    };
+  }
+
   if (signals.districts.length === 1) {
     return { ...base, regions: [signals.districts[0]] };
   }
   if (signals.districts.length >= 2 && mode === "rank") {
-    // Multi-district ranking still scopes to named districts (OR match in registry)
     return { ...base, regions: signals.districts.slice(0, 5) };
   }
   return base;
@@ -357,17 +365,27 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     baseScore: 18,
     cueBonus: 20,
     scoreExtra: (s) => {
+      if (s.dongs.length >= 1 && s.metrics.size === 0) return 52;
       if (s.districts.length === 1 && s.spatial.has("detail") && s.metrics.size === 0) return 48;
       if (s.districts.length === 1 && s.metrics.size === 0) return 36;
       if (s.districts.length === 1 && s.spatial.has("detail")) return 28;
       if (s.districts.length === 1) return 16;
       return 0;
     },
-    build: (s) => ({ regions: s.districts.slice(0, 1) }),
-    notice: (s) =>
-      s.districts[0]
+    build: (s) => {
+      if (s.dongs.length > 0) {
+        return { regions: s.dongs.slice(0, 5).map((dong) => dong.adm_cd2) };
+      }
+      return { regions: s.districts.slice(0, 1) };
+    },
+    notice: (s) => {
+      if (s.dongs[0]) {
+        return `${s.dongs.map((d) => d.shortName).join("·")} 상세 지표를 불러왔습니다.`;
+      }
+      return s.districts[0]
         ? `${s.districts[0]} 관련 행정동 상세 지표를 불러왔습니다.`
-        : "지역 상세 지표를 표시합니다.",
+        : "지역 상세 지표를 표시합니다.";
+    },
   },
 ];
 
