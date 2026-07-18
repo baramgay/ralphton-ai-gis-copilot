@@ -2084,6 +2084,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <p className="ui-caption mt-2 rounded-lg bg-white/70 px-2.5 py-2 font-semibold text-slate-700">
                   산식 요약: {METHOD_SUMMARY}
                 </p>
+                <a
+                  href="/evaluator"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex ui-body font-bold text-blue-800 underline-offset-2 hover:underline"
+                  data-testid="evaluator-print-link"
+                >
+                  평가 인쇄 1페이지 열기 →
+                </a>
               </section>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3.5">
@@ -2266,7 +2275,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   className={`rounded-xl border px-3.5 py-3 ${
                     syncOps.stale || syncOps.recommendSync
                       ? "border-amber-200 bg-amber-50 text-amber-950"
-                      : "border-slate-200 bg-white text-slate-700"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-950"
                   }`}
                   data-testid="sync-ops-status"
                   role="status"
@@ -2281,6 +2290,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       ? ` · 시설 ${syncOps.lastFacilityCount.toLocaleString("ko-KR")}곳`
                       : ""}
                   </p>
+                  {publishedLive?.available ? (
+                    <p className="ui-chip mt-1 font-semibold text-emerald-800">
+                      게시 live{" "}
+                      {publishedLive.facilityCount != null
+                        ? `${publishedLive.facilityCount.toLocaleString("ko-KR")}곳`
+                        : ""}
+                      {publishedLive.createdAt
+                        ? ` · ${new Date(publishedLive.createdAt).toLocaleString("ko-KR")}`
+                        : ""}
+                    </p>
+                  ) : (
+                    <p className="ui-chip mt-1 text-amber-800">
+                      게시된 live 스냅샷 없음 · POST /api/data/sync 필요
+                    </p>
+                  )}
                   {syncOps.lastAttemptAt ? (
                     <p className="ui-chip mt-1 text-slate-600">
                       최근 시도 {new Date(syncOps.lastAttemptAt).toLocaleString("ko-KR")}
@@ -2294,6 +2318,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   {syncOps.lastError ? (
                     <p className="ui-body mt-1 text-rose-700">오류: {syncOps.lastError}</p>
                   ) : null}
+                  <p className="ui-chip mt-2 text-slate-500">
+                    상세: /api/data/sync · 연결 상태: /api/health
+                  </p>
                 </div>
               ) : null}
 

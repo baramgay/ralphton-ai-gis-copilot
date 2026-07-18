@@ -3,10 +3,52 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Zero heavy deps — pure capability probe for serverless reliability. */
+type PublishedLive = {
+  available: boolean;
+  createdAt?: string;
+  source?: string;
+  referenceMonth?: string | null;
+  facilityCount?: number;
+  mode?: string;
+};
+
+type SyncOps = {
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastStatus: string;
+  lastFacilityCount: number | null;
+  lastError: string | null;
+  lastPublished?: boolean | null;
+  recommendedIntervalHours?: number;
+  stale: boolean;
+  recommendSync: boolean;
+  reason: string | null;
+  hoursSincePublish?: number | null;
+  hoursSinceAttempt?: number | null;
+};
+
+const DEFAULT_SYNC_OPS: SyncOps = {
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+  lastStatus: "idle",
+  lastFacilityCount: null,
+  lastError: null,
+  lastPublished: null,
+  recommendedIntervalHours: 24,
+  stale: true,
+  recommendSync: true,
+  reason: "동기화 상태를 아직 확인하지 못했습니다.",
+  hoursSincePublish: null,
+  hoursSinceAttempt: null,
+};
+
+/**
+ * Pure capability probe + optional degraded syncOps.
+ * Heavy modules load only behind try/catch so /api/health never 500s.
+ */
 export async function GET() {
-  return NextResponse.json({
-    status: "ok",
+  const base = {
+    status: "ok" as const,
     serverTime: new Date().toISOString(),
     capabilities: {
       kakaoMapsJs: Boolean(process.env.NEXT_PUBLIC_KAKAO_MAP_KEY?.trim()),
@@ -38,16 +80,64 @@ export async function GET() {
       hiraSidoCd: ["210000", "380000"],
       populationCtpv: ["26", "48"],
     },
-    publishedLive: { available: false },
-    syncOps: {
-      lastAttemptAt: null,
-      lastSuccessAt: null,
-      lastStatus: "idle",
-      lastFacilityCount: null,
-      lastError: null,
-      stale: true,
-      recommendSync: true,
+  };
+
+  let publishedLive: PublishedLive = { available: false };
+  let syncOps: SyncOps = { ...DEFAULT_SYNC_OPS };
+  let syncDetailSource: "live" | "degraded" = "degraded";
+
+  try {
+    const [{ readPublishedSnapshotMeta }, { computeStaleness, readSyncStatus }] =
+      await Promise.all([
+        import("@/lib/supabase/public"),
+        import("@/lib/data/sync-status"),
+      ]);
+
+    const [live, local] = await Promise.all([
+      readPublishedSnapshotMeta("live"),
+      readSyncStatus(),
+    ]);
+
+    const publishedAt = live?.createdAt ?? local.lastSuccessAt;
+    const staleness = computeStaleness(publishedAt, local);
+
+    publishedLive = live
+      ? {
+          available: true,
+          createdAt: live.createdAt,
+          source: live.source,
+          referenceMonth: live.snapshot.referenceMonth,
+          facilityCount: live.snapshot.facilities.length,
+          mode: live.snapshot.mode,
+        }
+      : { available: false };
+
+    syncOps = {
+      lastAttemptAt: local.lastAttemptAt,
+      lastSuccessAt: local.lastSuccessAt,
+      lastStatus: local.lastStatus,
+      lastFacilityCount: local.lastFacilityCount,
+      lastError: local.lastError,
+      lastPublished: local.lastPublished,
+      recommendedIntervalHours: local.recommendedIntervalHours,
+      stale: staleness.stale,
+      recommendSync: staleness.recommendSync,
+      reason: staleness.reason,
+      hoursSincePublish: staleness.hoursSincePublish,
+      hoursSinceAttempt: staleness.hoursSinceAttempt,
+    };
+    syncDetailSource = "live";
+  } catch {
+    syncOps = {
+      ...DEFAULT_SYNC_OPS,
       reason: "경량 health — 상세 동기화 상태는 /api/data/sync 참고",
-    },
+    };
+  }
+
+  return NextResponse.json({
+    ...base,
+    publishedLive,
+    syncOps,
+    syncDetailSource,
   });
 }

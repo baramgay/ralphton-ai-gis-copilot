@@ -15,7 +15,7 @@ beforeAll(async () => {
 });
 
 describe('AI GIS snapshot migration security contract', () => {
-  it.each(['data_snapshots', 'region_metrics', 'facilities'])(
+  it.each(['data_snapshots', 'region_metrics', 'ai_gis_facilities'])(
     'creates %s with RLS enabled',
     (table) => {
       expect(sql).toMatch(
@@ -27,10 +27,10 @@ describe('AI GIS snapshot migration security contract', () => {
 
   it('revokes default access and grants anon/authenticated SELECT only', () => {
     expect(sql).toMatch(
-      /revoke all on table public\.data_snapshots, public\.region_metrics, public\.facilities from public, anon, authenticated/,
+      /revoke all on table public\.data_snapshots, public\.region_metrics, public\.ai_gis_facilities from public, anon, authenticated/,
     );
     expect(sql).toMatch(
-      /grant select on table public\.data_snapshots, public\.region_metrics, public\.facilities to anon, authenticated/,
+      /grant select on table public\.data_snapshots, public\.region_metrics, public\.ai_gis_facilities to anon, authenticated/,
     );
     expect(sql).not.toMatch(/grant all[^;]+to (?:anon|authenticated)/);
     expect(sql).not.toMatch(/grant (?:insert|update|delete)[^;]+to (?:anon|authenticated)/);
@@ -44,13 +44,13 @@ describe('AI GIS snapshot migration security contract', () => {
       /create policy "published region metrics are readable" on public\.region_metrics for select to anon, authenticated using \(exists \([^;]+data_snapshots[^;]+is_published[^;]+\)\)/,
     );
     expect(sql).toMatch(
-      /create policy "published facilities are readable" on public\.facilities for select to anon, authenticated using \(exists \([^;]+data_snapshots[^;]+is_published[^;]+\)\)/,
+      /create policy "published facilities are readable" on public\.ai_gis_facilities for select to anon, authenticated using \(exists \([^;]+data_snapshots[^;]+is_published[^;]+\)\)/,
     );
   });
 
   it('reserves explicit write privileges for service_role and defines no public write policy', () => {
     expect(sql).toMatch(
-      /grant select, insert, update, delete on table public\.data_snapshots, public\.region_metrics, public\.facilities to service_role/,
+      /grant select, insert, update, delete on table public\.data_snapshots, public\.region_metrics, public\.ai_gis_facilities to service_role/,
     );
     expect(sql).not.toMatch(/for (?:insert|update|delete) to (?:anon|authenticated)/);
     expect(sql).not.toContain('security definer');
@@ -60,5 +60,10 @@ describe('AI GIS snapshot migration security contract', () => {
     expect(sql).toContain('references public.data_snapshots(id) on delete cascade');
     expect(sql).toContain("check (adm_cd2 ~ '^[0-9]{10}$')");
     expect(sql).toContain("check (mode in ('demo', 'live'))");
+  });
+
+  it('avoids colliding with shared public.facilities table name', () => {
+    expect(sql).toContain('ai_gis_facilities');
+    expect(sql).not.toMatch(/create table (?:if not exists )?public\.facilities\b/);
   });
 });

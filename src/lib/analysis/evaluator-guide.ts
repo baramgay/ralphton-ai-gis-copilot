@@ -52,7 +52,7 @@ export const EVALUATOR_CRITERIA: EvaluatorCriterion[] = [
     title: "운영 가능성",
     weight: "중간",
     lookFor: "health·동기화 상태·cron·키 없는 폴백",
-    howToVerify: "데이터 탭 연결 상태 · /api/health · 키 제거 후 DemoMap",
+    howToVerify: "데이터 탭 연결 상태 · /api/health · /evaluator 인쇄 · 키 제거 후 DemoMap",
   },
 ];
 
@@ -63,6 +63,7 @@ export const EVALUATOR_SCRIPT = [
   "4. 데이터 탭에서 시연/실데이터·HIRA·행정동 수 확인",
   "5. 화면 설정에서 다크 모드 · Shift+D 단축키",
   "6. CSV·공유 링크로 결과 반출",
+  "7. /evaluator 인쇄 1페이지로 체크리스트 확인",
 ] as const;
 
 export const METHOD_SUMMARY =

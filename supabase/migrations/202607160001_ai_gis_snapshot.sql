@@ -1,6 +1,6 @@
 -- AI GIS Copilot 선택적 스냅샷 캐시
--- 서비스 롤로만 쓰기가 가능하며, 공개된(published=true) demo/live 스냅샷에 대해서만
--- 익명/인증 사용자가 SELECT 할 수 있습니다.
+-- 서비스 롤로만 쓰기. 공개된(published=true) demo/live 스냅샷만 anon SELECT.
+-- 주의: 공유 Supabase(eum-jido)에 기존 public.facilities가 있어 자식 테이블은 ai_gis_facilities 사용.
 
 CREATE TABLE IF NOT EXISTS public.data_snapshots (
   id TEXT PRIMARY KEY,
@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS public.region_metrics (
   PRIMARY KEY (snapshot_id, adm_cd2)
 );
 
-CREATE TABLE IF NOT EXISTS public.facilities (
+-- 공유 DB의 public.facilities(이음지도)와 충돌 방지
+CREATE TABLE IF NOT EXISTS public.ai_gis_facilities (
   snapshot_id TEXT NOT NULL REFERENCES public.data_snapshots(id) ON DELETE CASCADE,
   facility_id TEXT NOT NULL CHECK (length(facility_id) > 0),
   adm_cd2 TEXT NOT NULL CHECK (adm_cd2 ~ '^[0-9]{10}$'),
@@ -55,19 +56,21 @@ CREATE INDEX IF NOT EXISTS data_snapshots_published_mode_month_idx
   ON public.data_snapshots (mode, reference_month DESC)
   WHERE is_published = true;
 
-CREATE INDEX IF NOT EXISTS facilities_snapshot_adm_type_idx
-  ON public.facilities (snapshot_id, adm_cd2, type);
+CREATE INDEX IF NOT EXISTS ai_gis_facilities_snapshot_adm_type_idx
+  ON public.ai_gis_facilities (snapshot_id, adm_cd2, type);
 
 ALTER TABLE public.data_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.region_metrics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.facilities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_gis_facilities ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "published snapshots are readable" ON public.data_snapshots;
 CREATE POLICY "published snapshots are readable"
   ON public.data_snapshots
   FOR SELECT
   TO anon, authenticated
   USING (is_published = true AND mode IN ('demo', 'live'));
 
+DROP POLICY IF EXISTS "published region metrics are readable" ON public.region_metrics;
 CREATE POLICY "published region metrics are readable"
   ON public.region_metrics
   FOR SELECT
@@ -79,24 +82,25 @@ CREATE POLICY "published region metrics are readable"
       AND public.data_snapshots.is_published = true
   ));
 
+DROP POLICY IF EXISTS "published facilities are readable" ON public.ai_gis_facilities;
 CREATE POLICY "published facilities are readable"
-  ON public.facilities
+  ON public.ai_gis_facilities
   FOR SELECT
   TO anon, authenticated
   USING (EXISTS (
     SELECT 1
     FROM public.data_snapshots
-    WHERE public.data_snapshots.id = public.facilities.snapshot_id
+    WHERE public.data_snapshots.id = public.ai_gis_facilities.snapshot_id
       AND public.data_snapshots.is_published = true
   ));
 
-REVOKE ALL ON TABLE public.data_snapshots, public.region_metrics, public.facilities
+REVOKE ALL ON TABLE public.data_snapshots, public.region_metrics, public.ai_gis_facilities
   FROM public, anon, authenticated;
 
-GRANT SELECT ON TABLE public.data_snapshots, public.region_metrics, public.facilities
+GRANT SELECT ON TABLE public.data_snapshots, public.region_metrics, public.ai_gis_facilities
   TO anon, authenticated;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.data_snapshots, public.region_metrics, public.facilities
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.data_snapshots, public.region_metrics, public.ai_gis_facilities
   TO service_role;
 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;

@@ -16,6 +16,12 @@ export interface UpsertSnapshotInput {
   snapshot: ServiceSnapshot;
 }
 
+/** Child table for facility rows — must not collide with eum-jido public.facilities. */
+export const AI_GIS_FACILITIES_TABLE = "ai_gis_facilities";
+
+const FACILITY_BATCH = 400;
+const REGION_BATCH = 200;
+
 export function getServiceSupabaseClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -33,6 +39,27 @@ export function getServiceSupabaseClient(): SupabaseClient | null {
   return serviceClient;
 }
 
+async function upsertInBatches<T>(
+  client: SupabaseClient,
+  table: string,
+  rows: T[],
+  batchSize: number,
+): Promise<string | null> {
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const chunk = rows.slice(i, i + batchSize);
+    const { error } = await client.from(table).upsert(chunk);
+    if (error) {
+      return error.message;
+    }
+  }
+  return null;
+}
+
+/**
+ * Publish snapshot for public read.
+ * Parent `data_snapshots.payload` is required for the app.
+ * Child tables are best-effort (failure does not block publish).
+ */
 export async function upsertSnapshotWithServiceRole(
   input: UpsertSnapshotInput,
 ): Promise<boolean> {
@@ -62,22 +89,28 @@ export async function upsertSnapshotWithServiceRole(
       payload: snapshot,
       updated_at: new Date().toISOString(),
     });
-    if (parentResult.error) return false;
+    if (parentResult.error) {
+      return false;
+    }
 
     if (snapshot.regions.length > 0) {
-      const regionResult = await client.from("region_metrics").upsert(
+      await upsertInBatches(
+        client,
+        "region_metrics",
         snapshot.regions.map((region) => ({
           snapshot_id: parsed.data.id,
           adm_cd2: region.adm_cd2,
           adm_nm: region.adm_nm,
           series: region,
         })),
+        REGION_BATCH,
       );
-      if (regionResult.error) return false;
     }
 
     if (snapshot.facilities.length > 0) {
-      const facilityResult = await client.from("facilities").upsert(
+      await upsertInBatches(
+        client,
+        AI_GIS_FACILITIES_TABLE,
         snapshot.facilities.map((facility) => ({
           snapshot_id: parsed.data.id,
           facility_id: facility.id,
@@ -92,8 +125,8 @@ export async function upsertSnapshotWithServiceRole(
           phone: facility.phone ?? null,
           payload: facility,
         })),
+        FACILITY_BATCH,
       );
-      if (facilityResult.error) return false;
     }
 
     return true;

@@ -248,7 +248,7 @@ describe('Supabase cache operations', () => {
     expect(client.from.mock.calls.map(([table]) => table)).toEqual([
       'data_snapshots',
       'region_metrics',
-      'facilities',
+      'ai_gis_facilities',
     ]);
     expect(upsert).toHaveBeenCalledTimes(3);
     expect(upsert.mock.calls[1][0][0]).toMatchObject({
