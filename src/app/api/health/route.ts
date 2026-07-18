@@ -104,8 +104,8 @@ export async function GET() {
     publishedLive = live
       ? {
           available: true,
-          createdAt: live.createdAt,
-          source: live.source,
+          createdAt: live.createdAt ?? undefined,
+          source: live.source ?? undefined,
           referenceMonth: live.snapshot.referenceMonth,
           facilityCount: live.snapshot.facilities.length,
           mode: live.snapshot.mode,
