@@ -8,7 +8,7 @@ import {
   DISTRICT_LABELS,
   QUERY_SUGGESTIONS,
 } from "./query-catalog-meta";
-import { extractQuerySignals, type QuerySignals } from "./query-signals";
+import { detectOutOfScopePlace, extractQuerySignals, type QuerySignals } from "./query-signals";
 
 export { GYEONGNAM_DISTRICT_LABELS, DISTRICT_LABELS, QUERY_SUGGESTIONS };
 export type { QuerySignals };
@@ -164,6 +164,22 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   }
 
   const signals = extractQuerySignals(safety.query);
+
+  // If the query names a place outside Gyeongnam and no Gyeongnam district/dong was
+  // also matched, surface an explicit out-of-scope notice instead of silently falling
+  // through to an unscoped province-wide ranking (e.g. "해운대구 인구").
+  if (signals.districts.length === 0 && signals.dongs.length === 0) {
+    const outOfScopeHint = detectOutOfScopePlace(signals.normalized);
+    if (outOfScopeHint) {
+      return {
+        kind: "unsupported",
+        intent: null,
+        notice: `"${outOfScopeHint}"은(는) 경남 지역 범위 밖입니다. 경남 지역만 지원합니다. 예: 「사망자 많은 곳」, 「김해 근처 병원」.`,
+        suggestions: topSuggestions(signals),
+      };
+    }
+  }
+
   const ranked = TOOL_CATALOG.map((entry) => ({
     entry,
     score: scoreCatalogEntry(entry, signals),

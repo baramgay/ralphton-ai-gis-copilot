@@ -21,6 +21,7 @@ export const ALLOWED_TOOLS = [
   'rankDeathCount',
   'rankBirthCount',
   'rankNaturalDecrease',
+  'rankNaturalIncrease',
   'rankPopulationDensity',
   'rankPopulationSize',
   'rankElderlyRatio',
@@ -51,6 +52,7 @@ export const AnalysisIntentSchema = z
         regions: z.array(z.string().min(1).max(50)).max(10).optional(),
         compare: z.array(z.string().min(1).max(50)).max(10).optional(),
         limit: z.number().int().min(1).max(600).optional(),
+        sortDirection: z.enum(['ascending', 'descending']).optional(),
       })
       .strict(),
   })

@@ -21,6 +21,7 @@ export type MetricCue =
   | "death"
   | "birth"
   | "naturalDecrease"
+  | "naturalIncrease"
   | "density"
   | "population"
   | "households"
@@ -48,6 +49,8 @@ export type QuerySignals = {
   freePlaceQuery: string | null;
   wantsBest: boolean;
   wantsWorst: boolean;
+  /** Direction for nearest/farthest-facility distance ranking ("가까운" vs "먼"). */
+  nearestDirection: "near" | "far";
 };
 
 const RADIUS_PATTERN = /(\d+(?:\.\d+)?)\s*(?:km|키로|킬로미터|킬로|ｋｍ)/gi;
@@ -91,6 +94,38 @@ function extractDistricts(text: string): string[] {
     .map((label, index) => ({ label, pos: positions[index] ?? 0 }))
     .sort((a, b) => a.pos - b.pos || a.label.localeCompare(b.label))
     .map((item) => item.label);
+}
+
+/**
+ * Well-known non-Gyeongnam place names. Used to surface an out-of-scope notice
+ * instead of silently falling through to an unscoped province-wide ranking
+ * when the query names a place this app has no data for (e.g. "해운대구 인구").
+ */
+const OUT_OF_SCOPE_PLACE_HINTS = [
+  "서울",
+  "부산",
+  "대구",
+  "인천",
+  "광주",
+  "대전",
+  "울산",
+  "세종",
+  "경기",
+  "강원",
+  "충북",
+  "충남",
+  "충청",
+  "전북",
+  "전남",
+  "전라",
+  "경북",
+  "제주",
+  "해운대",
+] as const;
+
+/** Returns the first out-of-scope place hint mentioned in the text, or null. */
+export function detectOutOfScopePlace(text: string): string | null {
+  return OUT_OF_SCOPE_PLACE_HINTS.find((hint) => text.includes(hint)) ?? null;
 }
 
 function extractRadiusKm(text: string): 1 | 2 | 3 | null {
@@ -176,7 +211,14 @@ export function extractQuerySignals(query: string): QuerySignals {
     spatial.add("nearby");
     metrics.add("kakaoLive");
   }
-  if (radiusKm !== null || includesAny(text, ["반경", "접근성", "km", "키로", "이내", "안에"])) {
+  // Bare "안에"/"이내"-style radius wording is ambiguous without a facility mention
+  // (e.g. "거창군 안에서" is just a place reference, not a radius query). Mirror the
+  // same medical/facility co-occurrence guard extractRadiusKm() uses for colloquial units.
+  const hasMedicalOrFacilityWord = includesAny(text, ["병원", "의료", "의원", "시설", "약국"]);
+  if (
+    radiusKm !== null ||
+    (includesAny(text, ["반경", "접근성", "km", "키로", "이내", "안에"]) && hasMedicalOrFacilityWord)
+  ) {
     spatial.add("radius");
   }
   if (
@@ -339,20 +381,19 @@ export function extractQuerySignals(query: string): QuerySignals {
   if (includesAny(text, ["출생자", "출생 수", "출생수", "출생", "태어", "출산", "신생아", "출생아"])) {
     metrics.add("birth");
   }
+  // "자연증가"(natural increase) and "자연감소"(natural decrease) are opposite polarities —
+  // keep them as distinct signals so ranking direction isn't conflated (see rankNaturalIncrease
+  // vs rankNaturalDecrease in tool-registry.ts).
   if (
-    includesAny(text, [
-      "자연감소",
-      "자연 감소",
-      "사망 초과",
-      "출생보다 사망",
-      "자연증가",
-      "자연 증가",
-      "데스크로스",
-    ])
+    includesAny(text, ["자연감소", "자연 감소", "사망 초과", "출생보다 사망", "데스크로스"])
   ) {
     metrics.add("naturalDecrease");
-    if (includesAny(text, ["감소", "초과", "사망"])) metrics.add("death");
+    metrics.add("death");
     if (includesAny(text, ["출생", "증가"])) metrics.add("birth");
+  }
+  if (includesAny(text, ["자연증가", "자연 증가", "인구 자연증가", "출생이 사망보다"])) {
+    metrics.add("naturalIncrease");
+    metrics.add("birth");
   }
   if (includesAny(text, ["밀도", "인구밀도", "빽빽", "밀집", "과밀"])) metrics.add("density");
   if (includesAny(text, ["인구", "주민", "거주", "사람 수", "인구수", "총인구", "몇 명"])) {
@@ -416,6 +457,20 @@ export function extractQuerySignals(query: string): QuerySignals {
   const wantsBest = includesAny(text, ["가장", "제일", "최고", "1위", "일등"]);
   const wantsWorst = includesAny(text, ["가장 취약", "제일 부족", "최악", "가장 적", "가장 낮"]);
 
+  // "가까운/최근접" → closest-first; "먼" → farthest-first (default, matches prior behavior).
+  const wantsNearest = includesAny(text, ["가까운", "최근접", "가장 가까운", "제일 가까운"]);
+  const wantsFarthest = includesAny(text, [
+    "먼 곳",
+    "먼 동",
+    "먼 병원",
+    "멀리",
+    "원거리",
+    "접근이 어려운",
+    "가장 먼",
+    "제일 먼",
+  ]);
+  const nearestDirection: "near" | "far" = wantsNearest && !wantsFarthest ? "near" : "far";
+
   let freePlaceQuery: string | null = null;
   if (metrics.has("kakaoLive") || spatial.has("nearby")) {
     freePlaceQuery =
@@ -453,5 +508,6 @@ export function extractQuerySignals(query: string): QuerySignals {
     freePlaceQuery,
     wantsBest,
     wantsWorst,
+    nearestDirection,
   };
 }
