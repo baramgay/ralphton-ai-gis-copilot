@@ -10,26 +10,25 @@ import { parseIntentWithRules } from "@/lib/analysis/query-rules";
 import { extractQuerySignals } from "@/lib/analysis/query-signals";
 
 describe("place-index gazetteer", () => {
-  test("has busan + gyeongnam dongs", () => {
+  test("has gyeongnam dongs", () => {
     const places = getAllPlaces();
-    expect(places.length).toBeGreaterThanOrEqual(500);
-    expect(places.some((p) => p.adm_nm.startsWith("부산광역시"))).toBe(true);
-    expect(places.some((p) => p.adm_nm.startsWith("경상남도"))).toBe(true);
+    expect(places.length).toBe(305);
+    expect(places.every((p) => p.adm_nm.startsWith("경상남도"))).toBe(true);
   });
 
-  test("matches 송정동", () => {
-    const hits = matchPlacesInText("송정동 병원 어때");
-    expect(hits.some((hit) => hit.shortName === "송정동")).toBe(true);
-    expect(hits[0]?.district).toBe("해운대구");
+  test("matches 상대동", () => {
+    const hits = matchPlacesInText("상대동 병원 어때");
+    expect(hits.some((hit) => hit.shortName === "상대동")).toBe(true);
+    expect(hits[0]?.district).toBe("진주시");
   });
 
   test("find by code", () => {
-    const place = findPlaceByCode("2611051000");
+    const place = findPlaceByCode("4817056500");
     expect(place?.shortName).toBe("중앙동");
   });
 
   test("district listing", () => {
-    const list = findPlacesByDistrict("중구");
+    const list = findPlacesByDistrict("진주시");
     expect(list.length).toBeGreaterThan(3);
   });
 });
@@ -42,7 +41,7 @@ describe("dong in NL signals/rules", () => {
   });
 
   test("rules resolve dong query to getRegionDetails", () => {
-    const intent = parseIntentWithRules("송정동 현황");
+    const intent = parseIntentWithRules("상대동 현황");
     expect(intent?.tool).toBe("getRegionDetails");
     expect(intent?.filters.regions?.[0]).toMatch(/^\d{10}$/);
   });

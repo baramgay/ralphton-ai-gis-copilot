@@ -90,21 +90,12 @@ async function defaultLoadDemoSnapshot(): Promise<AnalysisSnapshot> {
 
 async function defaultLoadBoundary(version: string): Promise<AssignableRegion[]> {
   const root = /* turbopackIgnore: true */ process.cwd();
-  const candidates = [
-    path.join(root, "public", "data", `administrative-dong-${version}.geojson`),
-    path.join(root, "public", "data", `busan-administrative-dong-${version}.geojson`),
-  ];
+  const filePath = path.join(root, "public", "data", `administrative-dong-${version}.geojson`);
 
-  let text: string | null = null;
-  for (const filePath of candidates) {
-    try {
-      text = await readFile(filePath, "utf8");
-      break;
-    } catch {
-      // try next
-    }
-  }
-  if (!text) {
+  let text: string;
+  try {
+    text = await readFile(filePath, "utf8");
+  } catch {
     throw new Error(`경계 파일을 찾을 수 없습니다 (ver${version}).`);
   }
 
@@ -123,8 +114,8 @@ function checksumOf(snapshot: AnalysisSnapshot): string {
 /**
  * Build a live-capable snapshot without breaking offline demos.
  * - No key → bundled demo snapshot.
- * - With HIRA key → replace facilities from HIRA getHospBasisList (부산·경남).
- * - Optional population: merge latest-month resident counts for ctpv 26+48.
+ * - With HIRA key → replace facilities from HIRA getHospBasisList (경남).
+ * - Optional population: merge latest-month resident counts for ctpv 48.
  */
 export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSyncResult> {
   const loadDemo = options.loadDemoSnapshot ?? defaultLoadDemoSnapshot;
@@ -204,9 +195,9 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       facilities,
       sourceNotes: [
         ...base.sourceNotes,
-        `HIRA 병원정보서비스(v2)로 부산·경남 시설 ${facilities.length}곳을 갱신했습니다.`,
+        `HIRA 병원정보서비스(v2)로 경남 시설 ${facilities.length}곳을 갱신했습니다.`,
         hybrid
-          ? `인구: 부산·경남 최신월 일부 live 반영(${populationUpdated}개 동). 나머지 시계열은 기준 스냅샷.`
+          ? `인구: 경남 최신월 일부 live 반영(${populationUpdated}개 동). 나머지 시계열은 기준 스냅샷.`
           : "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
       ],
     });

@@ -87,14 +87,14 @@ describe("interpretAnalysisResult", () => {
     expect(line.length).toBeGreaterThan(8);
   });
 
-  it("mentions busan/gyeongnam mix when top ranks span both", () => {
+  it("joins multiple top region names in the headline", () => {
     const mixed: AnalysisResult = {
       ...result,
       rankedRegions: [
         {
           ...result.rankedRegions[0],
-          adm_cd2: "2611051000",
-          adm_nm: "부산광역시 중구 중앙동",
+          adm_cd2: "4812051000",
+          adm_nm: "경상남도 창원시 의창구 중앙동",
           rank: 1,
         },
         {
@@ -107,7 +107,7 @@ describe("interpretAnalysisResult", () => {
       ],
     };
     const line = buildOneLineConclusion(mixed);
-    expect(line).toMatch(/부산/);
-    expect(line).toMatch(/경남/);
+    expect(line).toMatch(/중앙동/);
+    expect(line).toMatch(/용지동/);
   });
 });

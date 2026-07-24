@@ -27,7 +27,7 @@ const BOUNDARY_PATH = path.join(
   PROJECT_ROOT,
   "public",
   "data",
-  "busan-administrative-dong-20260701.geojson",
+  "administrative-dong-20260701.geojson",
 );
 const SNAPSHOT_PATH = path.join(PROJECT_ROOT, "public", "data", "demo-snapshot.json");
 const METADATA_PATH = path.join(PROJECT_ROOT, "public", "data", "demo-metadata.json");
@@ -48,7 +48,9 @@ describe("seedSnapshot", () => {
     const snapshot: DemoSnapshot = seedSnapshot(boundary, 20260701);
 
     expect(snapshot.regions).toHaveLength(boundary.features.length);
-    expect(snapshot.regions.length).toBeGreaterThanOrEqual(500);
+    expect(snapshot.regions.length).toBe(305);
+    expect(snapshot.regions.every((region) => region.adm_cd2.startsWith("48"))).toBe(true);
+    expect(snapshot.regions.some((region) => region.adm_cd2.startsWith("26"))).toBe(false);
     expect(snapshot.months).toHaveLength(13);
     expect(snapshot.regions[0].population).toHaveLength(13);
     expect(snapshot.regions[0].households).toHaveLength(13);
@@ -189,12 +191,18 @@ describe("buildDemoMetadata", () => {
 });
 
 describe("generated demo artifact", () => {
-  test("demo-snapshot.json is valid and contains busan+gyeongnam regions", async () => {
+  test("demo-snapshot.json is valid and contains only 경남 regions", async () => {
     const bytes = await readFile(SNAPSHOT_PATH);
     const snapshot = JSON.parse(bytes.toString("utf8"));
 
     expect(() => DemoSnapshotSchema.parse(snapshot)).not.toThrow();
-    expect(snapshot.regions.length).toBeGreaterThanOrEqual(500);
+    expect(snapshot.regions.length).toBe(305);
+    expect(
+      snapshot.regions.every((region: { adm_cd2: string }) => region.adm_cd2.startsWith("48")),
+    ).toBe(true);
+    expect(
+      snapshot.regions.some((region: { adm_cd2: string }) => region.adm_cd2.startsWith("26")),
+    ).toBe(false);
     expect(snapshot.mode).toBe("demo");
   });
 
@@ -204,7 +212,7 @@ describe("generated demo artifact", () => {
     const expectedSha256 = createHash("sha256").update(snapshotBytes).digest("hex");
 
     expect(metadata.sha256).toBe(expectedSha256);
-    expect(metadata.regionCount).toBeGreaterThanOrEqual(500);
+    expect(metadata.regionCount).toBe(305);
   });
 
   test("every facility satisfies the Facility schema", async () => {

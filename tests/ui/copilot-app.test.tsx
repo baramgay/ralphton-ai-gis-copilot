@@ -95,7 +95,7 @@ describe("CopilotApp", () => {
         if (url.includes("/api/data/snapshot")) {
           return new Response(JSON.stringify(snapshot), { status: 200 });
         }
-        if (url.includes("busan-administrative")) {
+        if (url.includes("administrative-dong")) {
           return new Response(JSON.stringify(boundary), { status: 200 });
         }
         if (url.includes("/api/ai/parse")) {
@@ -179,7 +179,7 @@ describe("CopilotApp", () => {
         expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
       }
       expect(
-        screen.getByRole("img", { name: /부산.?경남 행정동 분석 지도|부산 행정동 분석 지도/ }),
+        screen.getByRole("img", { name: /경상남도 행정동 분석 지도/ }),
       ).toBeInTheDocument();
       expect(screen.getByTestId("result-panel")).toBeInTheDocument();
       expect(screen.getByText("산식 · 해석 기준")).toBeInTheDocument();
@@ -274,20 +274,6 @@ describe("CopilotApp", () => {
     fireEvent.click(screen.getByTestId("theme-light"));
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBeUndefined();
-    });
-  });
-
-  test("sido scope chips filter map label", async () => {
-    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
-
-    fireEvent.click(screen.getByTestId("sido-scope-gyeongnam"));
-    await waitFor(() => {
-      expect(screen.getByText("경상남도")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("sido-scope-busan"));
-    await waitFor(() => {
-      expect(screen.getByText("부산광역시")).toBeInTheDocument();
     });
   });
 

@@ -8,7 +8,7 @@ export type CsvRankRow = {
   name: string;
   valueLabel: string;
   note: string;
-  /** 부산 | 경남 | empty */
+  /** 경남 | empty */
   sido?: string;
 };
 

@@ -329,7 +329,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   {
     id: "compareRegions",
     label: "지역 비교",
-    examples: ["기장군과 강서구 비교", "해운대 vs 수영", "어디가 더 취약해"],
+    examples: ["창원과 김해 비교", "진주 vs 사천", "어디가 더 취약해"],
     domains: ["region", "population"],
     metricCues: [],
     spatialCues: ["compare"],
@@ -346,19 +346,19 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
         s.districts.length >= 2
           ? s.districts.slice(0, 2)
           : s.districts.length === 1
-            ? [s.districts[0], s.districts[0] === "기장군" ? "강서구" : "기장군"]
-            : ["기장군", "강서구"],
+            ? [s.districts[0], s.districts[0] === "창원시 의창구" ? "김해시" : "창원시 의창구"]
+            : ["창원시 의창구", "김해시"],
     }),
     notice: (s) => {
       const pair =
-        s.districts.length >= 2 ? s.districts.slice(0, 2) : ["기장군", "강서구"];
+        s.districts.length >= 2 ? s.districts.slice(0, 2) : ["창원시 의창구", "김해시"];
       return `${pair.join(" · ")} 구·군 단위 지표를 합산 비교합니다.`;
     },
   },
   {
     id: "getRegionDetails",
     label: "지역 상세",
-    examples: ["해운대구 상세", "중구 현황", "수영구 어때"],
+    examples: ["김해시 상세", "진주시 현황", "양산시 어때"],
     domains: ["region", "population"],
     metricCues: [],
     spatialCues: ["detail"],

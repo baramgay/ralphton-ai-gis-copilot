@@ -32,7 +32,7 @@ describe('/api/data/snapshot', () => {
     expect(response.status).toBe(200);
     expect(body.mode).toBe('demo');
     expect(body.months).toHaveLength(13);
-    expect(body.regions.length).toBeGreaterThanOrEqual(500);
+    expect(body.regions.length).toBe(305);
     expect(cacheMocks.readPublishedSnapshotMeta).not.toHaveBeenCalled();
   });
 

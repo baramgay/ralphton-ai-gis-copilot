@@ -1,5 +1,5 @@
 /**
- * Busan + Gyeongnam administrative dong gazetteer for NL region resolution.
+ * Gyeongnam administrative dong gazetteer for NL region resolution.
  * Built from place-index.json (seeded with administrative-dong boundaries).
  */
 

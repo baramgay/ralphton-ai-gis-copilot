@@ -1,5 +1,5 @@
 /**
- * Extract gu/gun (시군구) labels from Busan + Gyeongnam administrative dong names.
+ * Extract gu/gun (시군구) labels from Gyeongnam administrative dong names.
  */
 
 const SIDO_PREFIX = /^(부산광역시|경상남도)\s*/;
@@ -42,7 +42,7 @@ export function listDongLabels(regions: Array<{ adm_nm: string; adm_cd2: string 
 
 export type CompareScope = "gu" | "dong";
 
-export const DEFAULT_COMPARE: [string, string] = ["기장군", "창원시"];
+export const DEFAULT_COMPARE: [string, string] = ["진주시", "창원시"];
 
 export function normalizeComparePair(
   a: string,

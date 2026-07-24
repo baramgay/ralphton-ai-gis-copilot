@@ -1,6 +1,6 @@
-# 부산·경남 AI GIS Copilot
+# 경남 AI GIS Copilot
 
-부산광역시·경상남도 행정동(약 511개)의 의료·인구 접근성을 지도와 자연어로 탐색하는 Next.js 앱입니다. API 키가 없어도 결정론적 시연 데이터와 SVG `DemoMap`으로 전체 분석 흐름이 동작합니다.
+경상남도 행정동(약 305개, 22 시군구)의 의료·인구 접근성을 지도와 자연어로 탐색하는 Next.js 앱입니다. API 키가 없어도 결정론적 시연 데이터와 SVG `DemoMap`으로 전체 분석 흐름이 동작합니다.
 
 **프로덕션:** https://ralphton-ai-gis-copilot.vercel.app
 
@@ -22,12 +22,12 @@ npm run dev
 
 ## 구현된 기능
 
-- **범위:** 부산·경남 행정동 경계 기반 choropleth, 시설 marker/cluster, 1·2·3km 접근 반경
-- **지도:** Kakao Maps SDK 선택 연동 · 키 없는 SVG `DemoMap` 자동 대체 · 전체/부산/경남 칩
+- **범위:** 경상남도 행정동 경계 기반 choropleth, 시설 marker/cluster, 1·2·3km 접근 반경
+- **지도:** Kakao Maps SDK 선택 연동 · 키 없는 SVG `DemoMap` 자동 대체
 - **분석:** 의료 취약, 고령 수요, 인구 증가 압력, 최근접 거리, 반경 접근성, 지역 비교 등 Tool Registry
 - **UI:** 8개 빠른 분석, 순위·상세·13개월 추세, 구·동 비교, 한 줄 결론, 다크/시스템/고대비
 - **NL:** 규칙 파서 + 선택적 Qwen JSON 파서, 하이브리드 RAG, 행정동 지명 사전(place-index)
-- **실데이터:** HIRA 병원정보 v2(시도 210000·380000), 주민인구 live 병합, Supabase 공개 스냅샷, cron sync
+- **실데이터:** HIRA 병원정보 v2(시도 380000), 주민인구 live 병합, Supabase 공개 스냅샷, cron sync
 - **평가자 가이드:** 이용 탭에 3분 시나리오·체크리스트·산식 요약
 
 ## 환경 변수

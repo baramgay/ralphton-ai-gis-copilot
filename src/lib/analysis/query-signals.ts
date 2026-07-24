@@ -72,7 +72,7 @@ function extractDistricts(text: string): string[] {
     remaining = remaining.split(label).join(" ");
   }
 
-  // Aliases: "해운대" → "해운대구", "창원" → "창원시"
+  // Aliases: "김해" → "김해시", "창원" → "창원시 의창구"
   const aliasEntries = Object.entries(DISTRICT_ALIASES).sort(
     (a, b) => b[0].length - a[0].length,
   );

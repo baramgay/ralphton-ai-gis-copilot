@@ -4,15 +4,15 @@ import { extractQuerySignals } from "@/lib/analysis/query-signals";
 
 describe("extractQuerySignals", () => {
   test("maps colloquial district aliases", () => {
-    const signals = extractQuerySignals("해운대 근처 병원");
-    expect(signals.districts).toContain("해운대구");
+    const signals = extractQuerySignals("김해 근처 병원");
+    expect(signals.districts).toContain("김해시");
     expect(signals.spatial.has("nearby")).toBe(true);
     expect(signals.metrics.has("medical")).toBe(true);
   });
 
   test("detects compare with vs", () => {
-    const signals = extractQuerySignals("해운대 vs 기장");
-    expect(signals.districts).toEqual(expect.arrayContaining(["해운대구", "기장군"]));
+    const signals = extractQuerySignals("창원 vs 김해");
+    expect(signals.districts).toEqual(expect.arrayContaining(["창원시 의창구", "김해시"]));
     expect(signals.spatial.has("compare")).toBe(true);
   });
 

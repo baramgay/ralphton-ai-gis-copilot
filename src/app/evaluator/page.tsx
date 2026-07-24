@@ -11,7 +11,7 @@ import { PrintButton } from "./print-button";
 
 export const metadata: Metadata = {
   title: "평가 인쇄 1페이지",
-  description: "부산·경남 AI GIS 코파일럿 평가자용 한 장 요약 (인쇄 최적화)",
+  description: "경남 AI GIS 코파일럿 평가자용 한 장 요약 (인쇄 최적화)",
   robots: { index: false, follow: false },
 };
 
@@ -20,11 +20,11 @@ export default function EvaluatorPrintPage() {
     <main className="evaluator-print mx-auto max-w-3xl bg-white px-6 py-8 text-slate-900 print:max-w-none print:px-0 print:py-0">
       <header className="border-b border-slate-200 pb-4 print:border-slate-400">
         <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-          부산·경남 AI GIS 코파일럿 · 평가용 1페이지
+          경남 AI GIS 코파일럿 · 평가용 1페이지
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">평가자 한 장 요약</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          범위: 부산광역시 + 경상남도 행정동(약 511개) · 시설: HIRA 병원정보서비스 v2 ·
+          범위: 경상남도 행정동(약 305개) · 시설: HIRA 병원정보서비스 v2 ·
           인구: 주민등록 기반 시연·live 병합 · 지도: Kakao Maps
         </p>
         <div className="mt-3 flex flex-wrap gap-2 print:hidden">

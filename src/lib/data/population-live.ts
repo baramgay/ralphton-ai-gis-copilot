@@ -1,6 +1,6 @@
 /**
  * Partial live population merge onto a verified base snapshot.
- * Fetches resident population for Busan (ctpv 26) and updates the latest month only.
+ * Fetches resident population for Gyeongnam (ctpv 48) and updates the latest month only.
  * Full 13-month live rebuild remains optional (normalizePublicData) when complete feeds exist.
  */
 
@@ -129,20 +129,11 @@ export function mergeLatestPopulation(
   return { regions, updatedCount, month, notes };
 }
 
-/** 행정표준 시도 코드: 부산 26, 경남 48 */
-export const POPULATION_CTPV_CODES = ["26", "48"] as const;
-
-export async function fetchAndMergeBusanPopulation(
-  base: AnalysisSnapshot,
-  serviceKey: string,
-  deps: PublicDataFetchDeps = {},
-  referenceMonth?: string,
-): Promise<PopulationMergeResult> {
-  return fetchAndMergeRegionalPopulation(base, serviceKey, deps, referenceMonth, ["26"]);
-}
+/** 행정표준 시도 코드: 경남 48 */
+export const POPULATION_CTPV_CODES = ["48"] as const;
 
 /**
- * Merge latest resident population for one or more ctpv codes (default 부산+경남).
+ * Merge latest resident population for one or more ctpv codes (default 경남).
  */
 export async function fetchAndMergeRegionalPopulation(
   base: AnalysisSnapshot,

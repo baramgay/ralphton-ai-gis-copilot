@@ -100,14 +100,28 @@ function latestValue(
   return numericValueAt(values, referenceIndex(region, referenceMonth));
 }
 
+/** Strip whitespace so space-form district labels (e.g. "창원시 의창구") still
+ * match no-space adm_nm data (e.g. "경상남도 창원시의창구 동읍"). */
+function stripSpaces(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
 function regionMatches(region: RegionSeries, token: string): boolean {
   const normalized = token.trim();
-  return region.adm_cd2 === normalized || region.adm_nm === normalized || region.adm_nm.includes(normalized);
+  return (
+    region.adm_cd2 === normalized ||
+    region.adm_nm === normalized ||
+    stripSpaces(region.adm_nm).includes(stripSpaces(normalized))
+  );
 }
 
 function facilityMatchesRegion(facility: Facility, token: string): boolean {
   const normalized = token.trim();
-  return facility.adm_cd2 === normalized || facility.adm_nm === normalized || facility.adm_nm.includes(normalized);
+  return (
+    facility.adm_cd2 === normalized ||
+    facility.adm_nm === normalized ||
+    stripSpaces(facility.adm_nm).includes(stripSpaces(normalized))
+  );
 }
 
 function regionTokens(intent: AnalysisIntent): string[] {
@@ -340,7 +354,7 @@ function accessMetrics(record: AccessRecord, referenceMonth: string): MetricDesc
       "점",
       "공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%",
       referenceMonth,
-      "부산 행정동 간 winsorized min-max 상대 점수이며 약국은 기본 제외됩니다.",
+      "경남 행정동 간 winsorized min-max 상대 점수이며 약국은 기본 제외됩니다.",
     ),
     metric(
       "인구 1만 명당 의료기관",
@@ -401,7 +415,7 @@ export function rankHospitalScarcity(intent: AnalysisIntent, snapshot: AnalysisS
     legend: VULNERABILITY_LEGEND,
     formulaNotes: [
       "인구 1만 명당 의료기관 부족 35% + 고령화 수요 25% + 최근접 거리 25% + 2km 무시설 15%",
-      "연속 지표는 부산 행정동 전체의 5·95백분위 winsorized min-max로 0~100 정규화합니다.",
+      "연속 지표는 경남 행정동 전체의 5·95백분위 winsorized min-max로 0~100 정규화합니다.",
       "약국은 명시적으로 요청한 경우에만 의료기관 집합에 포함합니다.",
     ],
   });
@@ -753,7 +767,7 @@ export function filterFacilitiesByTypeAndHours(intent: AnalysisIntent, snapshot:
 }
 
 function districtLabel(region: RegionSeries): string {
-  // "부산광역시 해운대구 우동" → 해운대구
+  // "경상남도 김해시 삼계동" → 김해시
   const parts = region.adm_nm.split(/\s+/).filter(Boolean);
   const withGu = parts.find((part) => /[구현군]$/.test(part));
   return withGu ?? parts[1] ?? region.adm_nm;
@@ -823,7 +837,7 @@ export function compareRegions(intent: AnalysisIntent, snapshot: AnalysisSnapsho
         // Synthetic display name for rank panel
         const labeled = {
           ...rep,
-          adm_nm: `부산광역시 ${label}`,
+          adm_nm: `경상남도 ${label}`,
         };
 
         return analysisRegion(labeled, per10k, [
@@ -986,7 +1000,7 @@ export function getRegionDetails(intent: AnalysisIntent, snapshot: AnalysisSnaps
     title: region ? `${region.adm_nm} 상세` : "지역 상세",
     summary: region
       ? `${snapshot.referenceMonth} 기준 인구·세대·연령·자연증가 지표입니다.`
-      : "요청하신 지역명과 일치하는 행정동 데이터가 없습니다. 구·군 이름(예: 해운대구, 기장군)으로 다시 물어봐 주세요.",
+      : "요청하신 지역명과 일치하는 행정동 데이터가 없습니다. 구·군 이름(예: 창원시 의창구, 김해시)으로 다시 물어봐 주세요.",
     rankedRegions: selectedRegion ? [{ ...selectedRegion, rank: 1 }] : [],
     selectedRegion,
     filteredFacilities: facilities,
