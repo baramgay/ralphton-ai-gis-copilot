@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+
+// @ts-expect-error Native ESM scripts intentionally have no TypeScript declaration file.
 import { filterGyeongnam, listSggFromDong } from "../../scripts/lib/gyeongnam-core.mjs";
 
 const features = [
@@ -11,7 +13,9 @@ describe("gyeongnam-core", () => {
   it("keeps only 경상남도 (adm_cd2 starts 48)", () => {
     const kept = filterGyeongnam(features);
     expect(kept).toHaveLength(2);
-    expect(kept.every((f) => f.properties.adm_cd2.startsWith("48"))).toBe(true);
+    expect(
+      kept.every((f: { properties: { adm_cd2: string } }) => f.properties.adm_cd2.startsWith("48")),
+    ).toBe(true);
   });
 
   it("lists distinct sgg codes with names", () => {
