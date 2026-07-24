@@ -100,14 +100,28 @@ function latestValue(
   return numericValueAt(values, referenceIndex(region, referenceMonth));
 }
 
+/** Strip whitespace so space-form district labels (e.g. "창원시 의창구") still
+ * match no-space adm_nm data (e.g. "경상남도 창원시의창구 동읍"). */
+function stripSpaces(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
 function regionMatches(region: RegionSeries, token: string): boolean {
   const normalized = token.trim();
-  return region.adm_cd2 === normalized || region.adm_nm === normalized || region.adm_nm.includes(normalized);
+  return (
+    region.adm_cd2 === normalized ||
+    region.adm_nm === normalized ||
+    stripSpaces(region.adm_nm).includes(stripSpaces(normalized))
+  );
 }
 
 function facilityMatchesRegion(facility: Facility, token: string): boolean {
   const normalized = token.trim();
-  return facility.adm_cd2 === normalized || facility.adm_nm === normalized || facility.adm_nm.includes(normalized);
+  return (
+    facility.adm_cd2 === normalized ||
+    facility.adm_nm === normalized ||
+    stripSpaces(facility.adm_nm).includes(stripSpaces(normalized))
+  );
 }
 
 function regionTokens(intent: AnalysisIntent): string[] {
