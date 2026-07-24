@@ -38,7 +38,7 @@ await check("GET /", async () => {
   const response = await fetch(base, { signal: AbortSignal.timeout(25_000) });
   if (!response.ok) throw new Error(`status ${response.status}`);
   const html = await response.text();
-  if (!html.includes("부산") && !html.includes("GIS")) {
+  if (!html.includes("경남") && !html.includes("GIS")) {
     throw new Error("home HTML missing brand markers");
   }
 });
@@ -66,7 +66,7 @@ await check("GET /api/data/snapshot?mode=demo", async () => {
   if (!Array.isArray(body?.facilities)) throw new Error("facilities missing");
   const hasBusan = body.regions.some((r) => String(r.adm_nm).startsWith("부산광역시"));
   const hasGn = body.regions.some((r) => String(r.adm_nm).startsWith("경상남도"));
-  if (!hasBusan) throw new Error("no Busan regions");
+  if (hasBusan) throw new Error("unexpected Busan regions (app is gyeongnam-only)");
   if (!hasGn) throw new Error("no Gyeongnam regions");
 });
 
