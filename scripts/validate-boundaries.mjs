@@ -54,7 +54,7 @@ async function main() {
     boundaryPath = legacyPath;
   }
 
-  const boundaryCollection = parseJson(boundaryBytes, "부산·경남 공개 경계");
+  const boundaryCollection = parseJson(boundaryBytes, "경남 공개 경계");
   const summary = validateBoundaryCollection(boundaryCollection);
   const expectedMetadata = buildBoundaryMetadata(boundaryBytes, {
     version: metadata.version,
@@ -80,11 +80,11 @@ async function main() {
   assertSameCodes(metadata.administrativeDongCodes, summary.administrativeDongCodes);
 
   console.log(
-    `부산·경남 행정동 경계 캐시 검증 완료: ${boundaryPath}, ver${metadata.version}, ${summary.featureCount}개, SHA-256 ${expectedMetadata.sha256}`,
+    `경남 행정동 경계 캐시 검증 완료: ${boundaryPath}, ver${metadata.version}, ${summary.featureCount}개, SHA-256 ${expectedMetadata.sha256}`,
   );
 }
 
 main().catch((error) => {
-  console.error(`부산·경남 행정동 경계 캐시 검증 실패: ${error instanceof Error ? error.message : error}`);
+  console.error(`경남 행정동 경계 캐시 검증 실패: ${error instanceof Error ? error.message : error}`);
   process.exitCode = 1;
 });

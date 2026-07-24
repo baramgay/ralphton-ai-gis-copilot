@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 // @ts-expect-error Native ESM scripts intentionally have no TypeScript declaration file.
-import { buildBoundaryMetadata, discoverLatestVersion, extractBusan, validateBoundaryCollection } from "../../scripts/lib/boundary-core.mjs";
+import { buildBoundaryMetadata, discoverLatestVersion, extractBusan, extractGyeongnam, validateBoundaryCollection } from "../../scripts/lib/boundary-core.mjs";
 
 type Position = [number, number];
 
@@ -125,6 +125,38 @@ describe("extractBusan", () => {
     collection.features[0] = makeFeature(0, "서울특별시");
 
     expect(() => extractBusan(collection)).toThrow(/부산.*없/);
+  });
+});
+
+describe("extractGyeongnam", () => {
+  function makeGyeongnamFeature(index: number): BoundaryFeature {
+    const feature = makeFeature(index, "경상남도");
+    feature.properties.adm_cd2 = String(4_812_000_000 + index);
+    feature.properties.sgg = "48120";
+    feature.properties.sido = "48";
+    feature.properties.sggnm = "창원시 의창구";
+    return feature;
+  }
+
+  test("keeps only features whose adm_cd2 starts with 48", () => {
+    const collection = makeValidCollection(2); // 부산 features (adm_cd2 26...)
+    collection.features.push(makeGyeongnamFeature(0), makeGyeongnamFeature(1));
+
+    const result = extractGyeongnam(collection);
+
+    expect(result.features).toHaveLength(2);
+    expect(
+      result.features.every((feature: BoundaryFeature) =>
+        feature.properties.adm_cd2.startsWith("48"),
+      ),
+    ).toBe(true);
+    expect(result.crs).toEqual(collection.crs);
+  });
+
+  test("rejects a collection with no 경남 features", () => {
+    const collection = makeValidCollection(1); // 부산 only
+
+    expect(() => extractGyeongnam(collection)).toThrow(/경상남도.*없/);
   });
 });
 
@@ -338,5 +370,27 @@ describe("generated boundary artifact", () => {
 
     expect(bytes.includes(0x0a)).toBe(false);
     expect(bytes.includes(0x0d)).toBe(false);
+  });
+
+  test("contains only 경상남도 (adm_cd2 prefix 48) administrative dongs", async () => {
+    const projectRoot = process.cwd();
+    const metadata = JSON.parse(
+      await readFile(path.join(projectRoot, "public", "data", "boundary-metadata.json"), "utf8"),
+    ) as { version: string; featureCount: number };
+    const collection = JSON.parse(
+      await readFile(
+        path.join(projectRoot, "public", "data", `administrative-dong-${metadata.version}.geojson`),
+        "utf8",
+      ),
+    ) as BoundaryCollection;
+
+    expect(collection.features).toHaveLength(305);
+    expect(metadata.featureCount).toBe(305);
+    expect(
+      collection.features.every((feature) => feature.properties.adm_cd2.startsWith("48")),
+    ).toBe(true);
+    expect(
+      collection.features.some((feature) => feature.properties.adm_cd2.startsWith("26")),
+    ).toBe(false);
   });
 });

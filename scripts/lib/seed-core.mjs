@@ -229,7 +229,7 @@ function generateFacility(feature, index, versionSeed) {
   const [longitude, latitude] = placeFacilityInside(feature, baseLongitude, baseLatitude, rng);
 
   const nameSuffix = properties.adm_nm.split(" ").pop() || properties.adm_nm;
-  const phone = rng() < 0.3 ? null : `051-${100 + Math.floor(rng() * 900)}-${1000 + Math.floor(rng() * 9000)}`;
+  const phone = rng() < 0.3 ? null : `055-${100 + Math.floor(rng() * 900)}-${1000 + Math.floor(rng() * 9000)}`;
 
   return {
     id: `${properties.adm_cd2}-${index}`,
@@ -295,7 +295,7 @@ export function seedSnapshot(boundary, versionSeed) {
     regions,
     facilities,
     sourceNotes: [
-      "부산·경남 행정동 경계를 기준으로 만든 결정론적 시연 데이터입니다.",
+      "경상남도 행정동 경계를 기준으로 만든 결정론적 시연 데이터입니다.",
       "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
       "시설 위치는 행정동 내부 대표점 주변 PRNG 배치이며 실제 요양기관 좌표가 아닙니다.",
       "진료과·운영시간 null은 UI의 ‘데이터 없음’ 처리를 검증하기 위한 의도적 값입니다.",

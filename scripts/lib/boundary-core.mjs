@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 import { booleanValid } from "@turf/boolean-valid";
 
+import { filterGyeongnam } from "./gyeongnam-core.mjs";
+
 const VERSION_DIRECTORY_PATTERN = /^ver(\d{8})$/;
 const BOUNDARY_CRS = "EPSG:4326";
 const SUPPORTED_CRS_NAMES = new Set([
@@ -80,9 +82,25 @@ export function extractBusan(featureCollection) {
   return extractSidoRegions(featureCollection, ["부산광역시"]);
 }
 
-/** Busan + Gyeongnam administrative dongs for multi-sido analysis. */
-export function extractBusanGyeongnam(featureCollection) {
-  return extractSidoRegions(featureCollection, ALLOWED_SIDO_PREFIXES);
+/** Gyeongnam administrative dongs (adm_cd2 prefix "48"). */
+export function extractGyeongnam(featureCollection) {
+  if (
+    !isRecord(featureCollection) ||
+    featureCollection.type !== "FeatureCollection" ||
+    !Array.isArray(featureCollection.features)
+  ) {
+    throw new Error("경계를 추출할 FeatureCollection 형식이 아닙니다.");
+  }
+
+  const features = filterGyeongnam(featureCollection.features);
+  if (features.length === 0) {
+    throw new Error("원본 경계에서 경상남도 Feature를 찾을 수 없습니다.");
+  }
+
+  return {
+    ...featureCollection,
+    features,
+  };
 }
 
 export function extractSidoRegions(featureCollection, sidoPrefixes) {

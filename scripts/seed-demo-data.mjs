@@ -35,7 +35,7 @@ async function main() {
     boundaryRaw = await readFile(legacy);
     boundaryPath = legacy;
   }
-  const boundary = parseJson(boundaryRaw, "부산·경남 공개 경계");
+  const boundary = parseJson(boundaryRaw, "경남 공개 경계");
 
   const versionSeed = Number(version);
   const snapshot = seedSnapshot(boundary, versionSeed);
@@ -50,13 +50,10 @@ async function main() {
   await writeFile(SNAPSHOT_PATH, snapshotBytes);
   await writeFile(DEMO_METADATA_PATH, metadataBytes);
 
-  // place-index for NL dong resolution (부산·경남)
+  // place-index for NL dong resolution (경남)
   const places = snapshot.regions.map((region) => {
     const admNm = region.adm_nm;
-    const withoutSido = admNm
-      .replace(/^부산광역시\s*/, "")
-      .replace(/^경상남도\s*/, "")
-      .trim();
+    const withoutSido = admNm.replace(/^경상남도\s*/, "").trim();
     const parts = withoutSido.split(/\s+/);
     const district = parts[0] ?? "";
     const shortName = parts.slice(1).join(" ") || withoutSido;
@@ -70,7 +67,7 @@ async function main() {
   const placeIndex = {
     version: String(version),
     count: places.length,
-    scope: ["부산광역시", "경상남도"],
+    scope: ["경상남도"],
     places,
   };
   await writeFile(
@@ -79,11 +76,11 @@ async function main() {
   );
 
   console.log(
-    `부산·경남 데모 스냅샷 생성 완료 (${boundaryPath}): ${snapshot.regions.length}개 행정동, ${snapshot.facilities.length}개 시설, place ${places.length}, SHA-256 ${demoMetadata.sha256}`,
+    `경남 데모 스냅샷 생성 완료 (${boundaryPath}): ${snapshot.regions.length}개 행정동, ${snapshot.facilities.length}개 시설, place ${places.length}, SHA-256 ${demoMetadata.sha256}`,
   );
 }
 
 main().catch((error) => {
-  console.error(`부산·경남 데모 스냅샷 생성 실패: ${error instanceof Error ? error.message : error}`);
+  console.error(`경남 데모 스냅샷 생성 실패: ${error instanceof Error ? error.message : error}`);
   process.exitCode = 1;
 });
