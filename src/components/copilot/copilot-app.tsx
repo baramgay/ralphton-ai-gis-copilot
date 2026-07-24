@@ -753,6 +753,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const activeLayerMetrics = activeLayerId === "medical" ? [] : CUBE_LAYER_METRICS[activeLayerId];
   const activeMetric =
     activeLayerMetrics.find((metric) => metric.key === activeMetricKey) ?? activeLayerMetrics[0] ?? null;
+  const activeCube =
+    activeLayerId === "population" ? populationCube : activeLayerId === "skt-living" ? sktCube : null;
+  const activeLayerProvider =
+    activeLayerId === "medical"
+      ? MEDICAL_LAYER.provider
+      : activeLayerId === "population"
+        ? POPULATION_LAYER.provider
+        : SKT_LIVING_LAYER.provider;
 
   const layerAnalysisResult = useMemo(() => {
     if (activeLayerId === "medical" || !activeMetric) return null;
@@ -1429,6 +1437,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
   }
 
+  const methodSummaryText =
+    activeLayerId !== "medical" && activeMetric
+      ? `${activeMetric.label} = ${activeMetric.formula}${
+          activeMetric.limitation ? ` · ${activeMetric.limitation}` : ""
+        }`
+      : METHOD_SUMMARY;
+  const referenceMonthLabel =
+    activeLayerId !== "medical" && activeCube ? activeCube.referenceMonth : snapshot.referenceMonth;
+
   const latestIndex = snapshot.months.length - 1;
   const currentPopulation = selectedRegion?.population[latestIndex] ?? 0;
   const currentElderly = selectedRegion?.elderlyPopulation[latestIndex] ?? 0;
@@ -1699,42 +1716,44 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 ) : null}
               </section>
 
-              <section>
-                <h2 className="section-label">2. 빠른 분석</h2>
-                <p className="ui-caption mb-2 -mt-1">클릭 한 번으로 바로 결과 확인</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {QUICK_ANALYSES.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      data-testid={`quick-${item.id}`}
-                      aria-label={item.label}
-                      aria-pressed={activeQuick === item.id && item.id !== "reset"}
-                      onPointerDown={() => runQuick(item.id)}
-                      onClick={(event) => {
-                        if (event.detail === 0) runQuick(item.id);
-                      }}
-                      className={`quick-tile min-h-[64px] rounded-xl border p-2.5 text-left transition active:scale-[.98] ${
-                        activeQuick === item.id && item.id !== "reset"
-                          ? "border-blue-300 bg-blue-50/60 shadow-sm"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <span className={`inline-grid size-7 place-items-center rounded-md text-sm font-bold ${item.tone}`}>
-                        {item.symbol}
-                      </span>
-                      <span className="mt-1.5 block ui-body font-bold text-slate-900">{item.label}</span>
-                      <span className="ui-caption mt-0.5 block text-slate-500">
-                        {item.id === "compare"
-                          ? `${comparePair[0]} · ${comparePair[1]}`
-                          : item.subtitle}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
+              {activeLayerId === "medical" ? (
+                <section>
+                  <h2 className="section-label">2. 빠른 분석</h2>
+                  <p className="ui-caption mb-2 -mt-1">클릭 한 번으로 바로 결과 확인</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {QUICK_ANALYSES.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        data-testid={`quick-${item.id}`}
+                        aria-label={item.label}
+                        aria-pressed={activeQuick === item.id && item.id !== "reset"}
+                        onPointerDown={() => runQuick(item.id)}
+                        onClick={(event) => {
+                          if (event.detail === 0) runQuick(item.id);
+                        }}
+                        className={`quick-tile min-h-[64px] rounded-xl border p-2.5 text-left transition active:scale-[.98] ${
+                          activeQuick === item.id && item.id !== "reset"
+                            ? "border-blue-300 bg-blue-50/60 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <span className={`inline-grid size-7 place-items-center rounded-md text-sm font-bold ${item.tone}`}>
+                          {item.symbol}
+                        </span>
+                        <span className="mt-1.5 block ui-body font-bold text-slate-900">{item.label}</span>
+                        <span className="ui-caption mt-0.5 block text-slate-500">
+                          {item.id === "compare"
+                            ? `${comparePair[0]} · ${comparePair[1]}`
+                            : item.subtitle}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
-              {(activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
+              {activeLayerId === "medical" && (activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
                 <section
                   className="rounded-xl border border-amber-200 bg-amber-50/70 p-3"
                   data-testid="compare-picker"
@@ -1869,30 +1888,32 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </section>
               )}
 
-              <section>
-                <h2 className="section-label">3. 접근 반경</h2>
-                <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
-                  {([1, 2, 3] as const).map((radius) => (
-                    <button
-                      key={radius}
-                      type="button"
-                      aria-label={`${radius}km 반경`}
-                      aria-pressed={radiusKm === radius}
-                      className={`flex-1 rounded-lg py-2.5 ui-body font-bold ${
-                        radiusKm === radius ? "bg-slate-900 text-white" : "text-slate-500"
-                      }`}
-                      onPointerDown={() => runRadius(radius)}
-                      onClick={(event) => {
-                        if (event.detail === 0) runRadius(radius);
-                      }}
-                    >
-                      {radius}km
-                    </button>
-                  ))}
-                </div>
-              </section>
+              {activeLayerId === "medical" ? (
+                <section>
+                  <h2 className="section-label">3. 접근 반경</h2>
+                  <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    {([1, 2, 3] as const).map((radius) => (
+                      <button
+                        key={radius}
+                        type="button"
+                        aria-label={`${radius}km 반경`}
+                        aria-pressed={radiusKm === radius}
+                        className={`flex-1 rounded-lg py-2.5 ui-body font-bold ${
+                          radiusKm === radius ? "bg-slate-900 text-white" : "text-slate-500"
+                        }`}
+                        onPointerDown={() => runRadius(radius)}
+                        onClick={(event) => {
+                          if (event.detail === 0) runRadius(radius);
+                        }}
+                      >
+                        {radius}km
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
-              {selectedRegion && lastIntent ? (
+              {activeLayerId === "medical" && selectedRegion && lastIntent ? (
                 <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                   <p className="ui-caption font-bold text-blue-800">이어서 묻기</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -2697,7 +2718,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             data-testid="method-summary"
           >
             <span className="font-bold text-slate-800">방법론 · </span>
-            {METHOD_SUMMARY}
+            {methodSummaryText}
           </p>
           <div
             className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
@@ -2710,7 +2731,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             <span className="font-bold">
               {snapshot.mode === "live" ? "실데이터" : "시연 데이터"}
             </span>
-            {" · "}기준월 {snapshot.referenceMonth}
+            {" · "}기준월 {referenceMonthLabel}
+            {" · "}{activeLayerProvider}
             {snapshot.mode === "demo" ? " · 정책 판단용 아님" : ""}
           </div>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
