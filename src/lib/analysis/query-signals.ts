@@ -424,7 +424,7 @@ export function extractQuerySignals(query: string): QuerySignals {
     if (!freePlaceQuery) {
       const cleaned = text
         .replace(
-          /근처|주변|인근|찾아|위치|보여|줘|주세요|부산|행정동|실시간|카카오|어디|부근/g,
+          /근처|주변|인근|찾아|위치|보여|줘|주세요|행정동|실시간|카카오|어디|부근/g,
           " ",
         )
         .replace(/\s+/g, " ")

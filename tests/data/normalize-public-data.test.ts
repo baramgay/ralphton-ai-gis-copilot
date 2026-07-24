@@ -17,8 +17,8 @@ const monthToken = (month: string) => month.replace('-', '');
 function buildFixture() {
   const residentPopulation = months.flatMap((month) => {
     const row = {
-      admmCd: '2600000001',
-      admmNm: '부산광역시 테스트동',
+      admmCd: '4812125000',
+      admmNm: '경상남도 창원시 테스트동',
       stdgMtrYm: monthToken(month),
       tong: '1',
       ban: '1',
@@ -35,8 +35,8 @@ function buildFixture() {
       { age: 30, maleNmpr: 9, femNmpr: 11 },
       { age: 70, maleNmpr: 14, femNmpr: 16 },
     ].map((values) => ({
-      admmCd: '2600000001',
-      admmNm: '부산광역시 테스트동',
+      admmCd: '4812125000',
+      admmNm: '경상남도 창원시 테스트동',
       stdgMtrYm: monthToken(month),
       tong: '1',
       ban: '1',
@@ -47,8 +47,8 @@ function buildFixture() {
   const onePersonHouseholds = months
     .filter((month) => month !== '2026-05')
     .map((month) => ({
-      admmCd: '2600000001',
-      admmNm: '부산광역시 테스트동',
+      admmCd: '4812125000',
+      admmNm: '경상남도 창원시 테스트동',
       stdgMtrYm: monthToken(month),
       tong: '1',
       ban: '1',
@@ -56,8 +56,8 @@ function buildFixture() {
     }));
 
   const births = months.map((month) => ({
-    admmCd: '2600000001',
-    admmNm: '부산광역시 테스트동',
+    admmCd: '4812125000',
+    admmNm: '경상남도 창원시 테스트동',
     stdgMtrYm: monthToken(month),
     tong: '1',
     ban: '1',
@@ -65,8 +65,8 @@ function buildFixture() {
   }));
 
   const deaths = months.slice(0, -1).map((month) => ({
-    admmCd: '2600000001',
-    admmNm: '부산광역시 테스트동',
+    admmCd: '4812125000',
+    admmNm: '경상남도 창원시 테스트동',
     stdgMtrYm: monthToken(month),
     tong: '1',
     ban: '1',
@@ -76,8 +76,8 @@ function buildFixture() {
   return {
     regions: [
       {
-        adm_cd2: '2600000001',
-        adm_nm: '부산광역시 테스트동',
+        adm_cd2: '4812125000',
+        adm_nm: '경상남도 창원시 테스트동',
         representativePoint: { lat: 35.18, lng: 129.08 },
         areaSquareKm: 10,
       },
@@ -92,8 +92,8 @@ function buildFixture() {
         id: 'hospital-1',
         name: '테스트 종합병원',
         category: '종합병원',
-        admmCd: '2600000001',
-        admmNm: '부산광역시 테스트동',
+        admmCd: '4812125000',
+        admmNm: '경상남도 창원시 테스트동',
         lat: '35.18',
         lng: '129.08',
       },
@@ -101,8 +101,8 @@ function buildFixture() {
         id: 'pharmacy-1',
         name: '테스트 약국',
         category: '약국',
-        admmCd: '2600000001',
-        admmNm: '부산광역시 테스트동',
+        admmCd: '4812125000',
+        admmNm: '경상남도 창원시 테스트동',
         lat: '35.19',
         lng: '129.09',
         hours: { mon: '09:00-18:00' },

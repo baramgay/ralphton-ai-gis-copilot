@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 // @ts-expect-error Native ESM scripts intentionally have no TypeScript declaration file.
-import { buildBoundaryMetadata, discoverLatestVersion, extractBusan, extractGyeongnam, validateBoundaryCollection } from "../../scripts/lib/boundary-core.mjs";
+import { buildBoundaryMetadata, discoverLatestVersion, extractGyeongnam, validateBoundaryCollection } from "../../scripts/lib/boundary-core.mjs";
 
 type Position = [number, number];
 
@@ -41,15 +41,15 @@ function squareRing(index: number): Position[] {
   ];
 }
 
-function makeFeature(index: number, city = "부산광역시"): BoundaryFeature {
+function makeFeature(index: number, city = "경상남도"): BoundaryFeature {
   return {
     type: "Feature",
     properties: {
       adm_nm: `${city} 테스트구 테스트동${index}`,
       adm_cd: String(21_000_000 + index),
-      adm_cd2: String(2_600_000_000 + index),
-      sgg: "26110",
-      sido: "26",
+      adm_cd2: String(4_800_000_000 + index),
+      sgg: "48110",
+      sido: "48",
       sidonm: city,
       sggnm: "테스트구",
     },
@@ -104,30 +104,6 @@ describe("discoverLatestVersion", () => {
   });
 });
 
-describe("extractBusan", () => {
-  test("keeps only features whose administrative name starts with 부산광역시", () => {
-    const collection = makeValidCollection(2);
-    collection.features.push(makeFeature(2, "서울특별시"));
-
-    const result = extractBusan(collection);
-
-    expect(result.features).toHaveLength(2);
-    expect(
-      result.features.every((feature: BoundaryFeature) =>
-        feature.properties.adm_nm.startsWith("부산광역시"),
-      ),
-    ).toBe(true);
-    expect(result.crs).toEqual(collection.crs);
-  });
-
-  test("rejects a collection with no 부산 features", () => {
-    const collection = makeValidCollection(1);
-    collection.features[0] = makeFeature(0, "서울특별시");
-
-    expect(() => extractBusan(collection)).toThrow(/부산.*없/);
-  });
-});
-
 describe("extractGyeongnam", () => {
   function makeGyeongnamFeature(index: number): BoundaryFeature {
     const feature = makeFeature(index, "경상남도");
@@ -138,8 +114,18 @@ describe("extractGyeongnam", () => {
     return feature;
   }
 
+  function makeOtherSidoFeature(index: number): BoundaryFeature {
+    const feature = makeFeature(index, "서울특별시");
+    feature.properties.adm_cd2 = String(1_100_000_000 + index);
+    feature.properties.sgg = "11110";
+    feature.properties.sido = "11";
+    feature.properties.sggnm = "테스트구";
+    return feature;
+  }
+
   test("keeps only features whose adm_cd2 starts with 48", () => {
-    const collection = makeValidCollection(2); // 부산 features (adm_cd2 26...)
+    const collection = makeValidCollection(0); // no features yet
+    collection.features.push(makeOtherSidoFeature(0), makeOtherSidoFeature(1));
     collection.features.push(makeGyeongnamFeature(0), makeGyeongnamFeature(1));
 
     const result = extractGyeongnam(collection);
@@ -154,19 +140,20 @@ describe("extractGyeongnam", () => {
   });
 
   test("rejects a collection with no 경남 features", () => {
-    const collection = makeValidCollection(1); // 부산 only
+    const collection = makeValidCollection(0);
+    collection.features.push(makeOtherSidoFeature(0));
 
     expect(() => extractGyeongnam(collection)).toThrow(/경상남도.*없/);
   });
 });
 
 describe("validateBoundaryCollection", () => {
-  test("summarizes a valid CRS84 부산 collection", () => {
+  test("summarizes a valid CRS84 경남 collection", () => {
     const summary = validateBoundaryCollection(makeValidCollection());
 
     expect(summary.featureCount).toBe(150);
     expect(summary.administrativeDongCodes).toHaveLength(150);
-    expect(summary.administrativeDongCodes[0]).toBe("2600000000");
+    expect(summary.administrativeDongCodes[0]).toBe("4800000000");
     expect(summary.bbox).toEqual([128.9, 35, 128.995, 35.145]);
   });
 
@@ -271,7 +258,7 @@ describe("validateBoundaryCollection", () => {
       (collection: BoundaryCollection) => (collection.features[0].geometry.coordinates = []),
     ],
     [
-      "부산·경남 범위",
+      "경남 범위",
       (collection: BoundaryCollection) =>
         (collection.features[0].geometry.coordinates = [
           [
@@ -311,7 +298,7 @@ describe("validateBoundaryCollection", () => {
 
 describe("buildBoundaryMetadata", () => {
   test("hashes the exact final bytes and records sorted codes and UTC context", () => {
-    const bytes = new TextEncoder().encode("final 부산 GeoJSON bytes\n");
+    const bytes = new TextEncoder().encode("final 경남 GeoJSON bytes\n");
     const metadata = buildBoundaryMetadata(bytes, {
       version: "20260701",
       sourceUrl:

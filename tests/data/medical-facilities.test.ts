@@ -9,8 +9,8 @@ import {
 import type { AssignableRegion } from "@/lib/data/region-assignment";
 
 const region: AssignableRegion = {
-  adm_cd2: "2611051000",
-  adm_nm: "부산광역시 중구 중앙동",
+  adm_cd2: "4812125000",
+  adm_nm: "경상남도 창원시 의창구 동읍",
   geometry: {
     type: "Polygon",
     coordinates: [
@@ -26,7 +26,7 @@ const region: AssignableRegion = {
 };
 
 describe("medical facilities adapter", () => {
-  it("builds the Busan medical institutions endpoint", () => {
+  it("builds the medical institutions endpoint", () => {
     const url = new URL(
       buildMedicalInstitutionsUrl({
         serviceKey: "fixture+key",
@@ -55,7 +55,7 @@ describe("medical facilities adapter", () => {
         YPos: 35.1,
         XPos: 129.04,
         ykiho: "abc",
-        addr: "부산 중구",
+        addr: "경남 창원시",
       },
       [region],
       0,
@@ -65,7 +65,7 @@ describe("medical facilities adapter", () => {
       id: "abc",
       name: "중앙의원",
       type: "의원",
-      adm_cd2: "2611051000",
+      adm_cd2: "4812125000",
     });
   });
 

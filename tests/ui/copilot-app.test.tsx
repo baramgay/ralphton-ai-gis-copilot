@@ -12,8 +12,8 @@ const snapshot = {
   ],
   regions: [
     {
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       representativePoint: { lat: 35.1, lng: 129.04 },
       areaSquareKm: 1,
       months: [
@@ -37,8 +37,8 @@ const snapshot = {
       id: "f1",
       name: "중앙의원",
       type: "의원" as const,
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       lat: 35.1,
       lng: 129.04,
       specialties: ["내과"],
@@ -48,8 +48,8 @@ const snapshot = {
       id: "f2",
       name: "중앙약국",
       type: "약국" as const,
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       lat: 35.101,
       lng: 129.041,
       specialties: null,
@@ -65,8 +65,8 @@ const boundary = {
     {
       type: "Feature" as const,
       properties: {
-        adm_cd2: "2611051000",
-        adm_nm: "부산광역시 중구 중앙동",
+        adm_cd2: "4812125000",
+        adm_nm: "경상남도 창원시 의창구 동읍",
         sggnm: "중구",
       },
       geometry: {

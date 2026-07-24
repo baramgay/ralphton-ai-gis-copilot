@@ -12,8 +12,8 @@ const baseSnapshot: AnalysisSnapshot = {
   ],
   regions: [
     {
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       representativePoint: { lat: 35.1, lng: 129.04 },
       areaSquareKm: 1,
       months: [
@@ -37,8 +37,8 @@ const baseSnapshot: AnalysisSnapshot = {
       id: "demo-1",
       name: "데모의원",
       type: "의원",
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       lat: 35.1,
       lng: 129.04,
       specialties: null,
@@ -60,7 +60,7 @@ const hiraXml = `<?xml version="1.0" encoding="UTF-8"?>
         <YPos>35.1</YPos>
         <XPos>129.04</XPos>
         <ykiho>live-1</ykiho>
-        <addr>부산광역시 중구</addr>
+        <addr>경상남도 창원시 의창구</addr>
       </item>
     </items>
     <numOfRows>1</numOfRows>
@@ -116,8 +116,8 @@ describe("runLiveSync", () => {
       loadDemoSnapshot: async () => baseSnapshot,
       loadBoundary: async () => [
         {
-          adm_cd2: "2611051000",
-          adm_nm: "부산광역시 중구 중앙동",
+          adm_cd2: "4812125000",
+          adm_nm: "경상남도 창원시 의창구 동읍",
           geometry: {
             type: "Polygon",
             coordinates: [

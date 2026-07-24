@@ -18,8 +18,8 @@ const sampleXml = `<?xml version="1.0" encoding="UTF-8"?>
         <clCdNm>종합병원</clCdNm>
         <XPos>129.0756</XPos>
         <YPos>35.1796</YPos>
-        <addr>부산광역시 중구 테스트로 1</addr>
-        <telno>051-000-0000</telno>
+        <addr>경상남도 창원시 의창구 테스트로 1</addr>
+        <telno>055-000-0000</telno>
         <ykiho>A123</ykiho>
       </item>
     </items>
@@ -49,11 +49,11 @@ describe("hira-hospitals", () => {
   });
 
   it("maps row to facility when inside a region", () => {
-    // Minimal polygon around Busan Jung-gu point
+    // Minimal polygon around Changwon Uichang-gu point
     const regions: AssignableRegion[] = [
       {
-        adm_cd2: "2611051000",
-        adm_nm: "부산광역시 중구 중앙동",
+        adm_cd2: "4812125000",
+        adm_nm: "경상남도 창원시 의창구 동읍",
         geometry: {
           type: "Polygon",
           coordinates: [
@@ -75,7 +75,7 @@ describe("hira-hospitals", () => {
         clCd: "11",
         XPos: "129.0756",
         YPos: "35.1796",
-        addr: "부산",
+        addr: "경남",
         ykiho: "A123",
       },
       regions,
@@ -83,6 +83,6 @@ describe("hira-hospitals", () => {
     );
     expect(facility?.id).toBe("A123");
     expect(facility?.type).toBe("종합병원");
-    expect(facility?.adm_cd2).toBe("2611051000");
+    expect(facility?.adm_cd2).toBe("4812125000");
   });
 });

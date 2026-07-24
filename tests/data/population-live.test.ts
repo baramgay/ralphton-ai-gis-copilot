@@ -15,8 +15,8 @@ const base: AnalysisSnapshot = {
   ],
   regions: [
     {
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       representativePoint: { lat: 35.1, lng: 129.04 },
       areaSquareKm: 2,
       months: [
@@ -43,13 +43,13 @@ describe("population-live", () => {
   it("indexes and merges latest population month", () => {
     const indexed = indexResidentRows([
       {
-        admmCd: "2611051000",
+        admmCd: "4812125000",
         totNmpr: 2500,
         hhCnt: 900,
         stdgMtrYm: "202606",
       },
     ]);
-    expect(indexed.get("2611051000")?.population).toBe(2500);
+    expect(indexed.get("4812125000")?.population).toBe(2500);
 
     const merged = mergeLatestPopulation(base, indexed);
     expect(merged.updatedCount).toBe(1);

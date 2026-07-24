@@ -2,14 +2,13 @@
  * Extract gu/gun (시군구) labels from Gyeongnam administrative dong names.
  */
 
-const SIDO_PREFIX = /^(부산광역시|경상남도)\s*/;
+const SIDO_PREFIX = /^경상남도\s*/;
 
 export function stripSidoPrefix(admNm: string): string {
   return admNm.replace(SIDO_PREFIX, "").trim();
 }
 
-export function sidoFromAdmName(admNm: string): "부산광역시" | "경상남도" | null {
-  if (admNm.startsWith("부산광역시")) return "부산광역시";
+export function sidoFromAdmName(admNm: string): "경상남도" | null {
   if (admNm.startsWith("경상남도")) return "경상남도";
   return null;
 }

@@ -21,7 +21,7 @@ const REQUIRED_STRING_PROPERTIES = [
   "sidonm",
   "sggnm",
 ];
-/** Busan + Gyeongnam approximate bounding box (EPSG:4326). */
+/** Gyeongnam approximate bounding box (EPSG:4326). */
 const REGION_BOUNDS = {
   minimumLongitude: 127.5,
   minimumLatitude: 34.4,
@@ -29,7 +29,7 @@ const REGION_BOUNDS = {
   maximumLatitude: 36.0,
 };
 
-const ALLOWED_SIDO_PREFIXES = ["부산광역시", "경상남도"];
+const ALLOWED_SIDO_PREFIXES = ["경상남도"];
 
 export function isAllowedSidoName(admNm) {
   return (
@@ -76,10 +76,6 @@ export function discoverLatestVersion(entries) {
   }
 
   return latestVersion;
-}
-
-export function extractBusan(featureCollection) {
-  return extractSidoRegions(featureCollection, ["부산광역시"]);
 }
 
 /** Gyeongnam administrative dongs (adm_cd2 prefix "48"). */
@@ -174,7 +170,7 @@ function assertRequiredProperties(feature, featureIndex) {
 
   if (!isAllowedSidoName(feature.properties.adm_nm)) {
     throw new Error(
-      `Feature ${featureIndex}는 부산광역시 또는 경상남도 행정동이 아닙니다: ${feature.properties.adm_nm}`,
+      `Feature ${featureIndex}는 경상남도 행정동이 아닙니다: ${feature.properties.adm_nm}`,
     );
   }
 }
@@ -362,7 +358,7 @@ function assertGeometry(geometry, featureIndex, bbox) {
         latitude > REGION_BOUNDS.maximumLatitude
       ) {
         throw new Error(
-          `Feature ${featureIndex}의 좌표가 부산·경남 범위를 벗어났습니다: [${longitude}, ${latitude}].`,
+          `Feature ${featureIndex}의 좌표가 경남 범위를 벗어났습니다: [${longitude}, ${latitude}].`,
         );
       }
 

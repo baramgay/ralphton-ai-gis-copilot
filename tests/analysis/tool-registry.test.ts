@@ -87,16 +87,16 @@ function facility(
   };
 }
 
-const regionA = region("2610000001", "부산광역시 가동", { lat: 35, lng: 129 });
-const regionB = region("2610000002", "부산광역시 나동", { lat: 35.1, lng: 129.1 });
-const growthRegion = region("2610000003", "부산광역시 다동", {
+const regionA = region("4810000001", "경상남도 가동", { lat: 35, lng: 129 });
+const regionB = region("4810000002", "경상남도 나동", { lat: 35.1, lng: 129.1 });
+const growthRegion = region("4810000003", "경상남도 다동", {
   startPopulation: 100,
   endPopulation: 120,
   onePersonHouseholds: null,
   lat: 35.2,
   lng: 129.2,
 });
-const declineRegion = region("2610000004", "부산광역시 라동", {
+const declineRegion = region("4810000004", "경상남도 라동", {
   startPopulation: 100,
   endPopulation: 80,
   lat: 35.3,
@@ -125,12 +125,12 @@ describe("toolRegistry", () => {
   });
 
   test("ranks administrative dongs by death count", () => {
-    const highDeath = region("2610000091", "부산광역시 고사망동", {
+    const highDeath = region("4810000091", "경상남도 고사망동", {
       startPopulation: 1000,
       endPopulation: 1000,
     });
     highDeath.deaths = Array(13).fill(30) as number[];
-    const lowDeath = region("2610000092", "부산광역시 저사망동", {
+    const lowDeath = region("4810000092", "경상남도 저사망동", {
       startPopulation: 1000,
       endPopulation: 1000,
     });
@@ -141,7 +141,7 @@ describe("toolRegistry", () => {
       snapshot({ regions: [lowDeath, highDeath] }),
     );
 
-    expect(result.rankedRegions[0]?.adm_cd2).toBe("2610000091");
+    expect(result.rankedRegions[0]?.adm_cd2).toBe("4810000091");
     expect(result.rankedRegions[0]?.score).toBe(30);
     expect(result.title).toContain("사망");
   });

@@ -17,13 +17,13 @@ describe("share-state", () => {
   test("round-trips query params", () => {
     const search = buildShareSearch({
       tool: "rankHospitalScarcity",
-      region: "2611051000",
+      region: "4812125000",
       radius: 3,
       markers: "selected",
     });
     const parsed = parseShareState(search.startsWith("?") ? search.slice(1) : search);
     expect(parsed.tool).toBe("rankHospitalScarcity");
-    expect(parsed.region).toBe("2611051000");
+    expect(parsed.region).toBe("4812125000");
     expect(parsed.radius).toBe(3);
     expect(parsed.markers).toBe("selected");
   });
@@ -39,10 +39,10 @@ describe("share-state", () => {
       "이 동만 자세히",
       { tool: "getRegionDetails", filters: {} },
       baseIntent,
-      "2611051000",
-      "부산광역시 중구 중앙동",
+      "4812125000",
+      "경상남도 창원시 의창구 동읍",
     );
-    expect(merged.filters.regions?.[0]).toContain("중앙동");
+    expect(merged.filters.regions?.[0]).toContain("동읍");
   });
 
   test("follow-up radius override", () => {
@@ -50,7 +50,7 @@ describe("share-state", () => {
       "반경 3km로",
       baseIntent,
       baseIntent,
-      "2611051000",
+      "4812125000",
       "중앙동",
     );
     expect(merged.filters.radiusKm).toBe(3);
