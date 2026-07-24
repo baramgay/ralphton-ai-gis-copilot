@@ -303,6 +303,33 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("facility-sort-type")).toHaveAttribute("aria-pressed", "true");
   });
 
+  test("hides medical quick analysis and sources methodology/month from the active layer when a cube layer is selected", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    // Medical is the default layer: quick analysis grid is present.
+    expect(screen.getByRole("button", { name: "의료 취약" })).toBeInTheDocument();
+    expect(screen.getByTestId("method-summary")).toHaveTextContent(/의료취약지수/);
+
+    const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
+    fireEvent.click(within(layerGroup).getByRole("button", { name: /^인구/ }));
+
+    // Cube layer active: medical-only quick analysis grid and radius picker are gone.
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "의료 취약" })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("2. 빠른 분석")).not.toBeInTheDocument();
+    expect(screen.queryByText("3. 접근 반경")).not.toBeInTheDocument();
+    // NL query box stays available for cube layers.
+    expect(screen.getByRole("textbox", { name: "분석 질의" })).toBeInTheDocument();
+
+    // Methodology now describes the active metric (총인구), not the medical formula.
+    expect(screen.getByTestId("method-summary")).toHaveTextContent(/총인구/);
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
+    // Reference-month/provider badge is sourced from the active layer, not left dangling.
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("공공");
+  });
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
