@@ -277,20 +277,6 @@ describe("CopilotApp", () => {
     });
   });
 
-  test("sido scope chips filter map label", async () => {
-    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
-
-    fireEvent.click(screen.getByTestId("sido-scope-gyeongnam"));
-    await waitFor(() => {
-      expect(screen.getByText("경상남도")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("sido-scope-busan"));
-    await waitFor(() => {
-      expect(screen.getByText("부산광역시")).toBeInTheDocument();
-    });
-  });
-
   test("copy conclusion button appears after analysis", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap", {}, { timeout: 10_000 });

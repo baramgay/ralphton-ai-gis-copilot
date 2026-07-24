@@ -32,10 +32,6 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("theme-dark")).toBeVisible();
     await expect(page.getByTestId("theme-system")).toBeVisible();
 
-    await expect(page.getByTestId("sido-scope-all")).toBeVisible();
-    await page.getByTestId("sido-scope-busan").click();
-    await expect(page.getByText("부산광역시").first()).toBeVisible();
-
     await page.getByTestId("theme-dark").click();
     await expect
       .poll(async () => page.evaluate(() => document.documentElement.dataset.theme))

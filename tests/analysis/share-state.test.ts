@@ -20,27 +20,12 @@ describe("share-state", () => {
       region: "2611051000",
       radius: 3,
       markers: "selected",
-      sido: "gyeongnam",
     });
     const parsed = parseShareState(search.startsWith("?") ? search.slice(1) : search);
     expect(parsed.tool).toBe("rankHospitalScarcity");
     expect(parsed.region).toBe("2611051000");
     expect(parsed.radius).toBe(3);
     expect(parsed.markers).toBe("selected");
-    expect(parsed.sido).toBe("gyeongnam");
-  });
-
-  test("omits default sido=all from URL", () => {
-    const search = buildShareSearch({
-      tool: "rankHospitalScarcity",
-      sido: "all",
-    });
-    expect(search).not.toContain("sido=");
-  });
-
-  test("parses busan sido from query string", () => {
-    const parsed = parseShareState("tool=rankHospitalScarcity&sido=busan");
-    expect(parsed.sido).toBe("busan");
   });
 
   test("detects follow-up queries", () => {

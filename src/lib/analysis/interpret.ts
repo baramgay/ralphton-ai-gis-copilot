@@ -1,5 +1,5 @@
 import type { AnalysisResult } from "@/lib/analysis/result";
-import { countBySido, stripSido } from "@/lib/analysis/scope";
+import { stripSido } from "@/lib/analysis/scope";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
 import { enrichInterpretationWithRag } from "@/lib/rag/augment";
 
@@ -39,20 +39,11 @@ export function buildOneLineConclusion(
     const names = top.map((region) => shortName(region.adm_nm));
     const metric = top[0]?.metrics[0];
     const metricHint = metric ? `${metric.label} 기준 ` : "";
-    const mix = countBySido(top);
-    const mixHint =
-      mix.busan > 0 && mix.gyeongnam > 0
-        ? ` (부산 ${mix.busan} · 경남 ${mix.gyeongnam})`
-        : mix.busan > 0
-          ? " (부산)"
-          : mix.gyeongnam > 0
-            ? " (경남)"
-            : "";
     const selectedHint =
       selected && top.some((region) => region.adm_cd2 === selected.adm_cd2)
         ? ` 선택 지역은 ${shortName(selected.adm_nm)}.`
         : "";
-    return `${metricHint}상위 ${names.length}곳은 ${names.join(" · ")}${mixHint}입니다.${selectedHint}`;
+    return `${metricHint}상위 ${names.length}곳은 ${names.join(" · ")}입니다.${selectedHint}`;
   }
 
   if (top.length === 1) {
@@ -61,12 +52,7 @@ export function buildOneLineConclusion(
   }
 
   if (facilities.length > 0) {
-    const mix = countBySido(facilities);
-    const mixHint =
-      mix.busan > 0 || mix.gyeongnam > 0
-        ? ` (부산 ${mix.busan} · 경남 ${mix.gyeongnam})`
-        : "";
-    return `조건에 맞는 의료기관 ${facilities.length}곳${mixHint}을 확인하세요.`;
+    return `조건에 맞는 의료기관 ${facilities.length}곳을 확인하세요.`;
   }
 
   return "표시할 순위·시설이 없습니다. 빠른 분석이나 질문을 다시 실행해 보세요.";
@@ -126,7 +112,7 @@ export function interpretAnalysisResult(
 
   const suggestions: string[] = [
     "빠른 분석 ‘고령 × 의료’와 ‘주변 접근’을 교차 확인해 수요·공급 격차를 비교하세요.",
-    "지도 칩으로 부산/경남을 나눈 뒤, 구 비교 → 「동 순위 보기」로 세부 행정동을 확인하세요.",
+    "구 비교 → 「동 순위 보기」로 세부 행정동을 확인하세요.",
     "이용 탭의 평가자 가이드 시나리오(3분)로 핵심 기능을 순서대로 점검할 수 있습니다.",
   ];
 
