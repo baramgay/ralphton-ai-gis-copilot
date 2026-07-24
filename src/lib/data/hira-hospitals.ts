@@ -3,7 +3,7 @@
  * Endpoint: https://apis.data.go.kr/B551182/hospInfoServicev2
  * Format: XML · Operation: getHospBasisList
  *
- * 시도 코드: 부산 210000, 경남 380000
+ * 시도 코드: 경남 380000
  */
 
 import { z } from "zod";
@@ -27,7 +27,6 @@ const PAGE_SIZE = 1_000;
 
 /** HIRA sidoCd for supported analysis regions. */
 export const HIRA_SIDO = {
-  busan: "210000",
   gyeongnam: "380000",
 } as const;
 
@@ -35,7 +34,7 @@ export type HiraSidoKey = keyof typeof HIRA_SIDO;
 
 export interface HiraHospitalFetchOptions {
   serviceKey: string;
-  /** Default: both Busan and Gyeongnam */
+  /** Default: Gyeongnam */
   sidoCds?: string[];
   pageNo?: number;
   numOfRows?: number;
@@ -284,7 +283,7 @@ export async function fetchHiraHospitalRows(
   const sidoCds =
     options.sidoCds && options.sidoCds.length > 0
       ? options.sidoCds
-      : [HIRA_SIDO.busan, HIRA_SIDO.gyeongnam];
+      : [HIRA_SIDO.gyeongnam];
 
   const all: Array<Record<string, unknown>> = [];
   for (const sidoCd of sidoCds) {

@@ -48,7 +48,7 @@ await check("GET /api/health", async () => {
   if (!response.ok) throw new Error(`status ${response.status}`);
   if (body?.status !== "ok") throw new Error("status field missing");
   if (!body?.capabilities) throw new Error("capabilities missing");
-  for (const key of ["kakaoMapsJs", "publicData", "rag", "placeIndex", "scopeBusanGyeongnam"]) {
+  for (const key of ["kakaoMapsJs", "publicData", "rag", "placeIndex", "scopeGyeongnam"]) {
     if (!(key in body.capabilities)) throw new Error(`capabilities.${key} missing`);
   }
   if (!body?.scope?.regions?.includes("경상남도")) {

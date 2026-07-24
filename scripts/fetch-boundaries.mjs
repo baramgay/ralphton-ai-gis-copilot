@@ -160,18 +160,10 @@ async function main() {
     "data",
     `administrative-dong-${version}.geojson`,
   );
-  // Keep legacy path as a copy so older loaders still resolve.
-  const legacyPath = path.join(
-    PROJECT_ROOT,
-    "public",
-    "data",
-    `busan-administrative-dong-${version}.geojson`,
-  );
   const metadataPath = path.join(PROJECT_ROOT, "public", "data", "boundary-metadata.json");
 
   await atomicWrite(sourcePath, sourceBytes);
   await atomicWrite(publicPath, publicBytes);
-  await atomicWrite(legacyPath, publicBytes);
   await atomicWrite(metadataPath, metadataBytes);
 
   console.log(

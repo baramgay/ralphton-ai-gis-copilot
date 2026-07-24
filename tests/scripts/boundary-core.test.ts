@@ -364,7 +364,7 @@ describe("generated boundary artifact", () => {
         projectRoot,
         "public",
         "data",
-        `busan-administrative-dong-${metadata.version}.geojson`,
+        `administrative-dong-${metadata.version}.geojson`,
       ),
     );
 

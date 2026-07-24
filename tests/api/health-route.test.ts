@@ -53,9 +53,10 @@ describe("/api/health", () => {
     expect(body.status).toBe("ok");
     expect(body.capabilities.populationLive).toBe(true);
     expect(body.capabilities.publicData).toBe(true);
-    expect(body.capabilities.scopeBusanGyeongnam).toBe(true);
-    expect(body.scope?.regions).toEqual(["부산광역시", "경상남도"]);
-    expect(body.scope?.hiraSidoCd).toContain("210000");
+    expect(body.capabilities.scopeGyeongnam).toBe(true);
+    expect(body.scope?.regions).toEqual(["경상남도"]);
+    expect(body.scope?.hiraSidoCd).toContain("380000");
+    expect(body.scope?.hiraSidoCd).not.toContain("210000");
     expect(body.syncOps.stale).toBe(true);
     expect(JSON.stringify(body)).not.toMatch(/public-key|serviceKey|apiKey/i);
   });

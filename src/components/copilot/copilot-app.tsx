@@ -574,7 +574,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           return response.json() as Promise<AnalysisSnapshot>;
         },
       ),
-      fetch(`/data/busan-administrative-dong-${boundaryVersion}.geojson`, {
+      fetch(`/data/administrative-dong-${boundaryVersion}.geojson`, {
         signal: controller.signal,
       }).then((response) => {
         if (!response.ok) throw new Error("행정동 경계를 불러오지 못했습니다.");

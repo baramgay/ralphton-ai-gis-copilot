@@ -95,7 +95,7 @@ describe("CopilotApp", () => {
         if (url.includes("/api/data/snapshot")) {
           return new Response(JSON.stringify(snapshot), { status: 200 });
         }
-        if (url.includes("busan-administrative")) {
+        if (url.includes("administrative-dong")) {
           return new Response(JSON.stringify(boundary), { status: 200 });
         }
         if (url.includes("/api/ai/parse")) {

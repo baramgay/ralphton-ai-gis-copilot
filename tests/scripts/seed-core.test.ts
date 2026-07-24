@@ -27,7 +27,7 @@ const BOUNDARY_PATH = path.join(
   PROJECT_ROOT,
   "public",
   "data",
-  "busan-administrative-dong-20260701.geojson",
+  "administrative-dong-20260701.geojson",
 );
 const SNAPSHOT_PATH = path.join(PROJECT_ROOT, "public", "data", "demo-snapshot.json");
 const METADATA_PATH = path.join(PROJECT_ROOT, "public", "data", "demo-metadata.json");

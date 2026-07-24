@@ -26,15 +26,7 @@ async function main() {
   }
 
   const primary = path.join(PUBLIC_DATA_DIR, `administrative-dong-${version}.geojson`);
-  const legacy = path.join(PUBLIC_DATA_DIR, `busan-administrative-dong-${version}.geojson`);
-  let boundaryPath = primary;
-  let boundaryRaw;
-  try {
-    boundaryRaw = await readFile(primary);
-  } catch {
-    boundaryRaw = await readFile(legacy);
-    boundaryPath = legacy;
-  }
+  const boundaryRaw = await readFile(primary);
   const boundary = parseJson(boundaryRaw, "경남 공개 경계");
 
   const versionSeed = Number(version);
@@ -76,7 +68,7 @@ async function main() {
   );
 
   console.log(
-    `경남 데모 스냅샷 생성 완료 (${boundaryPath}): ${snapshot.regions.length}개 행정동, ${snapshot.facilities.length}개 시설, place ${places.length}, SHA-256 ${demoMetadata.sha256}`,
+    `경남 데모 스냅샷 생성 완료 (${primary}): ${snapshot.regions.length}개 행정동, ${snapshot.facilities.length}개 시설, place ${places.length}, SHA-256 ${demoMetadata.sha256}`,
   );
 }
 

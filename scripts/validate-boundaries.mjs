@@ -32,27 +32,14 @@ async function main() {
     throw new Error("경계 메타데이터 버전은 YYYYMMDD 형식이어야 합니다.");
   }
 
-  const primaryPath = path.join(
+  const boundaryPath = path.join(
     PROJECT_ROOT,
     "public",
     "data",
     `administrative-dong-${metadata.version}.geojson`,
   );
-  const legacyPath = path.join(
-    PROJECT_ROOT,
-    "public",
-    "data",
-    `busan-administrative-dong-${metadata.version}.geojson`,
-  );
 
-  let boundaryPath = primaryPath;
-  let boundaryBytes;
-  try {
-    boundaryBytes = await readFile(primaryPath);
-  } catch {
-    boundaryBytes = await readFile(legacyPath);
-    boundaryPath = legacyPath;
-  }
+  const boundaryBytes = await readFile(boundaryPath);
 
   const boundaryCollection = parseJson(boundaryBytes, "경남 공개 경계");
   const summary = validateBoundaryCollection(boundaryCollection);
