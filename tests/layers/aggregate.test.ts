@@ -50,4 +50,24 @@ describe("aggregateToSgg", () => {
     const sgg = aggregateToSgg(zero, metrics);
     expect(sgg.cells[0].series.ratio).toEqual([null]);
   });
+
+  it("truncates sgg cell name to the first two tokens", () => {
+    const longNames: LayerCube = {
+      ...dongCube,
+      cells: [
+        { code: "4812051000", name: "경상남도 창원시 의창구 동읍", point: { lat: 35.3, lng: 128.6 }, areaKm2: 10, series: { pop: [100], ratio: [20] } },
+        { code: "4812052000", name: "경상남도 창원시 성산구 반송동", point: { lat: 35.4, lng: 128.6 }, areaKm2: 30, series: { pop: [300], ratio: [40] } },
+      ],
+    };
+    const sgg = aggregateToSgg(longNames, metrics);
+    expect(sgg.cells.find((c) => c.code === "48120")!.name).toBe("경상남도 창원시");
+  });
+
+  it("averages member points for the sgg cell", () => {
+    const sgg = aggregateToSgg(dongCube, metrics);
+    const changwon = sgg.cells.find((c) => c.code === "48120")!;
+    // mean of (35.3,128.6) and (35.4,128.6)
+    expect(changwon.point.lat).toBeCloseTo(35.35, 5);
+    expect(changwon.point.lng).toBeCloseTo(128.6, 5);
+  });
 });
