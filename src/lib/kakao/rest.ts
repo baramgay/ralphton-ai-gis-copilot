@@ -156,7 +156,7 @@ function mapPlace(doc: NonNullable<KakaoKeywordResponse["documents"]>[number]): 
   };
 }
 
-/** Keyword search around a coordinate (Busan-centered by default). */
+/** Keyword search around a coordinate (Gyeongnam-centered by default). */
 export async function searchPlacesByKeyword(
   options: {
     query: string;

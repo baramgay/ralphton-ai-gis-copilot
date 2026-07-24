@@ -116,7 +116,7 @@ export function DemoMap({
         className="size-full touch-none select-none"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         role="img"
-        aria-label="부산·경남 행정동 분석 지도"
+        aria-label="경상남도 행정동 분석 지도"
       >
         <defs>
           <filter id="map-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -233,7 +233,7 @@ export function DemoMap({
 
       {hoveredFeature ? (
         <div className="pointer-events-none absolute left-1/2 top-5 -translate-x-1/2 rounded-xl border border-white/70 bg-slate-950/88 px-3 py-2 text-xs font-medium text-white shadow-xl backdrop-blur-xl">
-          {hoveredFeature.properties.adm_nm.replace("부산광역시 ", "")}
+          {hoveredFeature.properties.adm_nm.replace("경상남도 ", "")}
         </div>
       ) : null}
 

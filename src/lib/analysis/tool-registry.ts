@@ -340,7 +340,7 @@ function accessMetrics(record: AccessRecord, referenceMonth: string): MetricDesc
       "점",
       "공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%",
       referenceMonth,
-      "부산 행정동 간 winsorized min-max 상대 점수이며 약국은 기본 제외됩니다.",
+      "경남 행정동 간 winsorized min-max 상대 점수이며 약국은 기본 제외됩니다.",
     ),
     metric(
       "인구 1만 명당 의료기관",
@@ -401,7 +401,7 @@ export function rankHospitalScarcity(intent: AnalysisIntent, snapshot: AnalysisS
     legend: VULNERABILITY_LEGEND,
     formulaNotes: [
       "인구 1만 명당 의료기관 부족 35% + 고령화 수요 25% + 최근접 거리 25% + 2km 무시설 15%",
-      "연속 지표는 부산 행정동 전체의 5·95백분위 winsorized min-max로 0~100 정규화합니다.",
+      "연속 지표는 경남 행정동 전체의 5·95백분위 winsorized min-max로 0~100 정규화합니다.",
       "약국은 명시적으로 요청한 경우에만 의료기관 집합에 포함합니다.",
     ],
   });

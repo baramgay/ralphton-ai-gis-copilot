@@ -16,8 +16,8 @@ export const EVALUATOR_CRITERIA: EvaluatorCriterion[] = [
     id: "scope",
     title: "분석 범위",
     weight: "필수",
-    lookFor: "부산광역시 + 경상남도 행정동(약 511개)만 대상으로 하는지",
-    howToVerify: "데이터 탭 통계 · 지도 칩 전체/부산/경남 · 질의 「창원 의료 취약」",
+    lookFor: "경상남도 행정동(약 305개)만 대상으로 하는지",
+    howToVerify: "데이터 탭 통계 · 지도 칩 · 질의 「창원 의료 취약」",
   },
   {
     id: "honesty",

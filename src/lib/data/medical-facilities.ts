@@ -156,7 +156,7 @@ export function mapMedicalRowToFacility(
     return null;
   }
 
-  // Busan API sometimes swaps x/y naming; reject clearly out-of-region points later.
+  // Source API sometimes swaps x/y naming; reject clearly out-of-region points later.
   if (lat < 30 || lat > 40 || lng < 120 || lng > 135) {
     return null;
   }
@@ -168,7 +168,7 @@ export function mapMedicalRowToFacility(
 
   const id =
     asString(firstValue(row, ["ykiho", "instit_cd", "medicalInstitCd", "hpid", "id"])) ??
-    `busan-med-${index}-${region.adm_cd2}`;
+    `gn-med-${index}-${region.adm_cd2}`;
 
   const specialtiesRaw = asString(
     firstValue(row, ["dgsbjtCdNm", "medicalDepartments", "specialties", "departments"]),

@@ -224,7 +224,7 @@ export function KakaoMap({
       const region = regionByCode.get(code);
       const score = scores.get(code);
       const label = region
-        ? `${region.adm_nm.replace("부산광역시 ", "")}${score != null ? ` · ${score.toFixed(0)}` : ""}`
+        ? `${region.adm_nm.replace("경상남도 ", "")}${score != null ? ` · ${score.toFixed(0)}` : ""}`
         : code;
       const overlay = new maps.CustomOverlay({
         content: makeTooltipElement(label),
@@ -415,7 +415,7 @@ export function KakaoMap({
       <div
         ref={containerRef}
         className="absolute inset-0 size-full"
-        aria-label="Kakao 부산 행정동 분석 지도"
+        aria-label="Kakao 경남 행정동 분석 지도"
       />
       <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
         Kakao Maps

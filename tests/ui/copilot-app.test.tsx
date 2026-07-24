@@ -179,7 +179,7 @@ describe("CopilotApp", () => {
         expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
       }
       expect(
-        screen.getByRole("img", { name: /부산.?경남 행정동 분석 지도|부산 행정동 분석 지도/ }),
+        screen.getByRole("img", { name: /경상남도 행정동 분석 지도/ }),
       ).toBeInTheDocument();
       expect(screen.getByTestId("result-panel")).toBeInTheDocument();
       expect(screen.getByText("산식 · 해석 기준")).toBeInTheDocument();

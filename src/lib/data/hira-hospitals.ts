@@ -186,7 +186,7 @@ export function mapHiraRowToFacility(
     return null;
   }
 
-  // Busan + Gyeongnam rough bounds
+  // Gyeongnam rough bounds
   if (lat < 34.2 || lat > 36.2 || lng < 127.3 || lng > 129.8) {
     return null;
   }

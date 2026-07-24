@@ -1305,7 +1305,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         <div className="w-full max-w-sm rounded-3xl border border-slate-200/80 bg-[var(--surface-2,#fff)] p-6 shadow-lg">
           <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-slate-200" />
           <div className="mb-2 h-5 w-3/4 animate-pulse rounded-lg bg-slate-200" />
-          <p className="mt-5 text-center text-sm font-medium text-slate-600">부산·경남 공간 데이터를 준비하는 중…</p>
+          <p className="mt-5 text-center text-sm font-medium text-slate-600">경남 공간 데이터를 준비하는 중…</p>
         </div>
       </main>
     );
@@ -1386,7 +1386,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 className="size-8 shrink-0 rounded-[10px] shadow-sm ring-1 ring-slate-200/80"
               />
               <div className="min-w-0">
-                <h1 className="ui-title truncate text-slate-950">부산·경남 AI GIS</h1>
+                <h1 className="ui-title truncate text-slate-950">경남 AI GIS</h1>
                 <p className="ui-chip mt-0.5 text-slate-500">
                   {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth} ·{" "}
                   {snapshot.regions.length.toLocaleString("ko-KR")}동
@@ -2053,7 +2053,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     : "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 live 스냅샷으로 전환됩니다."}
                 </p>
                 <p className="ui-caption mt-2 font-semibold opacity-95">
-                  범위: 부산·경남 · 산식: 공급35+고령25+거리25+2km무시설15
+                  범위: 경상남도 · 산식: 공급35+고령25+거리25+2km무시설15
                 </p>
                 {populationNoteFromSnapshot(snapshot.sourceNotes) ? (
                   <p className="ui-chip mt-2 font-bold opacity-95" data-testid="population-live-note">

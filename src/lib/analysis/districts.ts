@@ -1,5 +1,5 @@
 /**
- * Extract gu/gun (시군구) labels from Busan + Gyeongnam administrative dong names.
+ * Extract gu/gun (시군구) labels from Gyeongnam administrative dong names.
  */
 
 const SIDO_PREFIX = /^(부산광역시|경상남도)\s*/;

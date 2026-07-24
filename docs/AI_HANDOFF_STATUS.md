@@ -15,9 +15,9 @@
 | **프로덕션** | `https://ralphton-ai-gis-copilot.vercel.app` |
 | **HEAD (작업 시점)** | `9597eb0` — `main` = `origin/main` (clean) |
 | **스택** | Next.js 16 App Router · React 19 · Turf · Vitest · Playwright · Vercel |
-| **분석 범위** | **부산광역시 + 경상남도** 행정동 **511개** (부산 206 + 경남 305) |
+| **분석 범위** | **경상남도** 행정동 **305개** · 22 시군구 |
 | **기본 데이터** | 시연(demo) 스냅샷 합성 · 실데이터(live)는 sync 후 Supabase 게시 |
-| **병원 live 원천** | HIRA `hospInfoServicev2/getHospBasisList` XML · sido `210000`/`380000` |
+| **병원 live 원천** | HIRA `hospInfoServicev2/getHospBasisList` XML · sido `380000` |
 | **현재 프로덕션 live** | **미게시** (`publishedLive.available: false`, sync 권장) |
 | **검증 기준선** | `npm test` ~350+ · `npm run smoke` 9/9 · typecheck/build 통과 이력 있음 |
 
@@ -25,7 +25,7 @@
 
 ## 1. 제품이 하는 일
 
-- 부산·경남 행정동 단위 **의료·인구 접근성** 탐색 웹앱
+- 경남 행정동 단위 **의료·인구 접근성** 탐색 웹앱
 - **3패널:** 분석(질의·빠른분석) | 지도(Kakao 또는 DemoMap) | 결과(순위·해석·상세)
 - **키 없음:** 데모 스냅샷 + SVG DemoMap으로 전체 플로우 가능
 - **키 있음:** Kakao 지도/장소, Qwen 의도 파서, HIRA 시설 sync, 주민인구 live 병합, Supabase 캐시
@@ -53,15 +53,14 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 
 | 파일 | 역할 | 규모(시점) |
 |------|------|------------|
-| `public/data/administrative-dong-20260701.geojson` | 부산+경남 경계 | 511 features |
-| `public/data/busan-administrative-dong-20260701.geojson` | legacy 경로 복사본(동일 내용) | 511 |
-| `public/data/demo-snapshot.json` | 시연 분석 스냅샷 | 511 regions, 1641 facilities |
-| `public/data/place-index.json` | NL 동 지명 사전 | 511 places |
+| `public/data/administrative-dong-20260701.geojson` | 경남 경계 | 305 features |
+| `public/data/demo-snapshot.json` | 시연 분석 스냅샷 | 305 regions |
+| `public/data/place-index.json` | NL 동 지명 사전 | 305 places |
 | `public/data/boundary-metadata.json` | 버전·SHA·코드 목록 | ver `20260701` |
 
 ### 경계 원천
 
-- GitHub `vuski/admdongkor` → `scripts/fetch-boundaries.mjs` → `extractBusanGyeongnam`
+- GitHub `vuski/admdongkor` → `scripts/fetch-boundaries.mjs` → `extractGyeongnam`
 - 로컬 원본: `data/source/HangJeongDong_ver20260701.geojson`
 
 ---
@@ -136,7 +135,7 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 ### HIRA 연동 요지 (`src/lib/data/hira-hospitals.ts`)
 
 - Endpoint: `https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList`
-- Format: **XML** · `sidoCd` 210000(부산), 380000(경남)
+- Format: **XML** · `sidoCd` 380000(경남)
 - 키: encoding 키를 포털 방식대로 사용 (`decodeURIComponent` 1회)
 - 시설 타입 매핑: clCd/clCdNm → 종합병원/병원/의원/요양/치과/한의/보건소 등
 
@@ -147,7 +146,6 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 | 키 | 내용 |
 |----|------|
 | `ralphton-theme` | `system` \| `light` \| `dark` \| `contrast` |
-| `ralphton-sido-scope-v1` | `all` \| `busan` \| `gyeongnam` |
 | `ralphton-density-v1` | `comfortable` \| `compact` |
 | `ralphton-recent-queries-v1` | 최근 질의 배열 |
 | 온보딩 | `ralphton-onboard-v1` (또는 코드 내 `ONBOARD_KEY`) |
@@ -159,13 +157,13 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 ### 단축키
 
 - `/` 질의 포커스 · `[` `]` 패널 · `\` 지도 넓게 · `Shift+0` 레이아웃 초기화  
-- `Shift+D` 테마 순환 · **`1`/`2`/`3`** 전체/부산/경남 · `j`/`k` 순위 이동  
+- `Shift+D` 테마 순환 · `j`/`k` 순위 이동  
 
 ---
 
 ## 7. 스키마·도메인 주의
 
-- `DemoSnapshotSchema.regions`: **`.min(150)`** (과거 `.length(206)` 폐기 — 511 대응)
+- `DemoSnapshotSchema.regions`: **`.min(150)`** (과거 `.length(206)` 폐기 — 경남 305 대응)
 - `AnalysisIntentSchema.filters.limit`: **max 600**
 - `CachedSnapshotSchema` (Supabase): regions 길이 고정 없음
 - 시연 출처 노트: **한글 6줄** (seed-core)
@@ -304,6 +302,6 @@ npm run test:e2e -- --project=chromium
 
 ## 14. 한 줄 핸드오프
 
-**부산·경남 511동 AI GIS 코파일럿은 main `9597eb0` / Vercel prod 배포 상태이며, 시연·NL·지도·테마·평가자 가이드까지 완료. 실데이터 live 스냅샷은 아직 게시되지 않았고, 다음 핵심 작업은 보호된 sync로 live 게시 + health/sync UX 복원이다다.**
+**경남 305동 AI GIS 코파일럿은 main `9597eb0` / Vercel prod 배포 상태이며, 시연·NL·지도·테마·평가자 가이드까지 완료. 실데이터 live 스냅샷은 아직 게시되지 않았고, 다음 핵심 작업은 보호된 sync로 live 게시 + health/sync UX 복원이다다.**
 
 이 파일을 갱신할 때: HEAD·smoke 결과·live 게시 여부·새 함정만 상단에 덮어쓴다.
