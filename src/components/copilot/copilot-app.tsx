@@ -51,7 +51,14 @@ import { MapCanvas } from "./map-canvas";
 import { PanelResizer } from "./panel-resizer";
 import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
-import { MEDICAL_LAYER, POPULATION_LAYER, SKT_LIVING_LAYER } from "@/lib/layers/catalog";
+import {
+  KCB_CREDIT_LAYER,
+  MEDICAL_LAYER,
+  NH_CONSUMPTION_LAYER,
+  POPULATION_LAYER,
+  SKT_LIVING_LAYER,
+  SKT_MOBILITY_LAYER,
+} from "@/lib/layers/catalog";
 import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
@@ -97,7 +104,16 @@ type RankedRegion = {
   metrics: MetricDescriptor[];
 };
 
-type LayerId = "population" | "skt-living" | "medical";
+type LayerId =
+  | "population"
+  | "skt-living"
+  | "skt-mobility"
+  | "nh-consumption"
+  | "kcb-credit"
+  | "medical";
+
+type CubeLayerId = Exclude<LayerId, "medical">;
+type RemoteCubeLayerId = Exclude<CubeLayerId, "population">;
 
 type AnalysisView = {
   id: QuickId | LayerId;
@@ -125,21 +141,53 @@ type CopilotAppProps = {
 const LAYER_OPTIONS: LayerOption[] = [
   { id: POPULATION_LAYER.id, label: POPULATION_LAYER.label, provider: POPULATION_LAYER.provider },
   { id: SKT_LIVING_LAYER.id, label: SKT_LIVING_LAYER.label, provider: SKT_LIVING_LAYER.provider },
+  { id: SKT_MOBILITY_LAYER.id, label: SKT_MOBILITY_LAYER.label, provider: SKT_MOBILITY_LAYER.provider },
+  { id: NH_CONSUMPTION_LAYER.id, label: NH_CONSUMPTION_LAYER.label, provider: NH_CONSUMPTION_LAYER.provider },
+  { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
 ];
 
-const CUBE_LAYER_METRICS: Record<"population" | "skt-living", MetricDef[]> = {
+const CUBE_LAYER_METRICS: Record<CubeLayerId, MetricDef[]> = {
   population: POPULATION_LAYER.metrics,
   "skt-living": SKT_LIVING_LAYER.metrics,
+  "skt-mobility": SKT_MOBILITY_LAYER.metrics,
+  "nh-consumption": NH_CONSUMPTION_LAYER.metrics,
+  "kcb-credit": KCB_CREDIT_LAYER.metrics,
 };
+
+const LAYER_PROVIDERS: Record<LayerId, string> = {
+  population: POPULATION_LAYER.provider,
+  "skt-living": SKT_LIVING_LAYER.provider,
+  "skt-mobility": SKT_MOBILITY_LAYER.provider,
+  "nh-consumption": NH_CONSUMPTION_LAYER.provider,
+  "kcb-credit": KCB_CREDIT_LAYER.provider,
+  medical: MEDICAL_LAYER.provider,
+};
+
+/**
+ * Remote choropleth cubes fetched from static JSON. Adding a row here (plus a catalog
+ * LayerDescriptor + CUBE_LAYER_METRICS entry) is all a new private layer needs — the
+ * fetch, active-cube lookup, and loading state are all driven off this list.
+ */
+const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: string }> = [
+  { id: "skt-living", url: "/data/layers/skt-living.json", label: SKT_LIVING_LAYER.label },
+  { id: "skt-mobility", url: "/data/layers/skt-mobility.json", label: SKT_MOBILITY_LAYER.label },
+  { id: "nh-consumption", url: "/data/layers/nh-consumption.json", label: NH_CONSUMPTION_LAYER.label },
+  { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
+];
 
 /**
  * Private-provider layers (SKT/NH/KCB) that natural language may switch to directly.
  * Public population/medical stay on the tool-registry path, so only private layers go
- * here — this is what lets "생활인구 많은 동" reach the SKT layer instead of being
- * swallowed by the public 인구 ranking. Adding an NH/KCB layer here extends NL coverage.
+ * here — this is what lets "생활인구 많은 동"/"카드매출 높은 곳"/"평균소득 높은 동" reach the
+ * private layers instead of being swallowed by the public 인구 ranking.
  */
-const PRIVATE_NL_LAYERS = [SKT_LIVING_LAYER];
+const PRIVATE_NL_LAYERS = [
+  SKT_LIVING_LAYER,
+  SKT_MOBILITY_LAYER,
+  NH_CONSUMPTION_LAYER,
+  KCB_CREDIT_LAYER,
+];
 
 const QUICK_ANALYSES: Array<{
   id: QuickId;
@@ -425,8 +473,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [activeLayerId, setActiveLayerId] = useState<LayerId>("medical");
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
-  const [sktCube, setSktCube] = useState<LayerCube | null>(null);
-  const [sktCubeError, setSktCubeError] = useState<string | null>(null);
+  const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
+  const [remoteCubeErrors, setRemoteCubeErrors] = useState<Record<string, string | null>>({});
   const [sheetHeight, setSheetHeight] = useState(72);
   const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null);
 
@@ -709,27 +757,32 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return () => controller.abort();
   }, [boundaryVersion, snapshotMode, reloadToken]);
 
-  // SKT living-population cube: optional layer, app must keep working without it.
+  // Remote SKT/private cubes: optional layers, app must keep working without them.
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/data/layers/skt-living.json", { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error("SKT 생활인구 레이어를 불러오지 못했습니다.");
-        return response.json();
-      })
-      .then((raw: unknown) => {
-        const parsed = LayerCubeSchema.safeParse(raw);
-        if (!parsed.success) {
-          setSktCubeError("SKT 생활인구 레이어 데이터 형식이 올바르지 않습니다.");
-          return;
-        }
-        setSktCube(parsed.data);
-        setSktCubeError(null);
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setSktCubeError(error instanceof Error ? error.message : "SKT 생활인구 레이어를 불러오지 못했습니다.");
-      });
+    for (const layer of REMOTE_CUBE_LAYERS) {
+      fetch(layer.url, { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error(`${layer.label} 레이어를 불러오지 못했습니다.`);
+          return response.json();
+        })
+        .then((raw: unknown) => {
+          const parsed = LayerCubeSchema.safeParse(raw);
+          if (!parsed.success) {
+            setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: `${layer.label} 레이어 데이터 형식이 올바르지 않습니다.` }));
+            return;
+          }
+          setRemoteCubes((prev) => ({ ...prev, [layer.id]: parsed.data }));
+          setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: null }));
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setRemoteCubeErrors((prev) => ({
+            ...prev,
+            [layer.id]: error instanceof Error ? error.message : `${layer.label} 레이어를 불러오지 못했습니다.`,
+          }));
+        });
+    }
     return () => controller.abort();
   }, []);
 
@@ -762,35 +815,32 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const activeLayerMetrics = activeLayerId === "medical" ? [] : CUBE_LAYER_METRICS[activeLayerId];
   const activeMetric =
     activeLayerMetrics.find((metric) => metric.key === activeMetricKey) ?? activeLayerMetrics[0] ?? null;
+  // population is derived from the snapshot; every other cube layer is a remote JSON.
   const activeCube =
-    activeLayerId === "population" ? populationCube : activeLayerId === "skt-living" ? sktCube : null;
-  const activeLayerProvider =
-    activeLayerId === "medical"
-      ? MEDICAL_LAYER.provider
-      : activeLayerId === "population"
-        ? POPULATION_LAYER.provider
-        : SKT_LIVING_LAYER.provider;
+    activeLayerId === "population"
+      ? populationCube
+      : activeLayerId === "medical"
+        ? null
+        : remoteCubes[activeLayerId] ?? null;
+  const activeLayerError = activeLayerId === "medical" ? null : remoteCubeErrors[activeLayerId] ?? null;
+  const activeLayerProvider = LAYER_PROVIDERS[activeLayerId];
 
   const layerAnalysisResult = useMemo(() => {
-    if (activeLayerId === "medical" || !activeMetric) return null;
-    const cube = activeLayerId === "population" ? populationCube : sktCube;
-    if (!cube) return null;
-    return layerCubeToAnalysisView(cube, activeMetric, activeLayerMetrics, adminLevel);
-  }, [activeLayerId, activeMetric, activeLayerMetrics, populationCube, sktCube, adminLevel]);
+    if (activeLayerId === "medical" || !activeMetric || !activeCube) return null;
+    return layerCubeToAnalysisView(activeCube, activeMetric, activeLayerMetrics, adminLevel);
+  }, [activeLayerId, activeMetric, activeLayerMetrics, activeCube, adminLevel]);
 
   // A choropleth layer is "loading" when it's active, its cube hasn't arrived yet,
-  // and it hasn't errored out (errors already surface via sktCubeError). While this
+  // and it hasn't errored out (errors already surface via activeLayerError). While this
   // is true `analysis` must not silently fall back to the medical quickAnalysis.
   const isLayerCubeLoading =
     activeLayerId !== "medical" &&
     !layerAnalysisResult &&
-    (activeLayerId === "skt-living"
-      ? sktCube === null && sktCubeError === null
-      : populationCube === null);
+    (activeLayerId === "population" ? populationCube === null : activeCube === null && activeLayerError === null);
 
   const layerLoadingView = useMemo<AnalysisView | null>(() => {
     if (!isLayerCubeLoading) return null;
-    const label = activeMetric?.label ?? (activeLayerId === "skt-living" ? "생활인구" : "인구");
+    const label = activeMetric?.label ?? activeLayerMetrics[0]?.label ?? "레이어";
     return {
       id: activeLayerId,
       title: `${label} 데이터 로딩 중`,
@@ -1034,7 +1084,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       // code to a representative member dong so selection/highlight/facility
       // scoping (all dong-keyed) actually has something to match.
       if (activeLayerId !== "medical" && adminLevel === "sgg") {
-        const cube = activeLayerId === "population" ? populationCube : sktCube;
+        const cube =
+          activeLayerId === "population" ? populationCube : remoteCubes[activeLayerId] ?? null;
         const memberDong =
           cube?.cells.find((cell) => cell.code.slice(0, 5) === code)?.code ??
           snapshot?.regions.find((region) => region.adm_cd2.slice(0, 5) === code)?.adm_cd2 ??
@@ -1044,7 +1095,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       }
       setSelectedRegionCode(code);
     },
-    [activeLayerId, adminLevel, populationCube, sktCube, snapshot],
+    [activeLayerId, adminLevel, populationCube, remoteCubes, snapshot],
   );
 
   const drillIntoDistrict = useCallback(
@@ -1632,8 +1683,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <AdminLevelToggle value={adminLevel} onChange={setAdminLevel} />
                   </div>
                 ) : null}
-                {activeLayerId === "skt-living" && sktCubeError ? (
-                  <p className="mt-2 ui-caption text-rose-600">{sktCubeError}</p>
+                {activeLayerError ? (
+                  <p className="mt-2 ui-caption text-rose-600">{activeLayerError}</p>
                 ) : null}
               </section>
 

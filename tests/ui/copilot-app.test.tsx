@@ -178,6 +178,77 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/layers/skt-mobility.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "skt-mobility",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    inflow_total: Array(13).fill(9000),
+                    outflow_total: Array(13).fill(4000),
+                    net_flow: Array(13).fill(5000),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes("/data/layers/nh-consumption.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "nh-consumption",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: { card_sales: Array(13).fill(12000), card_txns: Array(13).fill(34000) },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes("/data/layers/kcb-credit.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "kcb-credit",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    avg_income: Array(13).fill(320),
+                    credit_score: Array(13).fill(850),
+                    card_spend: Array(13).fill(90),
+                    loan_ratio: Array(13).fill(40),
+                    delinquency_ratio: Array(13).fill(2),
+                    highend_ratio: Array(13).fill(5),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
@@ -369,6 +440,47 @@ describe("CopilotApp", () => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/생활인구/);
     });
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
+  });
+
+  test("routes a 유입인구 natural-language query to the SKT mobility layer", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "유입인구 많은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/유입인구/);
+    });
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
+  });
+
+  test("routes a 카드매출 query to the NH consumption layer", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "카드매출 높은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/카드매출/);
+    });
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("NH");
+  });
+
+  test("routes a 평균소득 query to the KCB credit layer", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "평균소득 높은 지역" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/평균소득/);
+    });
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("KCB");
   });
 
   test("shows one-line conclusion in the result panel", async () => {
