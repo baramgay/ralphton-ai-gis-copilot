@@ -162,6 +162,35 @@ html[data-theme="dark"] .rank-row .rank-value {
   color: var(--rank-value);
 }
 
+html[data-theme="dark"] .layer-switcher-item,
+html[data-theme="dark"] .admin-level-toggle {
+  border-color: rgb(71 85 105 / 80%);
+  background: rgb(15 23 42 / 94%);
+}
+
+html[data-theme="dark"] .layer-switcher-item[aria-pressed="true"] {
+  background: rgb(30 58 138 / 40%);
+  border-color: #60a5fa;
+}
+
+html[data-theme="dark"] .layer-switcher-label {
+  color: var(--text-1);
+}
+
+html[data-theme="dark"] .layer-switcher-provider {
+  color: var(--text-3);
+}
+
+html[data-theme="dark"] .admin-level-toggle button {
+  background: transparent;
+  color: var(--text-3);
+}
+
+html[data-theme="dark"] .admin-level-toggle button[aria-pressed="true"] {
+  background: #1d4ed8;
+  color: #fff;
+}
+
 html[data-theme="dark"] .map-float-bar,
 html[data-theme="dark"] .panel-edge-toggle {
   background: rgb(15 23 42 / 94%);
@@ -1013,6 +1042,63 @@ input:hover {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748b;
+}
+
+.layer-switcher {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.layer-switcher-item {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.layer-switcher-item:hover {
+  border-color: #cbd5e1;
+}
+
+.layer-switcher-item[aria-pressed="true"] {
+  border-color: #93c5fd;
+  background: rgb(239 246 255 / 85%);
+}
+
+.layer-switcher-label {
+  display: block;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.layer-switcher-provider {
+  display: block;
+  font-size: var(--fs-chip);
+  color: #64748b;
+}
+
+.admin-level-toggle {
+  display: inline-flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.admin-level-toggle button {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--fs-chip);
+  font-weight: 700;
+  color: #64748b;
+  background: #fff;
+}
+
+.admin-level-toggle button[aria-pressed="true"] {
+  background: #1d4ed8;
+  color: #fff;
 }
 
 /* Semantic type utilities (prefer over arbitrary px) */

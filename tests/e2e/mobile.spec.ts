@@ -5,7 +5,7 @@ test.describe("mobile sheet", () => {
 
   test("shows mobile chrome and can open result sheet", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /부산.?경남 AI GIS|부산 AI GIS/i })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
       timeout: 60_000,
     });
 

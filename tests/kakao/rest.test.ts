@@ -13,12 +13,12 @@ describe("kakao rest adapters", () => {
         documents: [
           {
             id: "1",
-            place_name: "부산중앙의원",
+            place_name: "창원중앙의원",
             category_name: "의료,건강 > 병원",
             category_group_code: "HP8",
-            phone: "051-000-0000",
-            address_name: "부산 중구",
-            road_address_name: "부산 중구 중앙대로 1",
+            phone: "055-000-0000",
+            address_name: "경남 창원시",
+            road_address_name: "경남 창원시 중앙대로 1",
             y: "35.1",
             x: "129.04",
             distance: "120",
@@ -36,7 +36,7 @@ describe("kakao rest adapters", () => {
     expect(places).toHaveLength(1);
     expect(places[0]).toMatchObject({
       id: "1",
-      name: "부산중앙의원",
+      name: "창원중앙의원",
       lat: 35.1,
       lng: 129.04,
       distanceMeters: 120,

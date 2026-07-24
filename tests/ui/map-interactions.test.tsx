@@ -26,7 +26,7 @@ const boundary: BoundaryCollection = {
   features: [
     {
       type: "Feature",
-      properties: { adm_cd2: "2611051000", adm_nm: "부산광역시 중구 중앙동" },
+      properties: { adm_cd2: "4812125000", adm_nm: "경상남도 창원시 의창구 동읍" },
       geometry: {
         type: "Polygon",
         coordinates: [[
@@ -47,8 +47,8 @@ const months = [
 ];
 
 const regions: RegionSeries[] = [{
-  adm_cd2: "2611051000",
-  adm_nm: "부산광역시 중구 중앙동",
+  adm_cd2: "4812125000",
+  adm_nm: "경상남도 창원시 의창구 동읍",
   representativePoint: { lat: 35.1, lng: 129.04 },
   areaSquareKm: 1,
   months,
@@ -69,8 +69,8 @@ const facilities: Facility[] = [
     id: "clinic",
     name: "중앙의원",
     type: "의원",
-    adm_cd2: "2611051000",
-    adm_nm: "부산광역시 중구 중앙동",
+    adm_cd2: "4812125000",
+    adm_nm: "경상남도 창원시 의창구 동읍",
     lat: 35.1,
     lng: 129.04,
     specialties: ["내과"],
@@ -80,8 +80,8 @@ const facilities: Facility[] = [
     id: "pharmacy",
     name: "중앙약국",
     type: "약국",
-    adm_cd2: "2611051000",
-    adm_nm: "부산광역시 중구 중앙동",
+    adm_cd2: "4812125000",
+    adm_nm: "경상남도 창원시 의창구 동읍",
     lat: 35.101,
     lng: 129.041,
     specialties: null,
@@ -98,7 +98,7 @@ describe("DemoMap facility interactions", () => {
         boundary={boundary}
         regions={regions}
         facilities={facilities}
-        scores={new Map([["2611051000", 73]])}
+        scores={new Map([["4812125000", 73]])}
         selectedRegionCode={null}
         radiusKm={2}
         showFacilities={false}
@@ -175,7 +175,7 @@ describe("KakaoMap facility interactions", () => {
         boundary={boundary}
         regions={regions}
         facilities={facilities}
-        scores={new Map([["2611051000", 73]])}
+        scores={new Map([["4812125000", 73]])}
         selectedRegionCode={null}
         radiusKm={2}
         showFacilities={false}

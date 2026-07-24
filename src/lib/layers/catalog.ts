@@ -17,6 +17,20 @@ export const POPULATION_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const SKT_LIVING_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "skt-living",
+  label: "생활인구",
+  provider: "SKT",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["SKT 생활인구 (행정동, 시간대별 추정치의 월별 일평균)"],
+  metrics: [
+    { key: "living_total", label: "총생활인구", unit: "명", aggregation: "sum", formula: "월 전체 시간대 평균 생활인구", limitation: "SKT 추정치, 실거주와 다를 수 있음", triggers: ["생활인구", "유동인구", "활동인구"] },
+    { key: "elderly_ratio", label: "고령비중", unit: "%", aggregation: "weightedAvg", weightKey: "living_total", formula: "65세 이상 생활인구/총생활인구×100", limitation: "SKT 추정치", triggers: ["생활인구 고령", "고령 생활"] },
+  ],
+};
+
 export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "medical",
   label: "의료",

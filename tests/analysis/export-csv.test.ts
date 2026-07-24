@@ -17,14 +17,14 @@ describe("export-csv", () => {
         name: "중구 중앙동",
         valueLabel: "85점",
         note: "취약",
-        sido: "부산",
+        sido: "경남",
       },
     ]);
     expect(csv).toContain("기준월");
     expect(csv).toContain("2026-06");
     expect(csv).toContain("2611051000");
     expect(csv).toContain("시도시");
-    expect(csv).toContain("부산");
+    expect(csv).toContain("경남");
   });
 
   test("facility csv lists rows with sido", () => {
@@ -34,13 +34,13 @@ describe("export-csv", () => {
         name: "중앙의원",
         type: "의원",
         region: "중구",
-        address: "부산",
-        sido: "부산",
+        address: "경남",
+        sido: "경남",
       },
     ]);
     expect(csv).toContain("중앙의원");
     expect(csv).toContain("의원");
     expect(csv).toContain("시도시");
-    expect(csv).toContain("부산");
+    expect(csv).toContain("경남");
   });
 });

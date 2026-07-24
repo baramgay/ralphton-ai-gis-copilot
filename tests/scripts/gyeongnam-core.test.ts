@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { filterGyeongnam, listSggFromDong } from "../../scripts/lib/gyeongnam-core.mjs";
 
 const features = [
-  { properties: { adm_nm: "부산광역시 중구 중앙동", adm_cd2: "2611051000", sgg: "26110", sggnm: "중구" } },
+  { properties: { adm_nm: "서울특별시 중구 중앙동", adm_cd2: "1111051000", sgg: "11110", sggnm: "중구" } },
   { properties: { adm_nm: "경상남도 창원시 의창구 동읍", adm_cd2: "4812051000", sgg: "48120", sggnm: "창원시 의창구" } },
   { properties: { adm_nm: "경상남도 진주시 천전동", adm_cd2: "4817051000", sgg: "48170", sggnm: "진주시" } },
 ];

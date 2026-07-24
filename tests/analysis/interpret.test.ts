@@ -18,8 +18,8 @@ const snapshot: AnalysisSnapshot = {
   months,
   regions: [
     {
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       representativePoint: { lat: 35.1, lng: 129.04 },
       areaSquareKm: 1,
       months,
@@ -44,8 +44,8 @@ const result: AnalysisResult = {
   summary: "요약",
   rankedRegions: [
     {
-      adm_cd2: "2611051000",
-      adm_nm: "부산광역시 중구 중앙동",
+      adm_cd2: "4812125000",
+      adm_nm: "경상남도 창원시 의창구 동읍",
       representativePoint: { lat: 35.1, lng: 129.04 },
       areaSquareKm: 1,
       rank: 1,
@@ -71,18 +71,18 @@ const result: AnalysisResult = {
 describe("interpretAnalysisResult", () => {
   it("returns insights and suggestions without provider names", () => {
     const interpretation = interpretAnalysisResult(result, snapshot, {
-      selectedRegionCode: "2611051000",
+      selectedRegionCode: "4812125000",
     });
 
     expect(interpretation.headline).toContain("의료 취약");
-    expect(interpretation.insights.join(" ")).toContain("중앙동");
+    expect(interpretation.insights.join(" ")).toContain("동읍");
     expect(interpretation.suggestions.length).toBeGreaterThan(0);
-    expect(interpretation.suggestions.join(" ")).toMatch(/평가자|부산|경남|비교/);
+    expect(interpretation.suggestions.join(" ")).toMatch(/평가자|경남|비교/);
     expect(JSON.stringify(interpretation)).not.toMatch(/qwen|dashscope|openai/i);
   });
 
   it("builds a one-line policy conclusion", () => {
-    const line = buildOneLineConclusion(result, { selectedRegionCode: "2611051000" });
+    const line = buildOneLineConclusion(result, { selectedRegionCode: "4812125000" });
     expect(line).toMatch(/중앙동|취약/);
     expect(line.length).toBeGreaterThan(8);
   });
