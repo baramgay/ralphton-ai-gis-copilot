@@ -117,7 +117,8 @@ describe("query diversity regression", () => {
   test("compare aliases preserve order", () => {
     const intent = parseIntentWithRules("창원 vs 김해");
     expect(intent?.tool).toBe("compareRegions");
-    expect(intent?.filters.compare?.[0]).toBe("창원시 의창구");
+    // Bare 창원 → city-wide "창원시" token (all 5 자치구 roll up), order preserved.
+    expect(intent?.filters.compare?.[0]).toBe("창원시");
     expect(intent?.filters.compare?.[1]).toBe("김해시");
   });
 });

@@ -32,9 +32,11 @@ export const DISTRICT_LABELS = GYEONGNAM_DISTRICT_LABELS;
 
 /**
  * Colloquial short names → official district labels (longer aliases first in extraction).
- * 가정: 자치구를 명시하지 않은 단독 "창원"/"창원시" 입력은 5개 자치구 중 하나로 특정할 수
- * 없으므로 시청 소재지인 "창원시 의창구"로 정규화한다. "마산" 단독 입력도 마산합포구/마산회원구
- * 중 마산합포구를 기본값으로 삼는다.
+ * 가정: 자치구를 명시하지 않은 단독 "창원"/"창원시" 입력은 특정 자치구가 아니라 창원시 전체를
+ * 뜻하므로 "창원시"로 정규화한다. regionMatches(adm_nm.includes(token))가 공백 제거 부분매칭이라
+ * "창원시" 토큰은 5개 자치구 행정동("경상남도 창원시 …")을 모두 스코프에 포함하고,
+ * getRegionDetails/compareRegions는 이를 시 단위로 합산한다. "마산" 단독 입력은 마산합포구/
+ * 마산회원구 중 마산합포구를 기본값으로 삼는다(자치구 단위 별칭이라 시 전체가 아님).
  */
 export const GYEONGNAM_DISTRICT_ALIASES: Record<string, string> = {
   진주: "진주시",
@@ -61,8 +63,8 @@ export const GYEONGNAM_DISTRICT_ALIASES: Record<string, string> = {
   진해구: "창원시 진해구",
   마산: "창원시 마산합포구",
   진해: "창원시 진해구",
-  창원: "창원시 의창구",
-  창원시: "창원시 의창구",
+  창원: "창원시",
+  창원시: "창원시",
 };
 
 export const DISTRICT_ALIASES = GYEONGNAM_DISTRICT_ALIASES;

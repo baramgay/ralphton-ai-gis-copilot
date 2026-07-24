@@ -5,6 +5,7 @@ import {
   type AnalysisIntent,
 } from "@/lib/analysis/intent-schema";
 import type { AnalysisResult, AnalyzedRegion, LegendItem, MetricDescriptor } from "@/lib/analysis/result";
+import { sggCodeOf, sggNameOf } from "@/lib/analysis/scope";
 import type { AnalysisSnapshot, Facility, RegionSeries } from "@/lib/domain/schemas";
 import {
   countFacilitiesWithinRadius as calculateFacilitiesWithinRadius,
@@ -810,6 +811,51 @@ function sumNullable(values: Array<number | null>): number | null {
   return finite.reduce((sum, value) => sum + value, 0);
 }
 
+/** A region token is a place NAME (e.g. "김해시") rather than a 행정동 코드 (10-digit adm_cd2). */
+function isNameToken(token: string): boolean {
+  return !/^\d{6,}$/.test(token.trim());
+}
+
+/** 구·군 단위 합산 상세 지표 — 비율은 합계 기준으로 재계산한다(단순 평균 아님). */
+function aggregatedDetailMetrics(regions: RegionSeries[], referenceMonth: string): MetricDescriptor[] {
+  const sumOf = (pick: (region: RegionSeries) => readonly (number | null)[]): number | null =>
+    sumNullable(regions.map((region) => latestValue(region, pick(region), referenceMonth)));
+
+  const population = sumOf((region) => region.population);
+  const households = sumOf((region) => region.households);
+  const elderly = sumOf((region) => region.elderlyPopulation);
+  const onePerson = sumOf((region) => region.onePersonHouseholds);
+  const births = sumOf((region) => region.births);
+  const deaths = sumOf((region) => region.deaths);
+  const area = regions.reduce((sum, region) => sum + region.areaSquareKm, 0);
+  const density = population === null || area <= 0 ? null : population / area;
+  const naturalChange = births === null || deaths === null ? null : births - deaths;
+  const count = `${regions.length}개 행정동 합산입니다.`;
+
+  return [
+    metric("총인구", population, "명", "소속 행정동 총인구 합", referenceMonth, count),
+    metric("세대 수", households, "세대", "소속 행정동 세대 수 합", referenceMonth, count),
+    metric("인구밀도", density, "명/km²", "총인구 합 ÷ 면적 합(km²)", referenceMonth, "면적은 소속 동 면적 합입니다."),
+    metric(
+      "고령인구 비율",
+      percentage(elderly, population),
+      "%",
+      "고령인구 합 ÷ 총인구 합 × 100",
+      referenceMonth,
+      "연령 구간은 65세 이상이며 합계 기준으로 재계산합니다.",
+    ),
+    metric(
+      "1인가구 비율",
+      percentage(onePerson, households),
+      "%",
+      "1인가구 합 ÷ 전체 세대 합 × 100",
+      referenceMonth,
+      "원자료가 없는 동은 추정하지 않고 합계에서 제외합니다.",
+    ),
+    metric("자연증가", naturalChange, "명", "출생 합 − 사망 합", referenceMonth, "전입·전출은 포함하지 않습니다."),
+  ];
+}
+
 /**
  * District/gu-level comparison when compare tokens are present.
  * Falls back to dong list when tokens do not match.
@@ -1025,8 +1071,48 @@ export function countFacilitiesWithinRadius(intent: AnalysisIntent, snapshot: An
 }
 
 export function getRegionDetails(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const referenceMonth = snapshot.referenceMonth;
+  const tokens = regionTokens(intent).map((token) => token.trim()).filter(Boolean);
+  const matched = scopedRegions(intent, snapshot);
+
+  // 시군구 단위 질의("김해시 어때", "창원 현황"): 이름 토큰이 여러 행정동에 매칭되면
+  // 첫 동 1개만 보여주지 말고 소속 동 전체를 구·군 단위로 합산한다(#6 rollup).
+  const isSggAggregate =
+    matched.length > 1 && tokens.length > 0 && tokens.every(isNameToken);
+
+  if (isSggAggregate) {
+    const label = tokens.find(isNameToken) ?? sggNameOf(matched[0].adm_nm);
+    const representative = matched[0];
+    const synthetic: RegionSeries = {
+      ...representative,
+      adm_cd2: sggCodeOf(representative.adm_cd2),
+      adm_nm: `경상남도 ${label}`,
+      areaSquareKm: matched.reduce((sum, region) => sum + region.areaSquareKm, 0),
+    };
+    const selectedRegion = analysisRegion(
+      synthetic,
+      null,
+      aggregatedDetailMetrics(matched, referenceMonth),
+    );
+    const matchedCodes = new Set(matched.map((region) => region.adm_cd2));
+    const facilities = snapshot.facilities.filter((facility) => matchedCodes.has(facility.adm_cd2));
+
+    return result({
+      title: `${label} 상세 (${matched.length}개 행정동 합산)`,
+      summary: `${referenceMonth} 기준 ${label} 소속 ${matched.length}개 행정동의 인구·세대·자연증가 지표를 합산했습니다.`,
+      rankedRegions: [{ ...selectedRegion, rank: 1 }],
+      selectedRegion,
+      filteredFacilities: facilities,
+      legend: SINGLE_COLOR_LEGEND,
+      formulaNotes: [
+        "구·군 단위 합산이며 비율(고령·1인가구)은 단순 평균이 아니라 합계 기준으로 재계산합니다.",
+        "자연증가는 출생 합에서 사망 합을 뺀 값이며 전입·전출은 포함하지 않습니다.",
+      ],
+    });
+  }
+
   const region = regionByRequestedToken(intent, snapshot);
-  const selectedRegion = region ? analysisRegion(region, null, detailMetrics(region, snapshot.referenceMonth)) : null;
+  const selectedRegion = region ? analysisRegion(region, null, detailMetrics(region, referenceMonth)) : null;
   const facilities = region
     ? snapshot.facilities.filter((facility) => facility.adm_cd2 === region.adm_cd2)
     : [];
@@ -1034,7 +1120,7 @@ export function getRegionDetails(intent: AnalysisIntent, snapshot: AnalysisSnaps
   return result({
     title: region ? `${region.adm_nm} 상세` : "지역 상세",
     summary: region
-      ? `${snapshot.referenceMonth} 기준 인구·세대·연령·자연증가 지표입니다.`
+      ? `${referenceMonth} 기준 인구·세대·연령·자연증가 지표입니다.`
       : "요청하신 지역명과 일치하는 행정동 데이터가 없습니다. 구·군 이름(예: 창원시 의창구, 김해시)으로 다시 물어봐 주세요.",
     rankedRegions: selectedRegion ? [{ ...selectedRegion, rank: 1 }] : [],
     selectedRegion,

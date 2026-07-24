@@ -377,12 +377,11 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
         s.districts.length >= 2
           ? s.districts.slice(0, 2)
           : s.districts.length === 1
-            ? [s.districts[0], s.districts[0] === "창원시 의창구" ? "김해시" : "창원시 의창구"]
-            : ["창원시 의창구", "김해시"],
+            ? [s.districts[0], s.districts[0] === "창원시" ? "김해시" : "창원시"]
+            : ["창원시", "김해시"],
     }),
     notice: (s) => {
-      const pair =
-        s.districts.length >= 2 ? s.districts.slice(0, 2) : ["창원시 의창구", "김해시"];
+      const pair = s.districts.length >= 2 ? s.districts.slice(0, 2) : ["창원시", "김해시"];
       return `${pair.join(" · ")} 구·군 단위 지표를 합산 비교합니다.`;
     },
   },

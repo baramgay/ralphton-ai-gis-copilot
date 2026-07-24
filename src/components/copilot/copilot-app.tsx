@@ -53,6 +53,7 @@ import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
 import { MEDICAL_LAYER, POPULATION_LAYER, SKT_LIVING_LAYER } from "@/lib/layers/catalog";
 import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
+import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
 import {
@@ -131,6 +132,14 @@ const CUBE_LAYER_METRICS: Record<"population" | "skt-living", MetricDef[]> = {
   population: POPULATION_LAYER.metrics,
   "skt-living": SKT_LIVING_LAYER.metrics,
 };
+
+/**
+ * Private-provider layers (SKT/NH/KCB) that natural language may switch to directly.
+ * Public population/medical stay on the tool-registry path, so only private layers go
+ * here — this is what lets "생활인구 많은 동" reach the SKT layer instead of being
+ * swallowed by the public 인구 ranking. Adding an NH/KCB layer here extends NL coverage.
+ */
+const PRIVATE_NL_LAYERS = [SKT_LIVING_LAYER];
 
 const QUICK_ANALYSES: Array<{
   id: QuickId;
@@ -1295,6 +1304,30 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
+
+    // Private-data (SKT/NH/KCB) natural-language routing: if the query names a private
+    // layer metric ("생활인구", "유동인구", …), switch the active choropleth layer instead
+    // of falling through to the public tool-registry (which would misroute "생활인구" to the
+    // public 인구 ranking because "생활인구" contains "인구"). Synchronous, no network.
+    const layerMatch = resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
+      adminLevelFallback: adminLevel,
+    });
+    if (layerMatch) {
+      setActiveLayerId(layerMatch.layerId as LayerId);
+      setActiveMetricKey(layerMatch.metricKey);
+      if (layerMatch.adminLevel !== adminLevel) setAdminLevel(layerMatch.adminLevel);
+      setActiveTab("control");
+      setParseStage("done");
+      setQueryNotice(
+        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위).`,
+      );
+      setQueryNoticeTone("success");
+      setQuerySuggestions([]);
+      rememberQuery(trimmed);
+      window.setTimeout(() => setParseStage("idle"), 1200);
+      return;
+    }
+
     setIsParsing(true);
     setParseStage("intent");
     setQueryNotice("의도 파악 중…");

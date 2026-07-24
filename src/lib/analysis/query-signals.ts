@@ -352,6 +352,7 @@ export function extractQuerySignals(query: string): QuerySignals {
       "늘고",
       "증가세",
       "인구가 늘",
+      "몰리",
     ])
   ) {
     metrics.add("growth");
@@ -375,7 +376,9 @@ export function extractQuerySignals(query: string): QuerySignals {
   if (includesAny(text, ["1인가구", "1인 가구", "단독가구", "혼자", "단독세대", "일인 가구"])) {
     metrics.add("singleHousehold");
   }
-  if (includesAny(text, ["사망자", "사망 수", "사망수", "사망", "죽은", "사망률", "돌아가신"])) {
+  if (
+    includesAny(text, ["사망자", "사망 수", "사망수", "사망", "죽은", "죽는", "죽음", "죽어", "사망률", "돌아가신"])
+  ) {
     metrics.add("death");
   }
   if (includesAny(text, ["출생자", "출생 수", "출생수", "출생", "태어", "출산", "신생아", "출생아"])) {
@@ -385,7 +388,15 @@ export function extractQuerySignals(query: string): QuerySignals {
   // keep them as distinct signals so ranking direction isn't conflated (see rankNaturalIncrease
   // vs rankNaturalDecrease in tool-registry.ts).
   if (
-    includesAny(text, ["자연감소", "자연 감소", "사망 초과", "출생보다 사망", "데스크로스"])
+    includesAny(text, [
+      "자연감소",
+      "자연 감소",
+      "사망 초과",
+      "출생보다 사망",
+      "사망이 출생보다",
+      "사망>출생",
+      "데스크로스",
+    ])
   ) {
     metrics.add("naturalDecrease");
     metrics.add("death");
@@ -396,7 +407,7 @@ export function extractQuerySignals(query: string): QuerySignals {
     metrics.add("birth");
   }
   if (includesAny(text, ["밀도", "인구밀도", "빽빽", "밀집", "과밀"])) metrics.add("density");
-  if (includesAny(text, ["인구", "주민", "거주", "사람 수", "인구수", "총인구", "몇 명"])) {
+  if (includesAny(text, ["인구", "주민", "거주", "사람", "인원", "사람 수", "인구수", "총인구", "몇 명"])) {
     metrics.add("population");
   }
   if (includesAny(text, ["세대", "가구 수", "가구수", "세대수", "세대 수"])) metrics.add("households");

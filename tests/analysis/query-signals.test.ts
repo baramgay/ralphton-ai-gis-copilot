@@ -12,7 +12,7 @@ describe("extractQuerySignals", () => {
 
   test("detects compare with vs", () => {
     const signals = extractQuerySignals("창원 vs 김해");
-    expect(signals.districts).toEqual(expect.arrayContaining(["창원시 의창구", "김해시"]));
+    expect(signals.districts).toEqual(expect.arrayContaining(["창원시", "김해시"]));
     expect(signals.spatial.has("compare")).toBe(true);
   });
 

@@ -155,6 +155,29 @@ describe("CopilotApp", () => {
         if (url.includes("/api/rag/search")) {
           return new Response(JSON.stringify({ ok: true, hits: [], context: "" }), { status: 200 });
         }
+        if (url.includes("/data/layers/skt-living.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "skt-living",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    living_total: Array(13).fill(8000),
+                    elderly_ratio: Array(13).fill(18),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
@@ -328,6 +351,24 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
     // Reference-month/provider badge is sourced from the active layer, not left dangling.
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("공공");
+  });
+
+  test("routes a 생활인구 natural-language query to the SKT private layer", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    // Default layer is 의료(공공). Submit a private-data NL query.
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "생활인구 많은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    // NL switched the active choropleth to the SKT 생활인구 layer (not public 인구):
+    // methodology sources the private metric and provenance shows SKT.
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/생활인구/);
+    });
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
   });
 
   test("shows one-line conclusion in the result panel", async () => {

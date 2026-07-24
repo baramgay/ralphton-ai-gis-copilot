@@ -227,6 +227,46 @@ describe("toolRegistry", () => {
     expect(result.rankedRegions.some(({ adm_cd2 }) => adm_cd2 === growthRegion.adm_cd2)).toBe(false);
   });
 
+  test("aggregates dong metrics into a 시군구 rollup when a name token matches multiple dongs", () => {
+    const d1 = region("4825051000", "경상남도 김해시 삼계동", {
+      startPopulation: 1000,
+      endPopulation: 1000,
+      elderlyPopulation: 100,
+      onePersonHouseholds: 30,
+    });
+    const d2 = region("4825052000", "경상남도 김해시 내외동", {
+      startPopulation: 2000,
+      endPopulation: 2000,
+      elderlyPopulation: 400,
+      onePersonHouseholds: 50,
+    });
+
+    const result = executeAnalysisIntent(
+      { tool: "getRegionDetails", filters: { regions: ["김해시"] } },
+      snapshot({ regions: [d1, d2] }),
+    );
+
+    expect(result.title).toContain("김해시");
+    expect(result.title).toContain("2개");
+    const total = result.selectedRegion?.metrics.find((m) => m.label === "총인구");
+    expect(total?.value).toBe(3000); // 1000 + 2000 summed, not a single dong
+    const households = result.selectedRegion?.metrics.find((m) => m.label === "세대 수");
+    expect(households?.value).toBe(100); // 50 + 50
+    // 고령비율은 합계 기준: (100+400)/(1000+2000) = 16.67%, 단순 평균(각 10%/20%)이 아님
+    const elderly = result.selectedRegion?.metrics.find((m) => m.label === "고령인구 비율");
+    expect(elderly?.value).toBeCloseTo((500 / 3000) * 100, 1);
+  });
+
+  test("keeps single-dong detail when the token is an explicit 행정동 코드", () => {
+    const result = executeAnalysisIntent(
+      { tool: "getRegionDetails", filters: { regions: [regionA.adm_cd2] } },
+      snapshot(),
+    );
+
+    expect(result.selectedRegion?.adm_cd2).toBe(regionA.adm_cd2);
+    expect(result.title).not.toContain("합산");
+  });
+
   test("includes complete formula metadata on every emitted metric", () => {
     const result = executeAnalysisIntent(
       { tool: "getRegionDetails", filters: { regions: [regionA.adm_cd2] } },

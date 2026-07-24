@@ -27,7 +27,7 @@ describe('parseIntentWithRules', () => {
     ['인구증가', { tool: 'rankPopulationGrowthPressure' }],
     [
       '창원과 김해 비교',
-      { tool: 'compareRegions', filters: { compare: ['창원시 의창구', '김해시'] } },
+      { tool: 'compareRegions', filters: { compare: ['창원시', '김해시'] } },
     ],
     ['2km', { tool: 'countFacilitiesWithinRadius', filters: { radiusKm: 2 } }],
     [
@@ -60,7 +60,7 @@ describe('parseIntentWithRules', () => {
     ['어디가 제일 의료 취약해', { tool: 'rankHospitalScarcity' }],
     ['진주시 어때', { tool: 'getRegionDetails', filters: { regions: ['진주시'] } }],
     ['김해 근처 병원', { tool: 'filterFacilitiesByTypeAndHours' }],
-    ['창원 vs 김해', { tool: 'compareRegions', filters: { compare: ['창원시 의창구', '김해시'] } }],
+    ['창원 vs 김해', { tool: 'compareRegions', filters: { compare: ['창원시', '김해시'] } }],
     ['2키로 안 병원 적은 동', { tool: 'countFacilitiesWithinRadius', filters: { radiusKm: 2 } }],
     ['인구 많은 동', { tool: 'rankPopulationSize' }],
     ['치과 보여줘', { tool: 'filterFacilitiesByTypeAndHours', filters: { facilityTypes: ['치과의원'] } }],
