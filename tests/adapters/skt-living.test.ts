@@ -33,9 +33,9 @@ describe("skt-living adapter", () => {
     expect(toAdmCd2("48170320")).toBe("4817032000");
   });
 
-  it("computes living_total as the day×hour mean of the sum34 per dong", () => {
+  it("computes living_total as the day×hour mean of the sumBands per dong", () => {
     // 2 dong x 2 days x 2 hours = 8 rows. Each numeric column has 32 columns,
-    // 24 "regular" bands at 10 and 8 "elderly" bands at 5, so sum34 = 24*10 + 8*5 = 280 per row.
+    // 24 "regular" bands at 10 and 8 "elderly" bands at 5, so sumBands = 24*10 + 8*5 = 280 per row.
     const lines = [
       makeRow({ date: "20250101", hour: "00", dong: "48170320", allBandsValue: 10, elderlyBandsValue: 5 }),
       makeRow({ date: "20250101", hour: "01", dong: "48170320", allBandsValue: 10, elderlyBandsValue: 5 }),
@@ -50,14 +50,14 @@ describe("skt-living adapter", () => {
     const acc = aggregateLivingRows(lines, COLUMNS);
     const stats = finalizeDongStats(acc);
 
-    // dong 48170320: 3 rows with sum34=280, 1 row with sum34=24*20+8*10=560 -> mean = (280*3+560)/4 = 350
+    // dong 48170320: 3 rows with sumBands=280, 1 row with sumBands=24*20+8*10=560 -> mean = (280*3+560)/4 = 350
     const first = stats.get("48170320");
     expect(first).toBeDefined();
     expect(first!.living_total).toBeCloseTo(350, 6);
-    // elderly: 3 rows elderly=8*5=40, 1 row elderly=8*10=80 -> total elderly=200, total sum34=1400 -> ratio = 200/1400*100
+    // elderly: 3 rows elderly=8*5=40, 1 row elderly=8*10=80 -> total elderly=200, total sumBands=1400 -> ratio = 200/1400*100
     expect(first!.elderly_ratio).toBeCloseTo((200 / 1400) * 100, 6);
 
-    // dong 48730250: all rows sum34 = 32 (24*1+8*1), elderly = 8
+    // dong 48730250: all rows sumBands = 32 (24*1+8*1), elderly = 8
     const second = stats.get("48730250");
     expect(second).toBeDefined();
     expect(second!.living_total).toBeCloseTo(32, 6);

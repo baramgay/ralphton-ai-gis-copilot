@@ -34,16 +34,16 @@ export function computeColumnIndices(columns) {
 
 /**
  * Folds one data line (no header) into the per-dong accumulator.
- * acc: Map<ADMDONG_CD, { sum34: number, elderly: number, rows: number }>
+ * acc: Map<ADMDONG_CD, { sumBands: number, elderly: number, rows: number }>
  */
 export function accumulateLine(acc, line, indices) {
   if (!line) return acc;
   const fields = line.split("|");
   const dong = fields[indices.admIdx];
 
-  let sum34 = 0;
+  let sumBands = 0;
   for (let i = indices.numericStart; i < fields.length; i += 1) {
-    sum34 += Number(fields[i]);
+    sumBands += Number(fields[i]);
   }
   let elderly = 0;
   for (const idx of indices.elderlyIdx) {
@@ -52,11 +52,11 @@ export function accumulateLine(acc, line, indices) {
 
   const entry = acc.get(dong);
   if (entry) {
-    entry.sum34 += sum34;
+    entry.sumBands += sumBands;
     entry.elderly += elderly;
     entry.rows += 1;
   } else {
-    acc.set(dong, { sum34, elderly, rows: 1 });
+    acc.set(dong, { sumBands, elderly, rows: 1 });
   }
   return acc;
 }
@@ -77,13 +77,13 @@ export function aggregateLivingRows(lines, columns) {
 
 /**
  * Converts the raw per-dong accumulator into the final metrics:
- * living_total = day×hour mean of sum34; elderly_ratio = elderly/sum34 * 100 (null if sum34 is 0).
+ * living_total = day×hour mean of sumBands; elderly_ratio = elderly/sumBands * 100 (null if sumBands is 0).
  */
 export function finalizeDongStats(acc) {
   const result = new Map();
-  for (const [dong, { sum34, elderly, rows }] of acc) {
-    const living_total = rows > 0 ? sum34 / rows : 0;
-    const elderly_ratio = sum34 > 0 ? (elderly / sum34) * 100 : null;
+  for (const [dong, { sumBands, elderly, rows }] of acc) {
+    const living_total = rows > 0 ? sumBands / rows : 0;
+    const elderly_ratio = sumBands > 0 ? (elderly / sumBands) * 100 : null;
     result.set(dong, { living_total, elderly_ratio });
   }
   return result;

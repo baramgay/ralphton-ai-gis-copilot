@@ -761,12 +761,38 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return layerCubeToAnalysisView(cube, activeMetric, activeLayerMetrics, adminLevel);
   }, [activeLayerId, activeMetric, activeLayerMetrics, populationCube, sktCube, adminLevel]);
 
+  // A choropleth layer is "loading" when it's active, its cube hasn't arrived yet,
+  // and it hasn't errored out (errors already surface via sktCubeError). While this
+  // is true `analysis` must not silently fall back to the medical quickAnalysis.
+  const isLayerCubeLoading =
+    activeLayerId !== "medical" &&
+    !layerAnalysisResult &&
+    (activeLayerId === "skt-living"
+      ? sktCube === null && sktCubeError === null
+      : populationCube === null);
+
+  const layerLoadingView = useMemo<AnalysisView | null>(() => {
+    if (!isLayerCubeLoading) return null;
+    const label = activeMetric?.label ?? (activeLayerId === "skt-living" ? "생활인구" : "인구");
+    return {
+      id: activeLayerId,
+      title: `${label} 데이터 로딩 중`,
+      summary: `${label} 데이터를 불러오는 중입니다…`,
+      ranked: [],
+      filteredFacilities: [],
+      formulaNotes: [],
+      legendLabel: `${label} 분포`,
+      isFacilityResult: false,
+    };
+  }, [isLayerCubeLoading, activeLayerId, activeMetric]);
+
   const analysis = useMemo<AnalysisView | null>(() => {
-    if (activeLayerId !== "medical" && layerAnalysisResult) {
-      return { ...layerAnalysisResult.analysis, id: activeLayerId };
+    if (activeLayerId !== "medical") {
+      if (layerAnalysisResult) return { ...layerAnalysisResult.analysis, id: activeLayerId };
+      if (layerLoadingView) return layerLoadingView;
     }
     return quickAnalysis;
-  }, [activeLayerId, layerAnalysisResult, quickAnalysis]);
+  }, [activeLayerId, layerAnalysisResult, layerLoadingView, quickAnalysis]);
 
   const dismissOnboard = useCallback(() => {
     setShowOnboard(false);
@@ -822,8 +848,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (activeLayerId !== "medical" && layerAnalysisResult) {
       return layerAnalysisResult.scores;
     }
+    if (activeLayerId !== "medical" && isLayerCubeLoading) {
+      return new Map<string, number>();
+    }
     return new Map(quickAnalysis?.ranked.map((row) => [row.code, row.mapScore]) ?? []);
-  }, [activeLayerId, layerAnalysisResult, quickAnalysis]);
+  }, [activeLayerId, layerAnalysisResult, isLayerCubeLoading, quickAnalysis]);
 
   const isCompareView = Boolean(
     activeQuick === "compare" ||
@@ -979,11 +1008,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setSelectedRegionCode(facility.adm_cd2);
   }, []);
 
-  const selectRegion = useCallback((code: string) => {
-    setSelectedFacilityId(null);
-    setSelectedLivePlace(null);
-    setSelectedRegionCode(code);
-  }, []);
+  const selectRegion = useCallback(
+    (code: string) => {
+      setSelectedFacilityId(null);
+      setSelectedLivePlace(null);
+      // At sgg admin level, ranked rows carry 5-digit sgg codes (map scores stay
+      // dong-keyed — see layers/to-analysis-view.ts). Resolve the clicked sgg
+      // code to a representative member dong so selection/highlight/facility
+      // scoping (all dong-keyed) actually has something to match.
+      if (activeLayerId !== "medical" && adminLevel === "sgg") {
+        const cube = activeLayerId === "population" ? populationCube : sktCube;
+        const memberDong =
+          cube?.cells.find((cell) => cell.code.slice(0, 5) === code)?.code ??
+          snapshot?.regions.find((region) => region.adm_cd2.slice(0, 5) === code)?.adm_cd2 ??
+          null;
+        setSelectedRegionCode(memberDong ?? code);
+        return;
+      }
+      setSelectedRegionCode(code);
+    },
+    [activeLayerId, adminLevel, populationCube, sktCube, snapshot],
+  );
 
   const drillIntoDistrict = useCallback(
     (districtLabel: string) => {
@@ -1391,9 +1436,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const currentOnePerson = selectedRegion?.onePersonHouseholds[latestIndex] ?? null;
   const currentRank = analysis.ranked.findIndex((row) => row.code === selectedRegionCode) + 1;
   const emptyResult =
-    analysis.isFacilityResult
+    !isLayerCubeLoading &&
+    (analysis.isFacilityResult
       ? analysis.filteredFacilities.length === 0
-      : analysis.ranked.length === 0;
+      : analysis.ranked.length === 0);
 
   const shellStyle = {
     ...cssVars,
@@ -2711,6 +2757,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         </header>
 
         <div className="copilot-scroll space-y-4 px-3 pb-8 pt-3">
+          {isLayerCubeLoading ? (
+            <section className="empty-state" data-testid="layer-cube-loading">
+              <p className="ui-body-lg font-bold text-slate-800">{analysis.summary}</p>
+              <p className="ui-body mt-1.5 text-slate-500">
+                잠시 후 순위와 지도가 자동으로 갱신됩니다.
+              </p>
+            </section>
+          ) : null}
           {emptyResult ? (
             <section className="empty-state">
               <p className="ui-body-lg font-bold text-slate-800">표시할 결과가 없습니다</p>
@@ -2881,10 +2935,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   개 남음)
                 </button>
               ) : null}
-              {!analysis.isFacilityResult && filteredRanked.length === 0 ? (
+              {!isLayerCubeLoading && !analysis.isFacilityResult && filteredRanked.length === 0 ? (
                 <p className="px-3.5 py-4 ui-body text-slate-500">검색 결과가 없습니다.</p>
               ) : null}
-              {analysis.isFacilityResult && filteredFacilitiesList.length === 0 ? (
+              {!isLayerCubeLoading && analysis.isFacilityResult && filteredFacilitiesList.length === 0 ? (
                 <p className="px-3.5 py-4 ui-body text-slate-500">검색 결과가 없습니다.</p>
               ) : null}
             </div>
