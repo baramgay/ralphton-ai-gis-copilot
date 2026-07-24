@@ -13,6 +13,7 @@
     "data:boundaries:validate": "node scripts/validate-boundaries.mjs",
     "data:seed": "node scripts/seed-demo-data.mjs",
     "data:sync": "node scripts/sync-live-data.mjs",
+    "data:skt": "node scripts/adapters/skt-living.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
