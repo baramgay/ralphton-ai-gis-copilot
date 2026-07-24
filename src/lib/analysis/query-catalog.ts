@@ -105,7 +105,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     label: "인구 증가",
     examples: ["인구가 늘어나는 지역", "인구 증가 압력", "어디 인구가 늘고 있어"],
     domains: ["population"],
-    metricCues: ["growth", "population"],
+    metricCues: ["growth"],
     spatialCues: ["rank"],
     baseScore: 35,
     cueBonus: 20,
@@ -123,7 +123,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     label: "인구 감소",
     examples: ["인구가 줄어드는 동", "인구 감소 위험", "인구 유출"],
     domains: ["population"],
-    metricCues: ["decline", "population"],
+    metricCues: ["decline"],
     spatialCues: ["rank"],
     baseScore: 35,
     cueBonus: 20,
@@ -166,7 +166,10 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     spatialCues: ["rank"],
     baseScore: 50,
     cueBonus: 28,
-    scoreExtra: (s) => (s.metrics.has("birth") && !s.metrics.has("naturalDecrease") ? 12 : 0),
+    scoreExtra: (s) =>
+      s.metrics.has("birth") && !s.metrics.has("naturalDecrease") && !s.metrics.has("naturalIncrease")
+        ? 12
+        : 0,
     build: (s) => scopeFilters({}, s),
     notice: () => "기준월 출생 수가 많은 행정동 순입니다.",
   },
@@ -189,11 +192,29 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     notice: () => "자연감소(사망−출생)가 큰 행정동 순입니다.",
   },
   {
+    id: "rankNaturalIncrease",
+    label: "자연증가",
+    examples: ["자연증가가 큰 곳", "인구 자연증가 높은 지역", "출생이 사망보다 많은 동"],
+    domains: ["vital", "population"],
+    metricCues: ["naturalIncrease", "birth", "death"],
+    spatialCues: ["rank"],
+    baseScore: 40,
+    cueBonus: 18,
+    scoreExtra: (s) =>
+      s.metrics.has("naturalIncrease")
+        ? 38
+        : s.metrics.has("birth") && s.metrics.has("death")
+          ? 18
+          : 0,
+    build: (s) => scopeFilters({}, s),
+    notice: () => "자연증가(출생−사망)가 큰 행정동 순입니다.",
+  },
+  {
     id: "rankPopulationDensity",
     label: "인구밀도",
     examples: ["인구밀도 높은 동", "밀집 지역", "빽빽한 동네"],
     domains: ["population", "future-gis"],
-    metricCues: ["density", "population"],
+    metricCues: ["density"],
     spatialCues: ["rank"],
     baseScore: 40,
     cueBonus: 22,
@@ -275,8 +296,15 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     cueBonus: 22,
     scoreExtra: (s) =>
       (s.spatial.has("distance") ? 42 : 0) + (s.polarityHigh && s.normalized.includes("먼") ? 12 : 0),
-    build: (s) => scopeFilters({}, s),
-    notice: () => "행정동 대표점 기준 최근접 의료기관 직선거리를 계산했습니다.",
+    build: (s) =>
+      scopeFilters(
+        { sortDirection: s.nearestDirection === "near" ? "ascending" : "descending" },
+        s,
+      ),
+    notice: (s) =>
+      s.nearestDirection === "near"
+        ? "행정동 대표점 기준 가장 가까운 의료기관 직선거리 순으로 정렬했습니다."
+        : "행정동 대표점 기준 최근접 의료기관 직선거리가 먼 순으로 정렬했습니다.",
   },
   {
     id: "filterFacilitiesByTypeAndHours",
@@ -289,7 +317,10 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     cueBonus: 14,
     scoreExtra: (s) => {
       let score = 0;
-      if (s.facilityTypes.length > 0) score += 32;
+      // Mentioning a facility type (e.g. "병원") should not outweigh an explicit
+      // scarcity ask ("병원 부족한데 어디임?") — suppress unconditionally, not just
+      // when rank/radius cues are also absent, so scarcity queries reliably win.
+      if (s.facilityTypes.length > 0 && !s.metrics.has("scarcity")) score += 32;
       if (s.metrics.has("night") || s.metrics.has("weekend")) score += 38;
       if (s.metrics.has("pharmacy")) score += 28;
       if (s.spatial.has("map") && s.metrics.has("medical")) score += 16;
@@ -401,7 +432,15 @@ export function scoreCatalogEntry(entry: ToolCatalogEntry, signals: QuerySignals
   for (const cue of entry.spatialCues) {
     if (signals.spatial.has(cue)) score += Math.round(entry.cueBonus * 0.65);
   }
-  if (metricHits > 0 || entry.spatialCues.some((cue) => signals.spatial.has(cue))) {
+  // Tools with declared metricCues must actually match one before earning baseScore —
+  // otherwise a bare magnitude query with no domain noun ("사람 많은 데") would default
+  // to whichever rank tool happens to have the highest baseScore (e.g. rankDeathCount).
+  // Spatially-driven tools with no metricCues (compare/detail) keep the old spatial-only path.
+  const requiresMetricMatch = entry.metricCues.length > 0;
+  if (
+    (requiresMetricMatch && metricHits > 0) ||
+    (!requiresMetricMatch && entry.spatialCues.some((cue) => signals.spatial.has(cue)))
+  ) {
     score += entry.baseScore;
   }
   // Soft boost when user named a district and tool can scope

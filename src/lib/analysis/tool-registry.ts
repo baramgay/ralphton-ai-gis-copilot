@@ -660,6 +660,37 @@ export function rankNaturalDecrease(intent: AnalysisIntent, snapshot: AnalysisSn
   });
 }
 
+export function rankNaturalIncrease(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const naturalChange = numericValueAt(region.naturalChange, index);
+    return analysisRegion(region, naturalChange, [
+      metric(
+        "자연증가(출생−사망)",
+        naturalChange,
+        "명",
+        "기준월 출생 수 − 사망 수",
+        snapshot.referenceMonth,
+        "전입·전출은 포함하지 않습니다.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "자연증가가 큰 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "자연증가·감소 데이터가 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 자연증가(출생−사망)가 큰 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["자연증가 = 출생 − 사망. 이동 인구는 반영하지 않습니다."],
+  });
+}
+
 export function rankPopulationDensity(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const regions = scopedRegions(intent, snapshot);
   const analyzed = regions.map((region) => {
@@ -919,6 +950,7 @@ export function compareRegions(intent: AnalysisIntent, snapshot: AnalysisSnapsho
 export function nearestFacilityDistance(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const regions = scopedRegions(intent, snapshot);
   const facilities = filteredFacilities(intent, snapshot, false);
+  const direction: SortDirection = intent.filters.sortDirection ?? "descending";
   const analyzed = regions.map((region) => {
     const distance = calculateNearestFacilityDistance(region.representativePoint, facilities);
     return analysisRegion(region, distance, [
@@ -932,7 +964,7 @@ export function nearestFacilityDistance(intent: AnalysisIntent, snapshot: Analys
       ),
     ]);
   });
-  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length), true);
+  const rankedRegions = ranked(analyzed, direction, requestedLimit(intent, analyzed.length), true);
   const requested = regionByRequestedToken(intent, snapshot);
   const selectedRegion = requested
     ? rankedRegions.find(({ adm_cd2 }) => adm_cd2 === requested.adm_cd2) ??
@@ -950,7 +982,10 @@ export function nearestFacilityDistance(intent: AnalysisIntent, snapshot: Analys
 
   return result({
     title: "최근접 의료기관 거리",
-    summary: facilities.length === 0 ? "조건에 맞는 의료기관이 없어 거리를 계산할 수 없습니다." : `${regions.length}개 행정동의 최근접 의료기관 직선거리를 계산했습니다.`,
+    summary:
+      facilities.length === 0
+        ? "조건에 맞는 의료기관이 없어 거리를 계산할 수 없습니다."
+        : `${regions.length}개 행정동의 최근접 의료기관 직선거리를 ${direction === "ascending" ? "가까운" : "먼"} 순으로 계산했습니다.`,
     rankedRegions,
     selectedRegion,
     filteredFacilities: facilities,
@@ -1018,6 +1053,7 @@ export const toolRegistry = {
   rankDeathCount,
   rankBirthCount,
   rankNaturalDecrease,
+  rankNaturalIncrease,
   rankPopulationDensity,
   rankPopulationSize,
   rankElderlyRatio,
