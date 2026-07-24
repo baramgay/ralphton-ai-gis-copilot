@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AdminLevelSchema } from '@/lib/layers/types';
 
 export const ALLOWED_FACILITY_TYPES = [
   '종합병원',
@@ -37,6 +38,9 @@ export const ToolNameSchema = z.enum(ALLOWED_TOOLS);
 export const AnalysisIntentSchema = z
   .object({
     tool: ToolNameSchema,
+    layerId: z.string().min(1).max(40).optional(),
+    metricKey: z.string().min(1).max(60).optional(),
+    adminLevel: AdminLevelSchema.optional(),
     filters: z
       .object({
         facilityTypes: z.array(FacilityTypeSchema).max(20).optional(),
