@@ -42,7 +42,7 @@ export function listDongLabels(regions: Array<{ adm_nm: string; adm_cd2: string 
 
 export type CompareScope = "gu" | "dong";
 
-export const DEFAULT_COMPARE: [string, string] = ["기장군", "창원시"];
+export const DEFAULT_COMPARE: [string, string] = ["진주시", "창원시"];
 
 export function normalizeComparePair(
   a: string,

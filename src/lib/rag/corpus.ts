@@ -70,9 +70,9 @@ export const RAG_CORPUS: RagChunk[] = [
   {
     id: "tool-compare-detail",
     title: "지역 비교·상세",
-    body: "구·군 2곳 비교는 compareRegions(합산 롤업). 한 지역 현황·상세는 getRegionDetails. 해운대→해운대구, 기장→기장군처럼 별칭을 정규화합니다.",
+    body: "구·군 2곳 비교는 compareRegions(합산 롤업). 한 지역 현황·상세는 getRegionDetails. 창원→창원시 의창구, 김해→김해시처럼 별칭을 정규화합니다.",
     tags: ["compareRegions", "getRegionDetails", "region"],
-    keywords: ["비교", "vs", "상세", "현황", "어때", "해운대", "기장"],
+    keywords: ["비교", "vs", "상세", "현황", "어때", "창원", "김해"],
   },
   {
     id: "data-demo-live",

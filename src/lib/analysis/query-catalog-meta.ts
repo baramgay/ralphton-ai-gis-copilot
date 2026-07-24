@@ -1,26 +1,14 @@
-/** Shared labels so signal extraction and UI stay aligned. */
-export const BUSAN_DISTRICT_LABELS = [
-  "중구",
-  "서구",
-  "동구",
-  "영도구",
-  "부산진구",
-  "동래구",
-  "남구",
-  "북구",
-  "해운대구",
-  "사하구",
-  "금정구",
-  "강서구",
-  "연제구",
-  "수영구",
-  "사상구",
-  "기장군",
-] as const;
-
-/** 경상남도 시·군 (창원시 구 단위는 행정동명 토큰으로 별도 매칭). */
+/**
+ * 경상남도 22개 시·군·구 (창원시는 5개 자치구 단위로 매칭).
+ * "창원시 의창구" 형식(공백 포함)은 행정동 adm_nm("경상남도 창원시 의창구 동읍")의
+ * 부분 문자열 매칭(regionMatches: adm_nm.includes(token))과 정확히 맞도록 맞춘 표기다.
+ */
 export const GYEONGNAM_DISTRICT_LABELS = [
-  "창원시",
+  "창원시 의창구",
+  "창원시 성산구",
+  "창원시 마산합포구",
+  "창원시 마산회원구",
+  "창원시 진해구",
   "진주시",
   "통영시",
   "사천시",
@@ -38,55 +26,46 @@ export const GYEONGNAM_DISTRICT_LABELS = [
   "함양군",
   "거창군",
   "합천군",
-  "의창구",
-  "성산구",
-  "마산합포구",
-  "마산회원구",
-  "진해구",
 ] as const;
 
-export const DISTRICT_LABELS = [
-  ...BUSAN_DISTRICT_LABELS,
-  ...GYEONGNAM_DISTRICT_LABELS,
-] as const;
+export const DISTRICT_LABELS = GYEONGNAM_DISTRICT_LABELS;
 
-/** Colloquial short names → official district labels (longer aliases first in extraction). */
-export const BUSAN_DISTRICT_ALIASES: Record<string, string> = {
-  해운대: "해운대구",
-  부산진: "부산진구",
-  진구: "부산진구",
-  동래: "동래구",
-  영도: "영도구",
-  기장: "기장군",
-  금정: "금정구",
-  연제: "연제구",
-  수영: "수영구",
-  사상: "사상구",
-  사하: "사하구",
-  강서: "강서구",
-  창원: "창원시",
+/**
+ * Colloquial short names → official district labels (longer aliases first in extraction).
+ * 가정: 자치구를 명시하지 않은 단독 "창원"/"창원시" 입력은 5개 자치구 중 하나로 특정할 수
+ * 없으므로 시청 소재지인 "창원시 의창구"로 정규화한다. "마산" 단독 입력도 마산합포구/마산회원구
+ * 중 마산합포구를 기본값으로 삼는다.
+ */
+export const GYEONGNAM_DISTRICT_ALIASES: Record<string, string> = {
   진주: "진주시",
-  김해: "김해시",
-  양산: "양산시",
-  거제: "거제시",
   통영: "통영시",
   사천: "사천시",
+  김해: "김해시",
   밀양: "밀양시",
-  남해: "남해군",
-  하동: "하동군",
+  거제: "거제시",
+  양산: "양산시",
+  의령: "의령군",
   함안: "함안군",
   창녕: "창녕군",
   고성: "고성군",
-  의령: "의령군",
+  남해: "남해군",
+  하동: "하동군",
   산청: "산청군",
   함양: "함양군",
   거창: "거창군",
   합천: "합천군",
-  마산: "마산합포구",
-  진해: "진해구",
+  의창구: "창원시 의창구",
+  성산구: "창원시 성산구",
+  마산합포구: "창원시 마산합포구",
+  마산회원구: "창원시 마산회원구",
+  진해구: "창원시 진해구",
+  마산: "창원시 마산합포구",
+  진해: "창원시 진해구",
+  창원: "창원시 의창구",
+  창원시: "창원시 의창구",
 };
 
-export const DISTRICT_ALIASES = BUSAN_DISTRICT_ALIASES;
+export const DISTRICT_ALIASES = GYEONGNAM_DISTRICT_ALIASES;
 
 export const QUERY_SUGGESTIONS = [
   "고령 인구 대비 병원이 부족한 곳",
@@ -99,22 +78,22 @@ export const QUERY_SUGGESTIONS = [
   "고령화율이 높은 곳",
   "최근접 의료기관 거리가 먼 동",
   "2km 안에 병원이 적은 곳",
-  "기장군과 강서구 비교",
+  "거창군과 합천군 비교",
   "창원과 김해 비교",
-  "해운대구 상세 지표",
+  "김해시 상세 지표",
   "창원시 의료 취약",
-  "해운대 근처 병원",
+  "김해 근처 병원",
   "김해 인구 현황",
   "종합병원 위치",
   "약국만 보여줘",
   "인구가 늘어나는 지역",
   "1인가구 비중이 높은 동",
   "어디가 제일 의료 취약해",
-  "수영구 인구 현황",
+  "거제시 인구 현황",
   "양산시 상세 지표",
   "야간 진료 병원",
   "주말 여는 약국",
-  "해운대 vs 수영 비교",
+  "통영 vs 거제 비교",
   "진주 vs 사천 비교",
   "3km 반경 접근성",
   "치과 많은 곳",

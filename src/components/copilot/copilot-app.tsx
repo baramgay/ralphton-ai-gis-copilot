@@ -1441,7 +1441,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ref={queryInputRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: 창원 의료 취약 어디? 해운대 고령 밀집?"
+                    placeholder="예: 창원 의료 취약 어디? 김해 고령 밀집?"
                     maxLength={1000}
                     className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-12 ui-body-lg shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
@@ -1664,11 +1664,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {(
                         [
-                          ["기장군", "강서구"],
-                          ["해운대구", "부산진구"],
                           ["창원시", "김해시"],
                           ["진주시", "양산시"],
-                          ["중구", "영도구"],
+                          ["통영시", "거제시"],
+                          ["사천시", "밀양시"],
+                          ["거창군", "합천군"],
                         ] as const
                       )
                         .filter(

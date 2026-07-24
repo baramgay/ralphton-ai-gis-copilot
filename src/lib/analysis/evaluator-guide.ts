@@ -38,7 +38,7 @@ export const EVALUATOR_CRITERIA: EvaluatorCriterion[] = [
     title: "자연어·빠른 분석",
     weight: "높음",
     lookFor: "키 없어도 빠른 분석 8종, 키 있으면 질의 파서 동작",
-    howToVerify: "의료 취약 클릭 · 「기장 vs 해운대」 · 「창원 의료 취약」 입력",
+    howToVerify: "의료 취약 클릭 · 「창원 vs 김해」 · 「창원 의료 취약」 입력",
   },
   {
     id: "map",

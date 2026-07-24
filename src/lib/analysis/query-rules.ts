@@ -4,13 +4,13 @@ import {
   scoreCatalogEntry,
 } from "./query-catalog";
 import {
-  BUSAN_DISTRICT_LABELS,
+  GYEONGNAM_DISTRICT_LABELS,
   DISTRICT_LABELS,
   QUERY_SUGGESTIONS,
 } from "./query-catalog-meta";
 import { extractQuerySignals, type QuerySignals } from "./query-signals";
 
-export { BUSAN_DISTRICT_LABELS, DISTRICT_LABELS, QUERY_SUGGESTIONS };
+export { GYEONGNAM_DISTRICT_LABELS, DISTRICT_LABELS, QUERY_SUGGESTIONS };
 export type { QuerySignals };
 
 export const MAX_QUERY_LENGTH = 1000;
@@ -105,7 +105,7 @@ export function assessQuerySafety(query: string): QuerySafetyResult {
 function safetyNotice(reason: SafetyReason): string {
   switch (reason) {
     case "empty":
-      return "질문을 입력해 주세요. 예: 사망자 많은 곳, 해운대 근처 병원";
+      return "질문을 입력해 주세요. 예: 사망자 많은 곳, 김해 근처 병원";
     case "too-long":
       return "질문이 너무 깁니다. 핵심만 짧게 다시 적어 주세요.";
     case "radius":
@@ -272,7 +272,7 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     kind: "unsupported",
     intent: null,
     notice:
-      "질문을 해석했지만 현재 등록된 분석 도구와 충분히 맞지 않습니다. 예: 「사망자 많은 곳」, 「해운대 근처 병원」, 「기장 vs 강서 비교」, 「2km 병원 적은 동」처럼 지표·지역·거리를 넣어 주세요.",
+      "질문을 해석했지만 현재 등록된 분석 도구와 충분히 맞지 않습니다. 예: 「사망자 많은 곳」, 「김해 근처 병원」, 「진주 vs 사천 비교」, 「2km 병원 적은 동」처럼 지표·지역·거리를 넣어 주세요.",
     suggestions: topSuggestions(signals),
   };
 }

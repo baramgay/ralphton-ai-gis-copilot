@@ -753,7 +753,7 @@ export function filterFacilitiesByTypeAndHours(intent: AnalysisIntent, snapshot:
 }
 
 function districtLabel(region: RegionSeries): string {
-  // "부산광역시 해운대구 우동" → 해운대구
+  // "경상남도 김해시 삼계동" → 김해시
   const parts = region.adm_nm.split(/\s+/).filter(Boolean);
   const withGu = parts.find((part) => /[구현군]$/.test(part));
   return withGu ?? parts[1] ?? region.adm_nm;
@@ -823,7 +823,7 @@ export function compareRegions(intent: AnalysisIntent, snapshot: AnalysisSnapsho
         // Synthetic display name for rank panel
         const labeled = {
           ...rep,
-          adm_nm: `부산광역시 ${label}`,
+          adm_nm: `경상남도 ${label}`,
         };
 
         return analysisRegion(labeled, per10k, [
@@ -986,7 +986,7 @@ export function getRegionDetails(intent: AnalysisIntent, snapshot: AnalysisSnaps
     title: region ? `${region.adm_nm} 상세` : "지역 상세",
     summary: region
       ? `${snapshot.referenceMonth} 기준 인구·세대·연령·자연증가 지표입니다.`
-      : "요청하신 지역명과 일치하는 행정동 데이터가 없습니다. 구·군 이름(예: 해운대구, 기장군)으로 다시 물어봐 주세요.",
+      : "요청하신 지역명과 일치하는 행정동 데이터가 없습니다. 구·군 이름(예: 창원시 의창구, 김해시)으로 다시 물어봐 주세요.",
     rankedRegions: selectedRegion ? [{ ...selectedRegion, rank: 1 }] : [],
     selectedRegion,
     filteredFacilities: facilities,

@@ -56,25 +56,25 @@ const CASES: Array<{
   { query: "치과 보여줘", tool: "filterFacilitiesByTypeAndHours" },
   { query: "한의원 어디", tool: "filterFacilitiesByTypeAndHours" },
   // region
-  { query: "해운대구 상세", tool: "getRegionDetails" },
-  { query: "수영구 어때", tool: "getRegionDetails" },
-  { query: "기장군 현황", tool: "getRegionDetails" },
-  { query: "기장군과 강서구 비교", tool: "compareRegions" },
-  { query: "해운대 vs 기장", tool: "compareRegions" },
-  { query: "해운대 근처 병원", tool: "filterFacilitiesByTypeAndHours" },
+  { query: "김해시 상세", tool: "getRegionDetails" },
+  { query: "진주시 어때", tool: "getRegionDetails" },
+  { query: "양산시 현황", tool: "getRegionDetails" },
+  { query: "창원과 김해 비교", tool: "compareRegions" },
+  { query: "창원 vs 김해", tool: "compareRegions" },
+  { query: "김해 근처 병원", tool: "filterFacilitiesByTypeAndHours" },
   // scoped rank
   {
-    query: "해운대구 의료 취약",
+    query: "김해시 의료 취약",
     tool: "rankHospitalScarcity",
     check: (intent) => {
-      expect(intent.filters.regions?.[0]).toBe("해운대구");
+      expect(intent.filters.regions?.[0]).toBe("김해시");
     },
   },
   {
-    query: "수영구 사망자",
+    query: "진주시 사망자",
     tool: "rankDeathCount",
     check: (intent) => {
-      expect(intent.filters.regions).toContain("수영구");
+      expect(intent.filters.regions).toContain("진주시");
     },
   },
 ];
@@ -115,9 +115,9 @@ describe("query diversity regression", () => {
   });
 
   test("compare aliases preserve order", () => {
-    const intent = parseIntentWithRules("해운대 vs 수영");
+    const intent = parseIntentWithRules("창원 vs 김해");
     expect(intent?.tool).toBe("compareRegions");
-    expect(intent?.filters.compare?.[0]).toBe("해운대구");
-    expect(intent?.filters.compare?.[1]).toBe("수영구");
+    expect(intent?.filters.compare?.[0]).toBe("창원시 의창구");
+    expect(intent?.filters.compare?.[1]).toBe("김해시");
   });
 });
