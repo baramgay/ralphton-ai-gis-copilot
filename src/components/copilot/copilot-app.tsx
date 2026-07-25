@@ -3283,7 +3283,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </summary>
               <div className="border-t border-slate-100 px-2.5 py-2">
                 <p className="ui-caption mb-1.5 text-slate-500">
-                  괄호 안은 경남 305개 행정동 대비 백분위(100=최상위)
+                  괄호 안은 경남 305개 행정동 대비 백분위(100=최상위) · ▲▼는 전 기간 추세
                 </p>
                 <ul className="space-y-1">
                   {regionProfile.entries.map((entry) => (
@@ -3300,6 +3300,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           ? "데이터 없음"
                           : `${entry.value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${entry.unit}`}
                         {entry.percentile === null ? "" : ` (${Math.round(entry.percentile)})`}
+                        {entry.trend.direction === "rising" ? (
+                          <span className="ml-1 font-bold text-rose-600" title="증가 추세">
+                            ▲
+                          </span>
+                        ) : entry.trend.direction === "falling" ? (
+                          <span className="ml-1 font-bold text-blue-600" title="감소 추세">
+                            ▼
+                          </span>
+                        ) : null}
                       </span>
                     </li>
                   ))}

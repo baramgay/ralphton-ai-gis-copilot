@@ -85,6 +85,23 @@ describe("buildRegionProfile", () => {
     expect(profile.entries).toHaveLength(0);
   });
 
+  test("단일 시점이 아니라 전 기간 추세를 함께 낸다", () => {
+    // 동2는 첫 달 0 → 기준월 20으로 늘었다. 값만 보면 방향을 알 수 없다.
+    const profile = buildRegionProfile("4811200000", "동2", layers, cubes);
+    expect(profile.entries[0].trend.points).toBe(2);
+    expect(profile.entries[0].trend.direction).toBe("rising");
+  });
+
+  test("관측이 모자란 지표는 추세를 지어내지 않는다", () => {
+    const sparse = { skt: cube("skt", { a: [10, 20, 30] }) };
+    // 한 달만 값이 있으면 방향을 말할 수 없다.
+    sparse.skt.cells[0].series.a = [null, 20];
+    const profile = buildRegionProfile("4811100000", "동1", [layers[0]], sparse);
+    expect(profile.entries[0].trend.points).toBe(1);
+    expect(profile.entries[0].trend.changeRate).toBeNull();
+    expect(profile.entries[0].trend.direction).toBe("flat");
+  });
+
   test("값이 결측이면 백분위를 지어내지 않는다", () => {
     const withNull = { skt: cube("skt", { a: [null, 20, 30] }) };
     const profile = buildRegionProfile("4811100000", "동1", [layers[0]], withNull);

@@ -1,3 +1,4 @@
+import { computeTrend, type TrendResult } from "@/lib/layers/trend";
 import type { LayerCube, LayerDescriptor, MetricDef } from "@/lib/layers/types";
 
 export type ProfileEntry = {
@@ -10,6 +11,8 @@ export type ProfileEntry = {
   value: number | null;
   /** 경남 전체 대비 백분위(0~100). 값이 없거나 비교 대상이 1개면 null. */
   percentile: number | null;
+  /** 큐브 전 기간 추세. 단일 시점만으로는 늘고 있는지 줄고 있는지 알 수 없다. */
+  trend: TrendResult;
   referenceMonth: string;
 };
 
@@ -77,6 +80,8 @@ export function buildRegionProfile(
         unit: metric.unit,
         value,
         percentile: value === null ? null : percentileOf(value, all),
+        // 기준월 한 시점이 아니라 그 동의 전 기간 계열로 방향을 본다.
+        trend: computeTrend(series ?? []),
         referenceMonth: cube.referenceMonth,
       });
     }
