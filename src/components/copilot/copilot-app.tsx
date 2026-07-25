@@ -14,6 +14,7 @@ import {
   downloadTextFile,
   facilitiesToCsv,
   rankedToCsv,
+  resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
@@ -131,6 +132,8 @@ type AnalysisView = {
   formulaNotes: string[];
   legendLabel: string;
   isFacilityResult: boolean;
+  /** 교차분석처럼 공공 스냅샷과 기준월·출처가 다른 결과의 표기용 메타(내보내기에 사용). */
+  provenance?: { referenceMonth: string; source: string };
 };
 
 type LivePlace = LiveMapPlace & {
@@ -331,6 +334,14 @@ function crossResultToView(
     ],
     legendLabel: `${modeLabel} 분포`,
     isFacilityResult: false,
+    provenance: {
+      // 두 지표의 기준월이 다를 수 있으므로 양쪽을 모두 남긴다.
+      referenceMonth:
+        a.referenceMonth === b.referenceMonth
+          ? a.referenceMonth
+          : `${a.referenceMonth} / ${b.referenceMonth}`,
+      source: `${a.provider} ${a.metric.label} × ${b.provider} ${b.metric.label}`,
+    },
   };
 }
 
@@ -1374,7 +1385,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const exportCurrentCsv = useCallback(() => {
     if (!snapshot || !analysis) return;
-    const stamp = snapshot.referenceMonth;
+    // 내보내는 표는 화면에 보이는 분석이다. 민간 큐브 레이어와 교차분석은 공공 스냅샷과
+    // 기준월·출처가 다르므로, 스냅샷 값을 그대로 쓰면 보고서에 잘못된 기준월이 실린다.
+    const { referenceMonth: stamp, source } = resolveExportProvenance({
+      analysisProvenance: analysis.provenance,
+      activeLayer:
+        activeLayerId !== "medical" && activeCube
+          ? {
+              referenceMonth: activeCube.referenceMonth,
+              provider: activeLayerProvider,
+              label: LAYER_OPTIONS.find((layer) => layer.id === activeLayerId)?.label ?? activeLayerId,
+            }
+          : null,
+      snapshotReferenceMonth: snapshot.referenceMonth,
+      snapshotSource: dataSource,
+    });
     if (analysis.isFacilityResult) {
       const csv = facilitiesToCsv(
         analysis.title,
@@ -1412,7 +1437,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
     downloadTextFile(`ralphton-rank-${stamp}.csv`, csv);
     showToast("순위 CSV 저장");
-  }, [analysis, dataSource, showToast, snapshot]);
+  }, [analysis, activeCube, activeLayerId, activeLayerProvider, dataSource, showToast, snapshot]);
 
   const applyLayoutPreset = useCallback(
     (id: LayoutPresetId) => {
@@ -3080,6 +3105,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             ) : null}
             <button
               type="button"
+              data-testid="export-csv"
               className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
               onClick={exportCurrentCsv}
             >

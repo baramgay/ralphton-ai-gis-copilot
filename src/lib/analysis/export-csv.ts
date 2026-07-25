@@ -21,6 +21,29 @@ export type CsvFacilityRow = {
   sido?: string;
 };
 
+/**
+ * 내보낼 표의 기준월·출처를 고른다.
+ *
+ * 화면에 보이는 분석이 곧 내보내는 표다. 민간 큐브 레이어와 교차분석은 공공 스냅샷과
+ * 기준월·출처가 다르므로, 스냅샷 값을 그대로 찍으면 보고서에 잘못된 기준월이 실린다.
+ * 우선순위: 결과 자체의 provenance > 활성 큐브 레이어 > 공공 스냅샷.
+ */
+export function resolveExportProvenance(input: {
+  analysisProvenance?: { referenceMonth: string; source: string };
+  activeLayer?: { referenceMonth: string; provider: string; label: string } | null;
+  snapshotReferenceMonth: string;
+  snapshotSource: string;
+}): { referenceMonth: string; source: string } {
+  if (input.analysisProvenance) return input.analysisProvenance;
+  if (input.activeLayer) {
+    return {
+      referenceMonth: input.activeLayer.referenceMonth,
+      source: `${input.activeLayer.provider} · ${input.activeLayer.label}`,
+    };
+  }
+  return { referenceMonth: input.snapshotReferenceMonth, source: input.snapshotSource };
+}
+
 export function toCsv(headers: string[], rows: string[][]): string {
   const escape = (cell: string) => {
     const value = cell.replaceAll('"', '""');
