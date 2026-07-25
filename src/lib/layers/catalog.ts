@@ -26,7 +26,7 @@ export const SKT_LIVING_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["SKT 생활인구 (행정동, 시간대별 추정치의 월별 일평균)"],
   metrics: [
-    { key: "living_total", label: "총생활인구", unit: "명", aggregation: "sum", formula: "월 전체 시간대 평균 생활인구", limitation: "SKT 추정치, 실거주와 다를 수 있음", triggers: ["생활인구", "유동인구", "활동인구", "체류인구", "머무는", "주간인구"] },
+    { key: "living_total", label: "총생활인구", unit: "명", aggregation: "sum", formula: "월 전체 시간대 평균 생활인구", limitation: "SKT 추정치, 실거주와 다를 수 있음", triggers: ["생활인구", "유동인구", "활동인구", "체류인구", "머무는"] },
     { key: "elderly_ratio", label: "고령비중", unit: "%", aggregation: "weightedAvg", weightKey: "living_total", formula: "65세 이상 생활인구/총생활인구×100", limitation: "SKT 추정치", triggers: ["생활인구 고령", "고령 생활"] },
   ],
 };
@@ -43,6 +43,21 @@ export const SKT_MOBILITY_LAYER: Omit<LayerDescriptor, "months"> = {
     { key: "inflow_total", label: "유입인구", unit: "명", aggregation: "sum", formula: "타 지역에서 유입된 일평균 생활인구", limitation: "SKT 추정치, 통근·방문 등 일시 체류 포함", triggers: ["유입인구", "유입 인구", "들어오는", "유입되는", "유입"] },
     { key: "outflow_total", label: "유출인구", unit: "명", aggregation: "sum", formula: "타 지역으로 유출된 일평균 거주자", limitation: "SKT 추정치", triggers: ["유출인구", "유출 인구", "빠져나가는", "빠져나가", "유출"] },
     { key: "net_flow", label: "순유입(유입−유출)", unit: "명", aggregation: "sum", formula: "유입인구 − 유출인구", limitation: "양수=순유입, 음수=순유출. SKT 추정치", triggers: ["순유입 인구", "순유입인구", "순유입", "순이동", "순인구이동"] },
+  ],
+};
+
+export const SKT_DAYNIGHT_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "skt-daynight",
+  label: "주야간인구",
+  provider: "SKT",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["SKT 생활인구 시간대 분해 (주간 09~18시 · 야간 22~05시 시간당 평균)"],
+  metrics: [
+    { key: "day_population", label: "주간인구", unit: "명", aggregation: "sum", formula: "09~18시 시간당 평균 생활인구", limitation: "SKT 추정치, 통근·방문 등 일시 체류 포함", triggers: ["주간인구", "낮 인구", "낮인구", "주간 생활인구"] },
+    { key: "night_population", label: "야간인구", unit: "명", aggregation: "sum", formula: "22~05시 시간당 평균 생활인구", limitation: "SKT 추정치, 실거주 인구와 다를 수 있음", triggers: ["야간인구", "밤 인구", "밤인구", "야간 생활인구", "심야인구"] },
+    { key: "day_night_ratio", label: "주야비", unit: "%", aggregation: "weightedAvg", weightKey: "night_population", formula: "주간인구 ÷ 야간인구 × 100", limitation: "100 초과=낮에 인구가 늘어나는 상권·업무지구, 100 미만=정주지역", triggers: ["주야비", "주야간 비율", "주간 대비 야간", "낮밤 비율", "상권 성격"] },
   ],
 };
 

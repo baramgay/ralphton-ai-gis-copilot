@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   KCB_CREDIT_LAYER,
   NH_CONSUMPTION_LAYER,
+  SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
 } from "@/lib/layers/catalog";
@@ -14,7 +15,13 @@ import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
  * colloquial phrasings so the copilot can switch to the right layer/metric.
  * Add a phrasing here whenever a new private-data question should be supported.
  */
-const PRIVATE_LAYERS = [SKT_LIVING_LAYER, SKT_MOBILITY_LAYER, NH_CONSUMPTION_LAYER, KCB_CREDIT_LAYER];
+const PRIVATE_LAYERS = [
+  SKT_LIVING_LAYER,
+  SKT_MOBILITY_LAYER,
+  SKT_DAYNIGHT_LAYER,
+  NH_CONSUMPTION_LAYER,
+  KCB_CREDIT_LAYER,
+];
 
 const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   // SKT 생활인구
@@ -31,6 +38,16 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["빠져나가는 인구 많은 곳", "skt-mobility", "outflow_total"],
   ["순유입 큰 지역", "skt-mobility", "net_flow"],
   ["순유입 인구 높은 동", "skt-mobility", "net_flow"],
+  // SKT 주야간인구 — 생활인구(24시간 평균)와 구별되어야 한다
+  ["주간인구 많은 동", "skt-daynight", "day_population"],
+  ["낮 인구 많은 곳", "skt-daynight", "day_population"],
+  ["주간 생활인구 높은 동", "skt-daynight", "day_population"],
+  ["야간인구 많은 동", "skt-daynight", "night_population"],
+  ["밤 인구 높은 곳", "skt-daynight", "night_population"],
+  ["심야인구 많은 동", "skt-daynight", "night_population"],
+  ["주야비 높은 동", "skt-daynight", "day_night_ratio"],
+  ["주야간 비율 높은 곳", "skt-daynight", "day_night_ratio"],
+  ["상권 성격 파악", "skt-daynight", "day_night_ratio"],
   // NH 카드소비
   ["카드매출 높은 동", "nh-consumption", "card_sales"],
   ["상권 매출 많은 곳", "nh-consumption", "card_sales"],

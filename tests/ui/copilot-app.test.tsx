@@ -202,6 +202,30 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/layers/skt-daynight.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "skt-daynight",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    day_population: Array(13).fill(11000),
+                    night_population: Array(13).fill(7000),
+                    day_night_ratio: Array(13).fill(157.1),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes("/data/layers/nh-consumption.json")) {
           return new Response(
             JSON.stringify({
@@ -500,6 +524,19 @@ describe("CopilotApp", () => {
     expect(screen.getAllByText(/SKT/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/NH/).length).toBeGreaterThan(0);
   }, 30_000);
+
+  test("routes a 주야비 query to the SKT day/night layer", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "주야비 높은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/주야비/);
+    });
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
+  });
 
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);

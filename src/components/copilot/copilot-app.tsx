@@ -56,6 +56,7 @@ import {
   MEDICAL_LAYER,
   NH_CONSUMPTION_LAYER,
   POPULATION_LAYER,
+  SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
 } from "@/lib/layers/catalog";
@@ -110,6 +111,7 @@ type LayerId =
   | "population"
   | "skt-living"
   | "skt-mobility"
+  | "skt-daynight"
   | "nh-consumption"
   | "kcb-credit"
   | "medical";
@@ -144,6 +146,7 @@ const LAYER_OPTIONS: LayerOption[] = [
   { id: POPULATION_LAYER.id, label: POPULATION_LAYER.label, provider: POPULATION_LAYER.provider },
   { id: SKT_LIVING_LAYER.id, label: SKT_LIVING_LAYER.label, provider: SKT_LIVING_LAYER.provider },
   { id: SKT_MOBILITY_LAYER.id, label: SKT_MOBILITY_LAYER.label, provider: SKT_MOBILITY_LAYER.provider },
+  { id: SKT_DAYNIGHT_LAYER.id, label: SKT_DAYNIGHT_LAYER.label, provider: SKT_DAYNIGHT_LAYER.provider },
   { id: NH_CONSUMPTION_LAYER.id, label: NH_CONSUMPTION_LAYER.label, provider: NH_CONSUMPTION_LAYER.provider },
   { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
@@ -153,6 +156,7 @@ const CUBE_LAYER_METRICS: Record<CubeLayerId, MetricDef[]> = {
   population: POPULATION_LAYER.metrics,
   "skt-living": SKT_LIVING_LAYER.metrics,
   "skt-mobility": SKT_MOBILITY_LAYER.metrics,
+  "skt-daynight": SKT_DAYNIGHT_LAYER.metrics,
   "nh-consumption": NH_CONSUMPTION_LAYER.metrics,
   "kcb-credit": KCB_CREDIT_LAYER.metrics,
 };
@@ -161,6 +165,7 @@ const LAYER_PROVIDERS: Record<LayerId, string> = {
   population: POPULATION_LAYER.provider,
   "skt-living": SKT_LIVING_LAYER.provider,
   "skt-mobility": SKT_MOBILITY_LAYER.provider,
+  "skt-daynight": SKT_DAYNIGHT_LAYER.provider,
   "nh-consumption": NH_CONSUMPTION_LAYER.provider,
   "kcb-credit": KCB_CREDIT_LAYER.provider,
   medical: MEDICAL_LAYER.provider,
@@ -174,6 +179,7 @@ const LAYER_PROVIDERS: Record<LayerId, string> = {
 const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: string }> = [
   { id: "skt-living", url: "/data/layers/skt-living.json", label: SKT_LIVING_LAYER.label },
   { id: "skt-mobility", url: "/data/layers/skt-mobility.json", label: SKT_MOBILITY_LAYER.label },
+  { id: "skt-daynight", url: "/data/layers/skt-daynight.json", label: SKT_DAYNIGHT_LAYER.label },
   { id: "nh-consumption", url: "/data/layers/nh-consumption.json", label: NH_CONSUMPTION_LAYER.label },
   { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
 ];
@@ -187,6 +193,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
 const PRIVATE_NL_LAYERS = [
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
+  SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
   KCB_CREDIT_LAYER,
 ];
@@ -227,6 +234,7 @@ const CROSS_LAYERS = [
   POPULATION_LAYER,
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
+  SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
   KCB_CREDIT_LAYER,
 ];
