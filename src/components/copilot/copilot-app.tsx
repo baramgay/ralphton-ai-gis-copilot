@@ -60,6 +60,8 @@ import {
   SKT_MOBILITY_LAYER,
 } from "@/lib/layers/catalog";
 import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
+import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
+import { resolveCrossQuery } from "@/lib/layers/resolve-cross-query";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
@@ -116,7 +118,7 @@ type CubeLayerId = Exclude<LayerId, "medical">;
 type RemoteCubeLayerId = Exclude<CubeLayerId, "population">;
 
 type AnalysisView = {
-  id: QuickId | LayerId;
+  id: QuickId | LayerId | "cross";
   title: string;
   summary: string;
   ranked: RankedRegion[];
@@ -188,6 +190,81 @@ const PRIVATE_NL_LAYERS = [
   NH_CONSUMPTION_LAYER,
   KCB_CREDIT_LAYER,
 ];
+
+/** All cube-backed layers eligible for cross-analysis (public 인구 + private). */
+const CROSS_LAYERS = [
+  POPULATION_LAYER,
+  SKT_LIVING_LAYER,
+  SKT_MOBILITY_LAYER,
+  NH_CONSUMPTION_LAYER,
+  KCB_CREDIT_LAYER,
+];
+
+function formatCrossValue(value: number | null, unit: string): string {
+  if (value === null) return "데이터 없음";
+  return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${unit}`;
+}
+
+/** Build a copilot AnalysisView from a cross-analysis result (rendered like a tool result). */
+function crossResultToView(
+  cross: CrossLayerResult,
+  a: { provider: string; metric: MetricDef; referenceMonth: string },
+  b: { provider: string; metric: MetricDef; referenceMonth: string },
+  mode: "gap" | "both",
+  limit = 30,
+): AnalysisView {
+  const modeLabel =
+    mode === "gap"
+      ? `${a.metric.label} 대비 ${b.metric.label} 낮은`
+      : `${a.metric.label}·${b.metric.label} 동시 높은`;
+  const sign = mode === "gap" ? "−" : "+";
+
+  const ranked: RankedRegion[] = cross.ranked.slice(0, limit).map((row) => {
+    const name = row.name.replace(/^경상남도\s*/, "");
+    return {
+      code: row.code,
+      name,
+      district: name.split(/\s+/)[0] ?? "지역",
+      mapScore: cross.scores.get(row.code) ?? 0,
+      valueLabel: `${a.metric.label} ${formatCrossValue(row.valueA, a.metric.unit)} · ${b.metric.label} ${formatCrossValue(row.valueB, b.metric.unit)}`,
+      note: `합성 ${row.composite.toFixed(2)} · z${a.metric.label} ${row.zA.toFixed(1)} / z${b.metric.label} ${row.zB.toFixed(1)}`,
+      metrics: [
+        {
+          label: `${a.metric.label} (${a.provider})`,
+          value: row.valueA,
+          unit: a.metric.unit,
+          formula: a.metric.formula,
+          referenceMonth: a.referenceMonth,
+          limitation: a.metric.limitation,
+        },
+        {
+          label: `${b.metric.label} (${b.provider})`,
+          value: row.valueB,
+          unit: b.metric.unit,
+          formula: b.metric.formula,
+          referenceMonth: b.referenceMonth,
+          limitation: b.metric.limitation,
+        },
+      ],
+    };
+  });
+
+  return {
+    id: "cross",
+    title: `교차분석 · ${modeLabel} 지역`,
+    summary: `${a.metric.label}(${a.provider})와 ${b.metric.label}(${b.provider})을 z-표준화해 ${mode === "gap" ? "격차(zA−zB)" : "동반(zA+zB)"} 순으로 정렬했습니다.`,
+    ranked,
+    filteredFacilities: [],
+    formulaNotes: [
+      `합성점수 = z(${a.metric.label}) ${sign} z(${b.metric.label})`,
+      `${a.metric.label}: ${a.metric.formula} (${a.provider})`,
+      `${b.metric.label}: ${b.metric.formula} (${b.provider})`,
+      "z-표준화는 경남 행정동 전체 분포 기준이며 두 지표 모두 값이 있는 동만 비교합니다.",
+    ],
+    legendLabel: `${modeLabel} 분포`,
+    isFacilityResult: false,
+  };
+}
 
 const QUICK_ANALYSES: Array<{
   id: QuickId;
@@ -1355,6 +1432,57 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
+
+    // 민간×공공 교차분석: "생활인구 대비 카드매출", "소득과 소비 모두 높은 동" 등 두 지표를
+    // z-표준화해 합성 순위로 보여준다(툴 결과처럼 customAnalysis 경로로 렌더).
+    const cross = resolveCrossQuery(trimmed, CROSS_LAYERS, { adminLevelFallback: adminLevel });
+    if (cross) {
+      const cubeFor = (id: string) => (id === "population" ? populationCube : remoteCubes[id] ?? null);
+      const cubeA = cubeFor(cross.a.layerId);
+      const cubeB = cubeFor(cross.b.layerId);
+      const metricsA = CUBE_LAYER_METRICS[cross.a.layerId as CubeLayerId];
+      const metricsB = CUBE_LAYER_METRICS[cross.b.layerId as CubeLayerId];
+      const metricA = metricsA?.find((metric) => metric.key === cross.a.metricKey);
+      const metricB = metricsB?.find((metric) => metric.key === cross.b.metricKey);
+
+      if (cubeA && cubeB && metricA && metricB) {
+        const result = crossLayerView(
+          { cube: cubeA, metric: metricA, metrics: metricsA },
+          { cube: cubeB, metric: metricB, metrics: metricsB },
+          cross.mode,
+          cross.adminLevel,
+        );
+        const view = crossResultToView(
+          result,
+          { provider: cross.a.provider, metric: metricA, referenceMonth: cubeA.referenceMonth },
+          { provider: cross.b.provider, metric: metricB, referenceMonth: cubeB.referenceMonth },
+          cross.mode,
+        );
+        setActiveLayerId("medical");
+        setCustomAnalysis(view);
+        setActiveTab("control");
+        if (cross.adminLevel !== adminLevel) setAdminLevel(cross.adminLevel);
+        if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+        setLastIntent(null);
+        setParseStage("done");
+        setQueryNotice(
+          `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${view.ranked.length}개 행정동`,
+        );
+        setQueryNoticeTone("success");
+        setQuerySuggestions([]);
+        rememberQuery(trimmed);
+        window.setTimeout(() => setParseStage("idle"), 1200);
+        return;
+      }
+
+      // Matched a cross query but a cube isn't loaded yet — tell the user instead of
+      // silently falling through to single-layer routing.
+      setParseStage("idle");
+      setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      setQueryNoticeTone("neutral");
+      rememberQuery(trimmed);
+      return;
+    }
 
     // Private-data (SKT/NH/KCB) natural-language routing: if the query names a private
     // layer metric ("생활인구", "유동인구", …), switch the active choropleth layer instead

@@ -483,6 +483,24 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("KCB");
   });
 
+  test("runs a 민간×민간 교차분석 for '생활인구 대비 카드매출'", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    // give the remote cubes (skt-living + nh-consumption) a tick to load
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "생활인구 대비 카드매출 낮은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
+    expect(hits.length).toBeGreaterThan(0);
+    // both operands' providers are surfaced
+    expect(screen.getAllByText(/SKT/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/NH/).length).toBeGreaterThan(0);
+  }, 30_000);
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
