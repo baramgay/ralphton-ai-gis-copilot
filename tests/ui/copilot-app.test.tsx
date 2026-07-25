@@ -715,6 +715,25 @@ describe("CopilotApp", () => {
     expect(within(profile).getByText(/백분위/)).toBeInTheDocument();
   }, 30_000);
 
+  test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    // 레이어: 출처가 한 눈에 구분된다
+    const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
+    expect(within(layerGroup).getByText("SKT 민간데이터")).toBeInTheDocument();
+    expect(within(layerGroup).getByText("NH 민간데이터")).toBeInTheDocument();
+    expect(within(layerGroup).getByText("KCB 민간데이터")).toBeInTheDocument();
+
+    // 프리셋: 정책 영역으로 좁힌 뒤 고른다
+    const presets = await screen.findByTestId("cross-presets");
+    expect(within(presets).getByText("상권 활력")).toBeInTheDocument();
+    expect(within(presets).getByText("취약·격차")).toBeInTheDocument();
+    // 묶어도 모든 프리셋은 그대로 눌린다
+    expect(within(presets).getByTestId("cross-living-vs-sales")).toBeInTheDocument();
+    expect(within(presets).getByTestId("cross-senior-vs-medical")).toBeInTheDocument();
+  }, 30_000);
+
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

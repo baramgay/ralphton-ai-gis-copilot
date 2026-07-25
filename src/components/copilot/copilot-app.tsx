@@ -246,63 +246,86 @@ const PRIVATE_NL_LAYERS = PRIVATE_LAYERS;
  * One-click 교차분석 presets. Each `query` goes through the same resolver the NL path
  * uses, so a preset can never drift from what typing that sentence would do.
  */
-const CROSS_PRESETS: Array<{ id: string; label: string; subtitle: string; query: string }> = [
+/**
+ * 프리셋이 10개로 늘어 한 덩어리로 두면 무엇을 눌러야 할지 고르기 어렵다. 정책 영역으로
+ * 묶어 목적부터 좁힌 뒤 고르게 한다.
+ */
+const CROSS_PRESET_GROUPS = ["상권 활력", "생활·정주", "취약·격차"] as const;
+type CrossPresetGroup = (typeof CROSS_PRESET_GROUPS)[number];
+
+const CROSS_PRESETS: Array<{
+  id: string;
+  label: string;
+  subtitle: string;
+  query: string;
+  group: CrossPresetGroup;
+}> = [
   {
     id: "living-vs-sales",
+    group: "상권 활력",
     label: "유동 대비 저매출",
     subtitle: "생활인구↑ 카드매출↓",
     query: "생활인구 대비 카드매출 낮은 동",
   },
   {
     id: "income-vs-spend",
+    group: "상권 활력",
     label: "소득 대비 저소비",
     subtitle: "소득↑ 카드소비↓",
     query: "평균소득 대비 카드매출 낮은 동",
   },
   {
     id: "inflow-vs-sales",
+    group: "상권 활력",
     label: "유입 대비 저매출",
     subtitle: "유입인구↑ 매출↓",
     query: "유입인구 대비 카드매출 낮은 동",
   },
   {
     id: "income-and-credit",
+    group: "생활·정주",
     label: "소득·신용 동반",
     subtitle: "둘 다 높은 지역",
     query: "평균소득과 신용평점 모두 높은 동",
   },
   {
     id: "movein-vs-sales",
+    group: "생활·정주",
     label: "전입 대비 저매출",
     subtitle: "전입인구↑ 매출↓",
     query: "전입 대비 카드매출 낮은 동",
   },
   {
     id: "daytime-vs-sales",
+    group: "상권 활력",
     label: "주간인구 대비 저매출",
     subtitle: "주간인구↑ 매출↓",
     query: "주간인구 대비 카드매출 낮은 동",
   },
   {
     id: "nightpop-vs-nightsales",
+    group: "상권 활력",
     label: "야간인구 대비 저매출",
     subtitle: "밤에 사람은 있는데 소비는↓",
     query: "야간인구 대비 야간 매출 낮은 동",
   },
   {
     id: "nightpop-vs-pub",
+    group: "상권 활력",
     label: "야간인구 대비 주점 부족",
     subtitle: "야간 상권 육성 후보",
     query: "야간인구 대비 주점 비중 낮은 동",
   },
   {
     id: "senior-vs-medical",
+    group: "취약·격차",
     label: "고령 소비 대비 의료 부족",
     subtitle: "고령 소비↑ 병의원↓",
     query: "고령 소비비중 대비 병의원 비중 낮은 동",
   },
   {
     id: "cafe-and-youth",
+    group: "상권 활력",
     label: "청년 상권",
     subtitle: "카페·청년 소비 동반↑",
     query: "카페 비중과 청년 소비비중 모두 높은 동",
@@ -2234,20 +2257,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <p className="ui-caption mb-2 -mt-1">
                   두 지표를 z-표준화해 비교 (SKT·NH·KCB × 공공)
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {CROSS_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      data-testid={`cross-${preset.id}`}
-                      aria-label={preset.label}
-                      onClick={() => runCrossPreset(preset.query)}
-                      className="quick-tile min-h-[56px] rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-slate-300 active:scale-[.98]"
-                    >
-                      <span className="block ui-body font-bold text-slate-900">{preset.label}</span>
-                      <span className="ui-caption mt-0.5 block text-slate-500">{preset.subtitle}</span>
-                    </button>
-                  ))}
+                <div className="space-y-2.5">
+                  {CROSS_PRESET_GROUPS.map((group) => {
+                    const items = CROSS_PRESETS.filter((preset) => preset.group === group);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={group}>
+                        <p className="ui-caption mb-1 font-bold text-slate-500">{group}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {items.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              data-testid={`cross-${preset.id}`}
+                              aria-label={preset.label}
+                              onClick={() => runCrossPreset(preset.query)}
+                              className="quick-tile min-h-[56px] rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-slate-300 active:scale-[.98]"
+                            >
+                              <span className="block ui-body font-bold text-slate-900">{preset.label}</span>
+                              <span className="ui-caption mt-0.5 block text-slate-500">{preset.subtitle}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
 
