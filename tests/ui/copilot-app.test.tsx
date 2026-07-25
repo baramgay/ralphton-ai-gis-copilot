@@ -501,6 +501,17 @@ describe("CopilotApp", () => {
     expect(screen.getAllByText(/NH/).length).toBeGreaterThan(0);
   }, 30_000);
 
+  test("one-click 교차분석 preset runs without typing a query", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
+
+    fireEvent.click(await screen.findByTestId("cross-living-vs-sales"));
+
+    const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
+    expect(hits.length).toBeGreaterThan(0);
+  }, 30_000);
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

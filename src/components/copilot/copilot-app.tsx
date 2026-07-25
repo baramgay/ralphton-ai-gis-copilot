@@ -61,7 +61,7 @@ import {
 } from "@/lib/layers/catalog";
 import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
-import { resolveCrossQuery } from "@/lib/layers/resolve-cross-query";
+import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
@@ -189,6 +189,37 @@ const PRIVATE_NL_LAYERS = [
   SKT_MOBILITY_LAYER,
   NH_CONSUMPTION_LAYER,
   KCB_CREDIT_LAYER,
+];
+
+/**
+ * One-click 교차분석 presets. Each `query` goes through the same resolver the NL path
+ * uses, so a preset can never drift from what typing that sentence would do.
+ */
+const CROSS_PRESETS: Array<{ id: string; label: string; subtitle: string; query: string }> = [
+  {
+    id: "living-vs-sales",
+    label: "유동 대비 저매출",
+    subtitle: "생활인구↑ 카드매출↓",
+    query: "생활인구 대비 카드매출 낮은 동",
+  },
+  {
+    id: "income-vs-spend",
+    label: "소득 대비 저소비",
+    subtitle: "소득↑ 카드소비↓",
+    query: "평균소득 대비 카드매출 낮은 동",
+  },
+  {
+    id: "inflow-vs-sales",
+    label: "유입 대비 저매출",
+    subtitle: "유입인구↑ 매출↓",
+    query: "유입인구 대비 카드매출 낮은 동",
+  },
+  {
+    id: "income-and-credit",
+    label: "소득·신용 동반",
+    subtitle: "둘 다 높은 지역",
+    query: "평균소득과 신용평점 모두 높은 동",
+  },
 ];
 
 /** All cube-backed layers eligible for cross-analysis (public 인구 + private). */
@@ -1428,6 +1459,64 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
   }, [oneLineConclusion, showToast]);
 
+  /**
+   * Execute a resolved cross-layer analysis. Shared by the NL path (submitQuery) and the
+   * one-click 교차분석 presets so both render identically. Returns false when a required
+   * cube hasn't loaded yet.
+   */
+  const runCross = useCallback(
+    (cross: CrossQueryMatch): boolean => {
+      const cubeFor = (id: string) => (id === "population" ? populationCube : remoteCubes[id] ?? null);
+      const cubeA = cubeFor(cross.a.layerId);
+      const cubeB = cubeFor(cross.b.layerId);
+      const metricsA = CUBE_LAYER_METRICS[cross.a.layerId as CubeLayerId];
+      const metricsB = CUBE_LAYER_METRICS[cross.b.layerId as CubeLayerId];
+      const metricA = metricsA?.find((metric) => metric.key === cross.a.metricKey);
+      const metricB = metricsB?.find((metric) => metric.key === cross.b.metricKey);
+      if (!cubeA || !cubeB || !metricA || !metricB) return false;
+
+      const result = crossLayerView(
+        { cube: cubeA, metric: metricA, metrics: metricsA },
+        { cube: cubeB, metric: metricB, metrics: metricsB },
+        cross.mode,
+        cross.adminLevel,
+      );
+      const view = crossResultToView(
+        result,
+        { provider: cross.a.provider, metric: metricA, referenceMonth: cubeA.referenceMonth },
+        { provider: cross.b.provider, metric: metricB, referenceMonth: cubeB.referenceMonth },
+        cross.mode,
+      );
+      setActiveLayerId("medical");
+      setCustomAnalysis(view);
+      setActiveTab("control");
+      if (cross.adminLevel !== adminLevel) setAdminLevel(cross.adminLevel);
+      if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+      setLastIntent(null);
+      setParseStage("done");
+      setQueryNotice(
+        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${view.ranked.length}개 행정동`,
+      );
+      setQueryNoticeTone("success");
+      setQuerySuggestions([]);
+      window.setTimeout(() => setParseStage("idle"), 1200);
+      return true;
+    },
+    [adminLevel, populationCube, remoteCubes],
+  );
+
+  /** One-click 교차분석 preset: resolve its canned query, then run it through runCross. */
+  const runCrossPreset = useCallback(
+    (presetQuery: string) => {
+      const cross = resolveCrossQuery(presetQuery, CROSS_LAYERS, { adminLevelFallback: adminLevel });
+      if (!cross || !runCross(cross)) {
+        setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+        setQueryNoticeTone("neutral");
+      }
+    },
+    [adminLevel, runCross],
+  );
+
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();
     const trimmed = query.trim();
@@ -1437,50 +1526,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // z-표준화해 합성 순위로 보여준다(툴 결과처럼 customAnalysis 경로로 렌더).
     const cross = resolveCrossQuery(trimmed, CROSS_LAYERS, { adminLevelFallback: adminLevel });
     if (cross) {
-      const cubeFor = (id: string) => (id === "population" ? populationCube : remoteCubes[id] ?? null);
-      const cubeA = cubeFor(cross.a.layerId);
-      const cubeB = cubeFor(cross.b.layerId);
-      const metricsA = CUBE_LAYER_METRICS[cross.a.layerId as CubeLayerId];
-      const metricsB = CUBE_LAYER_METRICS[cross.b.layerId as CubeLayerId];
-      const metricA = metricsA?.find((metric) => metric.key === cross.a.metricKey);
-      const metricB = metricsB?.find((metric) => metric.key === cross.b.metricKey);
-
-      if (cubeA && cubeB && metricA && metricB) {
-        const result = crossLayerView(
-          { cube: cubeA, metric: metricA, metrics: metricsA },
-          { cube: cubeB, metric: metricB, metrics: metricsB },
-          cross.mode,
-          cross.adminLevel,
-        );
-        const view = crossResultToView(
-          result,
-          { provider: cross.a.provider, metric: metricA, referenceMonth: cubeA.referenceMonth },
-          { provider: cross.b.provider, metric: metricB, referenceMonth: cubeB.referenceMonth },
-          cross.mode,
-        );
-        setActiveLayerId("medical");
-        setCustomAnalysis(view);
-        setActiveTab("control");
-        if (cross.adminLevel !== adminLevel) setAdminLevel(cross.adminLevel);
-        if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
-        setLastIntent(null);
-        setParseStage("done");
-        setQueryNotice(
-          `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${view.ranked.length}개 행정동`,
-        );
-        setQueryNoticeTone("success");
-        setQuerySuggestions([]);
-        rememberQuery(trimmed);
-        window.setTimeout(() => setParseStage("idle"), 1200);
-        return;
-      }
+      rememberQuery(trimmed);
+      if (runCross(cross)) return;
 
       // Matched a cross query but a cube isn't loaded yet — tell the user instead of
       // silently falling through to single-layer routing.
       setParseStage("idle");
       setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       setQueryNoticeTone("neutral");
-      rememberQuery(trimmed);
       return;
     }
 
@@ -1964,6 +2017,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 </section>
               ) : null}
+
+              <section data-testid="cross-presets">
+                <h2 className="section-label">민간데이터 교차분석</h2>
+                <p className="ui-caption mb-2 -mt-1">
+                  두 지표를 z-표준화해 비교 (SKT·NH·KCB × 공공)
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {CROSS_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      data-testid={`cross-${preset.id}`}
+                      aria-label={preset.label}
+                      onClick={() => runCrossPreset(preset.query)}
+                      className="quick-tile min-h-[56px] rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-slate-300 active:scale-[.98]"
+                    >
+                      <span className="block ui-body font-bold text-slate-900">{preset.label}</span>
+                      <span className="ui-caption mt-0.5 block text-slate-500">{preset.subtitle}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
               {activeLayerId === "medical" && (activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
                 <section

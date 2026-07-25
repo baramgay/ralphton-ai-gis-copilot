@@ -79,6 +79,22 @@ describe("resolveCrossQuery", () => {
     expect(resolveCrossQuery("카드매출 대비 높은 곳", CUBE_LAYERS)).toBeNull();
   });
 
+  test("every one-click preset query still resolves to a cross analysis", () => {
+    // Mirrors CROSS_PRESETS in copilot-app.tsx. Presets run through this same resolver,
+    // so a resolver rule change that breaks a preset must fail here.
+    const PRESET_QUERIES = [
+      "생활인구 대비 카드매출 낮은 동",
+      "평균소득 대비 카드매출 낮은 동",
+      "유입인구 대비 카드매출 낮은 동",
+      "평균소득과 신용평점 모두 높은 동",
+    ];
+    for (const query of PRESET_QUERIES) {
+      const match = resolveCrossQuery(query, CUBE_LAYERS);
+      expect(match, `preset "${query}" must resolve`).not.toBeNull();
+      expect(match?.a.metricKey).not.toBe(match?.b.metricKey);
+    }
+  });
+
   test("detects 시군구 admin level", () => {
     expect(resolveCrossQuery("시군구별 생활인구 대비 소득", CUBE_LAYERS)?.adminLevel).toBe("sgg");
   });
