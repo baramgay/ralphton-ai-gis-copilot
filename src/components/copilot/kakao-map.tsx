@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { buildScale, CHOROPLETH_COLORS } from "@/lib/gis/choropleth-scale";
 
 import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
 
@@ -56,18 +57,9 @@ function makeTooltipElement(text: string): HTMLDivElement {
   return el;
 }
 
-const LEGEND_COLORS = ["#eff6ff", "#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"];
 const PLAIN_MARKER_CAP = 80;
 const CLUSTER_MARKER_CAP = 350;
 
-function scoreColor(score: number | undefined): string {
-  if (score == null) return "#e8eef5";
-  if (score >= 80) return "#1d4ed8";
-  if (score >= 60) return "#3b82f6";
-  if (score >= 40) return "#93c5fd";
-  if (score >= 20) return "#dbeafe";
-  return "#eff6ff";
-}
 
 /** Prefer selected dong, then high analysis score regions. */
 function prioritizeFacilities(
@@ -217,6 +209,8 @@ export function KakaoMap({
 
     const toPath = (ring: Position[]) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng));
     const regionByCode = new Map(regions.map((region) => [region.adm_cd2, region]));
+    // 분위수 경계는 이번에 그릴 값 전체로 한 번만 계산한다.
+    const scale = buildScale(scores);
 
     const showTooltip = (code: string, lat: number, lng: number) => {
       if (typeof maps.CustomOverlay !== "function") return;
@@ -256,7 +250,7 @@ export function KakaoMap({
               ? "#b45309"
               : "#ffffff",
           strokeOpacity: isDimmed ? 0.35 : 0.9,
-          fillColor: isDimmed ? "#e8edf2" : scoreColor(scores.get(code)),
+          fillColor: isDimmed ? "#e8edf2" : scale.colorOf(code),
           fillOpacity: isDimmed ? 0.28 : isSelected ? 0.82 : 0.72,
         });
         polygon.setMap(map);
@@ -434,12 +428,12 @@ export function KakaoMap({
           <span>높음</span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full">
-          {LEGEND_COLORS.map((color) => (
+          {CHOROPLETH_COLORS.map((color) => (
             <span key={color} className="flex-1" style={{ backgroundColor: color }} />
           ))}
         </div>
         <p className="mt-2 text-[9px] leading-4 text-slate-400">
-          행정동 호버 시 이름·점수 · 시설 핀 색은 유형별
+          5분위 채색(구간별 동 수 비슷) · 호버 시 이름·점수 · 시설 핀 색은 유형별
         </p>
       </div>
     </div>

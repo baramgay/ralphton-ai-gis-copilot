@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { buildScale, CHOROPLETH_COLORS } from "@/lib/gis/choropleth-scale";
 
 import type {
   BoundaryCollection,
@@ -28,7 +29,6 @@ type DemoMapProps = {
 const VIEW_WIDTH = 1000;
 const VIEW_HEIGHT = 900;
 const PADDING = 30;
-const COLORS = ["#eff6ff", "#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"];
 
 function collectPositions(feature: BoundaryFeature): Position[] {
   if (feature.geometry.type === "Polygon") {
@@ -37,11 +37,7 @@ function collectPositions(feature: BoundaryFeature): Position[] {
   return feature.geometry.coordinates.flat(2);
 }
 
-function colorForScore(score: number | undefined): string {
-  if (score == null || !Number.isFinite(score)) return "#e8eef5";
-  const index = Math.min(COLORS.length - 1, Math.max(0, Math.floor(score / 20)));
-  return COLORS[index];
-}
+
 
 export function DemoMap({
   boundary,
@@ -58,6 +54,9 @@ export function DemoMap({
 }: DemoMapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+
+  // 분위수 경계는 지도에 그릴 값 전체로 한 번만 계산한다.
+  const scale = useMemo(() => buildScale(scores), [scores]);
 
   const projection = useMemo(() => {
     const positions = boundary.features.flatMap(collectPositions);
@@ -142,7 +141,7 @@ export function DemoMap({
                 <path
                   key={code}
                   d={pathForFeature(feature)}
-                  fill={isDimmed ? "#e8edf2" : colorForScore(scores.get(code))}
+                  fill={isDimmed ? "#e8edf2" : scale.colorOf(code)}
                   fillRule="evenodd"
                   fillOpacity={isDimmed ? 0.42 : 1}
                   stroke={
@@ -262,10 +261,10 @@ export function DemoMap({
           <span>{legendLabel}</span><span>높음</span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full">
-          {COLORS.map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
+          {CHOROPLETH_COLORS.map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
         </div>
         <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-          <span>정규화 0–100</span><span>100</span>
+          <span>5분위(같은 수의 동)</span><span>높음</span>
         </div>
       </div>
     </div>

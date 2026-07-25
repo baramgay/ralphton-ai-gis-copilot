@@ -119,7 +119,8 @@ describe("DemoMap facility interactions", () => {
     expect(onSelectFacility).toHaveBeenNthCalledWith(2, facilities[1]);
     expect(onSelectFacility).toHaveBeenNthCalledWith(3, facilities[1]);
     expect(screen.getByText("의료 취약도")).toBeInTheDocument();
-    expect(screen.getByText("정규화 0–100")).toBeInTheDocument();
+    // 채색 방식을 범례에 밝힌다 — 분위수는 "몇 등인가"라서 절대값으로 오해하면 안 된다.
+    expect(screen.getByText("5분위(같은 수의 동)")).toBeInTheDocument();
   });
 });
 
