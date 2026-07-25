@@ -19,6 +19,7 @@ import {
 import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
 import { buildRegionProfile } from "@/lib/layers/region-profile";
 import { buildMarkdownReport } from "@/lib/analysis/export-report";
+import { buildSlideHtml } from "@/lib/analysis/export-slide";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
 import {
@@ -1597,6 +1598,36 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
     const copied = await copyHtmlToClipboard(html, buildMarkdownReport(reportInput));
     showToast(copied ? "한글 문서 저장·표 복사" : "한글 문서 저장");
+  }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
+
+  /**
+   * 발표용 슬라이드(표지·핵심결과·근거 3장) 내보내기. PPTX 바이너리 대신 파워포인트·한글이
+   * 모두 여는 HTML로 만든다 — 브라우저 인쇄로 PDF 배포가 되고 표는 복사해 붙일 수 있다.
+   */
+  const exportCurrentSlides = useCallback(() => {
+    if (!snapshot || !analysis || !exportProvenance) return;
+    const html = buildSlideHtml({
+      title: analysis.title,
+      summary: oneLineConclusion ?? analysis.summary,
+      referenceMonth: exportProvenance.referenceMonth,
+      source: exportProvenance.source,
+      mode: snapshot.mode,
+      formulaNotes: analysis.formulaNotes,
+      rows: analysis.ranked.map((row, index) => ({
+        rank: index + 1,
+        name: row.name,
+        valueLabel: row.valueLabel,
+        note: row.note,
+      })),
+      totalCount: analysis.totalCount,
+      exportedAt: new Date().toLocaleString("ko-KR"),
+    });
+    downloadTextFile(
+      `ralphton-slides-${exportProvenance.referenceMonth}.html`,
+      html,
+      "text/html;charset=utf-8",
+    );
+    showToast("슬라이드 저장 (브라우저에서 열어 인쇄→PDF)");
   }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
 
   const applyLayoutPreset = useCallback(
@@ -3332,6 +3363,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               onClick={() => void exportCurrentHwp()}
             >
               한글
+            </button>
+            <button
+              type="button"
+              data-testid="export-slides"
+              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
+              onClick={exportCurrentSlides}
+            >
+              슬라이드
             </button>
             <button
               type="button"

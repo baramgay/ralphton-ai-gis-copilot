@@ -694,12 +694,13 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
   });
 
-  test("CSV·보고서·한글 내보내기 버튼이 결과 패널에 노출된다", async () => {
+  test("CSV·보고서·한글·슬라이드 내보내기 버튼이 결과 패널에 노출된다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
     expect(await screen.findByTestId("export-report")).toBeInTheDocument();
     expect(screen.getByTestId("export-csv")).toBeInTheDocument();
     expect(screen.getByTestId("export-hwp")).toBeInTheDocument();
+    expect(screen.getByTestId("export-slides")).toBeInTheDocument();
   });
 
   test("선택 지역의 민간데이터 종합 프로파일을 백분위와 함께 보여준다", async () => {
