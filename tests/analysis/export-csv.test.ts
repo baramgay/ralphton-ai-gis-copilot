@@ -30,6 +30,22 @@ describe("resolveExportProvenance", () => {
     ).toEqual({ referenceMonth: "2025-12", source: "NH · 카드소비" });
   });
 
+  test("the resolved source actually reaches the CSV meta block", () => {
+    // 회귀 방지: 예전에는 provenance를 계산해 놓고도 CSV 호출부에 옛 dataSource를
+    // 그대로 넘겨, 기준월만 고쳐지고 출처는 공공 캐시명이 찍혔다.
+    const resolved = resolveExportProvenance({
+      ...snapshotArgs,
+      activeLayer: { referenceMonth: "2025-12", provider: "NH", label: "카드소비" },
+    });
+    const csv = rankedToCsv("카드매출 순위", resolved.referenceMonth, resolved.source, "live", [
+      { rank: 1, code: "4882025000", sido: "경남", name: "거창읍", valueLabel: "57,019백만원", note: "" },
+    ]);
+
+    expect(csv).toContain("기준월,2025-12");
+    expect(csv).toContain("출처,NH · 카드소비");
+    expect(csv).not.toContain("공공 스냅샷");
+  });
+
   test("a cross analysis result's own provenance wins over the active layer", () => {
     expect(
       resolveExportProvenance({

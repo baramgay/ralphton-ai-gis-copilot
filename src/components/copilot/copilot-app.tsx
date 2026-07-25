@@ -1404,7 +1404,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const csv = facilitiesToCsv(
         analysis.title,
         stamp,
-        dataSource,
+        source,
         snapshot.mode,
         analysis.filteredFacilities.map((facility) => ({
           id: facility.id,
@@ -1422,7 +1422,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const csv = rankedToCsv(
       analysis.title,
       stamp,
-      dataSource,
+      source,
       snapshot.mode,
       analysis.ranked.map((row, index) => {
         return {
