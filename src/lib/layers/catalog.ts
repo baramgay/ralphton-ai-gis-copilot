@@ -92,6 +92,21 @@ export const NH_DEMOGRAPHICS_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const NH_HOURLY_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "nh-hourly",
+  label: "시간대 소비",
+  provider: "NH",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["NH농협카드 시간대별 카드매출 (주간 09~18시 · 야간 22~05시, SKT 주야간인구와 동일 구간)"],
+  metrics: [
+    { key: "day_sales", label: "주간 카드매출", unit: "백만원", aggregation: "sum", formula: "09~18시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["주간 매출", "낮 매출", "주간 카드매출", "낮 소비"] },
+    { key: "night_sales", label: "야간 카드매출", unit: "백만원", aggregation: "sum", formula: "22~05시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["야간 매출", "밤 매출", "야간 카드매출", "심야 매출", "밤 소비"] },
+    { key: "night_share", label: "야간 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "day_sales", formula: "야간(22~05시) 매출 ÷ 전체 매출 × 100", limitation: "19~21시 매출도 분모에 포함되므로 주간+야간 비중의 합은 100%가 아니다", triggers: ["야간 소비비중", "야간 상권", "심야 상권", "밤 상권"] },
+  ],
+};
+
 export const KCB_CREDIT_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "kcb-credit",
   label: "소득·신용",

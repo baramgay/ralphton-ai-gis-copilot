@@ -58,6 +58,7 @@ import {
   MEDICAL_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   POPULATION_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
@@ -118,6 +119,7 @@ type LayerId =
   | "skt-daynight"
   | "nh-consumption"
   | "nh-demographics"
+  | "nh-hourly"
   | "kcb-credit"
   | "kcb-migration"
   | "medical";
@@ -157,6 +159,7 @@ const LAYER_OPTIONS: LayerOption[] = [
   { id: SKT_DAYNIGHT_LAYER.id, label: SKT_DAYNIGHT_LAYER.label, provider: SKT_DAYNIGHT_LAYER.provider },
   { id: NH_CONSUMPTION_LAYER.id, label: NH_CONSUMPTION_LAYER.label, provider: NH_CONSUMPTION_LAYER.provider },
   { id: NH_DEMOGRAPHICS_LAYER.id, label: NH_DEMOGRAPHICS_LAYER.label, provider: NH_DEMOGRAPHICS_LAYER.provider },
+  { id: NH_HOURLY_LAYER.id, label: NH_HOURLY_LAYER.label, provider: NH_HOURLY_LAYER.provider },
   { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
   { id: KCB_MIGRATION_LAYER.id, label: KCB_MIGRATION_LAYER.label, provider: KCB_MIGRATION_LAYER.provider },
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
@@ -169,6 +172,7 @@ const CUBE_LAYER_METRICS: Record<CubeLayerId, MetricDef[]> = {
   "skt-daynight": SKT_DAYNIGHT_LAYER.metrics,
   "nh-consumption": NH_CONSUMPTION_LAYER.metrics,
   "nh-demographics": NH_DEMOGRAPHICS_LAYER.metrics,
+  "nh-hourly": NH_HOURLY_LAYER.metrics,
   "kcb-credit": KCB_CREDIT_LAYER.metrics,
   "kcb-migration": KCB_MIGRATION_LAYER.metrics,
 };
@@ -180,6 +184,7 @@ const LAYER_PROVIDERS: Record<LayerId, string> = {
   "skt-daynight": SKT_DAYNIGHT_LAYER.provider,
   "nh-consumption": NH_CONSUMPTION_LAYER.provider,
   "nh-demographics": NH_DEMOGRAPHICS_LAYER.provider,
+  "nh-hourly": NH_HOURLY_LAYER.provider,
   "kcb-credit": KCB_CREDIT_LAYER.provider,
   "kcb-migration": KCB_MIGRATION_LAYER.provider,
   medical: MEDICAL_LAYER.provider,
@@ -196,6 +201,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
   { id: "skt-daynight", url: "/data/layers/skt-daynight.json", label: SKT_DAYNIGHT_LAYER.label },
   { id: "nh-consumption", url: "/data/layers/nh-consumption.json", label: NH_CONSUMPTION_LAYER.label },
   { id: "nh-demographics", url: "/data/layers/nh-demographics.json", label: NH_DEMOGRAPHICS_LAYER.label },
+  { id: "nh-hourly", url: "/data/layers/nh-hourly.json", label: NH_HOURLY_LAYER.label },
   { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
   { id: "kcb-migration", url: "/data/layers/kcb-migration.json", label: KCB_MIGRATION_LAYER.label },
 ];
@@ -212,6 +218,7 @@ const PRIVATE_NL_LAYERS = [
   SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];
@@ -257,6 +264,12 @@ const CROSS_PRESETS: Array<{ id: string; label: string; subtitle: string; query:
     subtitle: "주간인구↑ 매출↓",
     query: "주간인구 대비 카드매출 낮은 동",
   },
+  {
+    id: "nightpop-vs-nightsales",
+    label: "야간인구 대비 저매출",
+    subtitle: "밤에 사람은 있는데 소비는↓",
+    query: "야간인구 대비 야간 매출 낮은 동",
+  },
 ];
 
 /** All cube-backed layers eligible for cross-analysis (public 인구 + private). */
@@ -267,6 +280,7 @@ const CROSS_LAYERS = [
   SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];

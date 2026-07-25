@@ -4,6 +4,8 @@ import {
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
   NH_CONSUMPTION_LAYER,
+  NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   POPULATION_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
@@ -18,6 +20,8 @@ const CUBE_LAYERS = [
   SKT_MOBILITY_LAYER,
   SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
+  NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];
@@ -105,6 +109,7 @@ describe("resolveCrossQuery", () => {
       "평균소득과 신용평점 모두 높은 동",
       "전입 대비 카드매출 낮은 동",
       "주간인구 대비 카드매출 낮은 동",
+      "야간인구 대비 야간 매출 낮은 동",
     ];
     for (const query of PRESET_QUERIES) {
       const match = resolveCrossQuery(query, CUBE_LAYERS);

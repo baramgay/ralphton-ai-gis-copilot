@@ -5,6 +5,7 @@ import {
   KCB_MIGRATION_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
@@ -23,6 +24,7 @@ const PRIVATE_LAYERS = [
   SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];
@@ -67,6 +69,13 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["고령 소비 비중 높은 동", "nh-demographics", "senior_share"],
   ["여성 소비 비중 높은 곳", "nh-demographics", "female_share"],
   ["법인카드 비중 높은 동", "nh-demographics", "corporate_share"],
+  // NH 시간대 소비 — SKT 주야간인구(사람)와 구별되어야 한다
+  ["주간 매출 높은 동", "nh-hourly", "day_sales"],
+  ["낮 매출 많은 곳", "nh-hourly", "day_sales"],
+  ["야간 매출 높은 동", "nh-hourly", "night_sales"],
+  ["심야 매출 높은 지역", "nh-hourly", "night_sales"],
+  ["야간 상권 발달한 동", "nh-hourly", "night_share"],
+  ["야간 소비비중 높은 곳", "nh-hourly", "night_share"],
   // KCB 소득·신용
   ["평균소득 높은 동", "kcb-credit", "avg_income"],
   ["소득 수준 높은 지역", "kcb-credit", "avg_income"],
