@@ -545,6 +545,13 @@ describe("CopilotApp", () => {
     expect(screen.getAllByText(/NH/).length).toBeGreaterThan(0);
     // the summary explains the shortfall rather than just listing a ranking
     expect(screen.getAllByText(/가장 부족한 곳/).length).toBeGreaterThan(0);
+
+    // methodology must describe the cross formula, not the medical layer it borrows
+    // activeLayerId from
+    expect(screen.getByTestId("method-summary")).toHaveTextContent(/합성점수/);
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
+    // the one-line conclusion must not claim the ranking is by operand A alone
+    expect(screen.getByTestId("one-line-conclusion")).toHaveTextContent(/가장 부족한 곳/);
   }, 30_000);
 
   test("routes a 주야비 query to the SKT day/night layer", async () => {

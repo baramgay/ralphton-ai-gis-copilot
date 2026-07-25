@@ -1075,6 +1075,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const oneLineConclusion = useMemo(() => {
     if (!snapshot || !analysis) return null;
+    // 교차분석 순위는 두 지표의 합성 격차 기준이다. 일반 결론 생성기는 metrics[0](= A지표)
+    // 이름을 붙여 "A 기준 상위 3곳"이라고 써버려 순위 근거를 오도하므로, 이미 격차를 설명하는
+    // 교차 해석문을 그대로 결론으로 쓴다.
+    if (analysis.id === "cross") return analysis.summary;
     const rankedRegions = analysis.ranked.map((row, index) => {
       const region = snapshot.regions.find((item) => item.adm_cd2 === row.code);
       return {
@@ -1739,8 +1743,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
   }
 
-  const methodSummaryText =
-    activeLayerId !== "medical" && activeMetric
+  // 교차분석은 activeLayerId를 medical로 두고 customAnalysis로 렌더하므로, 방법론·기준월이
+  // 의료 레이어 값으로 새지 않도록 교차 결과 자체의 산식을 쓴다.
+  const isCrossView = analysis?.id === "cross";
+  const methodSummaryText = isCrossView
+    ? analysis.formulaNotes.join(" · ")
+    : activeLayerId !== "medical" && activeMetric
       ? `${activeMetric.label} = ${activeMetric.formula}${
           activeMetric.limitation ? ` · ${activeMetric.limitation}` : ""
         }`
