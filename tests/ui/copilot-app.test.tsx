@@ -735,6 +735,23 @@ describe("CopilotApp", () => {
     expect(within(presets).getByTestId("cross-senior-vs-medical")).toBeInTheDocument();
   }, 30_000);
 
+  test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "카드매출 늘어나는 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    // 제목이 "많은 곳"이 아니라 추세임을 밝힌다
+    expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 15_000 })).not.toHaveLength(0);
+    // 산식에 변화율 정의가 실린다
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/변화율/);
+    });
+  }, 30_000);
+
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

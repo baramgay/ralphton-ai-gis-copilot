@@ -77,6 +77,9 @@ import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
 import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
+import { resolveTrendQuery } from "@/lib/layers/resolve-trend-query";
+import { buildTrendRanking } from "@/lib/layers/trend-view";
+import { describeTrend } from "@/lib/layers/trend";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
@@ -1778,6 +1781,92 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
+
+    // 추세 질의("카드매출 늘어나는 동")를 먼저 본다. 값의 크기가 아니라 변화를 묻는
+    // 표현이므로 단일 시점 라우팅으로 넘기면 "많은 곳"과 구별되지 않는다.
+    const trendMatch = resolveTrendQuery(trimmed, PRIVATE_NL_LAYERS, {
+      adminLevelFallback: adminLevel,
+    });
+    if (trendMatch) {
+      const cube = remoteCubes[trendMatch.layerId] ?? null;
+      const metrics = CUBE_LAYER_METRICS[trendMatch.layerId as CubeLayerId];
+      const metric = metrics?.find((item) => item.key === trendMatch.metricKey);
+      if (cube && metric) {
+        const result = buildTrendRanking(
+          cube,
+          metric,
+          metrics,
+          trendMatch.direction,
+          trendMatch.adminLevel,
+        );
+        const directionLabel = trendMatch.direction === "rising" ? "증가" : "감소";
+        const view: AnalysisView = {
+          id: "cross",
+          title: `${trendMatch.metricLabel} ${directionLabel} 추세`,
+          summary:
+            result.ranked.length === 0
+              ? `${trendMatch.metricLabel} 추세를 낼 수 있는 행정동 없음`
+              : `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel}폭이 큰 순. ` +
+                `1위 ${result.ranked[0].name.replace(/^경상남도\s*/, "")}은 ` +
+                describeTrend(result.ranked[0].trend, trendMatch.metricLabel, trendMatch.unit),
+          ranked: result.ranked.slice(0, 30).map((row) => {
+            const name = row.name.replace(/^경상남도\s*/, "");
+            const rate = row.trend.changeRate ?? 0;
+            return {
+              code: row.code,
+              name,
+              district: name.split(/\s+/)[0] ?? "지역",
+              mapScore: result.scores.get(row.code) ?? 0,
+              valueLabel: `${rate > 0 ? "+" : ""}${rate.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`,
+              note: describeTrend(row.trend, trendMatch.metricLabel, trendMatch.unit),
+              metrics: [
+                {
+                  label: `${trendMatch.metricLabel} 변화율`,
+                  value: rate,
+                  unit: "%",
+                  formula: `기간 첫 관측월 대비 최근월 변화율 (${trendMatch.provider})`,
+                  referenceMonth: cube.referenceMonth,
+                  limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
+                },
+              ],
+            };
+          }),
+          filteredFacilities: [],
+          formulaNotes: [
+            `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100`,
+            `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
+            "관측이 2개월 미만이거나 첫 값이 0인 지역은 추세를 산출하지 않고 순위에서 제외한다",
+          ],
+          legendLabel: `${trendMatch.metricLabel} ${directionLabel}폭`,
+          isFacilityResult: false,
+          totalCount: result.comparable,
+          provenance: {
+            referenceMonth: cube.referenceMonth,
+            source: `${trendMatch.provider} ${trendMatch.metricLabel} 추세`,
+          },
+        };
+        setActiveLayerId("medical");
+        setCustomAnalysis(view);
+        setActiveTab("control");
+        if (trendMatch.adminLevel !== adminLevel) setAdminLevel(trendMatch.adminLevel);
+        if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+        setLastIntent(null);
+        setParseStage("done");
+        setQueryNotice(
+          `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 행정동`,
+        );
+        setQueryNoticeTone("success");
+        setQuerySuggestions([]);
+        rememberQuery(trimmed);
+        window.setTimeout(() => setParseStage("idle"), 1200);
+        return;
+      }
+      setParseStage("idle");
+      setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      setQueryNoticeTone("neutral");
+      rememberQuery(trimmed);
+      return;
+    }
 
     // 민간×공공 교차분석: "생활인구 대비 카드매출", "소득과 소비 모두 높은 동" 등 두 지표를
     // z-표준화해 합성 순위로 보여준다(툴 결과처럼 customAnalysis 경로로 렌더).
