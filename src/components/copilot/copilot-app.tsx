@@ -234,6 +234,18 @@ const CROSS_PRESETS: Array<{ id: string; label: string; subtitle: string; query:
     subtitle: "둘 다 높은 지역",
     query: "평균소득과 신용평점 모두 높은 동",
   },
+  {
+    id: "movein-vs-sales",
+    label: "전입 대비 저매출",
+    subtitle: "전입인구↑ 매출↓",
+    query: "전입 대비 카드매출 낮은 동",
+  },
+  {
+    id: "daytime-vs-sales",
+    label: "주간인구 대비 저매출",
+    subtitle: "주간인구↑ 매출↓",
+    query: "주간인구 대비 카드매출 낮은 동",
+  },
 ];
 
 /** All cube-backed layers eligible for cross-analysis (public 인구 + private). */
