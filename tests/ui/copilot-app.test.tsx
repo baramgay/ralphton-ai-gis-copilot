@@ -578,6 +578,28 @@ describe("CopilotApp", () => {
     expect(hits.length).toBeGreaterThan(0);
   }, 30_000);
 
+  test("selecting the 의료 layer clears a cross-analysis result instead of leaving it on screen", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("cross-living-vs-sales"));
+    await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
+
+    // 교차분석은 activeLayerId를 medical로 두므로, 의료 버튼을 눌러도 상태가 그대로라
+    // 결과가 남을 수 있다. 레이어 선택은 언제나 새 분석을 시작해야 한다.
+    const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
+    fireEvent.click(within(layerGroup).getByRole("button", { name: /의료/ }));
+
+    // 직전 동작을 알리는 상태 문구(role="status")는 남아도 되지만, 결과 패널은
+    // 선택한 레이어의 분석으로 바뀌어야 한다.
+    await waitFor(() => {
+      expect(within(screen.getByTestId("result-panel")).queryAllByText(/교차분석/)).toHaveLength(0);
+    });
+    // 의료 레이어의 기본 분석(의료취약지수)이 돌아왔는지 방법론으로 확인
+    expect(screen.getByTestId("method-summary")).toHaveTextContent(/의료취약지수/);
+  }, 30_000);
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

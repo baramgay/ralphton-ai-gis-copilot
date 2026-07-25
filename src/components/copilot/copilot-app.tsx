@@ -1912,6 +1912,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     if (nextId !== "medical") {
                       setActiveMetricKey(CUBE_LAYER_METRICS[nextId][0].key);
                     }
+                    // 교차분석은 activeLayerId를 medical로 둔 채 customAnalysis로 렌더한다.
+                    // 이걸 비우지 않으면 의료 레이어를 눌러도(이미 medical이라 상태가 그대로여서)
+                    // 교차 결과가 화면에 남아 레이어를 바꿔도 아무 반응이 없는 것처럼 보인다.
+                    setCustomAnalysis(null);
                   }}
                 />
                 {activeLayerId !== "medical" ? (
