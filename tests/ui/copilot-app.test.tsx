@@ -759,6 +759,18 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/카드매출/);
   }, 30_000);
 
+  test("원클릭 추세 프리셋이 자연어 없이 추세를 낸다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    await waitFor(() => expect(screen.getByTestId("trend-presets")).toBeInTheDocument());
+
+    fireEvent.click(await screen.findByTestId("trend-sales-rising"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/변화율/);
+    });
+  }, 30_000);
+
   test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

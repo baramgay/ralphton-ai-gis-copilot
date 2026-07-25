@@ -77,7 +77,7 @@ import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
 import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
-import { resolveTrendQuery } from "@/lib/layers/resolve-trend-query";
+import { resolveTrendQuery, type TrendQueryMatch } from "@/lib/layers/resolve-trend-query";
 import { buildTrendRanking } from "@/lib/layers/trend-view";
 import { describeTrend } from "@/lib/layers/trend";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
@@ -333,6 +333,37 @@ const CROSS_PRESETS: Array<{
     label: "청년 상권",
     subtitle: "카페·청년 소비 동반↑",
     query: "카페 비중과 청년 소비비중 모두 높은 동",
+  },
+];
+
+/**
+ * 원클릭 추세 프리셋. 자연어를 모르면 추세 기능에 닿을 길이 없어 함께 노출한다.
+ * 프리셋도 자연어와 같은 리졸버를 거치므로 문장을 직접 친 것과 결과가 갈리지 않는다.
+ */
+const TREND_PRESETS: Array<{ id: string; label: string; subtitle: string; query: string }> = [
+  {
+    id: "sales-rising",
+    label: "카드매출 증가",
+    subtitle: "상권이 커지는 동",
+    query: "카드매출 늘어나는 동",
+  },
+  {
+    id: "living-falling",
+    label: "생활인구 감소",
+    subtitle: "사람이 빠지는 동",
+    query: "생활인구 줄어드는 동",
+  },
+  {
+    id: "income-rising",
+    label: "평균소득 증가",
+    subtitle: "소득이 오르는 동",
+    query: "평균소득 증가하는 동",
+  },
+  {
+    id: "delinquency-rising",
+    label: "연체율 상승",
+    subtitle: "가계 부담 신호",
+    query: "연체율 증가하는 동",
   },
 ];
 
@@ -1781,6 +1812,103 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [adminLevel, runCross],
   );
 
+  /**
+   * 추세 분석을 실행한다. 자연어 경로와 원클릭 프리셋이 공유해, 문장을 직접 입력한 것과
+   * 버튼을 누른 것의 결과가 갈릴 수 없게 한다. 큐브가 아직 없으면 false를 돌린다.
+   */
+  const runTrend = useCallback(
+    (trendMatch: TrendQueryMatch): boolean => {
+    const cube = remoteCubes[trendMatch.layerId] ?? null;
+    const metrics = CUBE_LAYER_METRICS[trendMatch.layerId as CubeLayerId];
+    const metric = metrics?.find((item) => item.key === trendMatch.metricKey);
+    if (cube && metric) {
+      const result = buildTrendRanking(
+        cube,
+        metric,
+        metrics,
+        trendMatch.direction,
+        trendMatch.adminLevel,
+      );
+      const directionLabel = trendMatch.direction === "rising" ? "증가" : "감소";
+      const view: AnalysisView = {
+        id: "cross",
+        title: `${trendMatch.metricLabel} ${directionLabel} 추세`,
+        summary:
+          result.ranked.length === 0
+            ? `${trendMatch.metricLabel} 추세를 낼 수 있는 행정동 없음`
+            : `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel}폭이 큰 순. ` +
+              `1위 ${result.ranked[0].name.replace(/^경상남도\s*/, "")}은 ` +
+              describeTrend(result.ranked[0].trend, trendMatch.metricLabel, trendMatch.unit),
+        ranked: result.ranked.slice(0, 30).map((row) => {
+          const name = row.name.replace(/^경상남도\s*/, "");
+          const rate = row.trend.changeRate ?? 0;
+          return {
+            code: row.code,
+            name,
+            district: name.split(/\s+/)[0] ?? "지역",
+            mapScore: result.scores.get(row.code) ?? 0,
+            valueLabel: `${rate > 0 ? "+" : ""}${rate.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`,
+            note: describeTrend(row.trend, trendMatch.metricLabel, trendMatch.unit),
+            metrics: [
+              {
+                label: `${trendMatch.metricLabel} 변화율`,
+                value: rate,
+                unit: "%",
+                formula: `기간 첫 관측월 대비 최근월 변화율 (${trendMatch.provider})`,
+                referenceMonth: cube.referenceMonth,
+                limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
+              },
+            ],
+          };
+        }),
+        filteredFacilities: [],
+        formulaNotes: [
+          `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100`,
+          `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
+          "관측이 2개월 미만이거나 첫 값이 0인 지역은 추세를 산출하지 않고 순위에서 제외한다",
+        ],
+        legendLabel: `${trendMatch.metricLabel} ${directionLabel}폭`,
+        isFacilityResult: false,
+        totalCount: result.comparable,
+        provenance: {
+          referenceMonth: cube.referenceMonth,
+          source: `${trendMatch.provider} ${trendMatch.metricLabel} 추세`,
+        },
+      };
+      setActiveLayerId("medical");
+      setCustomAnalysis(view);
+      setActiveTab("control");
+      if (trendMatch.adminLevel !== adminLevel) setAdminLevel(trendMatch.adminLevel);
+      if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+      setLastIntent(null);
+      setParseStage("done");
+      setQueryNotice(
+        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 행정동`,
+      );
+      setQueryNoticeTone("success");
+      setQuerySuggestions([]);
+      window.setTimeout(() => setParseStage("idle"), 1200);
+      return true;
+    }
+    return false;
+  },
+    [adminLevel, remoteCubes],
+  );
+
+  /** 원클릭 추세 프리셋: 자연어와 같은 리졸버를 거쳐 실행한다. */
+  const runTrendPreset = useCallback(
+    (presetQuery: string) => {
+      const match = resolveTrendQuery(presetQuery, PRIVATE_NL_LAYERS, {
+        adminLevelFallback: adminLevel,
+      });
+      if (!match || !runTrend(match)) {
+        setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+        setQueryNoticeTone("neutral");
+      }
+    },
+    [adminLevel, runTrend],
+  );
+
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();
     const trimmed = query.trim();
@@ -1792,83 +1920,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       adminLevelFallback: adminLevel,
     });
     if (trendMatch) {
-      const cube = remoteCubes[trendMatch.layerId] ?? null;
-      const metrics = CUBE_LAYER_METRICS[trendMatch.layerId as CubeLayerId];
-      const metric = metrics?.find((item) => item.key === trendMatch.metricKey);
-      if (cube && metric) {
-        const result = buildTrendRanking(
-          cube,
-          metric,
-          metrics,
-          trendMatch.direction,
-          trendMatch.adminLevel,
-        );
-        const directionLabel = trendMatch.direction === "rising" ? "증가" : "감소";
-        const view: AnalysisView = {
-          id: "cross",
-          title: `${trendMatch.metricLabel} ${directionLabel} 추세`,
-          summary:
-            result.ranked.length === 0
-              ? `${trendMatch.metricLabel} 추세를 낼 수 있는 행정동 없음`
-              : `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel}폭이 큰 순. ` +
-                `1위 ${result.ranked[0].name.replace(/^경상남도\s*/, "")}은 ` +
-                describeTrend(result.ranked[0].trend, trendMatch.metricLabel, trendMatch.unit),
-          ranked: result.ranked.slice(0, 30).map((row) => {
-            const name = row.name.replace(/^경상남도\s*/, "");
-            const rate = row.trend.changeRate ?? 0;
-            return {
-              code: row.code,
-              name,
-              district: name.split(/\s+/)[0] ?? "지역",
-              mapScore: result.scores.get(row.code) ?? 0,
-              valueLabel: `${rate > 0 ? "+" : ""}${rate.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`,
-              note: describeTrend(row.trend, trendMatch.metricLabel, trendMatch.unit),
-              metrics: [
-                {
-                  label: `${trendMatch.metricLabel} 변화율`,
-                  value: rate,
-                  unit: "%",
-                  formula: `기간 첫 관측월 대비 최근월 변화율 (${trendMatch.provider})`,
-                  referenceMonth: cube.referenceMonth,
-                  limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
-                },
-              ],
-            };
-          }),
-          filteredFacilities: [],
-          formulaNotes: [
-            `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100`,
-            `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
-            "관측이 2개월 미만이거나 첫 값이 0인 지역은 추세를 산출하지 않고 순위에서 제외한다",
-          ],
-          legendLabel: `${trendMatch.metricLabel} ${directionLabel}폭`,
-          isFacilityResult: false,
-          totalCount: result.comparable,
-          provenance: {
-            referenceMonth: cube.referenceMonth,
-            source: `${trendMatch.provider} ${trendMatch.metricLabel} 추세`,
-          },
-        };
-        setActiveLayerId("medical");
-        setCustomAnalysis(view);
-        setActiveTab("control");
-        if (trendMatch.adminLevel !== adminLevel) setAdminLevel(trendMatch.adminLevel);
-        if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
-        setLastIntent(null);
-        setParseStage("done");
-        setQueryNotice(
-          `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 행정동`,
-        );
-        setQueryNoticeTone("success");
-        setQuerySuggestions([]);
-        rememberQuery(trimmed);
-        window.setTimeout(() => setParseStage("idle"), 1200);
-        return;
-      }
+      rememberQuery(trimmed);
+      if (runTrend(trendMatch)) return;
       setParseStage("idle");
       setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       setQueryNoticeTone("neutral");
-      rememberQuery(trimmed);
       return;
     }
 
@@ -2376,6 +2432,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 </section>
               ) : null}
+
+              <section data-testid="trend-presets">
+                <h2 className="section-label">추세 분석</h2>
+                <p className="ui-caption mb-2 -mt-1">
+                  기준월 값이 아니라 전 기간 변화율 순
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TREND_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      data-testid={`trend-${preset.id}`}
+                      aria-label={preset.label}
+                      onClick={() => runTrendPreset(preset.query)}
+                      className="quick-tile min-h-[56px] rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-slate-300 active:scale-[.98]"
+                    >
+                      <span className="block ui-body font-bold text-slate-900">{preset.label}</span>
+                      <span className="ui-caption mt-0.5 block text-slate-500">{preset.subtitle}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
               <section data-testid="cross-presets">
                 <h2 className="section-label">민간데이터 교차분석</h2>

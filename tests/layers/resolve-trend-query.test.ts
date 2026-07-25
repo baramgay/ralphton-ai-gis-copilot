@@ -43,6 +43,22 @@ describe("resolveTrendQuery", () => {
     );
   });
 
+  test("원클릭 프리셋 질의가 모두 추세로 풀린다", () => {
+    // copilot-app.tsx의 TREND_PRESETS와 같은 문장. 프리셋도 이 리졸버를 거치므로
+    // 리졸버 규칙이 바뀌어 프리셋이 깨지면 여기서 걸린다.
+    const PRESET_QUERIES: Array<[string, "rising" | "falling"]> = [
+      ["카드매출 늘어나는 동", "rising"],
+      ["생활인구 줄어드는 동", "falling"],
+      ["평균소득 증가하는 동", "rising"],
+      ["연체율 증가하는 동", "rising"],
+    ];
+    for (const [query, direction] of PRESET_QUERIES) {
+      const match = resolveTrendQuery(query, PRIVATE_LAYERS);
+      expect(match, `preset "${query}" must resolve`).not.toBeNull();
+      expect(match?.direction).toBe(direction);
+    }
+  });
+
   test("시군구 단위를 알아본다", () => {
     expect(resolveTrendQuery("시군구별 카드매출 증가", PRIVATE_LAYERS)?.adminLevel).toBe("sgg");
     expect(resolveTrendQuery("카드매출 증가하는 동", PRIVATE_LAYERS)?.adminLevel).toBe("dong");
