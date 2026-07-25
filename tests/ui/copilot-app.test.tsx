@@ -543,6 +543,8 @@ describe("CopilotApp", () => {
     // both operands' providers are surfaced
     expect(screen.getAllByText(/SKT/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/NH/).length).toBeGreaterThan(0);
+    // the summary explains the shortfall rather than just listing a ranking
+    expect(screen.getAllByText(/가장 부족한 곳/).length).toBeGreaterThan(0);
   }, 30_000);
 
   test("routes a 주야비 query to the SKT day/night layer", async () => {

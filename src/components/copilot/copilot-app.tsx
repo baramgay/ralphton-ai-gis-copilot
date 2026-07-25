@@ -63,6 +63,7 @@ import {
 } from "@/lib/layers/catalog";
 import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
+import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
@@ -308,10 +309,18 @@ function crossResultToView(
     };
   });
 
+  // 순위 나열이 아니라 두 지표가 어떻게 엇갈리는지를 설명하는 교차 전용 해석문.
+  const interpretation = buildCrossInterpretation(
+    cross.ranked,
+    { label: a.metric.label, unit: a.metric.unit, provider: a.provider },
+    { label: b.metric.label, unit: b.metric.unit, provider: b.provider },
+    mode,
+  );
+
   return {
     id: "cross",
     title: `교차분석 · ${modeLabel} 지역`,
-    summary: `${a.metric.label}(${a.provider})와 ${b.metric.label}(${b.provider})을 z-표준화해 ${mode === "gap" ? "격차(zA−zB)" : "동반(zA+zB)"} 순으로 정렬했습니다.`,
+    summary: interpretation,
     ranked,
     filteredFacilities: [],
     formulaNotes: [
