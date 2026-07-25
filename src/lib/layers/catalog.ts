@@ -156,6 +156,21 @@ export const KCB_MIGRATION_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const KCB_COMMUTE_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "kcb-commute",
+  label: "통근",
+  provider: "KCB",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["KCB 통근통계 (분기, 자택-직장 행정동 기준)"],
+  metrics: [
+    { key: "jobs_in", label: "일자리 유입", unit: "명", aggregation: "sum", formula: "그 행정동으로 출근하는 취업자 수(거주지 무관)", limitation: "KCB 직장 위치는 본사 주소로 잡히는 경우가 있어 실제 근무지와 다를 수 있다", triggers: ["일자리", "일자리 유입", "직장 인구", "출근 인구", "종사자"] },
+    { key: "job_ratio", label: "주간 일자리 배율", unit: "%", aggregation: "weightedAvg", weightKey: "jobs_in", formula: "일자리 유입 ÷ 취업 거주자 × 100", limitation: "100 초과=직장 중심지, 100 미만=베드타운. 본사 주소 등록 영향 가능", triggers: ["일자리 배율", "직장 중심", "베드타운", "주간 일자리"] },
+    { key: "outbound_ratio", label: "관외 통근율", unit: "%", aggregation: "weightedAvg", weightKey: "jobs_in", formula: "거주 시군구 밖으로 통근하는 취업자 ÷ 취업 거주자 × 100", limitation: "같은 시군구 안에서의 통근은 관내로 본다", triggers: ["관외 통근", "통근율", "외지로 출퇴근", "타지 통근", "출퇴근"] },
+  ],
+};
+
 export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "medical",
   label: "의료",

@@ -53,6 +53,7 @@ import { PanelResizer } from "./panel-resizer";
 import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
 import {
+  KCB_COMMUTE_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
   MEDICAL_LAYER,
@@ -124,6 +125,7 @@ type LayerId =
   | "nh-industry"
   | "kcb-credit"
   | "kcb-migration"
+  | "kcb-commute"
   | "medical";
 
 type CubeLayerId = Exclude<LayerId, "medical">;
@@ -165,6 +167,7 @@ const LAYER_OPTIONS: LayerOption[] = [
   { id: NH_INDUSTRY_LAYER.id, label: NH_INDUSTRY_LAYER.label, provider: NH_INDUSTRY_LAYER.provider },
   { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
   { id: KCB_MIGRATION_LAYER.id, label: KCB_MIGRATION_LAYER.label, provider: KCB_MIGRATION_LAYER.provider },
+  { id: KCB_COMMUTE_LAYER.id, label: KCB_COMMUTE_LAYER.label, provider: KCB_COMMUTE_LAYER.provider },
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
 ];
 
@@ -179,6 +182,7 @@ const CUBE_LAYER_METRICS: Record<CubeLayerId, MetricDef[]> = {
   "nh-industry": NH_INDUSTRY_LAYER.metrics,
   "kcb-credit": KCB_CREDIT_LAYER.metrics,
   "kcb-migration": KCB_MIGRATION_LAYER.metrics,
+  "kcb-commute": KCB_COMMUTE_LAYER.metrics,
 };
 
 const LAYER_PROVIDERS: Record<LayerId, string> = {
@@ -192,6 +196,7 @@ const LAYER_PROVIDERS: Record<LayerId, string> = {
   "nh-industry": NH_INDUSTRY_LAYER.provider,
   "kcb-credit": KCB_CREDIT_LAYER.provider,
   "kcb-migration": KCB_MIGRATION_LAYER.provider,
+  "kcb-commute": KCB_COMMUTE_LAYER.provider,
   medical: MEDICAL_LAYER.provider,
 };
 
@@ -210,6 +215,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
   { id: "nh-industry", url: "/data/layers/nh-industry.json", label: NH_INDUSTRY_LAYER.label },
   { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
   { id: "kcb-migration", url: "/data/layers/kcb-migration.json", label: KCB_MIGRATION_LAYER.label },
+  { id: "kcb-commute", url: "/data/layers/kcb-commute.json", label: KCB_COMMUTE_LAYER.label },
 ];
 
 /**
@@ -228,6 +234,7 @@ const PRIVATE_NL_LAYERS = [
   NH_INDUSTRY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
+  KCB_COMMUTE_LAYER,
 ];
 
 /**
@@ -291,6 +298,7 @@ const CROSS_LAYERS = [
   NH_INDUSTRY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
+  KCB_COMMUTE_LAYER,
 ];
 
 function formatCrossValue(value: number | null, unit: string): string {

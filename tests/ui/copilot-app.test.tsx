@@ -322,6 +322,30 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/layers/kcb-commute.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "kcb-commute",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    jobs_in: Array(13).fill(4200),
+                    job_ratio: Array(13).fill(132.5),
+                    outbound_ratio: Array(13).fill(48.1),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes("/data/layers/kcb-migration.json")) {
           return new Response(
             JSON.stringify({
