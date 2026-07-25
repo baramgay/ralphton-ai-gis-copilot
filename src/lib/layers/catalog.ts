@@ -107,6 +107,23 @@ export const NH_HOURLY_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const NH_INDUSTRY_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "nh-industry",
+  label: "업종구성",
+  provider: "NH",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["NH농협카드 업종별 카드매출 (표준산업분류 11차 대분류 기준 매출 비중)"],
+  metrics: [
+    { key: "food_share", label: "음식·숙박 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "숙박·음식점업(I) 매출 ÷ 전체 카드매출 × 100", limitation: "5개 업종군 외(제조·건설 등)도 분모에 포함되므로 업종군 비중의 합은 100%가 아니다", triggers: ["음식점 비중", "요식업 비중", "음식 숙박", "외식 상권", "먹자골목"] },
+    { key: "retail_share", label: "도소매 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "도매 및 소매업(G) 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["도소매 비중", "소매 비중", "유통 상권", "판매업 비중"] },
+    { key: "health_share", label: "보건·의료 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "보건업 및 사회복지 서비스업(Q) 매출 ÷ 전체 카드매출 × 100", limitation: "병원 결제 기준이라 의료기관 수(공공 의료 레이어)와는 다른 관점", triggers: ["의료 소비", "병원 소비", "보건 소비", "의료비 비중"] },
+    { key: "leisure_share", label: "여가·문화 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "예술·스포츠·여가 서비스업(R) 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["여가 소비", "문화 소비", "여가 비중", "레저 소비"] },
+    { key: "education_share", label: "교육 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "교육 서비스업(P) 매출 ÷ 전체 카드매출 × 100", limitation: "학원·교습 결제 중심이며 공교육 지출은 포함되지 않는다", triggers: ["교육 소비", "학원 소비", "사교육 소비", "교육비 비중"] },
+  ],
+};
+
 export const KCB_CREDIT_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "kcb-credit",
   label: "소득·신용",

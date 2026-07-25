@@ -59,6 +59,7 @@ import {
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
   NH_HOURLY_LAYER,
+  NH_INDUSTRY_LAYER,
   POPULATION_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
@@ -120,6 +121,7 @@ type LayerId =
   | "nh-consumption"
   | "nh-demographics"
   | "nh-hourly"
+  | "nh-industry"
   | "kcb-credit"
   | "kcb-migration"
   | "medical";
@@ -160,6 +162,7 @@ const LAYER_OPTIONS: LayerOption[] = [
   { id: NH_CONSUMPTION_LAYER.id, label: NH_CONSUMPTION_LAYER.label, provider: NH_CONSUMPTION_LAYER.provider },
   { id: NH_DEMOGRAPHICS_LAYER.id, label: NH_DEMOGRAPHICS_LAYER.label, provider: NH_DEMOGRAPHICS_LAYER.provider },
   { id: NH_HOURLY_LAYER.id, label: NH_HOURLY_LAYER.label, provider: NH_HOURLY_LAYER.provider },
+  { id: NH_INDUSTRY_LAYER.id, label: NH_INDUSTRY_LAYER.label, provider: NH_INDUSTRY_LAYER.provider },
   { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
   { id: KCB_MIGRATION_LAYER.id, label: KCB_MIGRATION_LAYER.label, provider: KCB_MIGRATION_LAYER.provider },
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
@@ -173,6 +176,7 @@ const CUBE_LAYER_METRICS: Record<CubeLayerId, MetricDef[]> = {
   "nh-consumption": NH_CONSUMPTION_LAYER.metrics,
   "nh-demographics": NH_DEMOGRAPHICS_LAYER.metrics,
   "nh-hourly": NH_HOURLY_LAYER.metrics,
+  "nh-industry": NH_INDUSTRY_LAYER.metrics,
   "kcb-credit": KCB_CREDIT_LAYER.metrics,
   "kcb-migration": KCB_MIGRATION_LAYER.metrics,
 };
@@ -185,6 +189,7 @@ const LAYER_PROVIDERS: Record<LayerId, string> = {
   "nh-consumption": NH_CONSUMPTION_LAYER.provider,
   "nh-demographics": NH_DEMOGRAPHICS_LAYER.provider,
   "nh-hourly": NH_HOURLY_LAYER.provider,
+  "nh-industry": NH_INDUSTRY_LAYER.provider,
   "kcb-credit": KCB_CREDIT_LAYER.provider,
   "kcb-migration": KCB_MIGRATION_LAYER.provider,
   medical: MEDICAL_LAYER.provider,
@@ -202,6 +207,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
   { id: "nh-consumption", url: "/data/layers/nh-consumption.json", label: NH_CONSUMPTION_LAYER.label },
   { id: "nh-demographics", url: "/data/layers/nh-demographics.json", label: NH_DEMOGRAPHICS_LAYER.label },
   { id: "nh-hourly", url: "/data/layers/nh-hourly.json", label: NH_HOURLY_LAYER.label },
+  { id: "nh-industry", url: "/data/layers/nh-industry.json", label: NH_INDUSTRY_LAYER.label },
   { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
   { id: "kcb-migration", url: "/data/layers/kcb-migration.json", label: KCB_MIGRATION_LAYER.label },
 ];
@@ -219,6 +225,7 @@ const PRIVATE_NL_LAYERS = [
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
   NH_HOURLY_LAYER,
+  NH_INDUSTRY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];
@@ -281,6 +288,7 @@ const CROSS_LAYERS = [
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
   NH_HOURLY_LAYER,
+  NH_INDUSTRY_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];
