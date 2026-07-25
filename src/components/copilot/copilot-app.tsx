@@ -16,6 +16,7 @@ import {
   rankedToCsv,
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
+import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
 import { buildMarkdownReport } from "@/lib/analysis/export-report";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
@@ -1524,6 +1525,38 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       // 클립보드가 막힌 환경에서도 파일 저장은 이미 끝났다.
       showToast("보고서 저장");
     }
+  }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
+
+  /**
+   * 한글(HWP) 붙여넣기용 내보내기. 마크다운 표는 한글에 붙이면 평문이 되지만, HTML
+   * 클립보드는 한글이 진짜 표로 받는다. 같은 내용을 .doc(HTML)로도 저장해 파일로도 열 수 있게 한다.
+   */
+  const exportCurrentHwp = useCallback(async () => {
+    if (!snapshot || !analysis || !exportProvenance) return;
+    const reportInput = {
+      title: analysis.title,
+      summary: oneLineConclusion ?? analysis.summary,
+      referenceMonth: exportProvenance.referenceMonth,
+      source: exportProvenance.source,
+      mode: snapshot.mode,
+      formulaNotes: analysis.formulaNotes,
+      rows: analysis.ranked.map((row, index) => ({
+        rank: index + 1,
+        name: row.name,
+        valueLabel: row.valueLabel,
+        note: row.note,
+      })),
+      totalCount: analysis.totalCount,
+      exportedAt: new Date().toLocaleString("ko-KR"),
+    };
+    const html = buildHwpHtmlReport(reportInput);
+    downloadTextFile(
+      `ralphton-report-${exportProvenance.referenceMonth}.doc`,
+      html,
+      "application/msword;charset=utf-8",
+    );
+    const copied = await copyHtmlToClipboard(html, buildMarkdownReport(reportInput));
+    showToast(copied ? "한글 문서 저장·표 복사" : "한글 문서 저장");
   }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
 
   const applyLayoutPreset = useCallback(
@@ -3209,6 +3242,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               onClick={() => void exportCurrentReport()}
             >
               보고서
+            </button>
+            <button
+              type="button"
+              data-testid="export-hwp"
+              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
+              onClick={() => void exportCurrentHwp()}
+            >
+              한글
             </button>
             <button
               type="button"
