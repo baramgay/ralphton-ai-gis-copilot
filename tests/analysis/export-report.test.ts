@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { buildMarkdownReport, type ReportInput } from "@/lib/analysis/export-report";
+import { buildMarkdownReport, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
 
 const base: ReportInput = {
   title: "카드매출 순위",
@@ -57,6 +57,37 @@ describe("buildMarkdownReport", () => {
       expect(bullet.trimEnd().endsWith("니다.")).toBe(false);
       expect(bullet.trimEnd().endsWith("합니다")).toBe(false);
     }
+  });
+
+  test("주입된 서술식 요약도 명사형으로 바꿔 싣는다", () => {
+    // 요약은 화면용 문장이라 "…입니다."로 끝난다. 그대로 실으면 결과보고 양식에 어긋난다.
+    const md = buildMarkdownReport({
+      ...base,
+      summary: "카드매출 기준 상위 3곳은 거창군 거창읍 · 진주시 천전동 · 김해시 진영읍입니다.",
+    });
+    expect(md).toContain("- 카드매출 기준 상위 3곳은 거창군 거창읍 · 진주시 천전동 · 김해시 진영읍.");
+    expect(md).not.toContain("입니다.");
+  });
+
+  test("toNounEnding은 알려진 종결어미만 바꾸고 나머지는 건드리지 않는다", () => {
+    expect(toNounEnding("상위 3곳은 A입니다.")).toBe("상위 3곳은 A.");
+    expect(toNounEnding("가장 두드러집니다.")).toBe("가장 두드러짐.");
+    expect(toNounEnding("의료기관 3곳을 확인하세요.")).toBe("의료기관 3곳을 확인 필요.");
+    expect(toNounEnding("표시할 순위가 없습니다.")).toBe("표시할 순위가 없음.");
+    // 이미 명사형인 교차 해석문은 그대로 유지
+    const cross = "격차 2.7표준편차.";
+    expect(toNounEnding(cross)).toBe(cross);
+  });
+
+  test("표시 상한으로 잘린 결과는 rows 길이가 아니라 실제 모수를 보고한다", () => {
+    // 교차분석은 상위 30개만 ranked에 담지만 실제 비교 대상은 305개다.
+    const md = buildMarkdownReport({
+      ...base,
+      rows: base.rows.slice(0, 30),
+      totalCount: 305,
+    });
+    expect(md).toContain("대상 행정동 305개 중 상위 10개 제시");
+    expect(md).not.toContain("대상 행정동 30개");
   });
 
   test("지역명에 파이프가 있어도 표가 깨지지 않는다", () => {

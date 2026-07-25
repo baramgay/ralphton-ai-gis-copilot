@@ -143,6 +143,11 @@ type AnalysisView = {
   isFacilityResult: boolean;
   /** 교차분석처럼 공공 스냅샷과 기준월·출처가 다른 결과의 표기용 메타(내보내기에 사용). */
   provenance?: { referenceMonth: string; source: string };
+  /**
+   * 실제 분석 대상 건수. ranked가 표시 상한으로 잘린 경우(교차분석) 이 값이 진짜 모수다.
+   * 보고서가 ranked.length를 모수로 쓰면 잘못된 대상 수가 실린다.
+   */
+  totalCount?: number;
 };
 
 type LivePlace = LiveMapPlace & {
@@ -373,6 +378,7 @@ function crossResultToView(
     ],
     legendLabel: `${modeLabel} 분포`,
     isFacilityResult: false,
+    totalCount: cross.ranked.length,
     provenance: {
       // 두 지표의 기준월이 다를 수 있으므로 양쪽을 모두 남긴다.
       referenceMonth:
@@ -1502,6 +1508,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         valueLabel: row.valueLabel,
         note: row.note,
       })),
+      totalCount: analysis.totalCount,
       exportedAt: new Date().toLocaleString("ko-KR"),
     });
 
