@@ -56,6 +56,8 @@ import { PanelResizer } from "./panel-resizer";
 import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
 import {
+  CUBE_LAYERS,
+  PRIVATE_LAYERS,
   KCB_COMMUTE_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
@@ -238,19 +240,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
  * here — this is what lets "생활인구 많은 동"/"카드매출 높은 곳"/"평균소득 높은 동" reach the
  * private layers instead of being swallowed by the public 인구 ranking.
  */
-const PRIVATE_NL_LAYERS = [
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  NH_INDUSTRY_LAYER,
-  NH_STORETYPE_LAYER,
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
-  KCB_COMMUTE_LAYER,
-];
+const PRIVATE_NL_LAYERS = PRIVATE_LAYERS;
 
 /**
  * One-click 교차분석 presets. Each `query` goes through the same resolver the NL path
@@ -299,23 +289,28 @@ const CROSS_PRESETS: Array<{ id: string; label: string; subtitle: string; query:
     subtitle: "밤에 사람은 있는데 소비는↓",
     query: "야간인구 대비 야간 매출 낮은 동",
   },
+  {
+    id: "nightpop-vs-pub",
+    label: "야간인구 대비 주점 부족",
+    subtitle: "야간 상권 육성 후보",
+    query: "야간인구 대비 주점 비중 낮은 동",
+  },
+  {
+    id: "senior-vs-medical",
+    label: "고령 소비 대비 의료 부족",
+    subtitle: "고령 소비↑ 병의원↓",
+    query: "고령 소비비중 대비 병의원 비중 낮은 동",
+  },
+  {
+    id: "cafe-and-youth",
+    label: "청년 상권",
+    subtitle: "카페·청년 소비 동반↑",
+    query: "카페 비중과 청년 소비비중 모두 높은 동",
+  },
 ];
 
-/** All cube-backed layers eligible for cross-analysis (public 인구 + private). */
-const CROSS_LAYERS = [
-  POPULATION_LAYER,
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  NH_INDUSTRY_LAYER,
-  NH_STORETYPE_LAYER,
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
-  KCB_COMMUTE_LAYER,
-];
+/** 교차분석 후보 = 큐브로 뒷받침되는 전체 레이어(catalog 단일 출처). */
+const CROSS_LAYERS = CUBE_LAYERS;
 
 function formatCrossValue(value: number | null, unit: string): string {
   if (value === null) return "데이터 없음";

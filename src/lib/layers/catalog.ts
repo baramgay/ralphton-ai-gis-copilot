@@ -201,3 +201,29 @@ export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
     { key: "vulnerability", label: "의료취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약", "취약지", "병원부족"] },
   ],
 };
+
+/**
+ * 큐브로 뒷받침되는 전체 레이어(공공 인구 + 민간). 교차분석 후보이자, 값 범위 계약과
+ * 프리셋 검증이 참조하는 단일 출처다.
+ *
+ * 이 목록을 앱과 테스트가 따로 유지하던 동안 실제로 어긋난 적이 있다(테스트 목록에
+ * 업종구성·생활업종·통근이 빠져 프리셋 가드가 앱 동작을 검증하지 못했다). 레이어를
+ * 새로 붙일 때 여기 한 곳만 고치면 되도록 모아 둔다.
+ */
+export const CUBE_LAYERS = [
+  POPULATION_LAYER,
+  SKT_LIVING_LAYER,
+  SKT_MOBILITY_LAYER,
+  SKT_DAYNIGHT_LAYER,
+  NH_CONSUMPTION_LAYER,
+  NH_DEMOGRAPHICS_LAYER,
+  NH_HOURLY_LAYER,
+  NH_INDUSTRY_LAYER,
+  NH_STORETYPE_LAYER,
+  KCB_CREDIT_LAYER,
+  KCB_MIGRATION_LAYER,
+  KCB_COMMUTE_LAYER,
+] as const;
+
+/** 자연어로 직접 전환 가능한 민간 제공기관 레이어(공공 인구 제외). */
+export const PRIVATE_LAYERS = CUBE_LAYERS.filter((layer) => layer.provider !== "공공");

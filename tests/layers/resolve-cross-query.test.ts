@@ -1,30 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  POPULATION_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
-} from "@/lib/layers/catalog";
+import { CUBE_LAYERS } from "@/lib/layers/catalog";
 import { resolveCrossQuery } from "@/lib/layers/resolve-cross-query";
 
-// All cube-backed layers are cross-analysis candidates (public population + private).
-const CUBE_LAYERS = [
-  POPULATION_LAYER,
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
-];
+// 앱과 동일한 목록을 쓴다 — 따로 유지하면 어긋난다(실제로 어긋난 적 있음).
 
 describe("resolveCrossQuery", () => {
   test("생활인구 대비 카드매출 → gap, A=생활인구 B=카드매출 (order preserved)", () => {
@@ -110,6 +89,9 @@ describe("resolveCrossQuery", () => {
       "전입 대비 카드매출 낮은 동",
       "주간인구 대비 카드매출 낮은 동",
       "야간인구 대비 야간 매출 낮은 동",
+      "야간인구 대비 주점 비중 낮은 동",
+      "고령 소비비중 대비 병의원 비중 낮은 동",
+      "카페 비중과 청년 소비비중 모두 높은 동",
     ];
     for (const query of PRESET_QUERIES) {
       const match = resolveCrossQuery(query, CUBE_LAYERS);

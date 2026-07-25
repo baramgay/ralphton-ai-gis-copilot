@@ -1,18 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  KCB_COMMUTE_LAYER,
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  NH_INDUSTRY_LAYER,
-  NH_STORETYPE_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
-} from "@/lib/layers/catalog";
+import { PRIVATE_LAYERS } from "@/lib/layers/catalog";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 
 /**
@@ -21,19 +9,7 @@ import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
  * colloquial phrasings so the copilot can switch to the right layer/metric.
  * Add a phrasing here whenever a new private-data question should be supported.
  */
-const PRIVATE_LAYERS = [
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  NH_INDUSTRY_LAYER,
-  NH_STORETYPE_LAYER,
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
-  KCB_COMMUTE_LAYER,
-];
+// 앱과 동일한 민간 레이어 목록(catalog 단일 출처).
 
 const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   // SKT 생활인구
