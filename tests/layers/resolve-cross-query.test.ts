@@ -49,9 +49,29 @@ describe("resolveCrossQuery", () => {
     expect(layers).toEqual(["kcb-credit", "nh-consumption"].sort());
   });
 
-  test("returns null without a cross connective", () => {
+  test("infers gap from one-high-one-low contrast without a 대비 cue", () => {
+    const match = resolveCrossQuery("생활인구 많고 소득 낮은 동", CUBE_LAYERS);
+    expect(match?.mode).toBe("gap");
+    expect(match?.a.layerId).toBe("skt-living");
+    expect(match?.b.layerId).toBe("kcb-credit");
+  });
+
+  test("infers both from two same-direction metrics joined by a conjunction", () => {
+    const match = resolveCrossQuery("소득 높고 신용도 좋은 동", CUBE_LAYERS);
+    expect(match?.mode).toBe("both");
+    expect(match?.a.layerId).toBe("kcb-credit");
+    expect(match?.b.layerId).toBe("kcb-credit");
+    expect(new Set([match?.a.metricKey, match?.b.metricKey])).toEqual(
+      new Set(["avg_income", "credit_score"]),
+    );
+  });
+
+  test("returns null without a cross connective or contrast", () => {
     expect(resolveCrossQuery("카드매출 높은 동", CUBE_LAYERS)).toBeNull();
     expect(resolveCrossQuery("생활인구 많은 동", CUBE_LAYERS)).toBeNull();
+    expect(resolveCrossQuery("평균소득 높은 지역", CUBE_LAYERS)).toBeNull();
+    // overlapping triggers collapse to one metric → not a cross query
+    expect(resolveCrossQuery("생활인구 고령 비중 높은 동", CUBE_LAYERS)).toBeNull();
   });
 
   test("returns null when fewer than two distinct metrics are found", () => {

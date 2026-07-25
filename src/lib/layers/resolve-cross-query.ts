@@ -21,7 +21,12 @@ export type CrossQueryMatch = {
 
 // "A 대비 B" → gap(zA−zB, A 높고 B 낮은 순). "A·B 모두" → both(zA+zB).
 const GAP_CUES = ["대비해", "대비", "대해서", "비해", " 대 "];
-const BOTH_CUES = ["모두 높", "둘 다", "동시에", "이면서", "면서 높", "겹치는"];
+const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면서", "면서 높", "겹치는"];
+// Contrastive polarity: one metric high, the other low → gap even without a "대비" cue.
+const HIGH_CUES = ["많", "높", "큰", "크게", "상위"];
+const LOW_CUES = ["낮", "적", "작", "하위"];
+// Conjunction that lets two same-direction metrics read as "both high".
+const CONJUNCTION = /고\s|와\s|과\s|랑\s|이랑|그리고|같이|함께/;
 
 type Match = {
   ref: CrossOperandRef;
@@ -83,20 +88,29 @@ export function resolveCrossQuery(
   const text = query.replace(/\s+/g, " ").trim();
   if (!text) return null;
 
-  const gap = GAP_CUES.some((cue) => text.includes(cue));
-  const both = BOTH_CUES.some((cue) => text.includes(cue));
-  if (!gap && !both) return null;
-
+  // Require two DISTINCT cube metrics before inferring cross intent — this guard is
+  // what lets polarity-only phrasings ("생활인구 많고 소득 낮은") fire without a "대비"
+  // cue while single-metric queries stay on the normal single-layer path.
   const kept = pruneOverlaps(allMatches(text, layers));
-  // distinct metrics only
   const distinct = new Map<string, Match>();
   for (const match of kept) if (!distinct.has(match.metricKeyId)) distinct.set(match.metricKeyId, match);
   const ordered = [...distinct.values()].sort((a, b) => a.start - b.start);
   if (ordered.length < 2) return null;
 
+  const hasHigh = HIGH_CUES.some((cue) => text.includes(cue));
+  const hasLow = LOW_CUES.some((cue) => text.includes(cue));
+  const gapCue = GAP_CUES.some((cue) => text.includes(cue));
+  const bothCue = BOTH_CUES.some((cue) => text.includes(cue));
+
+  // gap: explicit "대비", or one-high-one-low contrast. both: explicit "모두", or two
+  // same-direction (high) metrics joined by a conjunction.
+  const isGap = gapCue || (hasHigh && hasLow);
+  const isBoth = bothCue || (hasHigh && !hasLow && CONJUNCTION.test(text));
+  if (!isGap && !isBoth) return null;
+
   const [first, second] = ordered;
-  // Gap wins when both cues present (explicit "대비" is the stronger signal).
-  const mode: CrossMode = gap ? "gap" : "both";
+  // Explicit "대비" / contrast wins over "both" when both signals appear.
+  const mode: CrossMode = isGap ? "gap" : "both";
 
   return {
     a: first.ref,
