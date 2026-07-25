@@ -735,6 +735,30 @@ describe("CopilotApp", () => {
     expect(within(presets).getByTestId("cross-senior-vs-medical")).toBeInTheDocument();
   }, 30_000);
 
+  test("민간 레이어를 보다가 공공 질의를 하면 결과가 바뀐다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    // 먼저 민간 레이어로 전환
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "카드매출 높은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/카드매출/);
+    });
+
+    // 이어서 공공 도구 질의. 활성 레이어를 되돌리지 않으면 민간 레이어 분석이 우선해
+    // 화면이 그대로 남는다(알림만 바뀌고 결과는 안 바뀌는 상태).
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "약국" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    expect(await screen.findByRole("heading", { name: "의료기관 검색" })).toBeInTheDocument();
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/카드매출/);
+  }, 30_000);
+
   test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

@@ -964,6 +964,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               const quickId = toolToQuickId(parsed.data.tool);
               const result = executeAnalysisIntent(parsed.data, nextSnapshot);
               setActiveQuick(quickId);
+              // 공공 도구 결과는 customAnalysis로 렌더된다. 민간 큐브 레이어가 활성인 채로
+              // 두면 그 레이어 분석이 우선해 결과가 화면에 나타나지 않는다.
+              setActiveLayerId("medical");
               setCustomAnalysis(resultToView(quickId, result));
               setLastIntent(parsed.data);
               if (result.selectedRegion) setSelectedRegionCode(result.selectedRegion.adm_cd2);
@@ -1358,6 +1361,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       };
       const result = executeAnalysisIntent(intent, snapshot);
       const view = resultToView("scarcity", result, `${token} 동 순위 (의료 취약)`);
+      setActiveLayerId("medical");
       setCustomAnalysis(view);
       setActiveQuick("scarcity");
       setLastIntent(intent);
@@ -1957,6 +1961,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const exactResult = executeAnalysisIntent(mergedIntent, snapshot);
       const nextView = resultToView(quickId, exactResult);
       setActiveQuick(quickId);
+      setActiveLayerId("medical");
       setCustomAnalysis(nextView);
       setLastIntent(mergedIntent);
       setSelectedFacilityId(exactResult.filteredFacilities[0]?.id ?? null);
