@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   KCB_CREDIT_LAYER,
+  KCB_MIGRATION_LAYER,
   NH_CONSUMPTION_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
@@ -21,6 +22,7 @@ const PRIVATE_LAYERS = [
   SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
   KCB_CREDIT_LAYER,
+  KCB_MIGRATION_LAYER,
 ];
 
 const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
@@ -75,6 +77,12 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["하이엔드 비율 높은 동", "kcb-credit", "highend_ratio"],
   ["고소득층 많은 곳", "kcb-credit", "highend_ratio"],
   ["부유층 밀집 지역", "kcb-credit", "highend_ratio"],
+  // KCB 거주이동 — SKT 유입/유출(일시 체류)과 구별되어야 한다
+  ["전입 많은 동", "kcb-migration", "move_in"],
+  ["전입인구 많은 곳", "kcb-migration", "move_in"],
+  ["이사 온 사람 많은 동", "kcb-migration", "move_in"],
+  ["전출 많은 지역", "kcb-migration", "move_out_sgg"],
+  ["전출인구 높은 곳", "kcb-migration", "move_out_sgg"],
 ];
 
 describe("private-data NL coverage corpus", () => {
