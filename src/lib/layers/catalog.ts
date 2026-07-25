@@ -135,7 +135,7 @@ export const KCB_CREDIT_LAYER: Omit<LayerDescriptor, "months"> = {
   metrics: [
     { key: "avg_income", label: "평균소득", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "연령구간 월소득 평균의 인구가중 평균", limitation: "KCB 추정 거주자 소득, 세전 개인 기준", triggers: ["평균소득", "소득수준", "월소득", "부자", "소득"] },
     { key: "credit_score", label: "신용평점", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "신용평점(0~1000) 인구가중 평균", limitation: "KCB 평점 기준", triggers: ["신용평점", "신용점수", "신용도"] },
-    { key: "card_spend", label: "1인 카드소비", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "1인 카드 총이용금액의 소비활동인구 가중 평균", limitation: "거주자 소비, 상권 매출(NH)과 다름", triggers: ["1인 소비", "인당 소비", "개인 소비", "1인소비"] },
+    { key: "card_spend", label: "1인 카드소비", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "카드 총이용금액 합 ÷ 소비활동 대상자 수", limitation: "거주자 기준이라 상권 매출(NH)과 다르며, 신용판매·현금서비스·할부를 모두 포함한 카드 이용액이라 생활 소비만은 아니다", triggers: ["1인 소비", "인당 소비", "개인 소비", "1인소비"] },
     { key: "loan_ratio", label: "대출보유율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "대출 보유자 수 ÷ 인구 × 100", limitation: "보유 여부 기준(잔액 아님)", triggers: ["대출", "대출보유", "부채", "빚"] },
     { key: "delinquency_ratio", label: "연체율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "단기+장기 연체자 수 ÷ 인구 × 100", limitation: "5영업일·10만원 이상 또는 90일 이상 연체", triggers: ["연체", "연체율", "연체자"] },
     { key: "highend_ratio", label: "하이엔드 비율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "하이엔드 대상자 수 ÷ 인구 × 100", limitation: "고소득·고소비·전문직·외제차 기준", triggers: ["하이엔드", "고소득층", "부유층"] },

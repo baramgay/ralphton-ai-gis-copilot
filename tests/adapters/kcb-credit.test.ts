@@ -37,8 +37,23 @@ describe("kcb-credit adapter", () => {
     expect(m.loan_ratio).toBeCloseTo((80 / 400) * 100, 1); // 20
     expect(m.delinquency_ratio).toBeCloseTo((6 / 400) * 100, 1); // 1.5
     expect(m.highend_ratio).toBeCloseTo((20 / 400) * 100, 1); // 5
-    // card_spend weighted by ECON_CNT: (500*100+900*300)/400/10 = 80만원
-    expect(m.card_spend).toBeCloseTo((500 * 100 + 900 * 300) / 400 / 10, 1);
+    // MC00006은 명세와 달리 집단 합계다. 합계를 소비활동 대상자수로 나눠 1인당을 낸다.
+    // (500 + 900) 천원 ÷ (100 + 300)명 = 3.5천원 = 0.35만원 (소수 첫째 자리로 반올림 → 0.4)
+    expect(m.card_spend).toBeCloseTo(0.4, 6);
+  });
+
+  it("실데이터 규모의 입력에서 1인 카드소비가 상식 범위(월 수백만원)로 나온다", () => {
+    // 원자료 실제 표본: 인구 625명, MC00006 3,462,682(천원), 소비활동 496명.
+    // 이 값을 평균으로 오인해 가중평균하면 1인 카드소비가 수억 원으로 나온다.
+    const acc = new Map();
+    accumulateLine(
+      acc,
+      row({ CRTR_YM: "202512", ADM_CD: "48250250", MP00001: 625, MC00006: 3462682, ECON_CNT: 496 }),
+      IDX,
+    );
+    const m = finalizeEntry(acc.get("202512|48250250"));
+    expect(m.card_spend).toBeGreaterThan(100); // 100만원 초과
+    expect(m.card_spend).toBeLessThan(2000); // 2천만원 미만 — 억 단위면 계산이 틀린 것
   });
 
   it("returns null metrics when population is zero", () => {

@@ -79,14 +79,19 @@ export function accumulateLine(acc, line, idx) {
     };
 
   entry.pop += pop;
+  // 소득·신용평점은 명세대로 1인 평균 값이라 인구로 가중평균한다.
   const income = num(f, idx.MA00001);
   if (income !== null) entry.incomeW += income * pop;
   const score = num(f, idx.MS00002);
   if (score !== null) entry.scoreW += score * pop;
+
+  // MC00006은 명세에 "평균"이라 적혀 있지만 실제 값은 그 집단의 합계다(인구에 비례해
+  // 커지고, 인구로 나눠야 1인당 5~7백만원대의 상식적 값이 나온다). 평균으로 보고
+  // 가중평균하면 1인 카드소비가 수억 원으로 나온다. 합계로 취급해 소비활동 대상자수로 나눈다.
   const spend = num(f, idx.MC00006);
   const econ = num(f, idx.ECON_CNT) ?? pop;
   if (spend !== null) {
-    entry.spendW += spend * econ;
+    entry.spendW += spend;
     entry.spendWeight += econ;
   }
   entry.loanHolders += num(f, idx.ML00001) ?? 0;
