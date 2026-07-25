@@ -44,9 +44,16 @@ export function buildCrossInterpretation(
     const head =
       `${a.label}(${a.provider}) 대비 ${b.label}(${b.provider})이 가장 부족한 곳은 ` +
       `${names.join(" · ")} 순.`;
+    // 격차는 두 지표의 상대 위치 차이다. B가 경남 평균을 웃도는데도 A보다 순위가
+    // 처지는 경우가 흔해, 무조건 "반면 …낮음"으로 쓰면 실제 값과 어긋난다.
+    // B가 평균 이상이면 "…도 높지만 A에는 못 미침"으로 표현한다.
+    const bAboveAverage = top.zB >= 0.3;
+    const contrast = bAboveAverage
+      ? `${b.label}도 ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)})이지만 ${a.label} 순위에는 못 미쳐`
+      : `${b.label}은 ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)})에 그쳐`;
     const detail =
-      ` 1위 ${shortName(top.name)}은 ${a.label} ${formatValue(top.valueA, a.unit)}(${standingOf(top.zA)})인 반면 ` +
-      `${b.label}은 ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)})으로 격차 ${top.composite.toFixed(1)}표준편차.`;
+      ` 1위 ${shortName(top.name)}은 ${a.label} ${formatValue(top.valueA, a.unit)}(${standingOf(top.zA)}), ` +
+      `${contrast} 격차 ${top.composite.toFixed(1)}표준편차.`;
     return head + detail;
   }
 

@@ -25,10 +25,26 @@ describe("buildCrossInterpretation", () => {
     expect(text).toContain("42,000명");
     expect(text).toContain("120백만원");
     expect(text).toContain("2.4표준편차");
+    // B is genuinely below average here, so the plain shortfall wording applies
+    expect(text).toContain("그쳐");
     // 보고서 표기: 명사형 종결
     expect(text.trim().endsWith("표준편차.")).toBe(true);
     // 경상남도 접두는 생략
     expect(text).not.toContain("경상남도");
+  });
+
+  test("gap mode does not call an above-average B a shortfall in absolute terms", () => {
+    // 물금읍 실제 사례: 생활인구도 카드매출도 경남 평균을 크게 웃돌지만, 생활인구
+    // 순위가 더 앞서서 격차가 벌어진다. "반면 …낮음"으로 쓰면 실제 값과 어긋난다.
+    const ranked = [row("경상남도 양산시 물금읍", 2.7, 3.4, 1.6, 97787.3, 40306.8)];
+    const text = buildCrossInterpretation(ranked, A, B, "gap");
+
+    expect(text).toContain("카드매출도");
+    expect(text).toContain("못 미쳐");
+    expect(text).not.toContain("그쳐");
+    // 두 값 모두 실제 크기가 드러난다
+    expect(text).toContain("97,787.3명");
+    expect(text).toContain("40,306.8백만원");
   });
 
   test("both mode frames the result as jointly high rather than a shortfall", () => {
