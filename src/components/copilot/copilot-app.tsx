@@ -17,6 +17,7 @@ import {
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
 import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
+import { buildRegionProfile } from "@/lib/layers/region-profile";
 import { buildMarkdownReport } from "@/lib/analysis/export-report";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
@@ -1161,6 +1162,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       { selectedRegionCode },
     );
   }, [analysis, selectedRegionCode, snapshot]);
+
+  /**
+   * 선택 지역의 민간데이터 종합 프로파일. 레이어를 하나씩 바꿔 보는 방식으로는 "이 동이
+   * 전반적으로 어떤 곳인가"를 알기 어려워, 전 지표를 경남 대비 백분위와 함께 한 번에 낸다.
+   */
+  const regionProfile = useMemo(() => {
+    if (!selectedRegionCode || !snapshot) return null;
+    const region = snapshot.regions.find((item) => item.adm_cd2 === selectedRegionCode);
+    if (!region) return null;
+    const cubes: Record<string, LayerCube | null> = { population: populationCube };
+    for (const layer of REMOTE_CUBE_LAYERS) cubes[layer.id] = remoteCubes[layer.id] ?? null;
+    return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_NL_LAYERS, cubes);
+  }, [populationCube, remoteCubes, selectedRegionCode, snapshot]);
 
   const focusRegionCodes = useMemo(() => {
     if (!snapshot || !isCompareView) return null;
@@ -3193,6 +3207,37 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 {oneLineConclusion}
               </p>
             </div>
+          ) : null}
+          {regionProfile && regionProfile.entries.length > 0 ? (
+            <details className="mt-2.5 rounded-lg border border-slate-200 bg-white" data-testid="region-profile">
+              <summary className="cursor-pointer px-2.5 py-2 ui-body font-bold text-slate-800">
+                {regionProfile.name.replace(/^경상남도\s*/, "")} 민간데이터 종합 ({regionProfile.entries.length}개 지표)
+              </summary>
+              <div className="border-t border-slate-100 px-2.5 py-2">
+                <p className="ui-caption mb-1.5 text-slate-500">
+                  괄호 안은 경남 305개 행정동 대비 백분위(100=최상위)
+                </p>
+                <ul className="space-y-1">
+                  {regionProfile.entries.map((entry) => (
+                    <li
+                      key={`${entry.layerId}-${entry.metricKey}`}
+                      className="flex items-baseline justify-between gap-2 ui-caption"
+                    >
+                      <span className="text-slate-600">
+                        <span className="font-semibold text-slate-500">[{entry.provider}]</span>{" "}
+                        {entry.metricLabel}
+                      </span>
+                      <span className="shrink-0 font-bold text-slate-900">
+                        {entry.value === null
+                          ? "데이터 없음"
+                          : `${entry.value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${entry.unit}`}
+                        {entry.percentile === null ? "" : ` (${Math.round(entry.percentile)})`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
           ) : null}
           <p
             className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"

@@ -675,6 +675,19 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("export-hwp")).toBeInTheDocument();
   });
 
+  test("선택 지역의 민간데이터 종합 프로파일을 백분위와 함께 보여준다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
+    // 여러 제공기관의 지표가 한 패널에 모인다
+    expect(within(profile).getAllByText(/\[SKT\]/).length).toBeGreaterThan(0);
+    expect(within(profile).getAllByText(/\[NH\]/).length).toBeGreaterThan(0);
+    expect(within(profile).getAllByText(/\[KCB\]/).length).toBeGreaterThan(0);
+    // 절대값만 보고 오판하지 않도록 백분위 기준을 명시한다
+    expect(within(profile).getByText(/백분위/)).toBeInTheDocument();
+  }, 30_000);
+
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
