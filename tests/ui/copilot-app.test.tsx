@@ -667,6 +667,13 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
   });
 
+  test("보고서 버튼이 결과 패널에 노출된다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    expect(await screen.findByTestId("export-report")).toBeInTheDocument();
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
+  });
+
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

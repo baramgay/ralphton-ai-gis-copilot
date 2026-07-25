@@ -16,6 +16,7 @@ import {
   rankedToCsv,
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
+import { buildMarkdownReport } from "@/lib/analysis/export-report";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
 import {
@@ -1421,11 +1422,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     window.setTimeout(() => setShareNotice(null), 2500);
   }, [showToast]);
 
-  const exportCurrentCsv = useCallback(() => {
-    if (!snapshot || !analysis) return;
-    // 내보내는 표는 화면에 보이는 분석이다. 민간 큐브 레이어와 교차분석은 공공 스냅샷과
-    // 기준월·출처가 다르므로, 스냅샷 값을 그대로 쓰면 보고서에 잘못된 기준월이 실린다.
-    const { referenceMonth: stamp, source } = resolveExportProvenance({
+  // 내보내는 표·보고서는 화면에 보이는 분석이다. 민간 큐브 레이어와 교차분석은 공공
+  // 스냅샷과 기준월·출처가 다르므로, 스냅샷 값을 그대로 쓰면 잘못된 기준월이 실린다.
+  const exportProvenance = useMemo(() => {
+    if (!snapshot || !analysis) return null;
+    return resolveExportProvenance({
       analysisProvenance: analysis.provenance,
       activeLayer:
         activeLayerId !== "medical" && activeCube
@@ -1438,6 +1439,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       snapshotReferenceMonth: snapshot.referenceMonth,
       snapshotSource: dataSource,
     });
+  }, [analysis, activeCube, activeLayerId, activeLayerProvider, dataSource, snapshot]);
+
+  const exportCurrentCsv = useCallback(() => {
+    if (!snapshot || !analysis || !exportProvenance) return;
+    const { referenceMonth: stamp, source } = exportProvenance;
     if (analysis.isFacilityResult) {
       const csv = facilitiesToCsv(
         analysis.title,
@@ -1475,7 +1481,43 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
     downloadTextFile(`ralphton-rank-${stamp}.csv`, csv);
     showToast("순위 CSV 저장");
-  }, [analysis, activeCube, activeLayerId, activeLayerProvider, dataSource, showToast, snapshot]);
+  }, [analysis, exportProvenance, showToast, snapshot]);
+
+  /**
+   * 화면의 분석을 보고서용 개조식 마크다운으로 저장하고 클립보드에도 넣는다.
+   * CSV는 원자료 첨부용이라 본문에 붙이기 어려워, 요약·표·산식·한계를 갖춘 문단을 만든다.
+   */
+  const exportCurrentReport = useCallback(async () => {
+    if (!snapshot || !analysis || !exportProvenance) return;
+    const markdown = buildMarkdownReport({
+      title: analysis.title,
+      summary: oneLineConclusion ?? analysis.summary,
+      referenceMonth: exportProvenance.referenceMonth,
+      source: exportProvenance.source,
+      mode: snapshot.mode,
+      formulaNotes: analysis.formulaNotes,
+      rows: analysis.ranked.map((row, index) => ({
+        rank: index + 1,
+        name: row.name,
+        valueLabel: row.valueLabel,
+        note: row.note,
+      })),
+      exportedAt: new Date().toLocaleString("ko-KR"),
+    });
+
+    downloadTextFile(
+      `ralphton-report-${exportProvenance.referenceMonth}.md`,
+      markdown,
+      "text/markdown;charset=utf-8",
+    );
+    try {
+      await navigator.clipboard.writeText(markdown);
+      showToast("보고서 저장·복사");
+    } catch {
+      // 클립보드가 막힌 환경에서도 파일 저장은 이미 끝났다.
+      showToast("보고서 저장");
+    }
+  }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
 
   const applyLayoutPreset = useCallback(
     (id: LayoutPresetId) => {
@@ -3152,6 +3194,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               onClick={exportCurrentCsv}
             >
               CSV
+            </button>
+            <button
+              type="button"
+              data-testid="export-report"
+              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
+              onClick={() => void exportCurrentReport()}
+            >
+              보고서
             </button>
             <button
               type="button"
