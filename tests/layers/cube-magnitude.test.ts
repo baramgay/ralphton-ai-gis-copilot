@@ -11,6 +11,7 @@ import {
   NH_DEMOGRAPHICS_LAYER,
   NH_HOURLY_LAYER,
   NH_INDUSTRY_LAYER,
+  NH_STORETYPE_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
@@ -94,6 +95,18 @@ const LAYERS: Array<{
       health_share: { min: 0, max: 100 },
       leisure_share: { min: 0, max: 100 },
       education_share: { min: 0, max: 100 },
+    },
+  },
+  {
+    id: "nh-storetype",
+    layer: NH_STORETYPE_LAYER,
+    ranges: {
+      restaurant_share: { min: 0, max: 100 },
+      cafe_share: { min: 0, max: 100 },
+      pub_share: { min: 0, max: 100 },
+      grocery_share: { min: 0, max: 100 },
+      fuel_share: { min: 0, max: 100 },
+      medical_store_share: { min: 0, max: 100 },
     },
   },
   {

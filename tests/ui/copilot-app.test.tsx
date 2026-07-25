@@ -246,6 +246,33 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/layers/nh-storetype.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "nh-storetype",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    restaurant_share: Array(13).fill(18.2),
+                    cafe_share: Array(13).fill(2.1),
+                    pub_share: Array(13).fill(0.9),
+                    grocery_share: Array(13).fill(21.4),
+                    fuel_share: Array(13).fill(24.8),
+                    medical_store_share: Array(13).fill(3.6),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes("/data/layers/nh-industry.json")) {
           return new Response(
             JSON.stringify({

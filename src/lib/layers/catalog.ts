@@ -124,6 +124,24 @@ export const NH_INDUSTRY_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const NH_STORETYPE_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "nh-storetype",
+  label: "생활업종",
+  provider: "NH",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["NH농협카드 업태별 카드매출 (표준산업분류 11차 소분류 기준 매출 비중)"],
+  metrics: [
+    { key: "restaurant_share", label: "음식점 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "한식·간이·중식·일식 등 음식점 매출 ÷ 전체 카드매출 × 100", limitation: "선정한 생활업종 외 매출도 분모에 포함되므로 업태 비중의 합은 100%가 아니다", triggers: ["음식점 업태", "식당 비중", "한식 비중"] },
+    { key: "cafe_share", label: "카페·제과 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "커피 전문점·제과점 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["카페 비중", "커피 소비", "카페 상권", "제과"] },
+    { key: "pub_share", label: "주점 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "일반·유흥 주점업 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준. 야간 상권 성격을 보조 설명", triggers: ["주점 비중", "술집 비중", "유흥 상권", "유흥업"] },
+    { key: "grocery_share", label: "식료품 소매 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "슈퍼마켓·편의점·종합소매 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["식료품 비중", "편의점 비중", "마트 비중", "슈퍼마켓"] },
+    { key: "fuel_share", label: "주유소 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "운송장비용 주유소 매출 ÷ 전체 카드매출 × 100", limitation: "경남 카드매출 1위 업태지만 통과 교통량에 좌우돼 생활 소비와 성격이 다르다", triggers: ["주유소 비중", "주유 소비", "기름 소비"] },
+    { key: "medical_store_share", label: "병의원·약국 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "종합병원·병의원·약국 매출 ÷ 전체 카드매출 × 100", limitation: "결제 기준이라 의료기관 수(공공 의료 레이어)와는 다른 관점", triggers: ["병의원 비중", "약국 비중", "의료 업태"] },
+  ],
+};
+
 export const KCB_CREDIT_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "kcb-credit",
   label: "소득·신용",
