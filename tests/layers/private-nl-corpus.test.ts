@@ -4,6 +4,7 @@ import {
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
   NH_CONSUMPTION_LAYER,
+  NH_DEMOGRAPHICS_LAYER,
   SKT_DAYNIGHT_LAYER,
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
@@ -21,6 +22,7 @@ const PRIVATE_LAYERS = [
   SKT_MOBILITY_LAYER,
   SKT_DAYNIGHT_LAYER,
   NH_CONSUMPTION_LAYER,
+  NH_DEMOGRAPHICS_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
 ];
@@ -58,6 +60,13 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["매출 높은 상권", "nh-consumption", "card_sales"],
   ["결제 건수 많은 동", "nh-consumption", "card_txns"],
   ["카드 이용건수 높은 곳", "nh-consumption", "card_txns"],
+  // NH 소비주체 — 매출 총액(nh-consumption)과 구별되어야 한다
+  ["청년 소비 비중 높은 동", "nh-demographics", "youth_share"],
+  ["젊은 층 소비 많은 곳", "nh-demographics", "youth_share"],
+  ["중장년 소비 많은 지역", "nh-demographics", "middle_share"],
+  ["고령 소비 비중 높은 동", "nh-demographics", "senior_share"],
+  ["여성 소비 비중 높은 곳", "nh-demographics", "female_share"],
+  ["법인카드 비중 높은 동", "nh-demographics", "corporate_share"],
   // KCB 소득·신용
   ["평균소득 높은 동", "kcb-credit", "avg_income"],
   ["소득 수준 높은 지역", "kcb-credit", "avg_income"],

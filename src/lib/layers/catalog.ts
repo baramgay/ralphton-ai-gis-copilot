@@ -75,6 +75,23 @@ export const NH_CONSUMPTION_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const NH_DEMOGRAPHICS_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "nh-demographics",
+  label: "소비주체",
+  provider: "NH",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["NH농협카드 성연령별 카드매출 (행정동, 전체카드 금액 구성비)"],
+  metrics: [
+    { key: "youth_share", label: "청년 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "20~39세 카드금액 ÷ 개인 카드금액 × 100", limitation: "가맹점 소재지 기준이며 법인 결제는 분모에서 제외", triggers: ["청년 소비", "젊은 층 소비", "20대 소비", "30대 소비", "청년층 소비"] },
+    { key: "middle_share", label: "중장년 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "40~59세 카드금액 ÷ 개인 카드금액 × 100", limitation: "법인 결제는 분모에서 제외", triggers: ["중장년 소비", "40대 소비", "50대 소비"] },
+    { key: "senior_share", label: "고령 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "60세 이상 카드금액 ÷ 개인 카드금액 × 100", limitation: "법인 결제는 분모에서 제외", triggers: ["고령 소비", "노년 소비", "60대 소비", "어르신 소비"] },
+    { key: "female_share", label: "여성 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "여성 카드금액 ÷ 개인 카드금액 × 100", limitation: "법인 결제는 분모에서 제외", triggers: ["여성 소비", "여성 비중"] },
+    { key: "corporate_share", label: "법인 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "법인 카드금액 ÷ 전체 카드금액 × 100", limitation: "업무·접대 결제가 많은 상권일수록 높다", triggers: ["법인 소비", "법인카드", "기업 소비"] },
+  ],
+};
+
 export const KCB_CREDIT_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "kcb-credit",
   label: "소득·신용",

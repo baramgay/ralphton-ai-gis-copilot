@@ -246,6 +246,32 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/layers/nh-demographics.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "nh-demographics",
+              adminLevel: "dong",
+              referenceMonth: "2026-06",
+              months: snapshot.months,
+              cells: [
+                {
+                  code: "4812125000",
+                  name: "창원시 의창구 동읍",
+                  point: { lat: 35.1, lng: 129.04 },
+                  areaKm2: 1,
+                  series: {
+                    youth_share: Array(13).fill(28.4),
+                    middle_share: Array(13).fill(45.1),
+                    senior_share: Array(13).fill(26.5),
+                    female_share: Array(13).fill(52.3),
+                    corporate_share: Array(13).fill(18.7),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes("/data/layers/kcb-migration.json")) {
           return new Response(
             JSON.stringify({
