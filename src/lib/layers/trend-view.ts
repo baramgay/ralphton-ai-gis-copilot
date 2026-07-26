@@ -10,6 +10,19 @@ export type TrendRow = {
 
 export type TrendRankResult = {
   ranked: TrendRow[];
+  /**
+   * 상위 10곳 중 기저(첫 관측값)가 전체 하위 25%인 지역 수.
+   *
+   * 변화율은 분모가 작을수록 크게 튄다. 실제로 카드매출 추세 상위 10곳이 **전부** 기저
+   * 하위 25%였고 1위는 중앙값의 3.8%짜리 면 지역이었다(+755.9%). 그것만 보고 "여기 상권이
+   * 가장 빨리 큰다"고 읽으면 정책 판단을 그르친다. 쏠려 있다는 사실을 화면이 밝혀야 한다.
+   */
+  smallBaseInTop: number;
+  /**
+   * 위 판단에 쓴 하위 25% 경계값(기저 단위). 경계값 **미만**만 센다 —
+   * 기저가 고른 자료에서는 경계값에 값이 몰려, 이하로 세면 전부 소규모로 잡힌다.
+   */
+  smallBaseThreshold: number | null;
   /** 지도 채색용 0~100 정규화 점수(변화율 기준). */
   scores: Map<string, number>;
   /** 추세를 낼 수 있었던 지역 수(관측 2개월 이상). */
@@ -57,5 +70,18 @@ export function buildTrendRanking(
     scores.set(row.code, values.length <= 1 ? 50 : ((values[index] - min) / span) * 100);
   });
 
-  return { ranked: rows, scores, comparable: rows.length };
+  // 기저 쏠림 진단: 기준은 데이터가 정한다(첫 관측값의 하위 25%).
+  const bases = rows
+    .map((row) => row.trend.first)
+    .filter((value): value is number => value != null)
+    .sort((left, right) => left - right);
+  const smallBaseThreshold = bases.length >= 8 ? bases[Math.floor(bases.length * 0.25)] : null;
+  const smallBaseInTop =
+    smallBaseThreshold == null
+      ? 0
+      : rows
+          .slice(0, 10)
+          .filter((row) => row.trend.first != null && row.trend.first < smallBaseThreshold).length;
+
+  return { ranked: rows, scores, comparable: rows.length, smallBaseInTop, smallBaseThreshold };
 }

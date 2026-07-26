@@ -1929,10 +1929,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   moved === 0
                     ? `${trendMatch.metricLabel}(${trendMatch.provider})이 ${directionLabel}한 지역은 없음. 가장 ${directionLabel}에 가까운 순. `
                     : `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel}폭이 큰 순(${moved}곳 ${directionLabel}). `;
+                // 변화율은 분모가 작을수록 크게 튄다. 상위가 소규모 지역에 쏠렸으면 밝힌다.
+                const skew =
+                  result.smallBaseInTop >= 6
+                    ? ` 다만 상위 10곳 중 ${result.smallBaseInTop}곳이 기저가 작은 지역(하위 25%)이라 변화율이 크게 잡힌다.`
+                    : "";
                 return (
                   lead +
                   `1위 ${top.name.replace(/^경상남도\s*/, "")}은 ` +
-                  describeTrend(top.trend, trendMatch.metricLabel, trendMatch.unit)
+                  describeTrend(top.trend, trendMatch.metricLabel, trendMatch.unit) +
+                  skew
                 );
               })(),
         ranked: result.ranked.slice(0, 30).map((row) => {

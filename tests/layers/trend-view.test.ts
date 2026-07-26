@@ -102,3 +102,36 @@ describe("buildTrendRanking", () => {
     expect(result.comparable).toBe(0);
   });
 });
+
+describe("기저 쏠림 진단", () => {
+  // 변화율은 분모가 작을수록 크게 튄다. 실제 카드매출 추세에서 상위 10곳이 전부
+  // 기저 하위 25%였고 1위는 중앙값의 3.8%짜리 지역이었다(+755.9%).
+  function withBases(bases: number[]): LayerCube {
+    const values: Record<string, Array<number | null>> = {};
+    bases.forEach((base, index) => {
+      // 기저가 작을수록 변화율이 크도록 만든다(실데이터에서 관찰된 모양).
+      values[`481110${String(index).padStart(4, "0")}`] = [base, base, base * (1 + 100 / base)];
+    });
+    return cube(values);
+  }
+
+  test("상위가 소규모에 쏠리면 그 수를 센다", () => {
+    // 작은 기저 10개 + 큰 기저 10개 → 변화율 상위는 전부 작은 쪽
+    const bases = [...Array.from({ length: 10 }, (_, i) => 10 + i), ...Array.from({ length: 10 }, (_, i) => 1000 + i)];
+    const result = buildTrendRanking(withBases(bases), metric, [metric], "rising", "dong");
+    expect(result.smallBaseThreshold).not.toBeNull();
+    expect(result.smallBaseInTop).toBeGreaterThanOrEqual(5);
+  });
+
+  test("기저가 고른 자료에서는 쏠렸다고 하지 않는다", () => {
+    const bases = Array.from({ length: 20 }, () => 1000);
+    const result = buildTrendRanking(withBases(bases), metric, [metric], "rising", "dong");
+    expect(result.smallBaseInTop).toBeLessThanOrEqual(3);
+  });
+
+  test("표본이 적으면 판단하지 않는다", () => {
+    const result = buildTrendRanking(withBases([10, 20, 30]), metric, [metric], "rising", "dong");
+    expect(result.smallBaseThreshold).toBeNull();
+    expect(result.smallBaseInTop).toBe(0);
+  });
+});
