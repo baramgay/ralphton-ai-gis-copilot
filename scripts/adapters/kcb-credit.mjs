@@ -107,6 +107,8 @@ export function finalizeEntry(entry) {
   const pop = entry.pop;
   const round1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
   return {
+    // 가중평균의 분모. 이것을 큐브에 싣지 않아 시군구 단위 KCB 지표가 전부 null이었다.
+    pop_total: pop > 0 ? pop : null,
     avg_income: pop > 0 && entry.incomeW > 0 ? round1(entry.incomeW / pop / 10) : null, // 천원→만원
     credit_score: pop > 0 && entry.scoreW > 0 ? Math.round(entry.scoreW / pop) : null,
     card_spend: entry.spendWeight > 0 ? round1(entry.spendW / entry.spendWeight / 10) : null, // 천원→만원
@@ -177,7 +179,7 @@ async function main() {
   const monthLabels = crtrYms.map((ym) => `${ym.slice(0, 4)}-${ym.slice(4, 6)}`);
   if (monthLabels.length === 0) throw new Error("2025년 KCB 데이터를 찾지 못했습니다.");
 
-  const METRIC_KEYS = ["avg_income", "credit_score", "card_spend", "loan_ratio", "delinquency_ratio", "highend_ratio"];
+  const METRIC_KEYS = ["pop_total", "avg_income", "credit_score", "card_spend", "loan_ratio", "delinquency_ratio", "highend_ratio"];
   const cells = boundary.features.map((feature) => {
     const properties = feature.properties;
     const areaKm2 = turfArea(feature) / 1_000_000;

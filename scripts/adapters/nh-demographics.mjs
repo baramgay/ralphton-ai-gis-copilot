@@ -87,6 +87,8 @@ export function finalizeShares(entry) {
   const total = entry.personal + entry.corporate;
   const pct = (part, base) => (base > 0 ? (part / base) * 100 : null);
   return {
+    // 비중의 분모(개인+법인 전체 카드매출). 시군구 가중평균에 필요해 큐브에 함께 싣는다.
+    card_sales: total > 0 ? total / 1_000_000 : null,
     youth_share: pct(entry.youth, personal),
     middle_share: pct(entry.middle, personal),
     senior_share: pct(entry.senior, personal),
@@ -113,7 +115,7 @@ function round(value, decimals) {
   return Math.round(value * factor) / factor;
 }
 
-const METRIC_KEYS = ["youth_share", "middle_share", "senior_share", "female_share", "corporate_share"];
+const METRIC_KEYS = ["card_sales", "youth_share", "middle_share", "senior_share", "female_share", "corporate_share"];
 
 async function main() {
   const projectRoot = fileURLToPath(new URL("../../", import.meta.url));

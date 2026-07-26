@@ -99,6 +99,8 @@ export function aggregateRows(lines) {
 export function finalizeShares(entry) {
   const pct = (part) => (entry.total > 0 ? (part / entry.total) * 100 : null);
   return {
+    // 비중의 분모. 시군구 가중평균에 필요해 큐브에 함께 싣는다.
+    card_sales: entry.total > 0 ? entry.total / 1_000_000 : null,
     fuel_share: pct(entry.fuel),
     restaurant_share: pct(entry.restaurant),
     grocery_share: pct(entry.grocery),
@@ -127,6 +129,7 @@ function round(value, decimals) {
 }
 
 const METRIC_KEYS = [
+  "card_sales",
   "fuel_share",
   "restaurant_share",
   "grocery_share",

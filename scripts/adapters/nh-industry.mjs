@@ -71,6 +71,8 @@ export function aggregateRows(lines) {
 export function finalizeShares(entry) {
   const pct = (part) => (entry.total > 0 ? (part / entry.total) * 100 : null);
   return {
+    // 비중의 분모. 시군구로 묶을 때 매출 가중평균을 내려면 이 값이 큐브에 있어야 한다.
+    card_sales: entry.total > 0 ? entry.total / 1_000_000 : null,
     food_share: pct(entry.food),
     retail_share: pct(entry.retail),
     health_share: pct(entry.health),
@@ -97,7 +99,7 @@ function round(value, decimals) {
   return Math.round(value * factor) / factor;
 }
 
-const METRIC_KEYS = ["food_share", "retail_share", "health_share", "leisure_share", "education_share"];
+const METRIC_KEYS = ["card_sales", "food_share", "retail_share", "health_share", "leisure_share", "education_share"];
 
 async function main() {
   const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
