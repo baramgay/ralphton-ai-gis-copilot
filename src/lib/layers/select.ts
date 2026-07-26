@@ -15,12 +15,13 @@ function metricValue(
   return series[metricKey]?.[monthIndex] ?? null;
 }
 
-function sortRanking(rows: LayerRankRow[]): LayerRankRow[] {
+/** 값 없는 지역은 방향과 무관하게 항상 뒤로 보낸다. */
+function sortRanking(rows: LayerRankRow[], direction: "desc" | "asc" = "desc"): LayerRankRow[] {
   return [...rows].sort((a, b) => {
     if (a.value == null && b.value == null) return 0;
     if (a.value == null) return 1;
     if (b.value == null) return -1;
-    return b.value - a.value;
+    return direction === "asc" ? a.value - b.value : b.value - a.value;
   });
 }
 
@@ -30,6 +31,7 @@ export function buildLayerView(
   adminLevel: AdminLevel,
   monthIndex: number,
   metrics: MetricDef[],
+  direction: "desc" | "asc" = "desc",
 ): LayerView {
   if (adminLevel === "dong") {
     const scores = new Map<string, number>();
@@ -38,7 +40,7 @@ export function buildLayerView(
       if (value != null) scores.set(cell.code, value);
       return { code: cell.code, name: cell.name, value };
     });
-    return { scores, ranking: sortRanking(ranking) };
+    return { scores, ranking: sortRanking(ranking, direction) };
   }
 
   const sggCube = aggregateToSgg(cube, metrics);
@@ -55,5 +57,5 @@ export function buildLayerView(
     if (sggValue != null) scores.set(dongCell.code, sggValue);
   }
 
-  return { scores, ranking: sortRanking(ranking) };
+  return { scores, ranking: sortRanking(ranking, direction) };
 }

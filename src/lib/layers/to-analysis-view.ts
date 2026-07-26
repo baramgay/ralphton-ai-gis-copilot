@@ -64,9 +64,10 @@ export function layerCubeToAnalysisView(
   metric: MetricDef,
   metrics: MetricDef[],
   adminLevel: AdminLevel,
+  direction: "desc" | "asc" = "desc",
 ): LayerAnalysisResult {
   const monthIndex = monthIndexOf(cube);
-  const view = buildLayerView(cube, metric.key, adminLevel, monthIndex, metrics);
+  const view = buildLayerView(cube, metric.key, adminLevel, monthIndex, metrics, direction);
 
   const finiteValues = view.ranking
     .map((row) => row.value)
@@ -111,7 +112,8 @@ export function layerCubeToAnalysisView(
     analysis: {
       id: cube.layerId,
       title: `${metric.label} 순위`,
-      summary: `${cube.referenceMonth} 기준 ${metric.label} (${levelLabel})`,
+      // 방향을 밝히지 않으면 낮은 순 결과도 "상위"로 읽힌다.
+      summary: `${cube.referenceMonth} 기준 ${metric.label} ${direction === "asc" ? "낮은" : "높은"} 순 (${levelLabel})`,
       ranked,
       filteredFacilities: [],
       formulaNotes: [metric.formula, metric.limitation].filter((note) => note.length > 0),

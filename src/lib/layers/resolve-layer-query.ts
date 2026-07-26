@@ -5,6 +5,8 @@ type LayerLike = Omit<LayerDescriptor, "months"> | LayerDescriptor;
 
 export type LayerQueryMatch = {
   layerId: string;
+  /** 낮은 쪽을 물었으면 "asc". 기본은 큰 값부터. */
+  direction: "desc" | "asc";
   layerLabel: string;
   provider: LayerDescriptor["provider"];
   metricKey: string;
@@ -38,6 +40,25 @@ const DONG_CUES = [
   "동 ",
   "동?",
 ] as const;
+
+/**
+ * 낮은 쪽을 묻는 표현.
+ *
+ * 정책 질의의 상당수가 "적은·낮은·취약한 곳"인데 이걸 안 보면 정반대 순위를 답한다
+ * ("생활인구 적은 곳"에 양산시 물금읍 97,787명을 1위로 내놓고 있었다 — prod 실측).
+ * "높은"이 함께 있으면 그쪽을 따른다("소득 대비 낮은"처럼 비교 표현일 수 있다).
+ */
+const LOW_CUES = ["적은", "낮은", "작은", "하위", "부족한", "적게", "낮게"];
+const HIGH_CUES = ["많은", "높은", "큰", "상위", "많이", "높게"];
+
+export function detectDirection(query: string): "desc" | "asc" {
+  const low = LOW_CUES.map((cue) => query.indexOf(cue)).filter((at) => at >= 0);
+  const high = HIGH_CUES.map((cue) => query.indexOf(cue)).filter((at) => at >= 0);
+  if (low.length === 0) return "desc";
+  if (high.length === 0) return "asc";
+  // 둘 다 있으면 뒤에 오는 쪽이 정렬 방향을 정한다("소득 낮고 소비 많은" → 많은 순).
+  return Math.max(...low) > Math.max(...high) ? "asc" : "desc";
+}
 
 export function detectAdminLevel(query: string, fallback: AdminLevel = "dong"): AdminLevel {
   if (SGG_CUES.some((cue) => query.includes(cue))) return "sgg";
@@ -103,6 +124,7 @@ export function resolveLayerQuery(
               ? "sgg"
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           ),
+          direction: detectDirection(text),
           matchedTrigger: trigger,
           triggerLength: trigger.length,
         };

@@ -43,7 +43,16 @@ export function buildOneLineConclusion(
       selected && top.some((region) => region.adm_cd2 === selected.adm_cd2)
         ? ` 선택 지역은 ${shortName(selected.adm_nm)}.`
         : "";
-    return `${metricHint}상위 ${names.length}곳은 ${names.join(" · ")}입니다.${selectedHint}`;
+    /*
+     * 낮은 쪽을 물었으면 "상위"라고 쓰면 안 된다 — 같은 문장이 정반대로 읽힌다.
+     * 방향을 따로 넘겨받는 대신 순위 자체에서 읽는다(1위 값이 꼴찌보다 작으면 오름차순).
+     */
+    const firstValue = top[0]?.metrics[0]?.value;
+    const lastValue = result.rankedRegions[result.rankedRegions.length - 1]?.metrics[0]?.value;
+    const ascending =
+      typeof firstValue === "number" && typeof lastValue === "number" && firstValue < lastValue;
+    const rankWord = ascending ? "가장 낮은" : "상위";
+    return `${metricHint}${rankWord} ${names.length}곳은 ${names.join(" · ")}입니다.${selectedHint}`;
   }
 
   if (top.length === 1) {
