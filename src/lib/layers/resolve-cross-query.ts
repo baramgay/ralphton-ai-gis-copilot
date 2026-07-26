@@ -23,7 +23,7 @@ export type CrossQueryMatch = {
 const GAP_CUES = ["대비해", "대비", "대해서", "비해", " 대 "];
 const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면서", "면서 높", "겹치는"];
 // Contrastive polarity: one metric high, the other low → gap even without a "대비" cue.
-const HIGH_CUES = ["많", "높", "큰", "크게", "상위"];
+const HIGH_CUES = ["많", "높", "큰", "크게", "상위", "취약", "부족"];
 const LOW_CUES = ["낮", "적", "작", "하위"];
 // Conjunction that lets two same-direction metrics read as "both high".
 const CONJUNCTION = /고\s|와\s|과\s|랑\s|이랑|그리고|같이|함께/;
@@ -111,9 +111,34 @@ export function resolveCrossQuery(
   const isBoth = bothCue || (hasHigh && !hasLow && CONJUNCTION.test(text));
   if (!isGap && !isBoth) return null;
 
-  const [first, second] = ordered;
   // Explicit "대비" / contrast wins over "both" when both signals appear.
   const mode: CrossMode = isGap ? "gap" : "both";
+
+  /*
+   * gap은 zA − zB라 "어느 쪽이 높은 쪽인가"가 결과를 뒤집는다. 등장 순서로 정하면
+   * "소득 낮고 의료 취약한 지역"이 소득 높고 취약 낮은 순으로 나온다 — 정반대다.
+   * 각 지표 바로 뒤에 붙은 말로 그 지표의 방향을 읽어, 높은 쪽을 A로 세운다.
+   */
+  const polarityOf = (match: Match, nextStart: number): "high" | "low" | null => {
+    const tail = text.slice(match.end, nextStart);
+    const high = HIGH_CUES.map((cue) => tail.indexOf(cue)).filter((at) => at >= 0);
+    const low = LOW_CUES.map((cue) => tail.indexOf(cue)).filter((at) => at >= 0);
+    if (high.length === 0 && low.length === 0) return null;
+    if (low.length === 0) return "high";
+    if (high.length === 0) return "low";
+    // 둘 다 있으면 더 가까이 붙은 쪽이 그 지표를 꾸민다.
+    return Math.min(...high) < Math.min(...low) ? "high" : "low";
+  };
+
+  let [first, second] = ordered;
+  if (mode === "gap") {
+    const firstPolarity = polarityOf(first, second.start);
+    const secondPolarity = polarityOf(second, text.length);
+    // 한쪽만 낮게 요구했다면 그쪽이 B(빼는 쪽)다.
+    if (firstPolarity === "low" && secondPolarity !== "low") {
+      [first, second] = [second, first];
+    }
+  }
 
   return {
     a: first.ref,

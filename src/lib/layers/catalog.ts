@@ -12,7 +12,7 @@ export const POPULATION_LAYER: Omit<LayerDescriptor, "months"> = {
     { key: "pop_total", label: "총인구", unit: "명", aggregation: "sum", formula: "월별 주민등록 인구", limitation: "외국인 제외", triggers: ["인구", "총인구", "인구수"] },
     { key: "households", label: "세대수", unit: "세대", aggregation: "sum", formula: "월별 세대 수", limitation: "", triggers: ["세대", "가구"] },
     { key: "density", label: "인구밀도", unit: "명/㎢", aggregation: "weightedAvg", weightKey: "pop_total", formula: "인구/면적", limitation: "", triggers: ["밀도", "인구밀도"] },
-    { key: "elderly_ratio", label: "고령비율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "고령인구/총인구×100", limitation: "", triggers: ["고령", "고령비율", "노인"] },
+    { key: "elderly_ratio", label: "고령비율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "고령인구/총인구×100", limitation: "", triggers: ["고령인구 비율", "고령 인구", "고령인구", "고령비율", "고령화율", "고령", "노인"] },
     { key: "natural_change", label: "자연증가", unit: "명", aggregation: "sum", formula: "출생−사망", limitation: "전입·전출 미포함", triggers: ["자연증가", "출생", "사망"] },
   ],
 };
@@ -198,7 +198,7 @@ export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["HIRA 병원정보서비스 (경남 sido 380000)"],
   metrics: [
-    { key: "vulnerability", label: "의료취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약", "취약지", "병원부족"] },
+    { key: "vulnerability", label: "의료취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약지수", "의료 취약", "의료취약", "의료 사각", "취약지", "병원 부족", "병원부족"] },
   ],
 };
 
@@ -227,3 +227,13 @@ export const CUBE_LAYERS = [
 
 /** 자연어로 직접 전환 가능한 민간 제공기관 레이어(공공 인구 제외). */
 export const PRIVATE_LAYERS = CUBE_LAYERS.filter((layer) => layer.provider !== "공공");
+
+/**
+ * 교차분석 후보. 큐브 레이어에 의료취약지수를 더한다.
+ *
+ * 의료는 원격 큐브가 아니라 스냅샷에서 계산되는 값이라 CUBE_LAYERS(=레이어 전환·원격
+ * 로딩 목록)에는 넣지 않는다. 그러나 "소득 낮고 의료 취약한 지역"처럼 민간×공공의료를
+ * 겹쳐 보는 것이 이 도구에서 가장 자연스러운 정책 질의라, 교차 후보에는 반드시 있어야 한다.
+ * (`medicalCubeFromSnapshot`이 같은 모양의 큐브를 만들어 준다.)
+ */
+export const CROSS_CANDIDATE_LAYERS = [...CUBE_LAYERS, MEDICAL_LAYER] as const;

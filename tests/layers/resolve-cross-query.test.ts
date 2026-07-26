@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { CUBE_LAYERS } from "@/lib/layers/catalog";
+import { CUBE_LAYERS, CROSS_CANDIDATE_LAYERS } from "@/lib/layers/catalog";
 import { resolveCrossQuery } from "@/lib/layers/resolve-cross-query";
 
 // 앱과 동일한 목록을 쓴다 — 따로 유지하면 어긋난다(실제로 어긋난 적 있음).
@@ -102,5 +102,36 @@ describe("resolveCrossQuery", () => {
 
   test("detects 시군구 admin level", () => {
     expect(resolveCrossQuery("시군구별 생활인구 대비 소득", CUBE_LAYERS)?.adminLevel).toBe("sgg");
+  });
+});
+
+describe("공공 의료 × 민간 교차", () => {
+  // 의료취약지수는 스냅샷에서 계산돼 CUBE_LAYERS에 없었고, 그래서 "소득 낮고 의료 취약한
+  // 지역"이 교차로 가지 못하고 소득 한쪽만 답했다. 정책 질의로는 가장 자연스러운 축이다.
+  test("소득과 의료취약을 함께 본다", () => {
+    const match = resolveCrossQuery("소득 낮고 의료 취약한 지역", CROSS_CANDIDATE_LAYERS);
+    expect(match).not.toBeNull();
+    expect(match?.mode).toBe("gap");
+    // gap은 zA − zB라 순서가 결과를 뒤집는다. 취약이 높은 쪽(A)이어야 한다.
+    expect(match?.a.layerId).toBe("medical");
+    expect(match?.b.layerId).toBe("kcb-credit");
+  });
+
+  test("어순이 바뀌어도 높은 쪽이 A다", () => {
+    const match = resolveCrossQuery("의료 취약한데 소득도 낮은 동", CROSS_CANDIDATE_LAYERS);
+    expect(match?.a.layerId).toBe("medical");
+    expect(match?.b.layerId).toBe("kcb-credit");
+  });
+
+  test("고령인구와 의료취약을 함께 높은 곳으로 본다", () => {
+    // "고령인구"가 "고령"+"인구" 둘로 쪼개져 population×population이 되던 자리
+    const match = resolveCrossQuery("고령인구 많고 의료 취약한 곳", CROSS_CANDIDATE_LAYERS);
+    expect(match?.mode).toBe("both");
+    const layers = [match?.a.layerId, match?.b.layerId].sort();
+    expect(layers).toEqual(["medical", "population"]);
+  });
+
+  test("의료만 물으면 교차가 아니다", () => {
+    expect(resolveCrossQuery("의료 취약 지역 순위", CROSS_CANDIDATE_LAYERS)).toBeNull();
   });
 });

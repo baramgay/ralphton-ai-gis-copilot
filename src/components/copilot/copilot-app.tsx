@@ -62,6 +62,7 @@ import {
   KCB_COMMUTE_LAYER,
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
+  CROSS_CANDIDATE_LAYERS,
   MEDICAL_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
@@ -73,7 +74,7 @@ import {
   SKT_LIVING_LAYER,
   SKT_MOBILITY_LAYER,
 } from "@/lib/layers/catalog";
-import { populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
+import { medicalCubeFromSnapshot, populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
 import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
@@ -367,8 +368,8 @@ const TREND_PRESETS: Array<{ id: string; label: string; subtitle: string; query:
   },
 ];
 
-/** 교차분석 후보 = 큐브로 뒷받침되는 전체 레이어(catalog 단일 출처). */
-const CROSS_LAYERS = CUBE_LAYERS;
+/** 교차분석 후보 = 큐브 레이어 + 의료취약지수(catalog 단일 출처). */
+const CROSS_LAYERS = CROSS_CANDIDATE_LAYERS;
 
 function formatCrossValue(value: number | null, unit: string): string {
   if (value === null) return "데이터 없음";
@@ -1138,6 +1139,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [snapshot],
   );
 
+  // 의료취약지수는 스냅샷에서 계산된다. 교차분석에서 민간 지표와 겹쳐 보려면 큐브 모양이어야 한다.
+  const medicalCube = useMemo(
+    () => (snapshot ? medicalCubeFromSnapshot(snapshot) : null),
+    [snapshot],
+  );
+
   const activeLayerMetrics = activeLayerId === "medical" ? [] : CUBE_LAYER_METRICS[activeLayerId];
   const activeMetric =
     activeLayerMetrics.find((metric) => metric.key === activeMetricKey) ?? activeLayerMetrics[0] ?? null;
@@ -1839,7 +1846,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const runCross = useCallback(
     (cross: CrossQueryMatch): boolean => {
-      const cubeFor = (id: string) => (id === "population" ? populationCube : remoteCubes[id] ?? null);
+      const cubeFor = (id: string) =>
+        id === "population" ? populationCube : id === "medical" ? medicalCube : remoteCubes[id] ?? null;
       const cubeA = cubeFor(cross.a.layerId);
       const cubeB = cubeFor(cross.b.layerId);
       const metricsA = CUBE_LAYER_METRICS[cross.a.layerId as CubeLayerId];
@@ -1875,7 +1883,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       window.setTimeout(() => setParseStage("idle"), 1200);
       return true;
     },
-    [adminLevel, populationCube, remoteCubes],
+    [adminLevel, medicalCube, populationCube, remoteCubes],
   );
 
   /** One-click 교차분석 preset: resolve its canned query, then run it through runCross. */
