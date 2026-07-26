@@ -44,6 +44,18 @@ export function resolveExportProvenance(input: {
   return { referenceMonth: input.snapshotReferenceMonth, source: input.snapshotSource };
 }
 
+/**
+ * 내보낼 행이 행정동인지 시군구인지 코드로 판별한다.
+ *
+ * 시군구까지만 있는 지표(KCB 전출)나 "시군구별로" 물은 질의는 결과가 22개 시군구인데,
+ * 표 머리글과 요약이 "행정동"으로 고정돼 있어 22개 행정동을 본 것처럼 읽혔다.
+ * 코드는 행에 이미 실려 있다(읍면동 10자리 / 시군구 5자리) — 따로 넘길 필요가 없다.
+ */
+export function regionUnitLabel(codes: readonly string[]): "행정동" | "시군구" {
+  if (codes.length === 0) return "행정동";
+  return codes.every((code) => code.length === 5) ? "시군구" : "행정동";
+}
+
 export function toCsv(headers: string[], rows: string[][]): string {
   const escape = (cell: string) => {
     const value = cell.replaceAll('"', '""');
@@ -71,7 +83,7 @@ export function rankedToCsv(
     ["출처", dataSource],
     ["내보낸시각", new Date().toISOString()],
   ];
-  const header = ["순위", "행정동코드", "시도시", "이름", "값", "비고"];
+  const header = ["순위", `${regionUnitLabel(rows.map((row) => row.code))}코드`, "시도시", "이름", "값", "비고"];
   const body = rows.map((row) => [
     String(row.rank),
     row.code,

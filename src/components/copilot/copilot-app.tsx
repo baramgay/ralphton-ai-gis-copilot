@@ -1643,6 +1643,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       formulaNotes: analysis.formulaNotes,
       rows: analysis.ranked.map((row, index) => ({
         rank: index + 1,
+        code: row.code,
         name: row.name,
         valueLabel: row.valueLabel,
         note: row.note,
@@ -1680,6 +1681,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       formulaNotes: analysis.formulaNotes,
       rows: analysis.ranked.map((row, index) => ({
         rank: index + 1,
+        code: row.code,
         name: row.name,
         valueLabel: row.valueLabel,
         note: row.note,
@@ -1712,6 +1714,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       formulaNotes: analysis.formulaNotes,
       rows: analysis.ranked.map((row, index) => ({
         rank: index + 1,
+        code: row.code,
         name: row.name,
         valueLabel: row.valueLabel,
         note: row.note,

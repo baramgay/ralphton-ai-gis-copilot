@@ -11,6 +11,7 @@ const base: ReportInput = {
   formulaNotes: ["카드매출 = 전체카드 이용금액 월 합계(전수화)", "가맹점 소재지 기준 상권 매출"],
   rows: Array.from({ length: 25 }, (_, index) => ({
     rank: index + 1,
+    code: `48111${String(index + 1).padStart(5, "0")}`,
     name: `테스트동${index + 1}`,
     valueLabel: `${1000 - index * 10}백만원`,
     note: "비고",
@@ -93,7 +94,7 @@ describe("buildMarkdownReport", () => {
   test("지역명에 파이프가 있어도 표가 깨지지 않는다", () => {
     const md = buildMarkdownReport({
       ...base,
-      rows: [{ rank: 1, name: "A|B동", valueLabel: "1|2", note: "n|m" }],
+      rows: [{ rank: 1, code: "4811110000", name: "A|B동", valueLabel: "1|2", note: "n|m" }],
     });
     expect(md).toContain("| 1 | A\\|B동 | 1\\|2 | n\\|m |");
   });
@@ -102,5 +103,28 @@ describe("buildMarkdownReport", () => {
     const md = buildMarkdownReport({ ...base, rows: [] });
     expect(md).toContain("- 표시할 순위 없음");
     expect(md).not.toContain("| 순위 |");
+  });
+});
+
+describe("표기 단위", () => {
+  // 시군구까지만 있는 지표(KCB 전출)나 "시군구별" 질의는 결과가 22개 시군구다.
+  // 그때도 "대상 행정동 22개"라고 쓰면 22개 읍면동을 본 것처럼 읽힌다.
+  const sggRows = Array.from({ length: 22 }, (_, index) => ({
+    rank: index + 1,
+    code: `481${String(index + 10).padStart(2, "0")}`,
+    name: `테스트시${index + 1}`,
+    valueLabel: `${40000 - index * 100}명`,
+    note: "비고",
+  }));
+
+  test("시군구 결과는 시군구라고 쓴다", () => {
+    const md = buildMarkdownReport({ ...base, rows: sggRows, totalCount: 22 });
+    expect(md).toContain("대상 시군구 22개");
+    expect(md).not.toContain("대상 행정동");
+  });
+
+  test("행정동 결과는 그대로 행정동이다", () => {
+    const md = buildMarkdownReport(base);
+    expect(md).toContain("대상 행정동");
   });
 });

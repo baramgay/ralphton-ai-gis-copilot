@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   facilitiesToCsv,
+  regionUnitLabel,
   rankedToCsv,
   resolveExportProvenance,
   toCsv,
@@ -100,5 +101,23 @@ describe("export-csv", () => {
     expect(csv).toContain("의원");
     expect(csv).toContain("시도시");
     expect(csv).toContain("경남");
+  });
+});
+
+describe("regionUnitLabel", () => {
+  test("코드 자리수로 행정동·시군구를 가린다", () => {
+    expect(regionUnitLabel(["4812125000", "4812126000"])).toBe("행정동");
+    expect(regionUnitLabel(["48121", "48123"])).toBe("시군구");
+    // 섞여 있으면 더 좁은 쪽으로 본다(실제로는 일어나지 않아야 한다).
+    expect(regionUnitLabel(["48121", "4812125000"])).toBe("행정동");
+    expect(regionUnitLabel([])).toBe("행정동");
+  });
+
+  test("시군구 결과의 CSV 머리글은 시군구코드다", () => {
+    const csv = rankedToCsv("전출인구(시군구) 순위", "2025-12", "KCB · 거주이동", "live", [
+      { rank: 1, code: "48250", sido: "경남", name: "김해시", valueLabel: "40,152명", note: "비고" },
+    ]);
+    expect(csv).toContain("시군구코드");
+    expect(csv).not.toContain("행정동코드");
   });
 });

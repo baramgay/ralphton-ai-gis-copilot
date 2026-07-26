@@ -1,3 +1,4 @@
+import { regionUnitLabel } from "@/lib/analysis/export-csv";
 import { toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
 
 /**
@@ -41,7 +42,7 @@ export function buildHwpHtmlReport(input: ReportInput): string {
   parts.push("<ul>");
   parts.push(`<li>${escapeHtml(toNounEnding(input.summary))}</li>`);
   parts.push(
-    `<li>대상 행정동 ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 제시</li>`,
+    `<li>대상 ${regionUnitLabel(input.rows.map((row) => row.code))} ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 제시</li>`,
   );
   parts.push("</ul>");
 

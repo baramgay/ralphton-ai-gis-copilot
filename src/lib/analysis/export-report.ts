@@ -1,5 +1,9 @@
+import { regionUnitLabel } from "@/lib/analysis/export-csv";
+
 export type ReportRow = {
   rank: number;
+  /** 지역 코드. 자리수로 행정동(10)·시군구(5)를 가려 표기 단위를 정한다. */
+  code: string;
   name: string;
   valueLabel: string;
   note: string;
@@ -79,7 +83,8 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push("## 분석 요약");
   lines.push("");
   lines.push(`- ${toNounEnding(input.summary)}`);
-  lines.push(`- 대상 행정동 ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 제시`);
+  const unit = regionUnitLabel(input.rows.map((row) => row.code));
+  lines.push(`- 대상 ${unit} ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 제시`);
   lines.push("");
 
   lines.push(`## 상위 ${top.length}개 지역`);

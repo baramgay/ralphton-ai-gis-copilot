@@ -1,3 +1,4 @@
+import { regionUnitLabel } from "@/lib/analysis/export-csv";
 import { toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
 
 /**
@@ -70,7 +71,7 @@ export function buildSlideHtml(input: ReportInput): string {
         <tr><th>순위</th><th>지역</th><th>값</th><th>비고</th></tr>
         ${rows}
       </table>
-      <p class="foot">대상 행정동 ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 · ${foot}</p>
+      <p class="foot">대상 ${regionUnitLabel(input.rows.map((row) => row.code))} ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 · ${foot}</p>
     </section>`);
 
   const notes = input.formulaNotes.map((note) => `<li>${escapeHtml(note)}</li>`).join("");

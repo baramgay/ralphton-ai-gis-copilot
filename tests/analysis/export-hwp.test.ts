@@ -12,6 +12,7 @@ const base: ReportInput = {
   formulaNotes: ["카드매출 = 전체카드 이용금액 월 합계(전수화)"],
   rows: Array.from({ length: 25 }, (_, index) => ({
     rank: index + 1,
+    code: `48111${String(index + 1).padStart(5, "0")}`,
     name: `테스트동${index + 1}`,
     valueLabel: `${1000 - index * 10}백만원`,
     note: "비고",
@@ -57,7 +58,7 @@ describe("buildHwpHtmlReport", () => {
   test("HTML 특수문자가 든 지역명도 마크업을 깨뜨리지 않는다", () => {
     const html = buildHwpHtmlReport({
       ...base,
-      rows: [{ rank: 1, name: "<script>동", valueLabel: "1 & 2", note: '"비고"' }],
+      rows: [{ rank: 1, code: "4811110000", name: "<script>동", valueLabel: "1 & 2", note: '"비고"' }],
     });
     expect(html).toContain("&lt;script&gt;동");
     expect(html).toContain("1 &amp; 2");
