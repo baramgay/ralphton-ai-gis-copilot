@@ -9,6 +9,7 @@ import { sggCodeOf, sggNameOf } from "@/lib/analysis/scope";
 import type { AnalysisSnapshot, Facility, RegionSeries } from "@/lib/domain/schemas";
 import {
   countFacilitiesWithinRadius as calculateFacilitiesWithinRadius,
+  facilityAccessSummary,
   medicalVulnerabilityIndex,
   nearestFacilityDistance as calculateNearestFacilityDistance,
   winsorizedMinMax,
@@ -307,15 +308,23 @@ function detailMetrics(region: RegionSeries, referenceMonth: string): MetricDesc
 function accessRecords(intent: AnalysisIntent, snapshot: AnalysisSnapshot): { records: AccessRecord[]; facilities: Facility[] } {
   const regions = scopedRegions(intent, snapshot);
   const facilities = filteredFacilities(intent, snapshot, false);
+
+  // 행정동마다 시설 전체를 다시 훑지 않도록 소재 시설 수는 한 번에 세어 둔다.
+  const facilityCountByDong = new Map<string, number>();
+  for (const facility of facilities) {
+    facilityCountByDong.set(facility.adm_cd2, (facilityCountByDong.get(facility.adm_cd2) ?? 0) + 1);
+  }
+
   const raw = regions.map((region) => {
     const population = latestValue(region, region.population, snapshot.referenceMonth);
     const elderlyPopulation = latestValue(region, region.elderlyPopulation, snapshot.referenceMonth);
-    const localFacilityCount = facilities.filter((facility) => facility.adm_cd2 === region.adm_cd2).length;
+    const localFacilityCount = facilityCountByDong.get(region.adm_cd2) ?? 0;
     const facilitiesPerTenThousand =
       population === null || population <= 0 ? null : (localFacilityCount / population) * 10_000;
     const elderlyRatio = percentage(elderlyPopulation, population);
-    const nearestDistanceKm = calculateNearestFacilityDistance(region.representativePoint, facilities);
-    const facilitiesWithinTwoKm = calculateFacilitiesWithinRadius(region.representativePoint, facilities, 2);
+    const access = facilityAccessSummary(region.representativePoint, facilities, 2);
+    const nearestDistanceKm = access.nearestKm;
+    const facilitiesWithinTwoKm = access.withinRadius;
 
     return {
       region,

@@ -1,6 +1,3 @@
-import { distance } from "@turf/distance";
-import { point } from "@turf/helpers";
-
 export type GeoPoint = {
   lat: number;
   lng: number;
@@ -19,10 +16,28 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+/**
+ * @turf/distance와 같은 하버사인 계산을 GeoJSON 객체 없이 수행한다.
+ *
+ * 의료 취약 순위는 305개 행정동 × 4,272개 시설을 훑는데, turf는 호출마다 Feature 두 개를
+ * 새로 만든다. 그 할당이 초기 화면 계산을 3초 넘게 붙잡고 있었다(prod 실측).
+ * 수식·지구반지름·연산 순서를 turf와 똑같이 맞췄고, 두 결과가 일치하는지는 테스트로 잠갔다.
+ */
+const EARTH_RADIUS_KM = 6371008.8 / 1e3;
+
+function toRadians(degrees: number): number {
+  return ((degrees % 360) * Math.PI) / 180;
+}
+
 function distanceInKilometers(origin: GeoPoint, destination: GeoPoint): number {
-  return distance(point([origin.lng, origin.lat]), point([destination.lng, destination.lat]), {
-    units: "kilometers",
-  });
+  const dLat = toRadians(destination.lat - origin.lat);
+  const dLon = toRadians(destination.lng - origin.lng);
+  const lat1 = toRadians(origin.lat);
+  const lat2 = toRadians(destination.lat);
+  const a =
+    Math.pow(Math.sin(dLat / 2), 2) +
+    Math.pow(Math.sin(dLon / 2), 2) * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * EARTH_RADIUS_KM;
 }
 
 export function nearestFacilityDistance<T extends GeoPoint>(origin: GeoPoint, facilities: readonly T[]): number | null {
@@ -52,6 +67,33 @@ export function countFacilitiesWithinRadius<T extends GeoPoint>(
     (count, facility) => count + (distanceInKilometers(origin, facility) <= radiusKm ? 1 : 0),
     0,
   );
+}
+
+/**
+ * 최근접 거리와 반경 내 개수를 한 번의 순회로 함께 낸다.
+ *
+ * 둘을 따로 부르면 같은 시설 목록을 두 번 훑는다. 행정동마다 반복되는 비용이라
+ * 순회를 한 번으로 줄였다. 값은 각각을 따로 부른 것과 같아야 하고, 테스트가 그것을 지킨다.
+ */
+export function facilityAccessSummary<T extends GeoPoint>(
+  origin: GeoPoint,
+  facilities: readonly T[],
+  radiusKm: number,
+): { nearestKm: number | null; withinRadius: number } {
+  if (!Number.isFinite(radiusKm) || radiusKm < 0) {
+    throw new RangeError("radiusKm must be a finite non-negative number.");
+  }
+
+  let nearest = Number.POSITIVE_INFINITY;
+  let withinRadius = 0;
+
+  for (const facility of facilities) {
+    const km = distanceInKilometers(origin, facility);
+    if (km < nearest) nearest = km;
+    if (km <= radiusKm) withinRadius += 1;
+  }
+
+  return { nearestKm: facilities.length === 0 ? null : nearest, withinRadius };
 }
 
 function percentile(sortedValues: readonly number[], percentileValue: number): number {
