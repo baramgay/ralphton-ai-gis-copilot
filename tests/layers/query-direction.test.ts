@@ -110,3 +110,22 @@ describe("지역 한정", () => {
     expect(scoped.ranking[0].name).toContain("중앙동");
   });
 });
+
+describe("표기 흔들림", () => {
+  // "생활 인구 많은 동"이 공공 총인구로 새고 있었다 — 공백 때문에 "생활인구"가 안 맞고
+  // 더 짧은 "인구"가 잡혔다. 어디를 띄어 쓸지는 사람마다 다르다.
+  test.each([
+    ["생활 인구 많은 동", "skt-living", "living_total"],
+    ["카드 매출 높은 지역", "nh-consumption", "card_sales"],
+    ["평균 소득 높은 동", "kcb-credit", "avg_income"],
+    ["신용 평점 높은 곳", "kcb-credit", "credit_score"],
+    ["유입 인구 많은 동", "skt-mobility", "inflow_total"],
+  ] as const)('"%s" → %s/%s', (query, layerId, metricKey) => {
+    const match = resolveLayerQuery(query, CUBE_LAYERS);
+    expect({ layerId: match?.layerId, metricKey: match?.metricKey }).toEqual({ layerId, metricKey });
+  });
+
+  test("붙여 쓴 질의도 그대로 된다", () => {
+    expect(resolveLayerQuery("생활인구많은동", CUBE_LAYERS)?.layerId).toBe("skt-living");
+  });
+});

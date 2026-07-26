@@ -115,10 +115,18 @@ function supportedLevel(layer: LayerLike, wanted: AdminLevel): AdminLevel {
   return levels[0];
 }
 
+/**
+ * 트리거를 찾을 때 띄어쓰기는 무시한다.
+ *
+ * "생활 인구 많은 동"이 공공 총인구로 새고 있었다 — "생활인구" 트리거가 공백 때문에
+ * 안 맞고 더 짧은 "인구"가 잡혔다(prod 실측). 사용자가 어디를 띄어 쓸지는 알 수 없으니
+ * 양쪽을 붙여서 맞춘다. 길이 비교는 원래 트리거로 해야 "생활인구"가 "인구"를 이긴다.
+ */
 function bestTriggerMatch(text: string, metric: MetricDef): string | null {
+  const compactText = text.replace(/\s+/g, "");
   let best: string | null = null;
   for (const trigger of metric.triggers) {
-    if (!text.includes(trigger)) continue;
+    if (!compactText.includes(trigger.replace(/\s+/g, ""))) continue;
     if (best === null || trigger.length > best.length) best = trigger;
   }
   return best;

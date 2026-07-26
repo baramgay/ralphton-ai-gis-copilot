@@ -32,6 +32,7 @@ import {
   METHOD_SUMMARY,
 } from "@/lib/analysis/evaluator-guide";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
+import { detectOutOfScopePlace } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
   DEFAULT_COMPARE,
@@ -2081,6 +2082,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
+
+    /*
+     * 경남 밖 지역을 물었으면 여기서 멈춘다.
+     *
+     * 이 검사는 공공 도구 파싱 안에만 있었는데, 민간 경로가 그보다 먼저 반환해서
+     * "부산 소득 높은 곳"이 아무 경고 없이 경남 순위를 답하고 있었다(prod 실측).
+     * 부산·울산은 바로 옆이라 실제로 물을 법한 지역이라 더 위험하다.
+     */
+    const outOfScope = detectOutOfScopePlace(trimmed);
+    if (outOfScope) {
+      rememberQuery(trimmed);
+      setParseStage("idle");
+      setQueryNotice(
+        `"${outOfScope}"은(는) 경남 지역 범위 밖입니다. 이 도구는 경남 305개 읍면동만 다룹니다.`,
+      );
+      setQueryNoticeTone("error");
+      return;
+    }
 
     // 추세 질의("카드매출 늘어나는 동")를 먼저 본다. 값의 크기가 아니라 변화를 묻는
     // 표현이므로 단일 시점 라우팅으로 넘기면 "많은 곳"과 구별되지 않는다.
