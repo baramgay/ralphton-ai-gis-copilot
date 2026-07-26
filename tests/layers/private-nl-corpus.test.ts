@@ -47,6 +47,7 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   // NH 소비주체 — 매출 총액(nh-consumption)과 구별되어야 한다
   ["청년 소비 비중 높은 동", "nh-demographics", "youth_share"],
   ["젊은 층 소비 많은 곳", "nh-demographics", "youth_share"],
+  ["젊은 사람 소비 많은 데", "nh-demographics", "youth_share"],
   ["중장년 소비 많은 지역", "nh-demographics", "middle_share"],
   ["고령 소비 비중 높은 동", "nh-demographics", "senior_share"],
   ["여성 소비 비중 높은 곳", "nh-demographics", "female_share"],
@@ -56,21 +57,33 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["낮 매출 많은 곳", "nh-hourly", "day_sales"],
   ["야간 매출 높은 동", "nh-hourly", "night_sales"],
   ["심야 매출 높은 지역", "nh-hourly", "night_sales"],
+  ["심야 소비 많은 동", "nh-hourly", "night_sales"],
   ["야간 상권 발달한 동", "nh-hourly", "night_share"],
   ["야간 소비비중 높은 곳", "nh-hourly", "night_share"],
   // NH 업종구성 — 매출 총액·소비주체와 구별되어야 한다
-  ["음식점 비중 높은 동", "nh-industry", "food_share"],
+  // "음식점 비중"은 업태 지표의 이름 그대로다(한식·중식·일식 등). 업종군 쪽(nh-industry)은
+  // 숙박까지 묶은 "음식·숙박 비중"이라 더 넓다. 이름이 정확히 겹치는 쪽으로 보낸다.
+  ["음식점 비중 높은 동", "nh-storetype", "restaurant_share"],
+  ["음식·숙박 비중 높은 동", "nh-industry", "food_share"],
+  ["음식업 비중 높은 동", "nh-industry", "food_share"],
   ["외식 상권 발달한 곳", "nh-industry", "food_share"],
   ["도소매 비중 높은 동", "nh-industry", "retail_share"],
   ["의료 소비 비중 높은 동", "nh-industry", "health_share"],
   ["여가 소비 비중 높은 동", "nh-industry", "leisure_share"],
   ["학원 소비 많은 동", "nh-industry", "education_share"],
+  // 업종군은 "◯◯업"으로도 불린다. 이 표현이 없어 공공 경로로 새거나 NH "소비"에 먹혔다.
+  ["소매업 비중 상위", "nh-industry", "retail_share"],
+  ["보건업 소비 비중 높은 곳", "nh-industry", "health_share"],
+  ["여가·문화 비중 높은 동", "nh-industry", "leisure_share"],
   // NH 생활업종(소분류) — 업종구성(대분류)과 구별되어야 한다
   ["카페 상권 발달한 동", "nh-storetype", "cafe_share"],
   ["커피 소비 많은 곳", "nh-storetype", "cafe_share"],
   ["유흥 상권 발달한 동", "nh-storetype", "pub_share"],
   ["편의점 비중 높은 동", "nh-storetype", "grocery_share"],
   ["주유소 비중 높은 동", "nh-storetype", "fuel_share"],
+  // "주유소 소비"가 NH 총매출의 "소비"에 먹히던 자리
+  ["주유소 소비 비중 상위", "nh-storetype", "fuel_share"],
+  ["식료품 소매 비중 높은 동", "nh-storetype", "grocery_share"],
   ["약국 비중 높은 곳", "nh-storetype", "medical_store_share"],
   ["식당 비중 높은 동", "nh-storetype", "restaurant_share"],
   // KCB 소득·신용
@@ -81,6 +94,9 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["신용평점 높은 동", "kcb-credit", "credit_score"],
   ["신용점수 높은 곳", "kcb-credit", "credit_score"],
   ["신용도 좋은 지역", "kcb-credit", "credit_score"],
+  // 지표명 "1인 카드소비"가 NH의 "카드소비"에 먹히던 자리
+  ["1인 카드소비 상위", "kcb-credit", "card_spend"],
+  ["1인당 소비액 상위", "kcb-credit", "card_spend"],
   ["1인 소비 높은 동", "kcb-credit", "card_spend"],
   ["인당 소비 많은 곳", "kcb-credit", "card_spend"],
   ["대출 많은 동", "kcb-credit", "loan_ratio"],
