@@ -63,6 +63,7 @@ import {
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
   CROSS_CANDIDATE_LAYERS,
+  KCB_GRID_LAYER,
   MEDICAL_LAYER,
   NH_CONSUMPTION_LAYER,
   NH_DEMOGRAPHICS_LAYER,
@@ -126,6 +127,7 @@ type RankedRegion = {
 };
 
 type LayerId =
+  | "kcb-grid-500m"
   | "population"
   | "skt-living"
   | "skt-mobility"
@@ -186,6 +188,7 @@ const LAYER_OPTIONS: LayerOption[] = [
   { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
   { id: KCB_MIGRATION_LAYER.id, label: KCB_MIGRATION_LAYER.label, provider: KCB_MIGRATION_LAYER.provider },
   { id: KCB_COMMUTE_LAYER.id, label: KCB_COMMUTE_LAYER.label, provider: KCB_COMMUTE_LAYER.provider },
+  { id: KCB_GRID_LAYER.id, label: KCB_GRID_LAYER.label, provider: KCB_GRID_LAYER.provider },
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
 ];
 
@@ -211,6 +214,7 @@ const LAYER_PROVIDERS: Record<LayerId, string> = {
   "kcb-credit": KCB_CREDIT_LAYER.provider,
   "kcb-migration": KCB_MIGRATION_LAYER.provider,
   "kcb-commute": KCB_COMMUTE_LAYER.provider,
+  "kcb-grid-500m": KCB_GRID_LAYER.provider,
   medical: MEDICAL_LAYER.provider,
 };
 
@@ -231,6 +235,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
   { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
   { id: "kcb-migration", url: "/data/layers/kcb-migration.json", label: KCB_MIGRATION_LAYER.label },
   { id: "kcb-commute", url: "/data/layers/kcb-commute.json", label: KCB_COMMUTE_LAYER.label },
+  { id: "kcb-grid-500m", url: "/data/layers/kcb-grid-500m.json", label: KCB_GRID_LAYER.label },
 ];
 
 /**
@@ -1132,6 +1137,30 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     () => (snapshot ? populationCubeFromSnapshot(snapshot) : null),
     [snapshot],
   );
+
+  /**
+   * 격자 레이어의 경계.
+   *
+   * 지도는 GeoJSON 폴리곤을 코드로 칠하는 경로 하나뿐이다. 격자도 같은 모양의 사각형
+   * GeoJSON으로 만들어 두었으므로, 레이어가 격자일 때 경계만 바꿔 끼우면 채색·클릭·툴팁이
+   * 전부 그대로 따라온다. 읍면동 경계(3.7MB)와 달리 작아서(브로틀리 33KB) 필요할 때 받는다.
+   */
+  const [gridBoundary, setGridBoundary] = useState<BoundaryCollection | null>(null);
+  const gridBoundaryRequestedRef = useRef(false);
+  useEffect(() => {
+    if (activeLayerId !== KCB_GRID_LAYER.id || gridBoundaryRequestedRef.current) return;
+    gridBoundaryRequestedRef.current = true;
+    fetch("/data/grid-500m.geojson")
+      .then((response) => {
+        if (!response.ok) throw new Error("격자 경계를 불러오지 못했습니다.");
+        return response.json() as Promise<BoundaryCollection>;
+      })
+      .then(setGridBoundary)
+      .catch(() => {
+        gridBoundaryRequestedRef.current = false;
+        setRemoteCubeErrors((prev) => ({ ...prev, [KCB_GRID_LAYER.id]: "격자 경계를 불러오지 못했습니다." }));
+      });
+  }, [activeLayerId]);
 
   // 의료취약지수는 스냅샷에서 계산된다. 교차분석에서 민간 지표와 겹쳐 보려면 큐브 모양이어야 한다.
   const medicalCube = useMemo(
@@ -3317,7 +3346,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       <section className="copilot-map" aria-label="지도 영역">
         <MapCanvas
           kakaoMapKey={kakaoMapKey}
-          boundary={boundary}
+          boundary={activeLayerId === KCB_GRID_LAYER.id && gridBoundary ? gridBoundary : boundary}
           regions={snapshot.regions}
           facilities={mapFacilities}
           livePlaces={livePlaces}

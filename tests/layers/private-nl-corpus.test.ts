@@ -121,6 +121,16 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["베드타운 성격 강한 동", "kcb-commute", "job_ratio"],
   ["관외 통근율 높은 동", "kcb-commute", "outbound_ratio"],
   ["타지 통근 많은 곳", "kcb-commute", "outbound_ratio"],
+  // KCB 500m 격자(도시부) — 읍면동 안을 더 잘게 본다. 읍면동 지표와 표현이 겹치지
+  // 않도록 "격자"를 붙인다(붙이지 않으면 더 짧은 읍면동 트리거가 가져간다).
+  ["격자 인구 많은 곳", "kcb-grid-500m", "pop_total"],
+  ["격자 소득 높은 블록", "kcb-grid-500m", "avg_income"],
+  ["블록 소득 높은 곳", "kcb-grid-500m", "avg_income"],
+  ["격자 신용평점 높은 곳", "kcb-grid-500m", "credit_score"],
+  ["격자 1인 카드소비 상위", "kcb-grid-500m", "card_spend"],
+  ["격자 대출 많은 곳", "kcb-grid-500m", "loan_ratio"],
+  ["격자 연체 높은 곳", "kcb-grid-500m", "delinquency_ratio"],
+  ["격자 하이엔드 비율 높은 곳", "kcb-grid-500m", "highend_ratio"],
 ];
 
 describe("private-data NL coverage corpus", () => {

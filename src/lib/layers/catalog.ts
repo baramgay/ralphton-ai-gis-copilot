@@ -189,6 +189,30 @@ export const KCB_COMMUTE_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
+export const KCB_GRID_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "kcb-grid-500m",
+  label: "500m 격자",
+  provider: "KCB",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  // 격자 코드는 "gx_gy"라 앞 5자리를 잘라도 시군구가 되지 않는다. 읍면동 단위만 쓴다.
+  adminLevels: ["dong"],
+  sourceNotes: [
+    "KCB 100m 격자 통계(부울경) 중 경남만, 500m로 재집계",
+    "KCB가 (격자×5세연령구간) 인구 3명 미만은 제공하지 않아 농촌이 크게 누락된다. 격자 표본이 읍면동 인구의 90% 이상인 도시부(12개 시군구·95개 읍면동)만 싣는다",
+    "성인 30명 미만 칸은 평균·비율을 내지 않는다(표본 부족·재식별 방지)",
+  ],
+  metrics: [
+    { key: "pop_total", label: "격자 성인인구", unit: "명", aggregation: "sum", formula: "만18~104세 KCB 집계인구 합", limitation: "3명 미만 연령구간이 빠져 실제 인구보다 적다. 도시부에서도 과소 추정이므로 절대 인구로 읽지 말 것", triggers: ["격자 인구", "격자 성인인구"] },
+    { key: "avg_income", label: "격자 평균소득", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "연령구간 월소득 평균의 인구 가중평균", limitation: "성인 30명 이상 칸만 산출. 3명 미만 연령구간이 빠져 저소득 소수 가구가 덜 반영될 수 있다", triggers: ["격자 소득", "격자 평균소득", "블록 소득", "동네 안 소득"] },
+    { key: "credit_score", label: "격자 신용평점", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "연령구간 신용평점의 인구 가중평균", limitation: "성인 30명 이상 칸만 산출", triggers: ["격자 신용", "격자 신용평점"] },
+    { key: "card_spend", label: "격자 1인 카드소비", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "카드 총이용금액 합 ÷ 소비활동 대상자 수", limitation: "성인 30명 이상 칸만 산출. 거주자 기준이라 상권 매출(NH)과 다르다", triggers: ["격자 1인 카드소비", "격자 카드소비", "격자 소비"] },
+    { key: "loan_ratio", label: "격자 대출보유율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "대출 보유자 ÷ 성인인구 × 100", limitation: "성인 30명 이상 칸만 산출", triggers: ["격자 대출"] },
+    { key: "delinquency_ratio", label: "격자 연체율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "연체자 ÷ 성인인구 × 100", limitation: "성인 30명 이상 칸만 산출", triggers: ["격자 연체"] },
+    { key: "highend_ratio", label: "격자 하이엔드 비율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "하이엔드 등급자 ÷ 성인인구 × 100", limitation: "성인 30명 이상 칸만 산출", triggers: ["격자 하이엔드", "격자 고소득"] },
+  ],
+};
+
 export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "medical",
   label: "의료",
@@ -223,6 +247,7 @@ export const CUBE_LAYERS = [
   KCB_CREDIT_LAYER,
   KCB_MIGRATION_LAYER,
   KCB_COMMUTE_LAYER,
+  KCB_GRID_LAYER,
 ] as const;
 
 /** 자연어로 직접 전환 가능한 민간 제공기관 레이어(공공 인구 제외). */

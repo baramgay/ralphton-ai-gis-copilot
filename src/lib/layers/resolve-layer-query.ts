@@ -46,6 +46,13 @@ export function detectAdminLevel(query: string, fallback: AdminLevel = "dong"): 
   return fallback;
 }
 
+/** 레이어가 지원하는 단위로 되돌린다. 지원 목록이 없으면 요청한 그대로 둔다. */
+function supportedLevel(layer: LayerLike, wanted: AdminLevel): AdminLevel {
+  const levels = layer.adminLevels;
+  if (!levels || levels.length === 0 || levels.includes(wanted)) return wanted;
+  return levels[0];
+}
+
 function bestTriggerMatch(text: string, metric: MetricDef): string | null {
   let best: string | null = null;
   for (const trigger of metric.triggers) {
@@ -88,10 +95,14 @@ export function resolveLayerQuery(
           metricLabel: metric.label,
           // 시군구까지만 있는 지표는 읍면동으로 물어도 시군구로 답해야 한다.
           // 그러지 않으면 같은 값을 나눠 가진 읍면동들에 임의의 순위가 매겨진다.
-          adminLevel:
+          // 반대로 레이어가 지원하지 않는 단위는 요구해도 줄 수 없다 — 격자는 코드가
+          // "gx_gy"라 앞 5자리를 잘라도 시군구가 되지 않는다.
+          adminLevel: supportedLevel(
+            layer,
             metric.scope === "sgg"
               ? "sgg"
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+          ),
           matchedTrigger: trigger,
           triggerLength: trigger.length,
         };
