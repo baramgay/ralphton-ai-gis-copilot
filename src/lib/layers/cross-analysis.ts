@@ -52,22 +52,40 @@ export function crossLayerView(
   const viewA = buildLayerView(a.cube, a.metric.key, adminLevel, monthIndexOf(a.cube), a.metrics);
   const viewB = buildLayerView(b.cube, b.metric.key, adminLevel, monthIndexOf(b.cube), b.metrics);
 
+  /*
+   * 순위는 반드시 ranking(분석 단위)에서 만든다.
+   *
+   * buildLayerView의 scores는 **지도 채색용**이라 시군구 단위에서도 읍면동 코드로 키가
+   * 잡혀 있다(같은 시군구 값이 소속 동 수만큼 복제됨). 그것으로 순위를 만들면 22개
+   * 시군구가 305행으로 부풀고, 이름을 ranking에서 못 찾아 코드가 그대로 화면에 나온다
+   * ("가장 부족한 곳은 4812351500 · 4812351000 …"). prod에서 실제로 그렇게 나왔다.
+   */
+  const entryOf = (view: typeof viewA) => {
+    const map = new Map<string, { name: string; value: number }>();
+    for (const row of view.ranking) {
+      if (row.value != null) map.set(row.code, { name: row.name, value: row.value });
+    }
+    return map;
+  };
+  const entriesA = entryOf(viewA);
+  const entriesB = entryOf(viewB);
+
   const nameByCode = new Map<string, string>();
-  for (const row of [...viewA.ranking, ...viewB.ranking]) {
-    if (!nameByCode.has(row.code)) nameByCode.set(row.code, row.name);
+  for (const [code, entry] of [...entriesA, ...entriesB]) {
+    if (!nameByCode.has(code)) nameByCode.set(code, entry.name);
   }
 
-  // Dongs present (non-null) in BOTH metrics.
-  const codes = [...viewA.scores.keys()].filter((code) => viewB.scores.has(code));
-  const aValues = codes.map((code) => viewA.scores.get(code) as number);
-  const bValues = codes.map((code) => viewB.scores.get(code) as number);
+  // 두 지표 모두 값이 있는 지역만(읍면동 질의면 읍면동, 시군구 질의면 시군구).
+  const codes = [...entriesA.keys()].filter((code) => entriesB.has(code));
+  const aValues = codes.map((code) => entriesA.get(code)!.value);
+  const bValues = codes.map((code) => entriesB.get(code)!.value);
   const statA = standardize(aValues);
   const statB = standardize(bValues);
 
   const rows: CrossRow[] = codes
     .map((code) => {
-      const valueA = viewA.scores.get(code) as number;
-      const valueB = viewB.scores.get(code) as number;
+      const valueA = entriesA.get(code)!.value;
+      const valueB = entriesB.get(code)!.value;
       const zA = (valueA - statA.mean) / statA.std;
       const zB = (valueB - statB.mean) / statB.std;
       const composite = mode === "gap" ? zA - zB : zA + zB;
@@ -81,8 +99,17 @@ export function crossLayerView(
   const max = composites.length ? Math.max(...composites) : 1;
   const span = Math.max(1e-9, max - min);
   const scores = new Map<string, number>();
-  for (const row of rows) {
-    scores.set(row.code, composites.length <= 1 ? 50 : ((row.composite - min) / span) * 100);
+  const scoreOf = (composite: number) =>
+    composites.length <= 1 ? 50 : ((composite - min) / span) * 100;
+  if (adminLevel === "sgg") {
+    // 지도는 읍면동 폴리곤을 칠하므로, 시군구 점수를 소속 읍면동에 펼쳐 준다.
+    const byS = new Map(rows.map((row) => [row.code, scoreOf(row.composite)]));
+    for (const cell of a.cube.cells) {
+      const value = byS.get(cell.code.slice(0, 5));
+      if (value != null) scores.set(cell.code, value);
+    }
+  } else {
+    for (const row of rows) scores.set(row.code, scoreOf(row.composite));
   }
 
   return { ranked: rows, scores };

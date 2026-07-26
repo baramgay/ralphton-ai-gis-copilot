@@ -25,8 +25,25 @@ const SGG_CUES = [
   "행정구역별",
 ] as const;
 
+/**
+ * 읍면동을 명시적으로 요구하는 표현. 이것이 없으면 직전 질의의 단위가 그대로 이어져,
+ * "시군구별 소득" 다음에 "카드매출 늘어나는 동"을 물어도 시군구로 답했다(prod 실측).
+ * "동"만으로는 "동읍"·"동면" 같은 지명에 걸리므로 뒤에 조사·어미가 오는 꼴만 본다.
+ */
+const DONG_CUES = [
+  "읍면동",
+  "행정동",
+  "동별",
+  "동네",
+  "동 ",
+  "동?",
+] as const;
+
 export function detectAdminLevel(query: string, fallback: AdminLevel = "dong"): AdminLevel {
-  return SGG_CUES.some((cue) => query.includes(cue)) ? "sgg" : fallback;
+  if (SGG_CUES.some((cue) => query.includes(cue))) return "sgg";
+  // 문장 끝의 "…동"도 명시로 본다("카드매출 늘어나는 동").
+  if (DONG_CUES.some((cue) => query.includes(cue)) || /동$/.test(query.trim())) return "dong";
+  return fallback;
 }
 
 function bestTriggerMatch(text: string, metric: MetricDef): string | null {

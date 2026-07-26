@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 import { aggregateToSgg } from "@/lib/layers/aggregate";
+import { crossLayerView } from "@/lib/layers/cross-analysis";
 import { CUBE_LAYERS } from "@/lib/layers/catalog";
 import { resolveCrossQuery } from "@/lib/layers/resolve-cross-query";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
@@ -143,5 +144,49 @@ describe("시군구까지만 있는 지표는 시군구로 답한다", () => {
   test("읍면동까지 있는 지표는 그대로 읍면동이다", () => {
     expect(resolveLayerQuery("전입 많은 동", CUBE_LAYERS)?.adminLevel).toBe("dong");
     expect(resolveLayerQuery("생활인구 많은 동", CUBE_LAYERS)?.adminLevel).toBe("dong");
+  });
+});
+
+describe("시군구 교차분석", () => {
+  // buildLayerView의 scores는 지도 채색용이라 시군구에서도 읍면동 코드로 키가 잡힌다.
+  // 그것으로 순위를 만들면 22개 시군구가 305행으로 부풀고 이름 대신 코드가 나온다.
+  const load = (id: string) =>
+    LayerCubeSchema.parse(
+      JSON.parse(fs.readFileSync(path.join(process.cwd(), "public", "data", "layers", `${id}.json`), "utf-8")),
+    );
+
+  test("시군구 교차는 22행이고 이름이 붙는다", () => {
+    const skt = CUBE_LAYERS.find((l) => l.id === "skt-living")!;
+    const nh = CUBE_LAYERS.find((l) => l.id === "nh-consumption")!;
+    const result = crossLayerView(
+      { cube: load("skt-living"), metric: skt.metrics[0], metrics: [...skt.metrics] },
+      { cube: load("nh-consumption"), metric: nh.metrics[0], metrics: [...nh.metrics] },
+      "gap",
+      "sgg",
+    );
+    expect(result.ranked).toHaveLength(22);
+    for (const row of result.ranked) {
+      expect(row.code).toHaveLength(5);
+      expect(row.name, `${row.code}에 이름이 없다`).not.toBe(row.code);
+      expect(row.name).toMatch(/[가-힣]/);
+    }
+    // 지도는 읍면동을 칠하므로 점수는 읍면동 코드로 펼쳐져야 한다.
+    const keys = [...result.scores.keys()];
+    expect(keys.length).toBeGreaterThan(300);
+    expect(keys.every((k) => k.length === 10)).toBe(true);
+  });
+
+  test("읍면동 교차는 그대로 읍면동이다", () => {
+    const skt = CUBE_LAYERS.find((l) => l.id === "skt-living")!;
+    const nh = CUBE_LAYERS.find((l) => l.id === "nh-consumption")!;
+    const result = crossLayerView(
+      { cube: load("skt-living"), metric: skt.metrics[0], metrics: [...skt.metrics] },
+      { cube: load("nh-consumption"), metric: nh.metrics[0], metrics: [...nh.metrics] },
+      "gap",
+      "dong",
+    );
+    expect(result.ranked.length).toBeGreaterThan(300);
+    expect(result.ranked.every((row) => row.code.length === 10)).toBe(true);
+    expect(result.ranked.every((row) => row.name !== row.code)).toBe(true);
   });
 });

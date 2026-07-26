@@ -1916,10 +1916,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         title: `${trendMatch.metricLabel} ${directionLabel} 추세${periodLabel}`,
         summary:
           result.ranked.length === 0
-            ? `${trendMatch.metricLabel} 추세를 낼 수 있는 행정동 없음`
-            : `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel}폭이 큰 순. ` +
-              `1위 ${result.ranked[0].name.replace(/^경상남도\s*/, "")}은 ` +
-              describeTrend(result.ranked[0].trend, trendMatch.metricLabel, trendMatch.unit),
+            ? `${trendMatch.metricLabel} 추세를 낼 수 있는 지역 없음`
+            : // 질의 방향으로 실제 움직인 지역이 하나도 없을 수 있다. 그때 "감소폭이 큰 순"만
+              // 쓰면 1위가 오히려 오른 지역이어도 감소한 것처럼 읽힌다(prod에서 실제로 나왔다).
+              (() => {
+                const wanted = trendMatch.direction === "rising" ? 1 : -1;
+                const moved = result.ranked.filter(
+                  (row) => (row.trend.changeRate ?? 0) * wanted > 0,
+                ).length;
+                const top = result.ranked[0];
+                const lead =
+                  moved === 0
+                    ? `${trendMatch.metricLabel}(${trendMatch.provider})이 ${directionLabel}한 지역은 없음. 가장 ${directionLabel}에 가까운 순. `
+                    : `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel}폭이 큰 순(${moved}곳 ${directionLabel}). `;
+                return (
+                  lead +
+                  `1위 ${top.name.replace(/^경상남도\s*/, "")}은 ` +
+                  describeTrend(top.trend, trendMatch.metricLabel, trendMatch.unit)
+                );
+              })(),
         ranked: result.ranked.slice(0, 30).map((row) => {
           const name = row.name.replace(/^경상남도\s*/, "");
           const rate = row.trend.changeRate ?? 0;
