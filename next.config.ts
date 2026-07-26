@@ -63,6 +63,34 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * public/ 아래 데이터 파일의 캐시 정책.
+ *
+ * Next.js 기본값은 `public, max-age=0, must-revalidate`라, 행정동 경계 3.7MB와 민간 큐브
+ * 11개를 방문할 때마다 다시 받고 있었다(prod 헤더 실측). 두 종류는 갱신 방식이 달라 정책도
+ * 나눈다.
+ *
+ * - 행정동 경계: 파일명에 판번호가 들어간다(administrative-dong-20260701.geojson).
+ *   내용이 바뀌면 이름이 바뀌므로 영구 캐시해도 낡은 파일을 볼 일이 없다.
+ * - 민간 큐브: 파일명이 고정이고 어댑터를 다시 돌려 배포할 때 내용이 바뀐다. CDN은
+ *   배포마다 분리되니 길게 잡아도 되지만, 브라우저는 10분 뒤 다시 확인하게 둔다.
+ */
+const dataCacheHeaders = [
+  {
+    source: "/data/administrative-dong-:version.geojson",
+    headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+  },
+  {
+    source: "/data/layers/:file*",
+    headers: [
+      {
+        key: "Cache-Control",
+        value: "public, max-age=600, s-maxage=31536000, stale-while-revalidate=86400",
+      },
+    ],
+  },
+];
+
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   async headers() {
@@ -71,6 +99,7 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      ...dataCacheHeaders,
     ];
   },
 };

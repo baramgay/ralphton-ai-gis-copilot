@@ -38,7 +38,11 @@ function snapshotResponse(
 ) {
   return NextResponse.json(snapshot, {
     headers: {
-      'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+      // s-maxage가 없으면 Vercel CDN은 60초마다 만료시키고, 그 순간 들어온 방문자가
+      // 함수 콜드스타트를 그대로 기다린다(prod에서 11.5초 관측). CDN은 5분간 신선하게 주고,
+      // 그 뒤에는 낡은 응답을 즉시 주면서 뒤에서 갱신하게 한다. 스냅샷은 월 단위로 바뀌므로
+      // 이 정도 지연은 감수할 만하다.
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600',
       'X-Data-Source': source,
       'X-Snapshot-Mode': String(snapshot.mode ?? ''),
       'X-Reference-Month': String(snapshot.referenceMonth ?? ''),
