@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { computeTrend, describeTrend } from "@/lib/layers/trend";
+import { computeTrend, describeTrend, sliceRecent } from "@/lib/layers/trend";
 
 describe("computeTrend", () => {
   test("꾸준히 오르는 계열은 증가로 본다", () => {
@@ -84,5 +84,25 @@ describe("describeTrend", () => {
   test("첫 값이 0이면 변화율을 지어내지 않고 이유를 밝힌다", () => {
     const text = describeTrend(computeTrend([0, 10]), "야간 매출", "백만원");
     expect(text).toContain("변화율 산출 불가");
+  });
+});
+
+describe("sliceRecent", () => {
+  test("최근 N개월만 잘라 준다", () => {
+    expect(sliceRecent([1, 2, 3, 4, 5], 3)).toEqual([3, 4, 5]);
+  });
+
+  test("기간을 안 주거나 계열보다 길면 전 기간을 그대로 쓴다", () => {
+    const series = [1, 2, 3];
+    expect(sliceRecent(series)).toEqual(series);
+    expect(sliceRecent(series, 0)).toEqual(series);
+    expect(sliceRecent(series, 10)).toEqual(series);
+  });
+
+  test("잘라낸 구간으로 계산하면 장기와 방향이 갈릴 수 있다", () => {
+    // 진주시 정촌면 사례: 12개월로는 증가, 최근 3개월은 감소.
+    const series = [100, 120, 140, 160, 150, 140];
+    expect(computeTrend(series).direction).toBe("rising");
+    expect(computeTrend(sliceRecent(series, 3)).direction).toBe("falling");
   });
 });

@@ -19,6 +19,16 @@ export type TrendResult = {
 const FLAT_THRESHOLD_PERCENT = 3;
 
 /**
+ * 최근 N개월만 잘라 본다. 장기 추세와 최근 흐름이 갈리는 지역이 실제로 적지 않아
+ * (카드매출 기준 305개 동 중 44개에서 방향이 반대), 기간을 바꿔 볼 수 있어야 한다.
+ * months가 없거나 계열보다 길면 전 기간을 그대로 쓴다.
+ */
+export function sliceRecent<T>(series: ReadonlyArray<T>, months?: number): ReadonlyArray<T> {
+  if (!months || months <= 0 || months >= series.length) return series;
+  return series.slice(-months);
+}
+
+/**
  * 시계열 추세를 낸다.
  *
  * 지금까지는 기준월 한 시점만 보여줘 "이 동의 카드매출이 높다"까지는 알아도 "늘고 있는지
