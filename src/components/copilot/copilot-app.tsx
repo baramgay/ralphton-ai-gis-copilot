@@ -2178,7 +2178,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   };
 
   return (
-    <main className="copilot-shell" style={shellStyle}>
+    <main className="copilot-shell" style={shellStyle} data-sheet={sheetMode}>
       <a href="#left-panel" className="skip-link">
         분석 조작 패널로 건너뛰기
       </a>
@@ -3267,7 +3267,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ) : null}
         </div>
 
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 max-md:bottom-20">
+        <div className="map-float-dock absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 max-md:bottom-20">
           <div className="map-float-bar">
             <button
               type="button"
