@@ -738,6 +738,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // 낮은 쪽을 물었으면 순위를 뒤집는다. 레이어를 바꿔도 방향이 남아 있으면 혼란스러우므로
   // 새 질의·레이어 선택 때마다 다시 정한다.
   const [layerDirection, setLayerDirection] = useState<"desc" | "asc">("desc");
+  // 질의에 시군구가 적혀 있으면 그 안에서만 줄을 세운다.
+  const [layerRegionFilter, setLayerRegionFilter] = useState<string | null>(null);
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
@@ -1186,8 +1188,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const layerAnalysisResult = useMemo(() => {
     if (activeLayerId === "medical" || !activeMetric || !activeCube) return null;
-    return layerCubeToAnalysisView(activeCube, activeMetric, activeLayerMetrics, adminLevel, layerDirection);
-  }, [activeLayerId, activeMetric, activeLayerMetrics, activeCube, adminLevel, layerDirection]);
+    return layerCubeToAnalysisView(activeCube, activeMetric, activeLayerMetrics, adminLevel, layerDirection, layerRegionFilter);
+  }, [activeLayerId, activeMetric, activeLayerMetrics, activeCube, adminLevel, layerDirection, layerRegionFilter]);
 
   /**
    * 선택한 지역이 지금 레이어에 없으면 그 레이어의 1위로 옮긴다.
@@ -1265,6 +1267,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveLayerId(match.layerId as LayerId);
       setActiveMetricKey(match.metricKey);
       setLayerDirection(match.direction);
+      setLayerRegionFilter(match.regionFilter);
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       setQueryNotice(
         `${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${match.provider} 민간데이터).`,
@@ -2122,11 +2125,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveLayerId(layerMatch.layerId as LayerId);
       setActiveMetricKey(layerMatch.metricKey);
       setLayerDirection(layerMatch.direction);
+      setLayerRegionFilter(layerMatch.regionFilter);
       if (layerMatch.adminLevel !== adminLevel) setAdminLevel(layerMatch.adminLevel);
       setActiveTab("control");
       setParseStage("done");
       setQueryNotice(
-        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위).`,
+        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.regionFilter ? `${layerMatch.regionFilter} 안 ` : ""}${layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${layerMatch.direction === "asc" ? " · 낮은 순" : ""}).`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2422,6 +2426,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     // 앞 질의에서 "낮은 순"이었으면 레이어만 바꿨을 때도 그대로 남는다.
                     // 버튼으로 고른 것은 방향 요구가 없으므로 기본(높은 순)으로 되돌린다.
                     setLayerDirection("desc");
+                    setLayerRegionFilter(null);
                     if (nextId !== "medical") {
                       setActiveMetricKey(CUBE_LAYER_METRICS[nextId][0].key);
                     }

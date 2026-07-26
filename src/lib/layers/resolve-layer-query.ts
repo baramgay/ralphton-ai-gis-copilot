@@ -1,3 +1,4 @@
+import { GYEONGNAM_DISTRICT_LABELS } from "@/lib/analysis/query-catalog-meta";
 import type { AdminLevel, LayerDescriptor, MetricDef } from "@/lib/layers/types";
 
 /** A layer descriptor with or without its resolved `months` (catalog entries omit months). */
@@ -7,6 +8,8 @@ export type LayerQueryMatch = {
   layerId: string;
   /** 낮은 쪽을 물었으면 "asc". 기본은 큰 값부터. */
   direction: "desc" | "asc";
+  /** 질의에 시군구가 적혀 있으면 그 이름. 순위를 그 안으로 좁힌다. */
+  regionFilter: string | null;
   layerLabel: string;
   provider: LayerDescriptor["provider"];
   metricKey: string;
@@ -50,6 +53,44 @@ const DONG_CUES = [
  */
 const LOW_CUES = ["적은", "낮은", "작은", "하위", "부족한", "적게", "낮게"];
 const HIGH_CUES = ["많은", "높은", "큰", "상위", "많이", "높게"];
+
+/**
+ * 질의에 적힌 시군구를 찾는다.
+ *
+ * "창원 생활인구 많은 동"이라고 물었는데 경남 전체 1위인 양산시 물금읍을 답하고 있었다
+ * (prod 실측). 사용자가 지역을 지정하면 그 안에서 줄을 세워야 한다.
+ *
+ * 긴 이름부터 본다 — "창원시 성산구"가 "창원"보다 먼저 잡혀야 구 단위 질의가 산다.
+ * 큐브 셀 이름이 "창원시성산구 …"처럼 붙어 있어 공백을 뺀 형태로도 맞춰 본다.
+ */
+const REGION_TOKENS = (() => {
+  const tokens: Array<{ match: string; filter: string }> = [];
+  for (const label of GYEONGNAM_DISTRICT_LABELS) {
+    const compact = label.replace(/\s+/g, "");
+    tokens.push({ match: compact, filter: label });
+    // "김해" → 김해시
+    const short = compact.replace(/시$/, "");
+    if (short !== compact) tokens.push({ match: short, filter: label });
+    // "창원" → 창원시 전체(5개 구). 어느 구인지 안 적었으면 시 전체로 본다.
+    const cityHead = compact.match(/^(.+?시)(?=.*구$)/)?.[1];
+    if (cityHead) {
+      tokens.push({ match: cityHead, filter: cityHead });
+      tokens.push({ match: cityHead.replace(/시$/, ""), filter: cityHead });
+    }
+  }
+  const seen = new Set<string>();
+  return tokens
+    .filter((token) => (seen.has(token.match) ? false : (seen.add(token.match), true)))
+    .sort((a, b) => b.match.length - a.match.length);
+})();
+
+export function detectRegionFilter(query: string): string | null {
+  const compact = query.replace(/\s+/g, "");
+  for (const { match, filter } of REGION_TOKENS) {
+    if (match.length >= 2 && compact.includes(match)) return filter;
+  }
+  return null;
+}
 
 export function detectDirection(query: string): "desc" | "asc" {
   const low = LOW_CUES.map((cue) => query.indexOf(cue)).filter((at) => at >= 0);
@@ -125,6 +166,7 @@ export function resolveLayerQuery(
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           ),
           direction: detectDirection(text),
+          regionFilter: detectRegionFilter(text),
           matchedTrigger: trigger,
           triggerLength: trigger.length,
         };

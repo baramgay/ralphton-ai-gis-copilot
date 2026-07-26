@@ -32,7 +32,12 @@ export function buildLayerView(
   monthIndex: number,
   metrics: MetricDef[],
   direction: "desc" | "asc" = "desc",
+  /** 이 문자열이 이름에 든 지역만 순위에 남긴다(공백 무시). 지도 채색은 그대로 둔다. */
+  regionFilter: string | null = null,
 ): LayerView {
+  const compactFilter = regionFilter?.replace(/\s+/g, "") ?? null;
+  const inRegion = (name: string) =>
+    compactFilter === null || name.replace(/\s+/g, "").includes(compactFilter);
   if (adminLevel === "dong") {
     const scores = new Map<string, number>();
     const ranking: LayerRankRow[] = cube.cells.map((cell) => {
@@ -40,7 +45,7 @@ export function buildLayerView(
       if (value != null) scores.set(cell.code, value);
       return { code: cell.code, name: cell.name, value };
     });
-    return { scores, ranking: sortRanking(ranking, direction) };
+    return { scores, ranking: sortRanking(ranking.filter((row) => inRegion(row.name)), direction) };
   }
 
   const sggCube = aggregateToSgg(cube, metrics);
@@ -57,5 +62,5 @@ export function buildLayerView(
     if (sggValue != null) scores.set(dongCell.code, sggValue);
   }
 
-  return { scores, ranking: sortRanking(ranking, direction) };
+  return { scores, ranking: sortRanking(ranking.filter((row) => inRegion(row.name)), direction) };
 }

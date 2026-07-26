@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { CUBE_LAYERS } from "@/lib/layers/catalog";
-import { detectDirection, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
+import { detectDirection, detectRegionFilter, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { buildLayerView } from "@/lib/layers/select";
 import type { LayerCube, MetricDef } from "@/lib/layers/types";
 
@@ -71,5 +71,42 @@ describe("buildLayerView 정렬", () => {
     // 오름차순이라고 결측을 1위로 올리면 "가장 적은 곳"이 데이터 없는 곳이 된다.
     const view = buildLayerView(cube, "v", "dong", 0, [metric], "asc");
     expect(view.ranking[view.ranking.length - 1].value).toBeNull();
+  });
+});
+
+describe("지역 한정", () => {
+  // "창원 생활인구 많은 동"이라고 물었는데 경남 전체 1위인 양산시 물금읍을 답하고 있었다.
+  test("시군구 이름을 알아본다", () => {
+    // "창원"만 적으면 어느 구인지 알 수 없다. 5개 구 중 하나로 좁히지 말고 시 전체로 본다.
+    expect(detectRegionFilter("창원 생활인구 많은 동")).toMatch(/^창원시/);
+  });
+
+  test("구 단위가 시 단위보다 먼저 잡힌다", () => {
+    expect(detectRegionFilter("창원시 성산구 카드매출")).toBe("창원시 성산구");
+    expect(detectRegionFilter("김해 카드매출 높은 곳")).toBe("김해시");
+  });
+
+  test("지역이 없으면 null", () => {
+    expect(detectRegionFilter("카드매출 높은 곳")).toBeNull();
+  });
+
+  test("순위가 그 지역 안으로 좁혀진다", () => {
+    const metric: MetricDef = {
+      key: "v", label: "값", unit: "명", aggregation: "sum",
+      formula: "f", limitation: "", triggers: ["값"],
+    };
+    const cube: LayerCube = {
+      layerId: "t", adminLevel: "dong", referenceMonth: "2025-01", months: ["2025-01"],
+      cells: [
+        { code: "4812100000", name: "경상남도 창원시성산구 중앙동", point: { lat: 35, lng: 128 }, areaKm2: 1, series: { v: [10] } },
+        { code: "4833000000", name: "경상남도 양산시 물금읍", point: { lat: 35, lng: 129 }, areaKm2: 1, series: { v: [99] } },
+      ],
+    };
+    const all = buildLayerView(cube, "v", "dong", 0, [metric]);
+    expect(all.ranking[0].name).toContain("물금읍");
+
+    const scoped = buildLayerView(cube, "v", "dong", 0, [metric], "desc", "창원시 성산구");
+    expect(scoped.ranking).toHaveLength(1);
+    expect(scoped.ranking[0].name).toContain("중앙동");
   });
 });
