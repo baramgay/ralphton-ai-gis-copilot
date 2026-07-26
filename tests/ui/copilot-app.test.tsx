@@ -896,6 +896,31 @@ describe("CopilotApp", () => {
     expect(screen.queryByText(/분석을 실행하는 중/)).toBeNull();
   }, 30_000);
 
+  test("답하지 못한 질의에는 직전 결과임을 밝힌다", async () => {
+    // 답을 못 찾아도 화면에는 직전 분석이 남는다(작업을 잃지 않게). 그런데 그러면
+    // "부산 소득 높은 곳"에 경남 순위가 붙어 그 질문의 답처럼 읽힌다(prod 실측).
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    expect(screen.queryByTestId("stale-answer-notice")).toBeNull();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "부산 소득 높은 곳" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/부산.*범위 밖/);
+    });
+    expect(screen.getByTestId("stale-answer-notice")).toBeInTheDocument();
+
+    // 답할 수 있는 질의로 바꾸면 표시가 사라진다.
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "생활인구 많은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(screen.queryByTestId("stale-answer-notice")).toBeNull());
+  }, 30_000);
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

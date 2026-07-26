@@ -741,6 +741,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [layerDirection, setLayerDirection] = useState<"desc" | "asc">("desc");
   // 질의에 시군구가 적혀 있으면 그 안에서만 줄을 세운다.
   const [layerRegionFilter, setLayerRegionFilter] = useState<string | null>(null);
+  /**
+   * 방금 질의에 답하지 못했는가.
+   *
+   * 답을 못 찾아도 화면에는 직전 분석이 그대로 남는다(작업을 잃지 않게 하려는 것이다).
+   * 그런데 그러면 "오늘 날씨 어때"에 "평균소득 상위 3곳은 …"이 붙어 그 질문의 답처럼
+   * 읽힌다(prod 실측). 결과를 지우는 대신 직전 것임을 밝힌다.
+   */
+  const [answeredLastQuery, setAnsweredLastQuery] = useState(true);
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
@@ -2098,6 +2106,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         `"${outOfScope}"은(는) 경남 지역 범위 밖입니다. 이 도구는 경남 305개 읍면동만 다룹니다.`,
       );
       setQueryNoticeTone("error");
+      setAnsweredLastQuery(false);
       return;
     }
 
@@ -2108,7 +2117,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     });
     if (trendMatch) {
       rememberQuery(trimmed);
-      if (runTrend(trendMatch)) return;
+      if (runTrend(trendMatch)) { setAnsweredLastQuery(true); return; }
       // 큐브가 아직 없을 뿐이다. 받아 와서 그대로 이어 실행한다.
       requestCubesAndRetry([trendMatch.layerId], { kind: "trend", match: trendMatch });
       setParseStage("analyze");
@@ -2122,7 +2131,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const cross = resolveCrossQuery(trimmed, CROSS_LAYERS, { adminLevelFallback: adminLevel });
     if (cross) {
       rememberQuery(trimmed);
-      if (runCross(cross)) return;
+      if (runCross(cross)) { setAnsweredLastQuery(true); return; }
 
       // 교차 질의로 해석은 됐는데 큐브가 아직 없다. 단일 레이어 경로로 조용히 흘리지 말고,
       // 필요한 두 큐브를 받아 와서 그대로 이어 실행한다.
@@ -2145,6 +2154,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveMetricKey(layerMatch.metricKey);
       setLayerDirection(layerMatch.direction);
       setLayerRegionFilter(layerMatch.regionFilter);
+      setAnsweredLastQuery(true);
       if (layerMatch.adminLevel !== adminLevel) setAdminLevel(layerMatch.adminLevel);
       setActiveTab("control");
       setParseStage("done");
@@ -2182,6 +2192,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             "이 질문으로는 바로 분석하기 어렵습니다. 예시 질문을 눌러 보세요.",
         );
         setQueryNoticeTone("error");
+        setAnsweredLastQuery(false);
         setQuerySuggestions(data.suggestions?.length ? data.suggestions : [...QUERY_SUGGESTIONS]);
         rememberQuery(trimmed);
         return;
@@ -2189,6 +2200,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       rememberQuery(trimmed);
       if (!snapshot) return;
 
+      setAnsweredLastQuery(true);
       setParseStage("analyze");
       setQueryNotice("분석 실행 중…");
 
@@ -3626,6 +3638,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </div>
           ) : null}
           <p className="ui-body mt-1.5 text-slate-600">{analysis.summary}</p>
+          {!answeredLastQuery ? (
+            <p
+              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 ui-body text-amber-900"
+              data-testid="stale-answer-notice"
+            >
+              방금 질문에는 답하지 못했습니다. 아래는 직전 분석 결과입니다.
+            </p>
+          ) : null}
           {oneLineConclusion ? (
             <div className="result-conclusion mt-2.5" data-testid="one-line-conclusion">
               <div className="mb-0.5 flex items-center justify-between gap-2">
