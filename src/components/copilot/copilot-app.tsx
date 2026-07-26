@@ -1196,20 +1196,36 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
   }, []);
 
+  /**
+   * 처음 온 사람에게 이 도구가 무엇인지 한 번에 보여 준다.
+   *
+   * 이 도구의 주 용도는 민간데이터(SKT·NH·KCB)를 자연어로 묻는 것이므로, 예시도 그것으로
+   * 건다. 질의문을 질문창에 남겨 두어 "이렇게 물으면 되는구나"가 눈에 남게 한다.
+   */
+  const ONBOARD_EXAMPLE = "생활인구 많은 동네";
   const runOnboardExample = useCallback(() => {
     dismissOnboard();
     setActiveTab("control");
-    setActiveQuick("scarcity");
     setCustomAnalysis(null);
     setSelectedFacilityId(null);
     setDrillTrail([]);
-    if (snapshot) {
-      const next = executeQuickAnalysis(snapshot, "scarcity", radiusKm, comparePair);
-      if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
+    setQuery(ONBOARD_EXAMPLE);
+
+    const match = resolveLayerQuery(ONBOARD_EXAMPLE, PRIVATE_NL_LAYERS, {
+      adminLevelFallback: adminLevel,
+    });
+    if (match) {
+      setActiveLayerId(match.layerId as LayerId);
+      setActiveMetricKey(match.metricKey);
+      if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
+      setQueryNotice(
+        `${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${match.provider} 민간데이터).`,
+      );
+      setQueryNoticeTone("success");
     }
     setSheetMode("right");
-    showToast("의료 취약 분석 시작");
-  }, [comparePair, dismissOnboard, radiusKm, showToast, snapshot]);
+    showToast("생활인구 분석 시작");
+  }, [adminLevel, dismissOnboard, showToast]);
 
   const interpretation = useMemo(() => {
     if (!snapshot || !analysis) return null;
@@ -2377,7 +2393,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ref={queryInputRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: 창원 의료 취약 어디? 김해 고령 밀집?"
+                    placeholder="예: 생활인구 많은 동네? 시군구별 평균소득?"
                     maxLength={1000}
                     className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-12 ui-body-lg shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                   />
@@ -3410,13 +3426,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </h2>
             <ol className="mt-3 space-y-2 ui-body text-slate-200">
               <li>
-                <span className="font-bold text-white">1.</span> 왼쪽에서 「의료 취약」을 누릅니다
+                <span className="font-bold text-white">1.</span> 질문창에 「생활인구 많은 동네」처럼 적습니다
               </li>
               <li>
-                <span className="font-bold text-white">2.</span> 지도에서 행정동을 고릅니다
+                <span className="font-bold text-white">2.</span> SKT·NH·KCB 민간데이터가 지도에 칠해집니다
               </li>
               <li>
-                <span className="font-bold text-white">3.</span> 오른쪽에서 순위·해석을 확인합니다
+                <span className="font-bold text-white">3.</span> 오른쪽에서 순위·해석을 보고 보고서로 내보냅니다
               </li>
             </ol>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -3425,7 +3441,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 className="rounded-full bg-blue-500 px-3.5 py-2 ui-chip font-bold text-white hover:bg-blue-400"
                 onClick={runOnboardExample}
               >
-                의료 취약 실행
+                생활인구 보기
               </button>
               <button
                 type="button"
