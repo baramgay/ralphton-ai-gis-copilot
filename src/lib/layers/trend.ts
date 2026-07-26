@@ -19,13 +19,51 @@ export type TrendResult = {
 const FLAT_THRESHOLD_PERCENT = 3;
 
 /**
- * 최근 N개월만 잘라 본다. 장기 추세와 최근 흐름이 갈리는 지역이 실제로 적지 않아
+ * 최근 N개 관측만 잘라 본다. 장기 추세와 최근 흐름이 갈리는 지역이 실제로 적지 않아
  * (카드매출 기준 305개 동 중 44개에서 방향이 반대), 기간을 바꿔 볼 수 있어야 한다.
- * months가 없거나 계열보다 길면 전 기간을 그대로 쓴다.
+ *
+ * 관측 수 기준이라 큐브의 시점 간격이 월이 아니면 실제 기간과 어긋난다. 월 기간으로
+ * 자르려면 sliceRecentMonths를 쓴다.
  */
 export function sliceRecent<T>(series: ReadonlyArray<T>, months?: number): ReadonlyArray<T> {
   if (!months || months <= 0 || months >= series.length) return series;
   return series.slice(-months);
+}
+
+/** "2025-03" → 0부터 세는 절대 월 번호. 연도를 넘는 간격 계산에 쓴다. */
+function monthNumber(label: string): number | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(label.trim());
+  if (!match) return null;
+  return Number(match[1]) * 12 + (Number(match[2]) - 1);
+}
+
+/**
+ * 실제 달력 기준으로 최근 N개월 구간만 남긴다.
+ *
+ * 큐브마다 시점 간격이 다르다 — NH는 12개 월별, KCB 전입·통근은 4개 분기별(종료월 표기)이다.
+ * 관측 개수로 자르면 "최근 3개월"을 골라도 KCB는 3개 분기, 곧 9개월치를 보게 되어 화면 라벨과
+ * 데이터가 어긋난다. 여기서는 마지막 시점을 기준으로 N개월 안에 드는 관측만 남긴다.
+ * 그 결과 KCB에서 3개월을 고르면 관측이 하나뿐이라 추세가 산출되지 않는데, 없는 추세를
+ * 지어내는 것보다 낫다.
+ */
+export function sliceRecentMonths<T>(
+  series: ReadonlyArray<T>,
+  monthLabels: ReadonlyArray<string>,
+  windowMonths?: number,
+): ReadonlyArray<T> {
+  if (!windowMonths || windowMonths <= 0) return series;
+  if (monthLabels.length !== series.length) return sliceRecent(series, windowMonths);
+
+  const numbers = monthLabels.map(monthNumber);
+  const last = numbers[numbers.length - 1];
+  if (last === null) return sliceRecent(series, windowMonths);
+
+  const earliest = last - (windowMonths - 1);
+  const kept: T[] = [];
+  numbers.forEach((value, index) => {
+    if (value !== null && value >= earliest) kept.push(series[index]);
+  });
+  return kept.length > 0 ? kept : series.slice(-1);
 }
 
 /**

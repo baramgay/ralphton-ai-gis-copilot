@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { computeTrend, describeTrend, sliceRecent } from "@/lib/layers/trend";
+import { computeTrend, describeTrend, sliceRecent, sliceRecentMonths } from "@/lib/layers/trend";
 
 describe("computeTrend", () => {
   test("꾸준히 오르는 계열은 증가로 본다", () => {
@@ -104,5 +104,42 @@ describe("sliceRecent", () => {
     const series = [100, 120, 140, 160, 150, 140];
     expect(computeTrend(series).direction).toBe("rising");
     expect(computeTrend(sliceRecent(series, 3)).direction).toBe("falling");
+  });
+});
+
+describe("sliceRecentMonths", () => {
+  const monthly = ["2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12"];
+  const quarterly = ["2025-03", "2025-06", "2025-09", "2025-12"];
+
+  test("월별 큐브는 최근 N개월이 곧 N개 관측이다", () => {
+    const series = [1, 2, 3, 4, 5, 6];
+    expect(sliceRecentMonths(series, monthly, 3)).toEqual([4, 5, 6]);
+  });
+
+  test("분기별 큐브에서 3개월을 고르면 관측이 하나뿐이다", () => {
+    // 관측 개수로 자르면 3개 분기(9개월)를 보게 되어 화면 라벨과 어긋난다.
+    const series = [10, 20, 30, 40];
+    expect(sliceRecentMonths(series, quarterly, 3)).toEqual([40]);
+    // 6개월이면 2개 분기가 들어와 추세를 낼 수 있다.
+    expect(sliceRecentMonths(series, quarterly, 6)).toEqual([30, 40]);
+  });
+
+  test("연도를 넘는 구간도 제대로 센다", () => {
+    const labels = ["2024-11", "2024-12", "2025-01", "2025-02"];
+    expect(sliceRecentMonths([1, 2, 3, 4], labels, 3)).toEqual([2, 3, 4]);
+  });
+
+  test("기간을 안 주면 전 기간을 그대로 쓴다", () => {
+    const series = [1, 2, 3];
+    expect(sliceRecentMonths(series, ["2025-10", "2025-11", "2025-12"])).toEqual(series);
+  });
+
+  test("라벨 수가 맞지 않으면 관측 개수 기준으로 물러난다", () => {
+    expect(sliceRecentMonths([1, 2, 3, 4], ["2025-11", "2025-12"], 2)).toEqual([3, 4]);
+  });
+
+  test("구간에 드는 관측이 없어도 최소 하나는 남긴다", () => {
+    // 빈 배열을 돌려주면 호출부가 추세 대신 오류를 마주하게 된다.
+    expect(sliceRecentMonths([1, 2, 3], ["2020-01", "2020-02", "2020-03"], 1)).toHaveLength(1);
   });
 });

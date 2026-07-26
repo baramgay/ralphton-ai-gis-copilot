@@ -1,4 +1,4 @@
-import { computeTrend, sliceRecent, type TrendResult } from "@/lib/layers/trend";
+import { computeTrend, sliceRecentMonths, type TrendResult } from "@/lib/layers/trend";
 import type { AdminLevel, LayerCube, MetricDef } from "@/lib/layers/types";
 import { aggregateToSgg } from "@/lib/layers/aggregate";
 
@@ -35,7 +35,7 @@ export function buildTrendRanking(
 
   const rows: TrendRow[] = [];
   for (const cell of source.cells) {
-    const trend = computeTrend(sliceRecent(cell.series[metric.key] ?? [], trendMonths));
+    const trend = computeTrend(sliceRecentMonths(cell.series[metric.key] ?? [], source.months, trendMonths));
     if (trend.changeRate === null) continue;
     rows.push({ code: cell.code, name: cell.name, trend });
   }
