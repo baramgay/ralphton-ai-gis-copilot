@@ -1,4 +1,4 @@
-import { computeTrend, type TrendResult } from "@/lib/layers/trend";
+import { computeTrend, sliceRecent, type TrendResult } from "@/lib/layers/trend";
 import type { LayerCube, LayerDescriptor, MetricDef } from "@/lib/layers/types";
 
 export type ProfileEntry = {
@@ -51,6 +51,8 @@ export function buildRegionProfile(
   name: string,
   layers: readonly LayerLike[],
   cubes: Record<string, LayerCube | null | undefined>,
+  /** 추세를 볼 기간(개월). 없으면 전 기간. 장기와 최근 흐름이 갈리는 지역이 적지 않다. */
+  trendMonths?: number,
 ): RegionProfile {
   const entries: ProfileEntry[] = [];
 
@@ -80,8 +82,8 @@ export function buildRegionProfile(
         unit: metric.unit,
         value,
         percentile: value === null ? null : percentileOf(value, all),
-        // 기준월 한 시점이 아니라 그 동의 전 기간 계열로 방향을 본다.
-        trend: computeTrend(series ?? []),
+        // 기준월 한 시점이 아니라 계열로 방향을 본다. 기간을 좁히면 최근 흐름만 본다.
+        trend: computeTrend(sliceRecent(series ?? [], trendMonths)),
         referenceMonth: cube.referenceMonth,
       });
     }

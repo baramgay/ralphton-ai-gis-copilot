@@ -759,6 +759,19 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/카드매출/);
   }, 30_000);
 
+  test("프로파일에서 추세 기간을 바꿀 수 있다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
+    // 기본은 전 기간
+    expect(within(profile).getByTestId("trend-months-0")).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(within(profile).getByTestId("trend-months-3"));
+    expect(within(profile).getByTestId("trend-months-3")).toHaveAttribute("aria-pressed", "true");
+    expect(within(profile).getByTestId("trend-months-0")).toHaveAttribute("aria-pressed", "false");
+  }, 30_000);
+
   test("원클릭 추세 프리셋이 자연어 없이 추세를 낸다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

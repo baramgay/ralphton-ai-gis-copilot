@@ -738,6 +738,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
+  // 추세를 볼 기간. 0은 전 기간. 장기 추세와 최근 흐름이 갈리는 동이 14%라 바꿔 볼 수 있어야 한다.
+  const [trendMonths, setTrendMonths] = useState<number>(0);
   const [remoteCubeErrors, setRemoteCubeErrors] = useState<Record<string, string | null>>({});
   const [sheetHeight, setSheetHeight] = useState(72);
   const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -1237,8 +1239,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (!region) return null;
     const cubes: Record<string, LayerCube | null> = { population: populationCube };
     for (const layer of REMOTE_CUBE_LAYERS) cubes[layer.id] = remoteCubes[layer.id] ?? null;
-    return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_NL_LAYERS, cubes);
-  }, [populationCube, remoteCubes, selectedRegionCode, snapshot]);
+    return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_NL_LAYERS, cubes, trendMonths);
+  }, [populationCube, remoteCubes, selectedRegionCode, snapshot, trendMonths]);
 
   const focusRegionCodes = useMemo(() => {
     if (!snapshot || !isCompareView) return null;
@@ -3455,8 +3457,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </summary>
               <div className="border-t border-slate-100 px-2.5 py-2">
                 <p className="ui-caption mb-1.5 text-slate-500">
-                  괄호 안은 경남 305개 행정동 대비 백분위(100=최상위) · ▲▼는 전 기간 추세
+                  괄호 안은 경남 305개 행정동 대비 백분위(100=최상위) · ▲▼는 추세
                 </p>
+                <div className="mb-2 flex items-center gap-1" role="group" aria-label="추세 기간">
+                  <span className="ui-caption text-slate-500">추세 기간</span>
+                  {[
+                    { months: 0, label: "전체" },
+                    { months: 6, label: "6개월" },
+                    { months: 3, label: "3개월" },
+                  ].map((option) => (
+                    <button
+                      key={option.months}
+                      type="button"
+                      data-testid={`trend-months-${option.months}`}
+                      aria-pressed={trendMonths === option.months}
+                      onClick={() => setTrendMonths(option.months)}
+                      className={`rounded-md border px-1.5 py-0.5 ui-caption font-semibold transition ${
+                        trendMonths === option.months
+                          ? "border-blue-300 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
                 <ul className="space-y-1">
                   {regionProfile.entries.map((entry) => (
                     <li

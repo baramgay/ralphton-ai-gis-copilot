@@ -102,6 +102,33 @@ describe("buildRegionProfile", () => {
     expect(profile.entries[0].trend.direction).toBe("flat");
   });
 
+  test("기간을 좁히면 최근 흐름만 보아 방향이 갈릴 수 있다", () => {
+    // 장기로는 올랐지만 최근에 꺾인 계열(진주시 정촌면 같은 실제 사례).
+    const turning = {
+      skt: {
+        layerId: "skt",
+        adminLevel: "dong" as const,
+        referenceMonth: "2025-06",
+        months: ["2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06"],
+        cells: [
+          {
+            code: "4811100000",
+            name: "동1",
+            point: { lat: 35, lng: 128 },
+            areaKm2: 1,
+            series: { a: [100, 120, 140, 160, 150, 140] },
+          },
+        ],
+      },
+    };
+    const full = buildRegionProfile("4811100000", "동1", [layers[0]], turning);
+    expect(full.entries[0].trend.direction).toBe("rising");
+
+    const recent = buildRegionProfile("4811100000", "동1", [layers[0]], turning, 3);
+    expect(recent.entries[0].trend.direction).toBe("falling");
+    expect(recent.entries[0].trend.points).toBe(3);
+  });
+
   test("값이 결측이면 백분위를 지어내지 않는다", () => {
     const withNull = { skt: cube("skt", { a: [null, 20, 30] }) };
     const profile = buildRegionProfile("4811100000", "동1", [layers[0]], withNull);
