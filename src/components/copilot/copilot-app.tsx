@@ -1078,6 +1078,30 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (target) loadCube(target);
   }, [activeLayerId, loadCube]);
 
+  /**
+   * 아직 없는 큐브를 당겨오고, 도착하면 그 질의를 다시 실행한다.
+   *
+   * 큐브를 화면이 뜬 뒤에 받도록 미루면서, 화면이 뜨자마자 민간 질의를 던진 사용자가
+   * "잠시 후 다시 시도해 주세요"를 보는 창이 생겼다. 사용자에게 다시 하라고 할 일이
+   * 아니라 필요한 것을 받아서 이어가면 된다.
+   */
+  const [pendingCubeQuery, setPendingCubeQuery] = useState<
+    { kind: "trend"; match: TrendQueryMatch } | { kind: "cross"; match: CrossQueryMatch } | null
+  >(null);
+
+  const requestCubesAndRetry = useCallback(
+    (layerIds: string[], pending: NonNullable<typeof pendingCubeQuery>) => {
+      const targets = layerIds
+        .map((id) => REMOTE_CUBE_LAYERS.find((layer) => layer.id === id))
+        .filter((layer): layer is (typeof REMOTE_CUBE_LAYERS)[number] => Boolean(layer));
+      if (targets.length === 0) return;
+      setPendingCubeQuery(pending);
+      for (const layer of targets) loadCube(layer);
+    },
+    [loadCube],
+  );
+
+
   // 나머지는 첫 화면에 필요한 스냅샷·경계가 도착한 뒤 받는다. 큐브 11개(약 1.4MB)가 대역을
   // 먼저 차지하면 정작 화면을 띄우는 데 필요한 데이터가 밀려 "준비하는 중"이 길어진다.
   // 필수 데이터가 온 뒤 곧바로 시작하므로 교차·추세 질의는 큐브를 기다리지 않는다.
@@ -1947,6 +1971,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [adminLevel, runTrend],
   );
 
+  // 실행 함수를 담아 두면 그 클로저가 옛 remoteCubes를 붙잡아 큐브가 와도 없다고 본다.
+  // 그래서 무엇을 물었는지(match)만 남기고, 실행은 지금 시점의 콜백으로 한다.
+  useEffect(() => {
+    if (!pendingCubeQuery) return;
+    const ok =
+      pendingCubeQuery.kind === "trend"
+        ? runTrend(pendingCubeQuery.match)
+        : runCross(pendingCubeQuery.match);
+    if (!ok) return; // 아직 다 안 왔다. 다음 큐브 도착 때 다시 본다.
+    setPendingCubeQuery(null);
+    setQueryNotice(null);
+    setParseStage("done");
+  }, [pendingCubeQuery, runTrend, runCross]);
+
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();
     const trimmed = query.trim();
@@ -1960,8 +1998,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (trendMatch) {
       rememberQuery(trimmed);
       if (runTrend(trendMatch)) return;
-      setParseStage("idle");
-      setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      // 큐브가 아직 없을 뿐이다. 받아 와서 그대로 이어 실행한다.
+      requestCubesAndRetry([trendMatch.layerId], { kind: "trend", match: trendMatch });
+      setParseStage("analyze");
+      setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
       setQueryNoticeTone("neutral");
       return;
     }
@@ -1973,10 +2013,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       rememberQuery(trimmed);
       if (runCross(cross)) return;
 
-      // Matched a cross query but a cube isn't loaded yet — tell the user instead of
-      // silently falling through to single-layer routing.
-      setParseStage("idle");
-      setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      // 교차 질의로 해석은 됐는데 큐브가 아직 없다. 단일 레이어 경로로 조용히 흘리지 말고,
+      // 필요한 두 큐브를 받아 와서 그대로 이어 실행한다.
+      requestCubesAndRetry([cross.a.layerId, cross.b.layerId], { kind: "cross", match: cross });
+      setParseStage("analyze");
+      setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
       setQueryNoticeTone("neutral");
       return;
     }

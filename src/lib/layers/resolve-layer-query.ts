@@ -69,7 +69,12 @@ export function resolveLayerQuery(
           provider: layer.provider,
           metricKey: metric.key,
           metricLabel: metric.label,
-          adminLevel: detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+          // 시군구까지만 있는 지표는 읍면동으로 물어도 시군구로 답해야 한다.
+          // 그러지 않으면 같은 값을 나눠 가진 읍면동들에 임의의 순위가 매겨진다.
+          adminLevel:
+            metric.scope === "sgg"
+              ? "sgg"
+              : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           matchedTrigger: trigger,
           triggerLength: trigger.length,
         };

@@ -31,6 +31,8 @@ const CONJUNCTION = /고\s|와\s|과\s|랑\s|이랑|그리고|같이|함께/;
 type Match = {
   ref: CrossOperandRef;
   metricKeyId: string; // `${layerId}/${metricKey}` for distinctness
+  /** 시군구까지만 있는 지표인가. 한쪽이라도 그렇다면 교차도 시군구로 봐야 한다. */
+  sggOnly: boolean;
   start: number;
   end: number;
 };
@@ -55,6 +57,7 @@ function allMatches(text: string, layers: readonly LayerLike[]): Match[] {
             metricLabel: metric.label,
           },
           metricKeyId: `${layer.id}/${metric.key}`,
+          sggOnly: metric.scope === "sgg",
           start: best.start,
           end: best.start + best.trigger.length,
         });
@@ -116,6 +119,11 @@ export function resolveCrossQuery(
     a: first.ref,
     b: second.ref,
     mode,
-    adminLevel: detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+    // 한쪽이 시군구까지만 있는 지표면 읍면동으로 겹쳐 볼 수 없다. 그 값은 소속 읍면동에
+    // 똑같이 복제돼 있어, 읍면동 교차는 상대 지표만으로 순위가 정해진 것과 같아진다.
+    adminLevel:
+      first.sggOnly || second.sggOnly
+        ? "sgg"
+        : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
   };
 }

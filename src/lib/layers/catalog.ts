@@ -170,7 +170,7 @@ export const KCB_MIGRATION_LAYER: Omit<LayerDescriptor, "months"> = {
   sourceNotes: ["KCB 전입·전출 통계 (분기, 2년 전 거주지 대비 시군구 경계를 넘은 이동만)"],
   metrics: [
     { key: "move_in", label: "전입인구", unit: "명", aggregation: "sum", formula: "2년 전 거주 시군구가 다른 전입자 수(행정동 기준)", limitation: "같은 시군구 내 이동·미이동자는 제외. SKT 유입인구(일시 체류)와 달리 실제 거주지 이전", triggers: ["전입", "전입인구", "이사 온", "이주해 온"] },
-    { key: "move_out_sgg", label: "전출인구(시군구)", unit: "명", aggregation: "weightedAvg", weightKey: "move_in", formula: "소속 시군구를 떠난 전출자 수", limitation: "원자료가 출발지를 시군구까지만 제공해 행정동 단위로 나눌 수 없다. 같은 시군구 내 이동은 제외", triggers: ["전출", "전출인구", "떠난", "이사 간"] },
+    { key: "move_out_sgg", label: "전출인구(시군구)", unit: "명", aggregation: "weightedAvg", weightKey: "move_in", formula: "소속 시군구를 떠난 전출자 수", limitation: "원자료가 출발지를 시군구까지만 제공해 행정동 단위로 나눌 수 없다. 같은 시군구 내 이동은 제외", triggers: ["전출", "전출인구", "떠난", "이사 간"], scope: "sgg" },
   ],
 };
 

@@ -15,6 +15,12 @@ export const MetricDefSchema = z.object({
   formula: z.string().min(1),
   limitation: z.string(),
   triggers: z.array(z.string().min(1)),
+  /**
+   * 원자료가 시군구까지만 제공하는 지표. 읍면동 셀에는 소속 시군구 값이 그대로 복제돼
+   * 있으므로 읍면동으로 줄을 세우면 안 된다(같은 값 30개를 두고 "상위 3곳"이라 답하게 된다).
+   * 지정하면 질의 표현과 무관하게 시군구 단위로 답한다.
+   */
+  scope: z.literal("sgg").optional(),
 });
 export type MetricDef = z.infer<typeof MetricDefSchema>;
 

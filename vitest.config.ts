@@ -11,6 +11,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // 대기 상한(10초)보다 넉넉해야 대기가 끝나기 전에 테스트가 먼저 죽지 않는다.
+    testTimeout: 20_000,
     exclude: [
       "**/node_modules/**",
       "**/dist/**",

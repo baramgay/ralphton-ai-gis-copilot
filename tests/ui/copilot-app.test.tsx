@@ -784,6 +784,44 @@ describe("CopilotApp", () => {
     });
   }, 30_000);
 
+  test("큐브가 늦게 와도 사용자에게 다시 하라고 하지 않는다", async () => {
+    // 큐브는 화면이 뜬 뒤에 받으므로, 바로 민간 질의를 던지면 아직 없을 수 있다.
+    // 그때 "잠시 후 다시 시도"로 끝내지 말고, 받아 와서 그대로 이어 실행해야 한다.
+    const base = fetch as unknown as (input: RequestInfo | URL) => Promise<Response>;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/data/layers/nh-consumption.json")) {
+          await gate;
+        }
+        return base(input);
+      }),
+    );
+
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "카드매출 늘어나는 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    // 아직 큐브가 없으니 결과는 없지만, 사용자에게 재시도를 요구하지는 않는다.
+    await waitFor(() => {
+      expect(screen.getByText(/민간데이터 레이어를 불러오는 중/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/다시 시도해 주세요/)).toBeNull();
+
+    // 큐브가 도착하면 눌렀던 질의가 저절로 이어진다.
+    release();
+    expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 20_000 })).not.toHaveLength(0);
+  }, 30_000);
+
   test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

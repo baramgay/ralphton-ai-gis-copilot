@@ -72,7 +72,11 @@ export function resolveTrendQuery(
           metricLabel: metric.label,
           unit: metric.unit,
           direction,
-          adminLevel: detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+          // 시군구까지만 있는 지표는 추세도 시군구로 본다(resolve-layer-query와 같은 이유).
+          adminLevel:
+            metric.scope === "sgg"
+              ? "sgg"
+              : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           triggerLength: trigger.length,
         };
       }
