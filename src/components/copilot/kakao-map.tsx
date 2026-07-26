@@ -273,6 +273,30 @@ export function KakaoMap({
     }
 
     const selected = regions.find((region) => region.adm_cd2 === selectedRegionCode);
+    if (!selected && selectedRegionCode) {
+      /*
+       * 격자처럼 스냅샷 지역 목록에 없는 코드는 여기서 못 찾는다. 그러면 지도가 이전
+       * 위치에 그대로 머물러, 격자 레이어로 바꿨는데 화면은 엉뚱한 산속을 비춘다
+       * (prod에서 실제로 그랬다). 경계 폴리곤에서 중심을 구해 옮겨 준다.
+       * 반경 원은 의료 분석용 표시라 이 경우엔 그리지 않는다.
+       */
+      const feature = boundary.features.find((item) => item.properties.adm_cd2 === selectedRegionCode);
+      if (feature) {
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+        const walk = (coords: unknown): void => {
+          if (typeof (coords as number[])[0] === "number") {
+            const [lng, lat] = coords as number[];
+            minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+            minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+            return;
+          }
+          for (const part of coords as unknown[]) walk(part);
+        };
+        walk(feature.geometry.coordinates);
+        map.setCenter(new maps.LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2));
+        map.setLevel?.(5);
+      }
+    }
     if (selected) {
       const circle = new maps.Circle({
         center: new maps.LatLng(
