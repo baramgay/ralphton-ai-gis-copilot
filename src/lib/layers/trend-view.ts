@@ -1,4 +1,4 @@
-import { computeTrend, type TrendResult } from "@/lib/layers/trend";
+import { computeTrend, sliceRecent, type TrendResult } from "@/lib/layers/trend";
 import type { AdminLevel, LayerCube, MetricDef } from "@/lib/layers/types";
 import { aggregateToSgg } from "@/lib/layers/aggregate";
 
@@ -28,12 +28,14 @@ export function buildTrendRanking(
   metrics: MetricDef[],
   direction: "rising" | "falling",
   adminLevel: AdminLevel,
+  /** 추세를 볼 기간(개월). 없으면 전 기간. 프로파일 패널과 같은 기준을 쓴다. */
+  trendMonths?: number,
 ): TrendRankResult {
   const source = adminLevel === "sgg" ? aggregateToSgg(cube, metrics) : cube;
 
   const rows: TrendRow[] = [];
   for (const cell of source.cells) {
-    const trend = computeTrend(cell.series[metric.key] ?? []);
+    const trend = computeTrend(sliceRecent(cell.series[metric.key] ?? [], trendMonths));
     if (trend.changeRate === null) continue;
     rows.push({ code: cell.code, name: cell.name, trend });
   }

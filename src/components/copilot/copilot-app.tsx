@@ -1830,11 +1830,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         metrics,
         trendMatch.direction,
         trendMatch.adminLevel,
+        trendMonths,
       );
       const directionLabel = trendMatch.direction === "rising" ? "증가" : "감소";
+      // 화면마다 기준이 다르면 혼란스러우므로 프로파일과 같은 기간을 쓰고, 그 사실을 밝힌다.
+      const periodLabel = trendMonths > 0 ? ` (최근 ${trendMonths}개월)` : "";
       const view: AnalysisView = {
         id: "cross",
-        title: `${trendMatch.metricLabel} ${directionLabel} 추세`,
+        title: `${trendMatch.metricLabel} ${directionLabel} 추세${periodLabel}`,
         summary:
           result.ranked.length === 0
             ? `${trendMatch.metricLabel} 추세를 낼 수 있는 행정동 없음`
@@ -1865,7 +1868,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         }),
         filteredFacilities: [],
         formulaNotes: [
-          `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100`,
+          `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100${periodLabel}`,
           `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
           "관측이 2개월 미만이거나 첫 값이 0인 지역은 추세를 산출하지 않고 순위에서 제외한다",
         ],
@@ -1894,7 +1897,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
     return false;
   },
-    [adminLevel, remoteCubes],
+    [adminLevel, remoteCubes, trendMonths],
   );
 
   /** 원클릭 추세 프리셋: 자연어와 같은 리졸버를 거쳐 실행한다. */

@@ -82,6 +82,20 @@ describe("buildTrendRanking", () => {
     expect(result.ranked.every((row) => row.code.length === 5)).toBe(true);
   });
 
+  test("기간을 좁히면 순위가 최근 흐름 기준으로 뒤집힌다", () => {
+    // 동1은 장기 상승 후 최근 하락, 동2는 장기 하락 후 최근 반등.
+    const turning = cube({
+      "4811100000": [100, 140, 130],
+      "4811200000": [100, 60, 90],
+    });
+    const full = buildTrendRanking(turning, metric, [metric], "rising", "dong");
+    expect(full.ranked[0].code).toBe("4811100000"); // 12개월 +30%
+
+    const recent = buildTrendRanking(turning, metric, [metric], "rising", "dong", 2);
+    expect(recent.ranked[0].code).toBe("4811200000"); // 최근 2개월 +50%
+    expect(recent.ranked[0].trend.points).toBe(2);
+  });
+
   test("빈 큐브에서도 순위를 지어내지 않는다", () => {
     const result = buildTrendRanking(cube({}), metric, [metric], "rising", "dong");
     expect(result.ranked).toHaveLength(0);
