@@ -189,20 +189,14 @@ const LAYER_OPTIONS: LayerOption[] = [
   { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
 ];
 
-const CUBE_LAYER_METRICS: Record<CubeLayerId, MetricDef[]> = {
-  population: POPULATION_LAYER.metrics,
-  "skt-living": SKT_LIVING_LAYER.metrics,
-  "skt-mobility": SKT_MOBILITY_LAYER.metrics,
-  "skt-daynight": SKT_DAYNIGHT_LAYER.metrics,
-  "nh-consumption": NH_CONSUMPTION_LAYER.metrics,
-  "nh-demographics": NH_DEMOGRAPHICS_LAYER.metrics,
-  "nh-hourly": NH_HOURLY_LAYER.metrics,
-  "nh-industry": NH_INDUSTRY_LAYER.metrics,
-  "nh-storetype": NH_STORETYPE_LAYER.metrics,
-  "kcb-credit": KCB_CREDIT_LAYER.metrics,
-  "kcb-migration": KCB_MIGRATION_LAYER.metrics,
-  "kcb-commute": KCB_COMMUTE_LAYER.metrics,
-};
+/**
+ * 레이어별 지표 목록. 손으로 적으면 반드시 어긋난다 — 실제로 의료를 교차 후보에 더하고도
+ * 여기 빠뜨려, 교차가 조용히 false를 돌리고 화면은 기존 분석을 그대로 두었다.
+ * 카탈로그에서 파생시켜 그럴 수 없게 한다.
+ */
+const CUBE_LAYER_METRICS: Record<string, MetricDef[]> = Object.fromEntries(
+  CROSS_CANDIDATE_LAYERS.map((layer) => [layer.id, [...layer.metrics]]),
+);
 
 const LAYER_PROVIDERS: Record<LayerId, string> = {
   population: POPULATION_LAYER.provider,

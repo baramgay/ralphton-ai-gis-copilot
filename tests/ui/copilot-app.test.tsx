@@ -872,6 +872,30 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/의료취약지수/);
   }, 30_000);
 
+  test("의료취약 × 민간 교차가 실제로 실행된다", async () => {
+    // 해석(resolveCrossQuery)만 테스트하면 이 결함을 못 잡는다. 실제로 겪었다 —
+    // 교차 후보에는 의료를 더했는데 지표 목록에서 빠뜨려 runCross가 조용히 false를
+    // 돌렸고, 화면은 직전 분석을 그대로 두었다. prod에서야 드러났다.
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "소득 낮고 의료 취약한 지역" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    // 교차로 실행됐음이 안내와 결과에 드러나야 한다.
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/교차분석/);
+      },
+      { timeout: 15_000 },
+    );
+    expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/의료취약지수/);
+    expect(screen.queryByText(/분석을 실행하는 중/)).toBeNull();
+  }, 30_000);
+
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
