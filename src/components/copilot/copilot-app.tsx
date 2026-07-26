@@ -1186,6 +1186,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return layerCubeToAnalysisView(activeCube, activeMetric, activeLayerMetrics, adminLevel);
   }, [activeLayerId, activeMetric, activeLayerMetrics, activeCube, adminLevel]);
 
+  /**
+   * 선택한 지역이 지금 레이어에 없으면 그 레이어의 1위로 옮긴다.
+   *
+   * 읍면동 레이어끼리는 코드가 같아 선택이 자연스럽게 이어지지만, 격자는 코드가 "gx_gy"라
+   * 겹치지 않는다. 그대로 두면 지도가 격자가 없는 옛 읍면동을 계속 비춘다 — 격자 레이어로
+   * 바꿨는데 화면은 거창군 북상면 산속을 보여주고 있었다(prod 실측).
+   */
+  useEffect(() => {
+    const ranked = layerAnalysisResult?.analysis.ranked;
+    if (!ranked || ranked.length === 0) return;
+    if (selectedRegionCode && ranked.some((row) => row.code === selectedRegionCode)) return;
+    setSelectedRegionCode(ranked[0].code);
+  }, [layerAnalysisResult, selectedRegionCode]);
+
   // A choropleth layer is "loading" when it's active, its cube hasn't arrived yet,
   // and it hasn't errored out (errors already surface via activeLayerError). While this
   // is true `analysis` must not silently fall back to the medical quickAnalysis.
