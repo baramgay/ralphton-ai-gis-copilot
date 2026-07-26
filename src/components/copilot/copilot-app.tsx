@@ -927,48 +927,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         if (!response.ok) throw new Error("행정동 경계를 불러오지 못했습니다.");
         return response.json() as Promise<BoundaryCollection>;
       }),
-      fetch("/api/health", { signal: controller.signal })
-        .then((response) => (response.ok ? response.json() : null))
-        .catch(() => null),
-      fetch("/api/data/sync", { signal: controller.signal })
-        .then((response) => (response.ok ? response.json() : null))
-        .catch(() => null),
     ])
-      .then(([nextSnapshot, nextBoundary, health, syncStatus]) => {
+      .then(([nextSnapshot, nextBoundary]) => {
         setSnapshot(nextSnapshot);
         setBoundary(nextBoundary);
-        if (health && typeof health === "object" && "capabilities" in health) {
-          setCapabilities((health as { capabilities: CapabilityFlags }).capabilities);
-          if ("publishedLive" in health) {
-            setPublishedLive(
-              (health as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
-            );
-          }
-          if ("syncOps" in health && (health as { syncOps?: SyncOpsInfo }).syncOps) {
-            setSyncOps((health as { syncOps: SyncOpsInfo }).syncOps);
-          }
-        }
-        if (syncStatus && typeof syncStatus === "object") {
-          if ("publishedLive" in syncStatus) {
-            setPublishedLive(
-              (syncStatus as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
-            );
-          }
-          if ("syncOps" in syncStatus && (syncStatus as { syncOps?: SyncOpsInfo }).syncOps) {
-            const ops = (syncStatus as { syncOps: SyncOpsInfo }).syncOps;
-            setSyncOps(ops);
-            if (
-              !staleToastShownRef.current &&
-              (ops.stale || ops.recommendSync) &&
-              ops.reason
-            ) {
-              staleToastShownRef.current = true;
-              const msg = ops.reason.length > 52 ? `${ops.reason.slice(0, 52)}…` : ops.reason;
-              setToast(msg);
-              window.setTimeout(() => setToast(null), 3200);
-            }
-          }
-        }
 
         if (!shareAppliedRef.current && typeof window !== "undefined") {
           shareAppliedRef.current = true;
@@ -1025,6 +987,53 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       });
     return () => controller.abort();
   }, [boundaryVersion, snapshotMode, reloadToken]);
+
+  /**
+   * 운영 상태(기능 플래그·게시 시각·동기화 권고)를 화면과 별도로 받는다.
+   *
+   * 이 둘은 상단 배지와 토스트에만 쓰이는데 전에는 스냅샷·경계와 한 Promise.all에 묶여 있었다.
+   * 두 API는 서버리스 콜드스타트로 2~3초가 걸려, 정작 지도에 필요한 데이터가 1초에 도착하고도
+   * 화면은 3초 넘게 "준비하는 중"에 머물렀다. 순서(health 먼저, sync가 덮어씀)는 그대로 둔다.
+   */
+  useEffect(() => {
+    const controller = new AbortController();
+    const json = (path: string) =>
+      fetch(path, { signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : null))
+        .catch(() => null);
+
+    Promise.all([json("/api/health"), json("/api/data/sync")]).then(([health, syncStatus]) => {
+      if (controller.signal.aborted) return;
+      if (health && typeof health === "object" && "capabilities" in health) {
+        setCapabilities((health as { capabilities: CapabilityFlags }).capabilities);
+        if ("publishedLive" in health) {
+          setPublishedLive((health as { publishedLive: PublishedLiveInfo }).publishedLive ?? null);
+        }
+        if ("syncOps" in health && (health as { syncOps?: SyncOpsInfo }).syncOps) {
+          setSyncOps((health as { syncOps: SyncOpsInfo }).syncOps);
+        }
+      }
+      if (syncStatus && typeof syncStatus === "object") {
+        if ("publishedLive" in syncStatus) {
+          setPublishedLive(
+            (syncStatus as { publishedLive: PublishedLiveInfo }).publishedLive ?? null,
+          );
+        }
+        if ("syncOps" in syncStatus && (syncStatus as { syncOps?: SyncOpsInfo }).syncOps) {
+          const ops = (syncStatus as { syncOps: SyncOpsInfo }).syncOps;
+          setSyncOps(ops);
+          if (!staleToastShownRef.current && (ops.stale || ops.recommendSync) && ops.reason) {
+            staleToastShownRef.current = true;
+            const msg = ops.reason.length > 52 ? `${ops.reason.slice(0, 52)}…` : ops.reason;
+            setToast(msg);
+            window.setTimeout(() => setToast(null), 3200);
+          }
+        }
+      }
+    });
+
+    return () => controller.abort();
+  }, [reloadToken]);
 
   /**
    * 민간 큐브를 필요할 때 받는다.

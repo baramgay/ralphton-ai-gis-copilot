@@ -840,4 +840,25 @@ describe("CopilotApp", () => {
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("one-line-conclusion").textContent).toMatch(/한 줄 결론/);
   });
+
+  test("renders the map even when the status APIs never answer", async () => {
+    // /api/health·/api/data/sync는 상단 배지와 동기화 권고 토스트에만 쓰인다.
+    // prod 실측에서 이 둘의 서버리스 콜드스타트가 2~3초였고, 화면 렌더와 한 Promise.all에
+    // 묶여 있어 지도에 필요한 데이터가 1초에 도착하고도 3초 넘게 대기 화면이 남았다.
+    const base = fetch as unknown as (input: RequestInfo | URL) => Promise<Response>;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/health") || url.includes("/api/data/sync")) {
+          return new Promise<Response>(() => {});
+        }
+        return base(input);
+      }),
+    );
+
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
+    expect(screen.getByTestId("result-panel")).toBeInTheDocument();
+  }, 30_000);
 });
