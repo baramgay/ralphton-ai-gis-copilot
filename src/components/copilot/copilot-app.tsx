@@ -1026,34 +1026,58 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return () => controller.abort();
   }, [boundaryVersion, snapshotMode, reloadToken]);
 
-  // Remote SKT/private cubes: optional layers, app must keep working without them.
-  useEffect(() => {
-    const controller = new AbortController();
-    for (const layer of REMOTE_CUBE_LAYERS) {
-      fetch(layer.url, { signal: controller.signal })
-        .then((response) => {
-          if (!response.ok) throw new Error(`${layer.label} 레이어를 불러오지 못했습니다.`);
-          return response.json();
-        })
-        .then((raw: unknown) => {
-          const parsed = LayerCubeSchema.safeParse(raw);
-          if (!parsed.success) {
-            setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: `${layer.label} 레이어 데이터 형식이 올바르지 않습니다.` }));
-            return;
-          }
-          setRemoteCubes((prev) => ({ ...prev, [layer.id]: parsed.data }));
-          setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: null }));
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          setRemoteCubeErrors((prev) => ({
-            ...prev,
-            [layer.id]: error instanceof Error ? error.message : `${layer.label} 레이어를 불러오지 못했습니다.`,
-          }));
-        });
-    }
-    return () => controller.abort();
+  /**
+   * 민간 큐브를 필요할 때 받는다.
+   *
+   * 마운트 즉시 11개를 모두 받으면 1.4MB를 첫 화면에서 내려받게 되는데, 시작 화면은 의료
+   * 레이어라 그중 어느 것도 당장 쓰이지 않는다. 모바일에서 초기 로딩이 길어지던 원인이다.
+   * 지금 보고 있는 레이어를 먼저 받고, 화면이 뜬 뒤 나머지를 배경에서 채워 교차·추세 질의가
+   * 곧바로 동작하게 한다.
+   */
+  const requestedCubesRef = useRef(new Set<string>());
+  const loadCube = useCallback((layer: (typeof REMOTE_CUBE_LAYERS)[number], signal?: AbortSignal) => {
+    if (requestedCubesRef.current.has(layer.id)) return;
+    requestedCubesRef.current.add(layer.id);
+    fetch(layer.url, { signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`${layer.label} 레이어를 불러오지 못했습니다.`);
+        return response.json();
+      })
+      .then((raw: unknown) => {
+        const parsed = LayerCubeSchema.safeParse(raw);
+        if (!parsed.success) {
+          setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: `${layer.label} 레이어 데이터 형식이 올바르지 않습니다.` }));
+          return;
+        }
+        setRemoteCubes((prev) => ({ ...prev, [layer.id]: parsed.data }));
+        setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: null }));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        // 실패한 큐브는 다시 시도할 수 있어야 한다.
+        requestedCubesRef.current.delete(layer.id);
+        setRemoteCubeErrors((prev) => ({
+          ...prev,
+          [layer.id]: error instanceof Error ? error.message : `${layer.label} 레이어를 불러오지 못했습니다.`,
+        }));
+      });
   }, []);
+
+  // 지금 보고 있는 레이어가 민간 큐브라면 즉시 받는다.
+  useEffect(() => {
+    const target = REMOTE_CUBE_LAYERS.find((layer) => layer.id === activeLayerId);
+    if (target) loadCube(target);
+  }, [activeLayerId, loadCube]);
+
+  // 나머지는 첫 화면에 필요한 스냅샷·경계가 도착한 뒤 받는다. 큐브 11개(약 1.4MB)가 대역을
+  // 먼저 차지하면 정작 화면을 띄우는 데 필요한 데이터가 밀려 "준비하는 중"이 길어진다.
+  // 필수 데이터가 온 뒤 곧바로 시작하므로 교차·추세 질의는 큐브를 기다리지 않는다.
+  useEffect(() => {
+    if (!snapshot || !boundary) return;
+    const controller = new AbortController();
+    for (const layer of REMOTE_CUBE_LAYERS) loadCube(layer, controller.signal);
+    return () => controller.abort();
+  }, [snapshot, boundary, loadCube]);
 
   const districtOptions = useMemo(
     () => (snapshot ? listDistricts(snapshot.regions) : [...DEFAULT_COMPARE]),
