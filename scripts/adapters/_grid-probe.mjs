@@ -9,8 +9,12 @@ const KCB = "C:/업무/민간데이터/KCB 데이터/(KCB)경남도청_데이터
 const CENTROIDS = "C:/업무/민간데이터/격자변환/grid_100m_centroids_wgs84.csv";
 
 async function collectGrids() {
+  // KCB 원자료는 CP949다. latin1로 읽어 바이트를 보존한 뒤 euc-kr로 되돌린다
+  // (Node는 "cp949"라는 이름은 모르지만 euc-kr로 같은 문자를 낸다).
+  const decoder = new TextDecoder("euc-kr");
+  const decode = (value) => decoder.decode(Buffer.from(value, "latin1"));
   const rl = readline.createInterface({
-    input: createReadStream(KCB, "utf8"),
+    input: createReadStream(KCB, "latin1"),
     crlfDelay: Infinity,
   });
   const grids = new Set();
@@ -22,7 +26,7 @@ async function collectGrids() {
       continue;
     }
     const id = line.split("|", 2)[1];
-    if (id) grids.add(id);
+    if (id) grids.add(decode(id));
     rows += 1;
   }
   return { grids, rows, header };
