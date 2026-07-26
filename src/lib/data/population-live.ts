@@ -129,6 +129,30 @@ export function mergeLatestPopulation(
   return { regions, updatedCount, month, notes };
 }
 
+/**
+ * 기준월부터 과거로 내려가며 조회할 월 목록. "2026-06" → ["202606","202605","202604"].
+ *
+ * 주민등록 인구 통계는 보통 한두 달 지연되어 공개된다. 기준월 하나만 물어보면 아직 올라오지
+ * 않은 달에 걸려 인구 갱신이 통째로 실패하고, 화면은 조용히 옛 스냅샷을 계속 보여준다.
+ * 실제로 있는 가장 최근 달을 찾아 쓰기 위해 후보를 만든다.
+ */
+export function monthCandidates(referenceMonth: string, lookback = 3): string[] {
+  const match = /^(\d{4})-?(\d{2})$/.exec(referenceMonth.trim());
+  if (!match) return [referenceMonth.replace("-", "")];
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const candidates: string[] = [];
+  for (let step = 0; step < Math.max(1, lookback); step += 1) {
+    const total = year * 12 + (month - 1) - step;
+    if (total < 0) break;
+    const y = Math.floor(total / 12);
+    const m = (total % 12) + 1;
+    candidates.push(`${y}${String(m).padStart(2, "0")}`);
+  }
+  return candidates;
+}
+
 /** 행정표준 시도 코드: 경남 48 */
 export const POPULATION_CTPV_CODES = ["48"] as const;
 
@@ -142,28 +166,33 @@ export async function fetchAndMergeRegionalPopulation(
   referenceMonth?: string,
   ctpvCodes: readonly string[] = POPULATION_CTPV_CODES,
 ): Promise<PopulationMergeResult> {
-  const month = (referenceMonth ?? base.referenceMonth).replace("-", "");
+  const candidates = monthCandidates(referenceMonth ?? base.referenceMonth);
   const allRows: Array<Record<string, unknown>> = [];
   const notes: string[] = [];
 
   try {
-    for (const ctpvCode of ctpvCodes) {
-      try {
-        const rows = await fetchAllPublicDataPages(
-          "residentPopulation",
-          {
-            serviceKey,
-            ctpvCode,
-            referenceMonth: month,
-            numOfRows: 1_000,
-          },
-          deps,
-        );
-        allRows.push(...rows);
-        notes.push(`인구 ctpv ${ctpvCode}: ${rows.length}행`);
-      } catch {
-        notes.push(`인구 ctpv ${ctpvCode} 요청 실패`);
+    // 아직 공개되지 않은 달에 걸리면 인구가 통째로 갱신되지 않으므로, 실제로 값이 있는
+    // 가장 최근 달을 찾을 때까지 과거로 내려간다.
+    for (const month of candidates) {
+      for (const ctpvCode of ctpvCodes) {
+        try {
+          const rows = await fetchAllPublicDataPages(
+            "residentPopulation",
+            {
+              serviceKey,
+              ctpvCode,
+              referenceMonth: month,
+              numOfRows: 1_000,
+            },
+            deps,
+          );
+          allRows.push(...rows);
+          notes.push(`인구 ${month} ctpv ${ctpvCode}: ${rows.length}행`);
+        } catch {
+          notes.push(`인구 ${month} ctpv ${ctpvCode} 요청 실패`);
+        }
       }
+      if (allRows.length > 0) break;
     }
 
     if (allRows.length === 0) {
