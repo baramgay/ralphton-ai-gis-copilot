@@ -121,8 +121,14 @@ export function usePanelLayout() {
   const [layout, setLayout] = useState<PanelLayout>(PANEL_DEFAULTS);
   const [hydrated, setHydrated] = useState(false);
 
+  /*
+   * 저장된 배치는 localStorage에, 화면 폭은 window에 있다. 둘 다 서버에 없으므로 렌더 중
+   * (또는 useState 초기값)에 읽으면 서버가 그린 것과 달라져 하이드레이션이 깨진다.
+   * 마운트 뒤 한 번 맞추는 것이 유일한 방법이다.
+   */
   useEffect(() => {
     const stored = fitToViewport(readStoredLayout(), window.innerWidth);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLayout(stored);
     setHydrated(true);
   }, []);

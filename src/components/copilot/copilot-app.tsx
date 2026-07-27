@@ -868,7 +868,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 적용한다 — 적지 않았으면 읍면동이 기본이다.
    */
   const adminLevelSourceRef = useRef<"user" | "query">("user");
-  const fallbackAdminLevel = adminLevelSourceRef.current === "user" ? adminLevel : "dong";
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
   // 추세를 볼 기간. 0은 전 기간. 장기 추세와 최근 흐름이 갈리는 동이 14%라 바꿔 볼 수 있어야 한다.
   const [trendMonths, setTrendMonths] = useState<number>(0);
@@ -900,8 +899,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     };
   }, [density]);
 
-  // Hydrate theme preference once; bootstrap script already painted resolved theme.
+  /*
+   * Hydrate theme preference once; bootstrap script already painted resolved theme.
+   *
+   * localStorage는 서버에 없다. 렌더 중(또는 useState 초기값)에 읽으면 서버가 그린 것과
+   * 달라져 하이드레이션이 깨진다. 마운트 뒤 한 번 맞추는 것이 유일한 방법이라, 이 규칙이
+   * 말하는 "연쇄 렌더"는 여기서 피할 수 없는 비용이다(마운트당 1회).
+   */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThemePreference(readStoredTheme());
     try {
       const d = window.localStorage.getItem(DENSITY_KEY);
@@ -927,11 +933,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
   }, [themePreference]);
 
+  // 최근 질문·첫 방문 여부도 localStorage라 마운트 뒤에만 알 수 있다(위 테마와 같은 이유).
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(RECENT_QUERIES_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as string[];
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Array.isArray(parsed)) setRecentQueries(parsed.filter((item) => typeof item === "string").slice(0, 6));
       }
       if (!window.localStorage.getItem(ONBOARD_KEY)) {
@@ -1358,15 +1366,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 이라는 결론 옆에 `선택 278위`와 `거창군 북상면 민간데이터 종합`이 붙어 있었다
    * (prod 실측) — 답과 화면이 서로 다른 지역을 가리켰다.
    */
-  useEffect(() => {
-    const ranked = layerAnalysisResult?.analysis.ranked;
-    if (!ranked || ranked.length === 0) return;
-    if (followSelection && selectedRegionCode && ranked.some((row) => row.code === selectedRegionCode)) {
-      return;
+  /*
+   * effect가 아니라 렌더 중에 맞춘다(React가 권하는 "파생 상태 조정" 꼴).
+   * effect로 하면 한 번 그린 뒤 다시 그리게 되어, 엉뚱한 지역이 선택된 화면이 한 프레임
+   * 스쳐 간다. 아래 조건이 이미 "달라졌을 때만" 세팅하므로 무한 렌더로 가지 않는다.
+   */
+  const rankedForSelection = layerAnalysisResult?.analysis.ranked;
+  if (rankedForSelection && rankedForSelection.length > 0) {
+    const keepUserPick =
+      followSelection &&
+      selectedRegionCode !== null &&
+      rankedForSelection.some((row) => row.code === selectedRegionCode);
+    if (!keepUserPick && selectedRegionCode !== rankedForSelection[0].code) {
+      setSelectedRegionCode(rankedForSelection[0].code);
     }
-    if (selectedRegionCode === ranked[0].code) return;
-    setSelectedRegionCode(ranked[0].code);
-  }, [layerAnalysisResult, selectedRegionCode, followSelection]);
+  }
 
   // A choropleth layer is "loading" when it's active, its cube hasn't arrived yet,
   // and it hasn't errored out (errors already surface via activeLayerError). While this
@@ -1649,7 +1663,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
   }, []);
 
+  /*
+   * 선택 지역이 바뀌면 그 주변 실시간 장소를 다시 받는다. 외부 시스템(Kakao 장소 API)과
+   * 화면 상태를 맞추는 일이라 effect가 제자리다. 결과를 상태에 넣는 것이 이 effect의
+   * 목적 자체이므로 setState를 뺄 수 없다.
+   */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadLivePlacesNearSelection(selectedRegion, "병원");
   }, [selectedRegion, loadLivePlacesNearSelection]);
 
@@ -2438,6 +2458,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   // 실행 함수를 담아 두면 그 클로저가 옛 remoteCubes를 붙잡아 큐브가 와도 없다고 본다.
   // 그래서 무엇을 물었는지(match)만 남기고, 실행은 지금 시점의 콜백으로 한다.
+  /*
+   * 기다리던 큐브가 도착하면 그때 미뤄 둔 질의를 실행한다. "데이터가 왔는가"라는 외부
+   * 사건에 반응하는 일이라 effect가 제자리이고, 실행 결과를 상태에 반영하는 것이 목적이다.
+   */
+  /* eslint-disable react-hooks/set-state-in-effect -- 실행 결과를 상태에 반영하는 것이 이 effect의 목적이다. */
   useEffect(() => {
     if (!pendingCubeQuery) return;
     const ok =
@@ -2453,10 +2478,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setQueryNotice(null);
     setParseStage("done");
   }, [pendingCubeQuery, runTrend, runCross, runTrendCross, runMulti]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const runQueryText = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
+
+    /*
+     * 기본 단위는 **질의를 던지는 이 시점에** 정한다.
+     *
+     * 렌더 중에 ref를 읽어 미리 구해 두면, 그 렌더가 버려졌을 때 실제로 화면에 반영된 것과
+     * 다른 값이 남을 수 있다(React 19 동시 렌더). 여기서 읽으면 늘 최신이고, 이 값은 어차피
+     * 질의 실행에만 쓰인다.
+     */
+    const fallbackAdminLevel = adminLevelSourceRef.current === "user" ? adminLevel : "dong";
 
     // 새 질의는 새 분포다. 앞 질의에서 확대해 둔 자리에 갇히지 않게 전체 보기로 돌린다.
     setFollowSelection(false);
@@ -2718,7 +2753,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
   };
 
-  runQueryTextRef.current = runQueryText;
+  /*
+   * 공유 링크 복원이 부르는 최신 runQueryText를 담아 둔다. 이 함수는 매 렌더마다 새로
+   * 만들어지는데, 복원 effect가 그것을 의존성으로 잡으면 매 렌더마다 다시 돈다.
+   *
+   * 대입은 커밋된 뒤에 한다 — 렌더 중에 하면 버려진 렌더의 함수가 남을 수 있다.
+   * 복원은 스냅샷이 도착한 뒤(비동기)라 시점 문제는 없다.
+   */
+  useEffect(() => {
+    runQueryTextRef.current = runQueryText;
+  });
 
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();
