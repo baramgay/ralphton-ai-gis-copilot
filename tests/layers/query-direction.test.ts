@@ -129,3 +129,26 @@ describe("표기 흔들림", () => {
     expect(resolveLayerQuery("생활인구많은동", CUBE_LAYERS)?.layerId).toBe("skt-living");
   });
 });
+
+describe("읍면동 지정", () => {
+  // "물금읍 생활인구"가 경남 전체 순위를 답하고 있었다. 읍면동이 시군구보다 좁으므로
+  // 먼저 잡아야 "물금읍"이 "양산시"를 이긴다.
+  const dongs = ["물금읍", "동읍", "진영읍", "장유3동"];
+
+  test("읍면동 이름을 알아본다", () => {
+    expect(detectRegionFilter("물금읍 생활인구", dongs)).toBe("물금읍");
+    expect(detectRegionFilter("진영읍 카드매출 높은 곳", dongs)).toBe("진영읍");
+  });
+
+  test("읍면동이 시군구보다 우선한다", () => {
+    expect(detectRegionFilter("양산시 물금읍 생활인구", dongs)).toBe("물금읍");
+  });
+
+  test("목록에 없으면 시군구로 떨어진다", () => {
+    expect(detectRegionFilter("양산 생활인구", dongs)).toBe("양산시");
+  });
+
+  test("읍면동 목록을 안 주면 예전처럼 시군구만 본다", () => {
+    expect(detectRegionFilter("물금읍 생활인구")).toBeNull();
+  });
+});

@@ -25,7 +25,9 @@ export type CrossQueryMatch = {
 const GAP_CUES = ["대비해", "대비", "대해서", "비해", " 대 "];
 const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면서", "면서 높", "겹치는"];
 // Contrastive polarity: one metric high, the other low → gap even without a "대비" cue.
-const HIGH_CUES = ["많", "높", "큰", "크게", "상위", "취약", "부족"];
+// "과한"은 그 지표가 많다는 뜻이다. 없으면 "소득 대비 소비가 과한 지역"이
+// 소비가 부족한 순으로 나온다(prod 실측).
+const HIGH_CUES = ["많", "높", "큰", "크게", "상위", "취약", "부족", "과한", "과다", "넘치", "활발"];
 const LOW_CUES = ["낮", "적", "작", "하위"];
 // Conjunction that lets two same-direction metrics read as "both high".
 const CONJUNCTION = /고\s|와\s|과\s|랑\s|이랑|그리고|같이|함께/;
@@ -136,8 +138,14 @@ export function resolveCrossQuery(
   if (mode === "gap") {
     const firstPolarity = polarityOf(first, second.start);
     const secondPolarity = polarityOf(second, text.length);
-    // 한쪽만 낮게 요구했다면 그쪽이 B(빼는 쪽)다.
+    /*
+     * 높은 쪽이 A(더하는 쪽), 낮은 쪽이 B(빼는 쪽)다.
+     * 한쪽에만 단서가 붙는 경우가 많다 — "소득 대비 소비가 과한 지역"은 소비에만 "과한"이
+     * 붙고 소득 쪽은 "대비"뿐이라, 낮음만 보면 순서가 그대로 남아 정반대로 답한다.
+     */
     if (firstPolarity === "low" && secondPolarity !== "low") {
+      [first, second] = [second, first];
+    } else if (secondPolarity === "high" && firstPolarity !== "high") {
       [first, second] = [second, first];
     }
   }

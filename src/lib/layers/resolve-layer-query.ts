@@ -84,8 +84,17 @@ const REGION_TOKENS = (() => {
     .sort((a, b) => b.match.length - a.match.length);
 })();
 
-export function detectRegionFilter(query: string): string | null {
+export function detectRegionFilter(query: string, dongNames: readonly string[] = []): string | null {
   const compact = query.replace(/\s+/g, "");
+  // 읍면동이 시군구보다 좁으므로 먼저 본다("물금읍"이 "양산시"를 이긴다).
+  let bestDong: string | null = null;
+  for (const name of dongNames) {
+    const key = name.replace(/\s+/g, "");
+    if (key.length >= 2 && compact.includes(key) && (bestDong === null || key.length > bestDong.length)) {
+      bestDong = key;
+    }
+  }
+  if (bestDong) return bestDong;
   for (const { match, filter } of REGION_TOKENS) {
     if (match.length >= 2 && compact.includes(match)) return filter;
   }
@@ -145,7 +154,7 @@ function bestTriggerMatch(text: string, metric: MetricDef): string | null {
 export function resolveLayerQuery(
   query: string,
   layers: readonly LayerLike[],
-  options: { adminLevelFallback?: AdminLevel } = {},
+  options: { adminLevelFallback?: AdminLevel; dongNames?: readonly string[] } = {},
 ): LayerQueryMatch | null {
   const text = query.replace(/\s+/g, " ").trim();
   if (!text) return null;
@@ -174,7 +183,7 @@ export function resolveLayerQuery(
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           ),
           direction: detectDirection(text),
-          regionFilter: detectRegionFilter(text),
+          regionFilter: detectRegionFilter(text, options.dongNames ?? []),
           matchedTrigger: trigger,
           triggerLength: trigger.length,
         };

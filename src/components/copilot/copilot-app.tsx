@@ -749,6 +749,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 읽힌다(prod 실측). 결과를 지우는 대신 직전 것임을 밝힌다.
    */
   const [answeredLastQuery, setAnsweredLastQuery] = useState(true);
+  // 부트 이펙트가 runQueryText 정의보다 위에 있어 ref로 잡아 둔다.
+  const runQueryTextRef = useRef<((raw: string) => Promise<void>) | null>(null);
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
@@ -960,6 +962,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             );
             if (hit) setSelectedRegionCode(hit.adm_cd2);
           }
+          /*
+           * 공공 도구가 아니면(민간 레이어·교차·추세) 질문을 다시 실행해 복원한다.
+           * 예전에는 입력창만 채우고 실행하지 않아, "평균소득 낮은 동"을 공유하면 열었을 때
+           * 기본 의료 분석이 떠 있었다. 방향·지역 한정까지 URL에 담을 것 없이, 질문 그대로
+           * 같은 경로로 다시 태우면 모두 재현된다.
+           */
+          if (!share.tool && share.q) {
+            void runQueryTextRef.current?.(share.q);
+            return;
+          }
           if (share.tool) {
             const parsed = AnalysisIntentSchema.safeParse({
               tool: share.tool,
@@ -1145,6 +1157,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         ? executeQuickAnalysis(snapshot, activeQuick, radiusKm, comparePair)
         : null),
     [snapshot, activeQuick, radiusKm, customAnalysis, comparePair],
+  );
+
+  /** 질의에서 읍면동을 찾을 때 쓰는 이름 목록(시도 접두어 제거). */
+  const dongNamesForQuery = useMemo(
+    () => (snapshot ? listDongLabels(snapshot.regions).map((name) => name.split(/\s+/).pop() ?? name) : []),
+    [snapshot],
   );
 
   const populationCube = useMemo(
@@ -2089,10 +2107,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setParseStage("done");
   }, [pendingCubeQuery, runTrend, runCross]);
 
-  const submitQuery = async (event: FormEvent) => {
-    event.preventDefault();
-    const trimmed = query.trim();
+  /**
+   * 질의문 하나를 해석해 실행한다.
+   *
+   * 폼 제출과 공유 링크 복원이 같은 경로를 쓰게 하려고 따로 뺐다. 전에는 복원이 질문만
+   * 입력창에 채우고 실행하지 않아, "평균소득 낮은 동"을 공유하면 열었을 때 기본 의료
+   * 분석이 떠 있었다(prod 실측). 링크를 보고서에 붙이는 용도라 그러면 쓸모가 없다.
+   */
+  const runQueryText = async (raw: string) => {
+    const trimmed = raw.trim();
     if (!trimmed) return;
+
 
     /*
      * 경남 밖 지역을 물었으면 여기서 멈춘다.
@@ -2151,6 +2176,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // public 인구 ranking because "생활인구" contains "인구"). Synchronous, no network.
     const layerMatch = resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
       adminLevelFallback: adminLevel,
+      // 읍면동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
+      dongNames: dongNamesForQuery,
     });
     if (layerMatch) {
       setActiveLayerId(layerMatch.layerId as LayerId);
@@ -2272,6 +2299,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setIsParsing(false);
       window.setTimeout(() => setParseStage("idle"), 1200);
     }
+  };
+
+  runQueryTextRef.current = runQueryText;
+
+  const submitQuery = async (event: FormEvent) => {
+    event.preventDefault();
+    await runQueryText(query);
   };
 
   if (loadError) {
@@ -3799,14 +3833,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               type="button"
               className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
               onClick={() => {
-                pushShareUrl(
-                  lastIntent ?? {
-                    tool: "rankHospitalScarcity",
-                    filters: { limit: snapshot.regions.length, radiusKm },
-                  },
-                  selectedRegionCode,
-                  query || undefined,
-                );
+                /*
+                 * 민간 레이어·교차·추세 결과는 공공 도구가 아니라 lastIntent가 null이다.
+                 * 여기서 의료 도구를 기본값으로 채워 넣으면 링크를 열었을 때 그 도구가
+                 * 먼저 실행돼 원래 결과가 사라진다(prod 실측). 그럴 땐 질문만 싣고,
+                 * 복원 쪽에서 같은 경로로 다시 태운다.
+                 */
+                pushShareUrl(lastIntent, selectedRegionCode, query || undefined);
                 void copyShareLink();
               }}
             >

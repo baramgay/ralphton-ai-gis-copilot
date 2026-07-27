@@ -135,3 +135,20 @@ describe("공공 의료 × 민간 교차", () => {
     expect(resolveCrossQuery("의료 취약 지역 순위", CROSS_CANDIDATE_LAYERS)).toBeNull();
   });
 });
+
+describe("과한·활발 같은 표현의 방향", () => {
+  // "소득 대비 소비가 과한 지역"이 소비가 부족한 순으로 나왔다. gap은 zA−zB라
+  // 어느 쪽이 높은 쪽인지가 결과를 뒤집는다.
+  test("과한 쪽이 A가 된다", () => {
+    const match = resolveCrossQuery("소득 대비 소비가 과한 지역", CROSS_CANDIDATE_LAYERS);
+    expect(match?.mode).toBe("gap");
+    expect(match?.a.layerId).toBe("nh-consumption");
+    expect(match?.b.layerId).toBe("kcb-credit");
+  });
+
+  test("소득이 높은 쪽이면 그대로 A다", () => {
+    const match = resolveCrossQuery("소득 높은데 소비는 적은 곳", CROSS_CANDIDATE_LAYERS);
+    expect(match?.a.layerId).toBe("kcb-credit");
+    expect(match?.b.layerId).toBe("nh-consumption");
+  });
+});
