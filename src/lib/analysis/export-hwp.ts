@@ -1,5 +1,5 @@
 import { regionUnitLabel } from "@/lib/analysis/export-csv";
-import { toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
+import { rankWordOf, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
 
 /**
  * 분석 결과를 한글(HWP)에 표 서식 그대로 붙여넣을 수 있는 HTML로 만든다.
@@ -42,11 +42,11 @@ export function buildHwpHtmlReport(input: ReportInput): string {
   parts.push("<ul>");
   parts.push(`<li>${escapeHtml(toNounEnding(input.summary))}</li>`);
   parts.push(
-    `<li>대상 ${regionUnitLabel(input.rows.map((row) => row.code))} ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 제시</li>`,
+    `<li>대상 ${regionUnitLabel(input.rows.map((row) => row.code))} ${totalCount.toLocaleString("ko-KR")}개 중 ${rankWordOf(input.rows)} ${top.length}개 제시</li>`,
   );
   parts.push("</ul>");
 
-  parts.push(`<h2 style="font-size:13pt;">상위 ${top.length}개 지역</h2>`);
+  parts.push(`<h2 style="font-size:13pt;">${rankWordOf(input.rows)} ${top.length}개 지역</h2>`);
   if (top.length === 0) {
     parts.push("<ul><li>표시할 순위 없음</li></ul>");
   } else {

@@ -128,3 +128,46 @@ describe("표기 단위", () => {
     expect(md).toContain("대상 행정동");
   });
 });
+
+describe("순위 방향 표기", () => {
+  // 낮은 순 결과에 "상위"라고 쓰면 정반대로 읽힌다.
+  const rows = (values: number[]) =>
+    values.map((v, i) => ({
+      rank: i + 1,
+      code: `481110${String(i).padStart(4, "0")}`,
+      name: `동${i + 1}`,
+      valueLabel: `${v.toLocaleString("ko-KR")}명`,
+      note: "비고",
+    }));
+
+  test("내림차순이면 상위", () => {
+    const md = buildMarkdownReport({ ...base, rows: rows([500, 300, 100]), totalCount: 3 });
+    expect(md).toContain("상위 3개");
+    expect(md).not.toContain("하위");
+  });
+
+  test("오름차순이면 하위", () => {
+    const md = buildMarkdownReport({ ...base, rows: rows([100, 300, 500]), totalCount: 3 });
+    // 요약문(input.summary)에는 "상위"가 들어 있을 수 있으므로 표제·건수 문구만 본다.
+    expect(md).toContain("하위 3개");
+    expect(md).not.toContain("상위 3개");
+  });
+
+  test("두 곳뿐이면 방향을 읽지 않는다", () => {
+    const md = buildMarkdownReport({ ...base, rows: rows([100, 300]), totalCount: 2 });
+    expect(md).toContain("상위 2개");
+  });
+});
+
+describe("격자 단위 표기", () => {
+  test("격자 코드면 격자라고 쓴다", () => {
+    // 격자 코드는 "gx_gy"라 자리수로 가릴 수 없어 "행정동코드"로 나가고 있었다.
+    const gridRows = [
+      { rank: 1, code: "2209_3388", name: "창원시의창구 팔룡동 500m격자 21", valueLabel: "567만원/월", note: "n" },
+      { rank: 2, code: "2210_3388", name: "창원시성산구 성주동 500m격자 3", valueLabel: "547만원/월", note: "n" },
+      { rank: 3, code: "2211_3389", name: "양산시 물금읍 500m격자 5", valueLabel: "538만원/월", note: "n" },
+    ];
+    const md = buildMarkdownReport({ ...base, rows: gridRows, totalCount: 1750 });
+    expect(md).toContain("대상 격자 1,750개");
+  });
+});

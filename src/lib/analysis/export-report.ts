@@ -66,6 +66,19 @@ export function toNounEnding(sentence: string): string {
  * 갖춘 문단을 만들되, 서술식(~다/~한다) 대신 명사형으로 종결해 결과보고 양식에 맞춘다.
  * 수치는 화면에 표시된 값 문자열(valueLabel)을 그대로 옮겨 단위·자릿수가 어긋나지 않게 한다.
  */
+/**
+ * 낮은 순 결과에 "상위"라고 쓰면 정반대로 읽힌다. 방향을 따로 넘기는 대신 값에서 읽는다
+ * (한 줄 결론과 같은 규칙 — 세 곳 이상이고 1위 값이 꼴찌보다 작으면 오름차순).
+ */
+export function rankWordOf(rows: readonly { valueLabel: string }[]): "상위" | "하위" {
+  if (rows.length < 3) return "상위";
+  const num = (label: string) => Number(label.replace(/[^\d.-]/g, ""));
+  const first = num(rows[0].valueLabel);
+  const last = num(rows[rows.length - 1].valueLabel);
+  if (!Number.isFinite(first) || !Number.isFinite(last)) return "상위";
+  return first < last ? "하위" : "상위";
+}
+
 export function buildMarkdownReport(input: ReportInput): string {
   const topCount = input.topCount ?? 10;
   const top = input.rows.slice(0, topCount);
@@ -84,10 +97,10 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push("");
   lines.push(`- ${toNounEnding(input.summary)}`);
   const unit = regionUnitLabel(input.rows.map((row) => row.code));
-  lines.push(`- 대상 ${unit} ${totalCount.toLocaleString("ko-KR")}개 중 상위 ${top.length}개 제시`);
+  lines.push(`- 대상 ${unit} ${totalCount.toLocaleString("ko-KR")}개 중 ${rankWordOf(input.rows)} ${top.length}개 제시`);
   lines.push("");
 
-  lines.push(`## 상위 ${top.length}개 지역`);
+  lines.push(`## ${rankWordOf(input.rows)} ${top.length}개 지역`);
   lines.push("");
   if (top.length === 0) {
     lines.push("- 표시할 순위 없음");
