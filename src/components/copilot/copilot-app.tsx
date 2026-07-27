@@ -2277,7 +2277,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
 
     // 두 지표의 변화를 겹쳐 묻는 질의를 먼저 본다. 지표가 둘이라 단일 추세보다 구체적이다.
-    const trendCross = resolveTrendCrossQuery(trimmed, CROSS_LAYERS, {
+    const trendCross = resolveTrendCrossQuery(trimmed, /격자|블록/.test(trimmed)
+      ? CROSS_LAYERS.filter((layer) => layer.id.startsWith("kcb-grid"))
+      : CROSS_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
       dongNames: dongNamesForQuery,
     });
@@ -2315,7 +2317,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
     // 민간×공공 교차분석: "생활인구 대비 카드매출", "소득과 소비 모두 높은 동" 등 두 지표를
     // z-표준화해 합성 순위로 보여준다(툴 결과처럼 customAnalysis 경로로 렌더).
-    const cross = resolveCrossQuery(trimmed, CROSS_LAYERS, { adminLevelFallback: fallbackAdminLevel });
+    /*
+     * 격자를 물었으면 교차 후보도 격자로 좁힌다.
+     *
+     * 격자 코드는 "gx_gy"라 읍면동 코드와 겹치는 지역이 하나도 없다. 섞어서 교차하면
+     * "0개 격자"가 나온다(prod 실측). "격자 소득 높고 소비도 많은 블록"에서 사용자가
+     * 원한 것은 격자끼리 겹쳐 보는 것이다.
+     */
+    const wantsGrid = /격자|블록/.test(trimmed);
+    const crossLayers = wantsGrid
+      ? CROSS_LAYERS.filter((layer) => layer.id.startsWith("kcb-grid"))
+      : CROSS_LAYERS;
+    const cross = resolveCrossQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (cross) {
       rememberQuery(trimmed);
       if (runCross(cross)) { setAnsweredLastQuery(true); return; }

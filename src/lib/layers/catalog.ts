@@ -101,8 +101,8 @@ export const NH_HOURLY_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["NH농협카드 시간대별 카드매출 (주간 09~18시 · 야간 22~05시, SKT 주야간인구와 동일 구간)"],
   metrics: [
-    { key: "day_sales", label: "주간 카드매출", unit: "백만원", aggregation: "sum", formula: "09~18시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["주간 매출", "낮 매출", "주간 카드매출", "낮 소비"] },
-    { key: "night_sales", label: "야간 카드매출", unit: "백만원", aggregation: "sum", formula: "22~05시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["야간 카드매출", "야간 매출", "밤 매출", "심야 매출", "심야 소비", "밤 소비"] },
+    { key: "day_sales", label: "주간 카드매출", unit: "백만원", aggregation: "sum", formula: "09~18시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["주간 매출", "낮 매출", "주간 카드매출", "낮 소비", "점심 매출", "점심 시간 매출", "낮 장사"] },
+    { key: "night_sales", label: "야간 카드매출", unit: "백만원", aggregation: "sum", formula: "22~05시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["야간 카드매출", "야간 매출", "밤 매출", "심야 매출", "심야 소비", "밤 소비", "밤 늦게 장사", "늦은 밤 장사", "심야 장사"] },
     { key: "night_share", label: "야간 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "day_sales", formula: "야간(22~05시) 매출 ÷ 전체 매출 × 100", limitation: "19~21시 매출도 분모에 포함되므로 주간+야간 비중의 합은 100%가 아니다", triggers: ["야간 소비비중", "야간 상권", "심야 상권", "밤 상권"] },
   ],
 };
@@ -120,7 +120,7 @@ export const NH_INDUSTRY_LAYER: Omit<LayerDescriptor, "months"> = {
     { key: "retail_share", label: "도소매 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "도매 및 소매업(G) 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["도소매 비중", "소매 비중", "도소매업", "소매업", "유통 상권", "판매업 비중"] },
     { key: "health_share", label: "보건·의료 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "보건업 및 사회복지 서비스업(Q) 매출 ÷ 전체 카드매출 × 100", limitation: "병원 결제 기준이라 의료기관 수(공공 의료 레이어)와는 다른 관점", triggers: ["보건·의료 소비비중", "의료 소비", "병원 소비", "보건 소비", "보건업", "의료비 비중"] },
     { key: "leisure_share", label: "여가·문화 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "예술·스포츠·여가 서비스업(R) 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["여가·문화 비중", "여가 소비", "문화 소비", "여가 비중", "레저 소비"] },
-    { key: "education_share", label: "교육 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "교육 서비스업(P) 매출 ÷ 전체 카드매출 × 100", limitation: "학원·교습 결제 중심이며 공교육 지출은 포함되지 않는다", triggers: ["교육 소비", "학원 소비", "사교육 소비", "교육업", "교육비 비중"] },
+    { key: "education_share", label: "교육 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "교육 서비스업(P) 매출 ÷ 전체 카드매출 × 100", limitation: "학원·교습 결제 중심이며 공교육 지출은 포함되지 않는다", triggers: ["교육 소비", "학원 소비", "사교육 소비", "교육업", "교육비 비중", "학원가", "학원 밀집"] },
   ],
 };
 
@@ -135,10 +135,10 @@ export const NH_STORETYPE_LAYER: Omit<LayerDescriptor, "months"> = {
   metrics: [
     { key: "restaurant_share", label: "음식점 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "한식·간이·중식·일식 등 음식점 매출 ÷ 전체 카드매출 × 100", limitation: "선정한 생활업종 외 매출도 분모에 포함되므로 업태 비중의 합은 100%가 아니다", triggers: ["음식점 비중", "음식점 업태", "식당 비중", "한식 비중"] },
     { key: "cafe_share", label: "카페·제과 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "커피 전문점·제과점 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["카페 비중", "커피 소비", "카페 상권", "제과"] },
-    { key: "pub_share", label: "주점 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "일반·유흥 주점업 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준. 야간 상권 성격을 보조 설명", triggers: ["주점 비중", "술집 비중", "유흥 상권", "유흥업"] },
+    { key: "pub_share", label: "주점 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "일반·유흥 주점업 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준. 야간 상권 성격을 보조 설명", triggers: ["주점 비중", "술집 비중", "유흥 상권", "유흥업", "술집", "주점"] },
     { key: "grocery_share", label: "식료품 소매 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "슈퍼마켓·편의점·종합소매 매출 ÷ 전체 카드매출 × 100", limitation: "가맹점 소재지 기준", triggers: ["식료품 소매 비중", "식료품 소매", "식료품 비중", "편의점 비중", "마트 비중", "슈퍼마켓"] },
     { key: "fuel_share", label: "주유소 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "운송장비용 주유소 매출 ÷ 전체 카드매출 × 100", limitation: "경남 카드매출 1위 업태지만 통과 교통량에 좌우돼 생활 소비와 성격이 다르다", triggers: ["주유소 비중", "주유소 소비", "주유소", "주유 소비", "기름 소비"] },
-    { key: "medical_store_share", label: "병의원·약국 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "종합병원·병의원·약국 매출 ÷ 전체 카드매출 × 100", limitation: "결제 기준이라 의료기관 수(공공 의료 레이어)와는 다른 관점", triggers: ["병의원 비중", "약국 비중", "의료 업태"] },
+    { key: "medical_store_share", label: "병의원·약국 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "종합병원·병의원·약국 매출 ÷ 전체 카드매출 × 100", limitation: "결제 기준이라 의료기관 수(공공 의료 레이어)와는 다른 관점", triggers: ["병의원 비중", "약국 비중", "약국 없는", "약국 적은", "약국 많은", "의료 업태"] },
   ],
 };
 
@@ -151,7 +151,7 @@ export const KCB_CREDIT_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["KCB 신용정보 행정동 통계 (거주자 기준, 연령구간 인구가중 집계)"],
   metrics: [
-    { key: "avg_income", label: "평균소득", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "연령구간 월소득 평균의 인구가중 평균", limitation: "KCB 추정 거주자 소득, 세전 개인 기준", triggers: ["평균소득", "소득수준", "월소득", "부자", "소득"] },
+    { key: "avg_income", label: "평균소득", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "연령구간 월소득 평균의 인구가중 평균", limitation: "KCB 추정 거주자 소득, 세전 개인 기준", triggers: ["평균소득", "소득수준", "월소득", "부자", "잘 사는", "잘사는", "가난한", "못 사는", "소득"] },
     { key: "credit_score", label: "신용평점", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "신용평점(0~1000) 인구가중 평균", limitation: "KCB 평점 기준", triggers: ["신용평점", "신용점수", "신용도"] },
     { key: "card_spend", label: "1인 카드소비", unit: "만원/월", aggregation: "weightedAvg", weightKey: "pop_total", formula: "카드 총이용금액 합 ÷ 소비활동 대상자 수", limitation: "거주자 기준이라 상권 매출(NH)과 다르며, 신용판매·현금서비스·할부를 모두 포함한 카드 이용액이라 생활 소비만은 아니다", triggers: ["1인 카드소비", "인당 카드소비", "1인당 카드소비", "1인 소비", "인당 소비", "개인 소비", "1인소비"] },
     { key: "loan_ratio", label: "대출보유율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "대출 보유자 수 ÷ 인구 × 100", limitation: "보유 여부 기준(잔액 아님)", triggers: ["대출", "대출보유", "부채", "빚"] },

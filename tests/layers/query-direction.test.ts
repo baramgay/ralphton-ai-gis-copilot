@@ -177,3 +177,22 @@ describe("상권", () => {
     expect(resolveLayerQuery("카페 상권 발달한 동", CUBE_LAYERS)?.layerId).toBe("nh-storetype");
   });
 });
+
+describe("6차에서 나온 표현", () => {
+  test.each([
+    ["밤 늦게 장사되는 곳", "nh-hourly", "night_sales", "desc"],
+    ["점심 시간 매출 높은 동", "nh-hourly", "day_sales", "desc"],
+    ["학원가 형성된 동", "nh-industry", "education_share", "desc"],
+    ["제일 잘 사는 동네", "kcb-credit", "avg_income", "desc"],
+    ["가장 가난한 지역", "kcb-credit", "avg_income", "asc"],
+    ["약국 없는 동", "nh-storetype", "medical_store_share", "asc"],
+    ["술집 많은 동네", "nh-storetype", "pub_share", "desc"],
+  ] as const)('"%s" → %s/%s (%s)', (query, layerId, metricKey, direction) => {
+    const match = resolveLayerQuery(query, CUBE_LAYERS);
+    expect({
+      layerId: match?.layerId,
+      metricKey: match?.metricKey,
+      direction: match?.direction,
+    }).toEqual({ layerId, metricKey, direction });
+  });
+});
