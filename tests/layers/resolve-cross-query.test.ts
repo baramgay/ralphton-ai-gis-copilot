@@ -152,3 +152,27 @@ describe("과한·활발 같은 표현의 방향", () => {
     expect(match?.b.layerId).toBe("nh-consumption");
   });
 });
+
+describe('"A보다 B가 많은" 표현', () => {
+  // "전입보다 전출이 많은 곳"이 전입 순위로 답하고 있었다 — 정반대 개념이다.
+  test("보다를 견주는 말로 읽는다", () => {
+    const match = resolveCrossQuery("전입보다 전출이 많은 곳", CROSS_CANDIDATE_LAYERS);
+    expect(match?.mode).toBe("gap");
+    expect(match?.a.metricKey).toBe("move_out_sgg");
+    expect(match?.b.metricKey).toBe("move_in");
+    // 전출은 시군구까지만 있는 지표라 교차도 시군구로 본다.
+    expect(match?.adminLevel).toBe("sgg");
+  });
+
+  test("뒤집어 물으면 뒤집힌다", () => {
+    const match = resolveCrossQuery("전출보다 전입이 많은 지역", CROSS_CANDIDATE_LAYERS);
+    expect(match?.a.metricKey).toBe("move_in");
+    expect(match?.b.metricKey).toBe("move_out_sgg");
+  });
+
+  test("다른 지표 조합에도 통한다", () => {
+    const match = resolveCrossQuery("소득보다 소비가 많은 동", CROSS_CANDIDATE_LAYERS);
+    expect(match?.a.layerId).toBe("nh-consumption");
+    expect(match?.b.layerId).toBe("kcb-credit");
+  });
+});

@@ -22,7 +22,9 @@ export type CrossQueryMatch = {
 };
 
 // "A 대비 B" → gap(zA−zB, A 높고 B 낮은 순). "A·B 모두" → both(zA+zB).
-const GAP_CUES = ["대비해", "대비", "대해서", "비해", " 대 "];
+// "A보다 B가 많은"도 두 지표를 견주는 말이다. 없으면 "전입보다 전출이 많은 곳"이
+// 전입 순위로 답한다(prod 실측) — 정반대 개념이다.
+const GAP_CUES = ["대비해", "대비", "대해서", "비해", "보다", " 대 "];
 const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면서", "면서 높", "겹치는"];
 // Contrastive polarity: one metric high, the other low → gap even without a "대비" cue.
 // "과한"은 그 지표가 많다는 뜻이다. 없으면 "소득 대비 소비가 과한 지역"이
