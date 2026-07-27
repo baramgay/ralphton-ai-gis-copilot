@@ -34,7 +34,7 @@ import {
 import { topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
-import { detectOutOfScopePlace } from "@/lib/analysis/query-signals";
+import { detectOutOfScopePlace, detectUnsupportedDimension } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
   DEFAULT_COMPARE,
@@ -2523,6 +2523,22 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       return;
     }
 
+    /*
+     * 없는 차원을 물었으면 여기서 멈춘다. 범위 밖 지역과 같은 이유다 — 답할 수 없는 것을
+     * 답할 수 있는 다른 것으로 바꿔 답하면, 사용자는 그것이 답인 줄 안다.
+     */
+    const unsupported = detectUnsupportedDimension(trimmed);
+    if (unsupported) {
+      rememberQuery(trimmed);
+      setParseStage("idle");
+      setQueryNotice(
+        `"${unsupported}"은(는) 이 데이터로 답할 수 없습니다. 큐브가 월 단위 집계라 요일·시간대 구분이 없습니다. 월 단위로 바꿔 물어보세요 — 예: "생활인구 많은 동".`,
+      );
+      setQueryNoticeTone("error");
+      setAnsweredLastQuery(false);
+      return;
+    }
+
     // 두 지표의 변화를 겹쳐 묻는 질의를 먼저 본다. 지표가 둘이라 단일 추세보다 구체적이다.
     const trendCross = resolveTrendCrossQuery(trimmed, /격자|블록/.test(trimmed)
       ? CROSS_LAYERS.filter((layer) => layer.id.startsWith("kcb-grid"))
@@ -2628,7 +2644,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveTab("control");
       setParseStage("done");
       setQueryNotice(
-        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.regionFilters.length ? `${layerMatch.regionFilters.join("·")} 안 ` : ""}${layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${layerMatch.direction === "asc" ? " · 낮은 순" : ""}).`,
+        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.regionFilters.length ? `${layerMatch.regionFilters.join("·")} 안 ` : ""}${layerMatch.geometry === "grid" ? "500m 격자" : layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${layerMatch.direction === "asc" ? " · 낮은 순" : ""}).`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);

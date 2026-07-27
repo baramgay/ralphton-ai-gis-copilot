@@ -197,6 +197,7 @@ export const KCB_GRID_LAYER: Omit<LayerDescriptor, "months"> = {
   coverage: "gyeongnam",
   // 격자 코드는 "gx_gy"라 앞 5자리를 잘라도 시군구가 되지 않는다. 읍면동 단위만 쓴다.
   adminLevels: ["dong"],
+  geometry: "grid",
   sourceNotes: [
     "KCB 100m 격자 통계(부울경) 중 경남만, 500m로 재집계",
     "KCB가 (격자×5세연령구간) 인구 3명 미만은 제공하지 않아 농촌이 크게 누락된다. 격자 표본이 읍면동 인구의 90% 이상인 도시부(12개 시군구·95개 읍면동)만 싣는다",
@@ -222,7 +223,7 @@ export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["HIRA 병원정보서비스 (경남 sido 380000)"],
   metrics: [
-    { key: "vulnerability", label: "의료취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약지수", "의료 취약", "의료취약", "의료 사각", "취약지", "병원 부족", "병원부족"] },
+    { key: "vulnerability", label: "의료취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약지수", "의료 취약", "의료취약", "의료 사각", "취약지", "병원 부족", "병원부족", "의료 부족", "의료 공급", "병원 없", "의원 부족"] },
   ],
 };
 

@@ -15,8 +15,24 @@ export type LayerQueryMatch = {
   metricKey: string;
   metricLabel: string;
   adminLevel: AdminLevel;
+  /** 셀 모양. 격자면 답의 단위를 "행정동"이라 말하면 안 된다. */
+  geometry: "admin" | "grid";
   matchedTrigger: string;
 };
+
+/**
+ * 격자를 요구하는 표현.
+ *
+ * "격자"는 지표 이름이 아니라 **단위**다. 그런데 트리거에 "격자 소득"처럼 이름의 일부로만
+ * 적혀 있어서, 두 낱말이 붙어 있지 않으면 통째로 놓쳤다 — "격자로 봤을 때 소득 낮은 블록"이
+ * 조용히 행정동 평균소득으로 떨어졌다(prod 실측, 6개 표현 중 5개 실패). 단위 신호는 따로 본다.
+ */
+const GRID_CUES = ["격자", "블록", "그리드", "500m", "500 m"] as const;
+
+export function detectGridScope(query: string): boolean {
+  const compact = query.replace(/\s+/g, "");
+  return GRID_CUES.some((cue) => compact.includes(cue.replace(/\s+/g, "")));
+}
 
 /** 시군구 단위를 명시적으로 요구하는 표현. 없으면 행정동(dong) 기본. */
 const SGG_CUES = [
@@ -204,12 +220,40 @@ function supportedLevel(layer: LayerLike, wanted: AdminLevel): AdminLevel {
  * "생활 인구 많은 동"이 공공 총인구로 새고 있었다 — "생활인구" 트리거가 공백 때문에
  * 안 맞고 더 짧은 "인구"가 잡혔다(prod 실측). 사용자가 어디를 띄어 쓸지는 알 수 없으니
  * 양쪽을 붙여서 맞춘다. 길이 비교는 원래 트리거로 해야 "생활인구"가 "인구"를 이긴다.
+ *
+ * 격자 레이어에서는 단위를 뜻하는 앞머리("격자 소득" → "소득")를 떼고도 맞춰 본다.
+ * 질의가 이미 "격자"라고 말했으므로 남은 말이 지표 이름이다. 길이 비교는 원래 트리거로
+ * 하므로 격자 지표끼리의 우열("격자 평균소득" > "격자 소득")은 그대로다.
+ *
+ * 두 낱말짜리 트리거는 사이에 **조사**가 끼어도 맞춘다. "의료 부족"이 "의료도 부족하고"에
+ * 안 맞아 교차분석에서 의료 조건이 통째로 빠졌다(prod 실측). 사람은 "의료도"·"병원이"라고
+ * 쓰지 "의료 부족"이라고 쓰지 않는다. 끼워 넣을 수 있는 것은 조사 두 글자까지로 못박아
+ * 둔다 — 아무 말이나 건너뛰게 하면 무관한 지표를 뺏어 온다.
  */
-function bestTriggerMatch(text: string, metric: MetricDef): string | null {
+const GRID_NAME_PREFIX = /^(격자|블록|동네 안)\s*/;
+const PARTICLE_GAP = "[은는이가도을를의에서와과만로]{0,2}";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function triggerMatches(compactText: string, trigger: string): boolean {
+  if (compactText.includes(trigger.replace(/\s+/g, ""))) return true;
+  const parts = trigger.trim().split(/\s+/);
+  if (parts.length < 2) return false;
+  return new RegExp(parts.map(escapeRegExp).join(PARTICLE_GAP)).test(compactText);
+}
+
+function bestTriggerMatch(text: string, metric: MetricDef, stripGridPrefix = false): string | null {
   const compactText = text.replace(/\s+/g, "");
   let best: string | null = null;
   for (const trigger of metric.triggers) {
-    if (!compactText.includes(trigger.replace(/\s+/g, ""))) continue;
+    const forms = [trigger];
+    if (stripGridPrefix) {
+      const bare = trigger.replace(GRID_NAME_PREFIX, "");
+      if (bare && bare !== trigger) forms.push(bare);
+    }
+    if (!forms.some((form) => triggerMatches(compactText, form))) continue;
     if (best === null || trigger.length > best.length) best = trigger;
   }
   return best;
@@ -233,13 +277,22 @@ export function resolveLayerQuery(
   const text = query.replace(/\s+/g, " ").trim();
   if (!text) return null;
 
-  let best: (LayerQueryMatch & { triggerLength: number }) | null = null;
+  let best: (LayerQueryMatch & { triggerLength: number; gridRank: number }) | null = null;
+  // 단위를 격자로 요구했으면 격자 레이어가 이름 길이와 무관하게 이긴다. "격자 소득"의
+  // "소득"(2자)이 행정동 "평균소득"(4자)에 지면 요구한 단위가 조용히 무시된다.
+  const wantsGrid = detectGridScope(text);
 
   for (const layer of layers) {
+    const isGrid = layer.geometry === "grid";
     for (const metric of layer.metrics) {
-      const trigger = bestTriggerMatch(text, metric);
+      const trigger = bestTriggerMatch(text, metric, wantsGrid && isGrid);
       if (trigger === null) continue;
-      if (best === null || trigger.length > best.triggerLength) {
+      const gridRank = wantsGrid && isGrid ? 1 : 0;
+      if (
+        best === null ||
+        gridRank > best.gridRank ||
+        (gridRank === best.gridRank && trigger.length > best.triggerLength)
+      ) {
         best = {
           layerId: layer.id,
           layerLabel: layer.label,
@@ -258,14 +311,16 @@ export function resolveLayerQuery(
           ),
           direction: detectDirection(text),
           regionFilters: detectRegionFilters(text, options.dongNames ?? []),
+          geometry: isGrid ? "grid" : "admin",
           matchedTrigger: trigger,
           triggerLength: trigger.length,
+          gridRank,
         };
       }
     }
   }
 
   if (best === null) return null;
-  const { triggerLength: _triggerLength, ...match } = best;
+  const { triggerLength: _triggerLength, gridRank: _gridRank, ...match } = best;
   return match;
 }

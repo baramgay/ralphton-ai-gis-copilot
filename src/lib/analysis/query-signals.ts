@@ -128,6 +128,38 @@ export function detectOutOfScopePlace(text: string): string | null {
   return OUT_OF_SCOPE_PLACE_HINTS.find((hint) => text.includes(hint)) ?? null;
 }
 
+/**
+ * 이 도구에 아예 없는 **차원**을 묻는 표현.
+ *
+ * 큐브는 월 단위 집계라 요일·시간대 축이 없다. 그런데 "주말에 사람 몰리는 곳"이
+ * 12개월 인구 증감률로 답하고 있었다(prod 실측) — "몰리"가 인구 증가 신호로 등록돼
+ * 있어서다. 지역명이 범위 밖이면 멈추듯, 차원이 범위 밖이어도 멈춰야 한다.
+ * 없는 축을 물었는데 있는 축으로 답하면 사용자는 그것이 답인 줄 안다.
+ *
+ * 단, 시설 검색은 영업시간을 실제로 걸러 준다("주말 여는 약국"). 그건 통과시킨다.
+ */
+const NO_TIME_AXIS_CUES = [
+  "주말",
+  "평일",
+  "토요일",
+  "일요일",
+  "요일",
+  "시간대",
+  "시간별",
+  "출근 시간",
+  "퇴근 시간",
+  "새벽",
+  "점심시간",
+] as const;
+
+/** 영업시간 필터가 실제로 있는 경로(시설 검색)를 가리키는 말. */
+const FACILITY_CUES = ["약국", "병원", "의원", "치과", "한의원", "응급", "진료", "문 여는", "여는"];
+
+export function detectUnsupportedDimension(text: string): string | null {
+  if (FACILITY_CUES.some((cue) => text.includes(cue))) return null;
+  return NO_TIME_AXIS_CUES.find((cue) => text.includes(cue)) ?? null;
+}
+
 function extractRadiusKm(text: string): 1 | 2 | 3 | null {
   for (const match of text.matchAll(RADIUS_PATTERN)) {
     const value = Number.parseFloat(match[1]);

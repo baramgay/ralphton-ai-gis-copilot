@@ -31,6 +31,11 @@ export const LayerDescriptorSchema = z.object({
   kind: LayerKindSchema,
   coverage: z.literal("gyeongnam"),
   adminLevels: z.array(AdminLevelSchema).min(1),
+  /**
+   * 셀의 실제 모양. 격자 레이어는 행정경계가 아니라 500m 칸이라, adminLevels가 "dong"인
+   * 것은 코드 체계를 빌려 쓴다는 뜻일 뿐 행정동으로 답한다는 뜻이 아니다. 생략하면 "admin".
+   */
+  geometry: z.enum(["admin", "grid"]).optional(),
   metrics: z.array(MetricDefSchema),
   months: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)),
   sourceNotes: z.array(z.string().min(1)),
