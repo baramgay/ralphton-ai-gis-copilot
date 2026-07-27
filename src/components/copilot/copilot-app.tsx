@@ -31,6 +31,7 @@ import {
   EVALUATOR_SCRIPT,
   METHOD_SUMMARY,
 } from "@/lib/analysis/evaluator-guide";
+import { topicOf } from "@/lib/analysis/korean-particle";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import { detectOutOfScopePlace } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
@@ -753,8 +754,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [answeredLastQuery, setAnsweredLastQuery] = useState(true);
   // 부트 이펙트가 runQueryText 정의보다 위에 있어 ref로 잡아 둔다.
   const runQueryTextRef = useRef<((raw: string) => Promise<void>) | null>(null);
+
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
+  /**
+   * 지금 단위를 누가 정했나.
+   *
+   * 질의가 정한 단위를 다음 질의까지 물려주면, "전입보다 전출이 많은 곳"(전출이 시군구
+   * 지표라 시군구가 된다) 다음에 "소득 대비 소비가 과한 지역"을 물었을 때도 시군구로
+   * 답한다(prod 실측). 사용자가 토글로 고른 것만 이어받고, 질의가 바꾼 것은 그 질의에만
+   * 적용한다 — 적지 않았으면 읍면동이 기본이다.
+   */
+  const adminLevelSourceRef = useRef<"user" | "query">("user");
+  const fallbackAdminLevel = adminLevelSourceRef.current === "user" ? adminLevel : "dong";
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
   // 추세를 볼 기간. 0은 전 기간. 장기 추세와 최근 흐름이 갈리는 동이 14%라 바꿔 볼 수 있어야 한다.
   const [trendMonths, setTrendMonths] = useState<number>(0);
@@ -1301,6 +1313,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLayerDirection(match.direction);
       setLayerRegionFilter(match.regionFilter);
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
+      adminLevelSourceRef.current = "query";
       setQueryNotice(
         `${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${match.provider} 민간데이터).`,
       );
@@ -1949,6 +1962,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setCustomAnalysis(view);
       setActiveTab("control");
       if (cross.adminLevel !== adminLevel) setAdminLevel(cross.adminLevel);
+      adminLevelSourceRef.current = "query";
       if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
       setLastIntent(null);
       setParseStage("done");
@@ -2023,7 +2037,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     : "";
                 return (
                   lead +
-                  `1위 ${top.name.replace(/^경상남도\s*/, "")}은 ` +
+                  `1위 ${topicOf(top.name.replace(/^경상남도\s*/, ""))} ` +
                   describeTrend(top.trend, trendMatch.metricLabel, trendMatch.unit) +
                   skew
                 );
@@ -2149,7 +2163,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               (result.matching === 0
                 ? `${match.a.metricLabel} ${word(match.a.direction)}·${match.b.metricLabel} ${word(match.b.direction)}를 모두 만족하는 ${unitLabel} 없음. 가장 가까운 순. `
                 : `${match.a.metricLabel} ${word(match.a.direction)}·${match.b.metricLabel} ${word(match.b.direction)}가 겹치는 순(${result.matching}곳 해당). `) +
-              `1위 ${top.name.replace(/^경상남도\s*/, "")}은 ${match.a.metricLabel} ${top.rateA > 0 ? "+" : ""}${top.rateA.toFixed(1)}% · ${match.b.metricLabel} ${top.rateB > 0 ? "+" : ""}${top.rateB.toFixed(1)}%`,
+              `1위 ${topicOf(top.name.replace(/^경상남도\s*/, ""))} ${match.a.metricLabel} ${top.rateA > 0 ? "+" : ""}${top.rateA.toFixed(1)}% · ${match.b.metricLabel} ${top.rateB > 0 ? "+" : ""}${top.rateB.toFixed(1)}%`,
         ranked: result.ranked.slice(0, 30).map((row) => {
           const name = row.name.replace(/^경상남도\s*/, "");
           return {
@@ -2195,6 +2209,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setCustomAnalysis(view);
       setActiveTab("control");
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
+      adminLevelSourceRef.current = "query";
       if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
       setLastIntent(null);
       setParseStage("done");
@@ -2251,7 +2266,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
     // 두 지표의 변화를 겹쳐 묻는 질의를 먼저 본다. 지표가 둘이라 단일 추세보다 구체적이다.
     const trendCross = resolveTrendCrossQuery(trimmed, CROSS_LAYERS, {
-      adminLevelFallback: adminLevel,
+      adminLevelFallback: fallbackAdminLevel,
       dongNames: dongNamesForQuery,
     });
     if (trendCross) {
@@ -2273,7 +2288,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // 추세 질의("카드매출 늘어나는 동")를 먼저 본다. 값의 크기가 아니라 변화를 묻는
     // 표현이므로 단일 시점 라우팅으로 넘기면 "많은 곳"과 구별되지 않는다.
     const trendMatch = resolveTrendQuery(trimmed, PRIVATE_NL_LAYERS, {
-      adminLevelFallback: adminLevel,
+      adminLevelFallback: fallbackAdminLevel,
     });
     if (trendMatch) {
       rememberQuery(trimmed);
@@ -2288,7 +2303,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
     // 민간×공공 교차분석: "생활인구 대비 카드매출", "소득과 소비 모두 높은 동" 등 두 지표를
     // z-표준화해 합성 순위로 보여준다(툴 결과처럼 customAnalysis 경로로 렌더).
-    const cross = resolveCrossQuery(trimmed, CROSS_LAYERS, { adminLevelFallback: adminLevel });
+    const cross = resolveCrossQuery(trimmed, CROSS_LAYERS, { adminLevelFallback: fallbackAdminLevel });
     if (cross) {
       rememberQuery(trimmed);
       if (runCross(cross)) { setAnsweredLastQuery(true); return; }
@@ -2307,7 +2322,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // of falling through to the public tool-registry (which would misroute "생활인구" to the
     // public 인구 ranking because "생활인구" contains "인구"). Synchronous, no network.
     const layerMatch = resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
-      adminLevelFallback: adminLevel,
+      adminLevelFallback: fallbackAdminLevel,
       // 읍면동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
       dongNames: dongNamesForQuery,
     });
@@ -2318,6 +2333,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLayerRegionFilter(layerMatch.regionFilter);
       setAnsweredLastQuery(true);
       if (layerMatch.adminLevel !== adminLevel) setAdminLevel(layerMatch.adminLevel);
+      adminLevelSourceRef.current = "query";
       setActiveTab("control");
       setParseStage("done");
       setQueryNotice(
@@ -2653,7 +2669,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         </option>
                       ))}
                     </select>
-                    <AdminLevelToggle value={adminLevel} onChange={setAdminLevel} />
+                    <AdminLevelToggle
+                      value={adminLevel}
+                      onChange={(level) => {
+                        // 사용자가 직접 고른 단위는 다음 질의까지 이어진다.
+                        adminLevelSourceRef.current = "user";
+                        setAdminLevel(level);
+                      }}
+                    />
                   </div>
                 ) : null}
                 {activeLayerError ? (

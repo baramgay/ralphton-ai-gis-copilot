@@ -1,3 +1,4 @@
+import { subjectOf } from "@/lib/analysis/korean-particle";
 import type { AnalysisResult } from "@/lib/analysis/result";
 import { stripSido } from "@/lib/analysis/scope";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
@@ -25,17 +26,6 @@ function shortName(admNm: string): string {
 /**
  * One-line policy-style takeaway for the result header (no model calls).
  */
-/**
- * 받침에 맞는 주격 조사. "김해시이(가)"처럼 둘 다 적어 두면 보고서에 그대로 실린다.
- * 한글 음절은 0xAC00부터 28개 종성 단위로 배열돼 있어, 나머지가 0이면 받침이 없다.
- */
-function subjectParticle(word: string): string {
-  const last = word.trim().slice(-1);
-  const code = last.charCodeAt(0);
-  if (Number.isNaN(code) || code < 0xac00 || code > 0xd7a3) return "이";
-  return (code - 0xac00) % 28 === 0 ? "가" : "이";
-}
-
 export function buildOneLineConclusion(
   result: AnalysisResult,
   options?: { selectedRegionCode?: string | null },
@@ -74,7 +64,7 @@ export function buildOneLineConclusion(
   if (top.length === 1) {
     const metric = top[0].metrics[0];
     const name = shortName(top[0].adm_nm);
-    return `${name}${subjectParticle(name)} ${metric ? metric.label : "지표"}에서 가장 두드러집니다.`;
+    return `${subjectOf(name)} ${metric ? metric.label : "지표"}에서 가장 두드러집니다.`;
   }
 
   if (facilities.length > 0) {
