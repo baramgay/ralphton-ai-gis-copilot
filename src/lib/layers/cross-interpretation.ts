@@ -1,3 +1,4 @@
+import { subjectOf, topicOf } from "@/lib/analysis/korean-particle";
 import type { CrossMode, CrossRow } from "@/lib/layers/cross-analysis";
 
 export type CrossOperandInfo = { label: string; unit: string; provider: string };
@@ -42,7 +43,7 @@ export function buildCrossInterpretation(
 
   if (mode === "gap") {
     const head =
-      `${a.label}(${a.provider}) 대비 ${b.label}(${b.provider})이 가장 부족한 곳은 ` +
+      `${a.label}(${a.provider}) 대비 ${subjectOf(`${b.label}(${b.provider})`)} 가장 부족한 곳은 ` +
       `${names.join(" · ")} 순.`;
     // 격차는 두 지표의 상대 위치 차이다. B가 경남 평균을 웃도는데도 A보다 순위가
     // 처지는 경우가 흔해, 무조건 "반면 …낮음"으로 쓰면 실제 값과 어긋난다.
@@ -50,16 +51,16 @@ export function buildCrossInterpretation(
     const bAboveAverage = top.zB >= 0.3;
     const contrast = bAboveAverage
       ? `${b.label}도 ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)})이지만 ${a.label} 순위에는 못 미쳐`
-      : `${b.label}은 ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)})에 그쳐`;
+      : `${topicOf(b.label)} ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)})에 그쳐`;
     const detail =
-      ` 1위 ${shortName(top.name)}은 ${a.label} ${formatValue(top.valueA, a.unit)}(${standingOf(top.zA)}), ` +
+      ` 1위 ${topicOf(shortName(top.name))} ${a.label} ${formatValue(top.valueA, a.unit)}(${standingOf(top.zA)}), ` +
       `${contrast} 격차 ${top.composite.toFixed(1)}표준편차.`;
     return head + detail;
   }
 
-  const head = `${a.label}(${a.provider})·${b.label}(${b.provider})이 함께 높은 곳은 ${names.join(" · ")} 순.`;
+  const head = `${subjectOf(`${a.label}(${a.provider})·${b.label}(${b.provider})`)} 함께 높은 곳은 ${names.join(" · ")} 순.`;
   const detail =
-    ` 1위 ${shortName(top.name)}은 ${a.label} ${formatValue(top.valueA, a.unit)}(${standingOf(top.zA)}), ` +
+    ` 1위 ${topicOf(shortName(top.name))} ${a.label} ${formatValue(top.valueA, a.unit)}(${standingOf(top.zA)}), ` +
     `${b.label} ${formatValue(top.valueB, b.unit)}(${standingOf(top.zB)}).`;
   return head + detail;
 }
