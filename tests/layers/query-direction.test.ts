@@ -157,3 +157,23 @@ describe("읍면동 지정", () => {
     expect(detectRegionFilter("물금읍 생활인구")).toBeNull();
   });
 });
+
+describe("부정 표현", () => {
+  // "카드매출이 없는 동"에 가장 많은 곳을 답하고 있었다 — 정반대다.
+  test('"없는"은 가장 적은 쪽을 묻는다', () => {
+    expect(detectDirection("카드매출이 없는 동")).toBe("asc");
+    expect(detectDirection("일자리가 없는 지역")).toBe("asc");
+  });
+});
+
+describe("상권", () => {
+  test('"상권이 성장하는"은 카드매출로 간다', () => {
+    // 공공 인구 증감률로 새고 있었다.
+    expect(resolveLayerQuery("상권이 성장하는 읍면동", CUBE_LAYERS)?.layerId).toBe("nh-consumption");
+  });
+
+  test("더 구체적인 상권 표현은 그쪽이 이긴다", () => {
+    expect(resolveLayerQuery("야간 상권 발달한 동", CUBE_LAYERS)?.layerId).toBe("nh-hourly");
+    expect(resolveLayerQuery("카페 상권 발달한 동", CUBE_LAYERS)?.layerId).toBe("nh-storetype");
+  });
+});

@@ -377,6 +377,15 @@ const TREND_PRESETS: Array<{ id: string; label: string; subtitle: string; query:
 /** 교차분석 후보 = 큐브 레이어 + 의료취약지수(catalog 단일 출처). */
 const CROSS_LAYERS = CROSS_CANDIDATE_LAYERS;
 
+/**
+ * 결과 단위를 부르는 말. 격자 레이어는 행정동이 아니라 칸이라 "행정동 1,267개"로 쓰면
+ * 사실과 다르다(prod 실측).
+ */
+function unitWordOf(layerId: string, adminLevel: AdminLevel): string {
+  if (layerId.startsWith("kcb-grid")) return "격자";
+  return adminLevel === "sgg" ? "시군구" : "행정동";
+}
+
 function formatCrossValue(value: number | null, unit: string): string {
   if (value === null) return "데이터 없음";
   return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}${unit}`;
@@ -1970,7 +1979,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${cross.regionFilters.length ? `${cross.regionFilters.join("·")} 안 ` : ""}${view.ranked.length}개 ${cross.adminLevel === "sgg" ? "시군구" : "행정동"}`,
+        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${cross.regionFilters.length ? `${cross.regionFilters.join("·")} 안 ` : ""}${view.ranked.length}개 ${unitWordOf(cross.a.layerId, cross.adminLevel)}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2089,7 +2098,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 ${trendMatch.adminLevel === "sgg" ? "시군구" : "행정동"}`,
+        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 ${unitWordOf(trendMatch.layerId, trendMatch.adminLevel)}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2153,7 +2162,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
       const word = (d: "rising" | "falling") => (d === "rising" ? "증가" : "감소");
       const periodLabel = months > 0 ? ` (최근 ${months}개월)` : "";
-      const unitLabel = match.adminLevel === "sgg" ? "시군구" : "행정동";
+      const unitLabel = unitWordOf(match.a.layerId, match.adminLevel);
       const top = result.ranked[0];
       const view: AnalysisView = {
         id: "cross",

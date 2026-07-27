@@ -70,7 +70,7 @@ export const NH_CONSUMPTION_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["NH농협카드 유입지별 카드매출 (행정동, 전체카드 전수화 추정)"],
   metrics: [
-    { key: "card_sales", label: "카드매출", unit: "백만원", aggregation: "sum", formula: "전체카드 이용금액 월 합계(전수화)", limitation: "가맹점 소재지 기준 상권 매출, 거주자 소비와 다름", triggers: ["카드매출", "소비매출", "상권매출", "카드소비", "장사 잘되", "장사가 잘", "돈 많이 쓰", "소비 활발", "매출", "소비"] },
+    { key: "card_sales", label: "카드매출", unit: "백만원", aggregation: "sum", formula: "전체카드 이용금액 월 합계(전수화)", limitation: "가맹점 소재지 기준 상권 매출, 거주자 소비와 다름", triggers: ["카드매출", "소비매출", "상권매출", "카드소비", "장사 잘되", "장사가 잘", "돈 많이 쓰", "소비 활발", "상권", "매출", "소비"] },
     { key: "card_txns", label: "카드결제건수", unit: "건", aggregation: "sum", formula: "전체카드 이용건수 월 합계(전수화)", limitation: "2명 미만 레코드는 원자료에서 익명처리됨", triggers: ["결제건수", "결제 건수", "카드건수", "이용건수", "결제"] },
   ],
 };
