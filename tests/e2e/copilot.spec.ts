@@ -1,12 +1,14 @@
 import { expect, type Page, test } from "@playwright/test";
 
 /**
- * 모바일에서 조작·결과는 같은 자리를 쓰는 바텀시트라 한 번에 하나만 열린다. 이 스펙은
- * 데스크톱·모바일 프로젝트가 함께 돌리므로, 만질 곳을 먼저 띄우고 진행한다.
- * 데스크톱에서는 두 패널이 나란히 있어 이 토글이 없으니 아무 일도 하지 않는다.
+ * 조작·결과 패널을 연다.
  *
- * 이 배려가 없으면 모바일에서 닫힌 시트 안의 요소를 만지게 되는데, Playwright가 강제로
- * 스크롤해 좌표는 맞춰 놓고 정작 그 자리에는 열린 반대편 시트가 있어 클릭이 가로채인다.
+ * 폭에 따라 여닫이 방식이 다르다. 좁은 화면에서는 바텀시트라 한 번에 하나만 열리고
+ * (`sheet-open`), 넓은 화면에서는 접힘 상태다(`is-collapsed`). 질의창이 지도 위 히어로로
+ * 올라가면서 넓은 화면에서도 왼쪽은 기본으로 접히므로, 두 경우를 다 다뤄야 한다.
+ *
+ * 이 배려가 없으면 닫힌 패널 안의 요소를 만지게 되는데, Playwright가 강제로 스크롤해
+ * 좌표는 맞춰 놓고 정작 그 자리에는 다른 것이 있어 클릭이 가로채인다.
  */
 async function openSheet(page: Page, name: "조작" | "결과") {
   const toggle = page.getByRole("button", { name, exact: true });
@@ -14,10 +16,22 @@ async function openSheet(page: Page, name: "조작" | "결과") {
 
   const side = name === "조작" ? "left" : "right";
   const panel = page.locator(`.copilot-panel-${side}`);
-  if (await panel.evaluate((el) => el.classList.contains("sheet-open"))) return;
+  const isOpen = () =>
+    panel.evaluate(
+      (el) => !el.classList.contains("is-collapsed") || el.classList.contains("sheet-open"),
+    );
 
+  const narrow = await page.evaluate(() => window.matchMedia("(max-width: 900px)").matches);
+  if (narrow) {
+    if (await panel.evaluate((el) => el.classList.contains("sheet-open"))) return;
+    await toggle.click({ force: true });
+    await expect(panel).toHaveClass(/sheet-open/);
+    return;
+  }
+
+  if (await isOpen()) return;
   await toggle.click({ force: true });
-  await expect(panel).toHaveClass(/sheet-open/);
+  await expect(panel).not.toHaveClass(/is-collapsed/);
 }
 
 test.describe("AI GIS Copilot core journey", () => {
@@ -64,12 +78,43 @@ test.describe("AI GIS Copilot core journey", () => {
       .toBe("dark");
   });
 
+  /*
+   * 레이어 이름이 세로로 흘러내리던 결함.
+   *
+   * .layer-switcher가 flex:1 한 줄이라 칸을 균등 분할했다. NH처럼 한 기관에 5개가 몰리면
+   * 300px 패널에서 한 칸이 54px이 되고, "카드소비"가 카/드/소/비 네 줄로 쪼개졌다.
+   * DOM 검사로는 안 잡힌다 — 글자는 다 있었고 배치만 무너졌다. 실제 높이를 잰다.
+   */
+  test("레이어 이름이 세로로 쪼개지지 않는다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
+      timeout: 60_000,
+    });
+    await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
+    await openSheet(page, "조작");
+
+    const tall = await page.evaluate(() => {
+      const items = [...document.querySelectorAll(".layer-switcher-item")];
+      const lineHeight = 18; // ui-body 한 줄의 대략치
+      return items
+        .map((el) => ({
+          label: el.textContent?.trim() ?? "",
+          height: el.getBoundingClientRect().height,
+        }))
+        // 한 줄짜리 알약은 패딩 포함 34px 안팎이다. 두 줄이면 이미 무너진 것이다.
+        .filter((item) => item.height > lineHeight * 2 + 16);
+    });
+
+    expect(tall, `세로로 흐른 레이어: ${JSON.stringify(tall)}`).toEqual([]);
+    expect(await page.locator(".layer-switcher-item").count()).toBeGreaterThan(10);
+  });
+
   test("runs natural language query path", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
       timeout: 60_000,
     });
-    await openSheet(page, "조작");
+    // 질의창은 어느 패널에도 속하지 않는다. 패널을 열지 않아도 닿아야 한다.
     const input = page.getByLabel("분석 질의");
     await input.fill("창원 의료 취약");
     await page.getByRole("button", { name: "질의 실행" }).click();

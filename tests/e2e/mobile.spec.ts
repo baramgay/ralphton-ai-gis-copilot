@@ -20,6 +20,19 @@ async function isReachable(page: Page, label: string): Promise<boolean> {
   }, label);
 }
 
+/** 셀렉터로 집은 요소가 실제로 그 자리에서 눌리는지. */
+async function selectorReachable(page: Page, selector: string): Promise<boolean> {
+  return page.evaluate((css) => {
+    const el = document.querySelector(css);
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return false;
+    if (r.top < 0 || r.bottom > window.innerHeight) return false;
+    const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return top === el || el.contains(top) || el === top?.closest(css);
+  }, selector);
+}
+
 test.describe("mobile sheet", () => {
   // 세로가 짧은 기기에서만 드러나는 겹침이 있어 727px로 본다(Pixel 5).
   test.use({ viewport: { width: 393, height: 727 } });
@@ -37,6 +50,40 @@ test.describe("mobile sheet", () => {
     await page.getByRole("button", { name: "결과" }).click({ force: true });
     await expect(page.getByTestId("result-panel")).toBeVisible();
     await expect(page.getByTestId("one-line-conclusion")).toBeVisible();
+  });
+
+  /*
+   * 이 도구의 주기능은 자연어 질의다. 그런데 결과 시트가 첫 화면부터 열려 질의창을 덮어,
+   * 모바일·태블릿에서 질문을 아예 할 수 없었다(Playwright가 `질의 실행` 버튼을 20회
+   * 재시도 끝에 포기했다 — result-panel subtree intercepts pointer events).
+   *
+   * toBeVisible로는 못 잡는다. 버튼은 DOM에 있고 크기도 있었다. 그 좌표에 실제로 무엇이
+   * 있는지 물어야 한다.
+   */
+  test("질의창은 결과 시트를 열어도 계속 닿는다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
+      timeout: 60_000,
+    });
+    await page.getByRole("button", { name: "바로 시작" }).click();
+
+    expect(await selectorReachable(page, "#analysis-query")).toBe(true);
+    expect(await selectorReachable(page, ".query-hero-submit")).toBe(true);
+
+    // 결과 시트를 끝까지 올려도 마찬가지여야 한다.
+    await page.getByRole("button", { name: "결과", exact: true }).click();
+    await expect(page.locator(".copilot-panel-right")).toHaveClass(/sheet-open/);
+    await page.getByRole("button", { name: "높게" }).first().click();
+
+    expect(await selectorReachable(page, "#analysis-query")).toBe(true);
+    expect(await selectorReachable(page, ".query-hero-submit")).toBe(true);
+
+    // 닿을 뿐 아니라 실제로 답이 나와야 한다.
+    await page.getByLabel("분석 질의").fill("생활인구 많은 동");
+    await page.getByRole("button", { name: "질의 실행" }).click();
+    await expect(page.getByTestId("one-line-conclusion")).toContainText(/생활인구/, {
+      timeout: 30_000,
+    });
   });
 
   test("온보딩 카드가 시트 토글을 덮지 않는다", async ({ page }) => {

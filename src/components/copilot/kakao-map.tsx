@@ -38,6 +38,16 @@ type KakaoMapProps = {
   focusRegionCodes?: Set<string> | null;
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
+  /**
+   * 선택 지역으로 지도를 옮길지. 사용자가 직접 고른 지역만 따라간다.
+   *
+   * 순위 1위를 자동 선택하는 것까지 따라가면 앱을 여는 순간 지도가 산속 읍면 하나로
+   * 확대돼 화면이 단색으로 덮인다(prod 실측 — 첫 화면이 온통 파란 면이었다). 경남 전체
+   * 분포를 보여 주는 것이 첫 화면의 일이다.
+   */
+  followSelection?: boolean;
+  /** 반경 원을 그릴지. 2km 반경은 의료 접근성 분석에서만 뜻이 있다. */
+  showRadius?: boolean;
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
@@ -59,6 +69,36 @@ function makeTooltipElement(text: string): HTMLDivElement {
 
 const PLAIN_MARKER_CAP = 80;
 const CLUSTER_MARKER_CAP = 350;
+
+/** 경상남도 대략 중심(의령 부근)과 도 전체가 들어오는 확대 단계. */
+const GYEONGNAM_CENTER = { lat: 35.32, lng: 128.35 };
+const GYEONGNAM_LEVEL = 11;
+
+/** 폴리곤 좌표를 재귀로 훑어 남서·북동 모서리를 구한다. */
+function boundsOf(boundary: BoundaryCollection): {
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+} | null {
+  let minLat = Infinity;
+  let minLng = Infinity;
+  let maxLat = -Infinity;
+  let maxLng = -Infinity;
+  const walk = (coords: unknown): void => {
+    if (typeof (coords as number[])[0] === "number") {
+      const [lng, lat] = coords as number[];
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      return;
+    }
+    for (const part of coords as unknown[]) walk(part);
+  };
+  for (const feature of boundary.features) walk(feature.geometry.coordinates);
+  return Number.isFinite(minLat) ? { minLat, minLng, maxLat, maxLng } : null;
+}
 
 
 /** Prefer selected dong, then high analysis score regions. */
@@ -91,6 +131,8 @@ export function KakaoMap({
   focusRegionCodes = null,
   radiusKm,
   showFacilities,
+  followSelection = true,
+  showRadius = true,
   legendLabel = "상대 분석값",
   onSelectRegion,
   onSelectFacility,
@@ -103,6 +145,7 @@ export function KakaoMap({
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
   const liveMarkersRef = useRef<KakaoOverlay[]>([]);
   const tooltipRef = useRef<KakaoOverlay | null>(null);
+  const fittedBoundaryRef = useRef<string | null>(null);
   const clustererRef = useRef<KakaoMarkerClusterer | null>(null);
   const [context, setContext] = useState<{
     maps: KakaoMapsNamespace;
@@ -125,9 +168,11 @@ export function KakaoMap({
       loadKakaoSdk(appKey)
         .then((maps) => {
           if (!active || !containerRef.current) return;
+          // 경상남도 중심. 부산 시청 좌표(35.1796, 129.0756)가 남아 있어 첫 프레임이
+          // 도 밖에서 시작했다.
           const map = new maps.Map(containerRef.current, {
-            center: new maps.LatLng(35.1796, 129.0756),
-            level: 8,
+            center: new maps.LatLng(GYEONGNAM_CENTER.lat, GYEONGNAM_CENTER.lng),
+            level: GYEONGNAM_LEVEL,
           });
           window.setTimeout(() => map.relayout?.(), 0);
           window.setTimeout(() => map.relayout?.(), 200);
@@ -272,8 +317,32 @@ export function KakaoMap({
       }
     }
 
+    /*
+     * 경계가 처음 들어오거나 다른 경계(격자)로 바뀌면 그 범위 전체가 보이게 한 번 맞춘다.
+     * 그래야 첫 화면이 "경남 어디가 높고 낮은가"를 보여 준다. 그 뒤 사용자가 지도를 움직인
+     * 것은 존중한다 — 매 렌더마다 다시 맞추면 확대해 둔 화면이 계속 튕겨 나온다.
+     */
+    const boundaryKey = `${boundary.features.length}:${boundary.features[0]?.properties.adm_cd2 ?? ""}`;
+    if (fittedBoundaryRef.current !== boundaryKey) {
+      fittedBoundaryRef.current = boundaryKey;
+      const extent = boundsOf(boundary);
+      if (extent) {
+        if (typeof maps.LatLngBounds === "function" && typeof map.setBounds === "function") {
+          const bounds = new maps.LatLngBounds();
+          bounds.extend(new maps.LatLng(extent.minLat, extent.minLng));
+          bounds.extend(new maps.LatLng(extent.maxLat, extent.maxLng));
+          map.setBounds(bounds);
+        } else {
+          map.setCenter(
+            new maps.LatLng((extent.minLat + extent.maxLat) / 2, (extent.minLng + extent.maxLng) / 2),
+          );
+          map.setLevel?.(GYEONGNAM_LEVEL);
+        }
+      }
+    }
+
     const selected = regions.find((region) => region.adm_cd2 === selectedRegionCode);
-    if (!selected && selectedRegionCode) {
+    if (followSelection && !selected && selectedRegionCode) {
       /*
        * 격자처럼 스냅샷 지역 목록에 없는 코드는 여기서 못 찾는다. 그러면 지도가 이전
        * 위치에 그대로 머물러, 격자 레이어로 바꿨는데 화면은 엉뚱한 산속을 비춘다
@@ -298,25 +367,31 @@ export function KakaoMap({
       }
     }
     if (selected) {
-      const circle = new maps.Circle({
-        center: new maps.LatLng(
-          selected.representativePoint.lat,
-          selected.representativePoint.lng,
-        ),
-        radius: radiusKm * 1000,
-        strokeWeight: 2,
-        strokeColor: "#2563eb",
-        strokeOpacity: 0.85,
-        strokeStyle: "dash",
-        fillColor: "#3b82f6",
-        fillOpacity: 0.1,
-      });
-      circle.setMap(map);
-      overlaysRef.current.push(circle);
-      map.setCenter(
-        new maps.LatLng(selected.representativePoint.lat, selected.representativePoint.lng),
-      );
-      map.setLevel?.(6);
+      // 반경 원은 "2km 안에 의료시설이 있는가"를 묻는 분석의 표시다. 생활인구·소비 순위에
+      // 겹쳐 그리면 아무 뜻 없는 파란 원이 지도를 덮는다.
+      if (showRadius) {
+        const circle = new maps.Circle({
+          center: new maps.LatLng(
+            selected.representativePoint.lat,
+            selected.representativePoint.lng,
+          ),
+          radius: radiusKm * 1000,
+          strokeWeight: 2,
+          strokeColor: "#2563eb",
+          strokeOpacity: 0.85,
+          strokeStyle: "dash",
+          fillColor: "#3b82f6",
+          fillOpacity: 0.1,
+        });
+        circle.setMap(map);
+        overlaysRef.current.push(circle);
+      }
+      if (followSelection) {
+        map.setCenter(
+          new maps.LatLng(selected.representativePoint.lat, selected.representativePoint.lng),
+        );
+        map.setLevel?.(6);
+      }
     }
 
     const useCluster = clustererReady && typeof maps.MarkerClusterer === "function";
@@ -421,6 +496,8 @@ export function KakaoMap({
     selectedRegionCode,
     focusRegionCodes,
     showFacilities,
+    followSelection,
+    showRadius,
   ]);
 
   return (

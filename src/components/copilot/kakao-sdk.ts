@@ -10,9 +10,15 @@
  */
 export type KakaoLatLng = object;
 
+export type KakaoLatLngBounds = {
+  extend(position: KakaoLatLng): void;
+};
+
 export type KakaoMapInstance = {
   setCenter(position: KakaoLatLng): void;
   setLevel?(level: number): void;
+  /** 영역 전체가 들어오도록 맞춘다. 화면 비율까지 SDK가 계산한다. */
+  setBounds?(bounds: KakaoLatLngBounds): void;
   relayout?(): void;
 };
 
@@ -30,6 +36,7 @@ export type KakaoMarkerClusterer = {
 export type KakaoMapsNamespace = {
   load(callback: () => void): void;
   LatLng: new (lat: number, lng: number) => KakaoLatLng;
+  LatLngBounds?: new () => KakaoLatLngBounds;
   Map: new (
     container: HTMLElement,
     options: { center: KakaoLatLng; level: number },

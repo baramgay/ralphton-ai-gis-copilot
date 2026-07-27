@@ -3,6 +3,22 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { CopilotApp } from "@/components/copilot/copilot-app";
 
+/**
+ * 조작 패널을 연다.
+ *
+ * 질의창이 지도 위 히어로로 올라가면서 이 패널은 기본으로 접힌다. 접힌 패널은
+ * `aria-hidden`이라 접근성 트리에서 빠지고, getByRole이 그 안의 것을 못 찾는다 — 그것이
+ * 맞는 동작이다(눈에 안 보이는 것은 스크린리더에도 안 보여야 한다). 그러니 패널 내용을
+ * 만지는 테스트는 사람이 하듯 먼저 열어야 한다.
+ */
+function openControls() {
+  // 배치는 localStorage에 남는다. 앞 테스트가 열어 둔 채로 끝나면 여기서 무조건 누를 때
+  // 오히려 닫힌다 — 실제로 그 순서 의존 때문에 두 테스트가 깨졌다. 열려 있으면 놔둔다.
+  const toggle = screen.getByRole("button", { name: "조작" });
+  if (toggle.getAttribute("aria-pressed") === "true") return;
+  fireEvent.click(toggle);
+}
+
 const snapshot = {
   mode: "demo" as const,
   referenceMonth: "2026-06",
@@ -431,6 +447,7 @@ describe("CopilotApp", () => {
       render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
 
       expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
+      openControls();
       for (const label of [
         "의료 취약",
         "고령 × 의료",
@@ -460,6 +477,7 @@ describe("CopilotApp", () => {
   test("switches help and data information tabs accessibly", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
+    openControls();
 
     fireEvent.click(screen.getByRole("tab", { name: "이용" }));
     expect(screen.getByText("이렇게 쓰세요")).toBeInTheDocument();
@@ -471,6 +489,7 @@ describe("CopilotApp", () => {
   test("executes a distinct radius result and exposes its active metric", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
+    openControls();
 
     fireEvent.click(screen.getByRole("button", { name: "주변 접근" }));
 
@@ -496,6 +515,25 @@ describe("CopilotApp", () => {
   });
 
   test("supports mobile panel toggles for left and right sheets", async () => {
+    /*
+     * 같은 버튼이 폭에 따라 다르게 동작한다 — 좁으면 바텀시트를, 넓으면 접힘 상태를
+     * 움직인다. jsdom은 matchMedia가 없어 기본이 "넓은 화면"이므로, 모바일 동작을 보려면
+     * 좁은 화면이라고 답하게 해야 한다. 안 그러면 이 테스트는 이름과 달리 데스크톱을 잰다.
+     */
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((queryText: string) => ({
+        matches: queryText.includes("max-width: 900px"),
+        media: queryText,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        onchange: null,
+      })),
+    );
+
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
 
@@ -504,11 +542,14 @@ describe("CopilotApp", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "결과" }));
     expect(screen.getByTestId("result-panel").className).toMatch(/sheet-open/);
+
+    vi.unstubAllGlobals();
   });
 
   test("shows compare picker when gu compare is selected", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
+    openControls();
 
     fireEvent.click(screen.getByRole("button", { name: "구 비교" }));
     expect(await screen.findByTestId("compare-picker")).toBeInTheDocument();
@@ -519,10 +560,11 @@ describe("CopilotApp", () => {
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
   });
 
-  test("theme controls and cycle button are available", async () => {
+  test("theme controls are available in settings", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap", {}, { timeout: 10_000 });
 
+    openControls();
     await fireEvent.click(screen.getByRole("tab", { name: "분석" }));
     // Open settings details
     const details = screen.getByText("화면 설정");
@@ -530,7 +572,6 @@ describe("CopilotApp", () => {
 
     expect(await screen.findByTestId("theme-dark")).toBeInTheDocument();
     expect(screen.getByTestId("theme-system")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-cycle-btn")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("theme-dark"));
     await waitFor(() => {

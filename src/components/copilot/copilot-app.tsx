@@ -57,6 +57,7 @@ import { AdminLevelToggle } from "./admin-level-toggle";
 import { LayerSwitcher, type LayerOption } from "./layer-switcher";
 import { MapCanvas } from "./map-canvas";
 import { PanelResizer } from "./panel-resizer";
+import { QueryHero } from "./query-hero";
 import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
 import {
@@ -696,6 +697,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [activeTab, setActiveTab] = useState<TabId>("control");
   const [activeQuick, setActiveQuick] = useState<QuickId>("scarcity");
   const [selectedRegionCode, setSelectedRegionCode] = useState<string | null>(null);
+  /*
+   * 지도가 선택 지역을 따라 확대할지. 사용자가 지도나 순위에서 직접 고른 선택만 따라간다.
+   *
+   * 분석 결과의 1위는 자동 선택되는데, 그것까지 따라가면 앱을 여는 순간 지도가 산속 읍면
+   * 하나로 확대돼 화면이 단색으로 덮였다(prod 실측). 새 분석을 돌릴 때마다 다시 꺼서
+   * "경남 전체 분포"로 돌아온다.
+   */
+  const [followSelection, setFollowSelection] = useState(false);
   const [radiusKm, setRadiusKm] = useState<1 | 2 | 3>(2);
   const [query, setQuery] = useState("");
   const [queryNotice, setQueryNotice] = useState<string | null>(null);
@@ -733,7 +742,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const densityHydratedRef = useRef(false);
   const queryInputRef = useRef<HTMLInputElement>(null);
   const shareAppliedRef = useRef(false);
-  const staleToastShownRef = useRef(false);
   const {
     layout,
     cssVars,
@@ -1074,12 +1082,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         if ("syncOps" in syncStatus && (syncStatus as { syncOps?: SyncOpsInfo }).syncOps) {
           const ops = (syncStatus as { syncOps: SyncOpsInfo }).syncOps;
           setSyncOps(ops);
-          if (!staleToastShownRef.current && (ops.stale || ops.recommendSync) && ops.reason) {
-            staleToastShownRef.current = true;
-            const msg = ops.reason.length > 52 ? `${ops.reason.slice(0, 52)}…` : ops.reason;
-            setToast(msg);
-            window.setTimeout(() => setToast(null), 3200);
-          }
+          /*
+           * 게시 주기 경과는 운영자에게 할 말이지 분석하러 온 사람에게 할 말이 아니다.
+           * "마지막 게시 후 213시간 경과 (권장 24시간)"이 첫 화면에 검은 토스트로 떠
+           * 있었다(prod 실측). 데이터 탭의 운영 현황(syncOps)에 그대로 남으므로 여기서는
+           * 띄우지 않는다.
+           */
         }
       }
     });
@@ -1536,9 +1544,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     void loadLivePlacesNearSelection(selectedRegion, "병원");
   }, [selectedRegion, loadLivePlacesNearSelection]);
 
+  /*
+   * 조작·결과 패널 여닫이. 좁은 화면이면 패널이 바텀시트라 sheetMode가, 넓은 화면이면
+   * 접힘 상태(leftCollapsed)가 여닫이를 맡는다. 한 버튼이 두 모델을 다 다뤄야 하므로
+   * 누르는 시점에 어느 쪽인지 본다. CSS 분기점(900px)과 같은 값을 쓴다 — 어긋나면
+   * 버튼이 아무 일도 하지 않는 폭 구간이 생긴다.
+   */
+  const isNarrowNow = () =>
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 900px)").matches;
+
+  const toggleControls = useCallback(() => {
+    if (isNarrowNow()) setSheetMode((mode) => (mode === "left" ? "none" : "left"));
+    else toggleLeft();
+  }, [toggleLeft]);
+
+  const toggleResults = useCallback(() => {
+    if (isNarrowNow()) setSheetMode((mode) => (mode === "right" ? "none" : "right"));
+    else toggleRight();
+  }, [toggleRight]);
+
   const selectFacility = useCallback((facility: Facility) => {
     setSelectedFacilityId(facility.id);
     setSelectedLivePlace(null);
+    setFollowSelection(true);
     setSelectedRegionCode(facility.adm_cd2);
   }, []);
 
@@ -1546,6 +1576,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (code: string) => {
       setSelectedFacilityId(null);
       setSelectedLivePlace(null);
+      setFollowSelection(true);
       // At sgg admin level, ranked rows carry 5-digit sgg codes (map scores stay
       // dong-keyed — see layers/to-analysis-view.ts). Resolve the clicked sgg
       // code to a representative member dong so selection/highlight/facility
@@ -1865,6 +1896,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const runQuick = useCallback(
     (id: QuickId) => {
+      setFollowSelection(false);
       if (id === "reset") {
         setActiveQuick("scarcity");
         const next = snapshot
@@ -2256,6 +2288,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const trimmed = raw.trim();
     if (!trimmed) return;
 
+    // 새 질의는 새 분포다. 앞 질의에서 확대해 둔 자리에 갇히지 않게 전체 보기로 돌린다.
+    setFollowSelection(false);
+
 
     /*
      * 경남 밖 지역을 물었으면 여기서 멈춘다.
@@ -2492,6 +2527,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();
     await runQueryText(query);
+    /*
+     * 좁은 화면에서는 답이 결과 시트 안에 있는데, 물어 놓고 시트를 따로 열어야 했다.
+     * 질의창이 시트 위 히어로로 올라간 뒤로는 시트를 열어도 다음 질문을 막지 않으므로
+     * 바로 보여 준다.
+     */
+    if (isNarrowNow()) setSheetMode("right");
   };
 
   if (loadError) {
@@ -2572,6 +2613,35 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         분석 조작 패널로 건너뛰기
       </a>
 
+      {/*
+        제품 정체성과 데이터 기준월은 늘 보여야 한다. 이전엔 왼쪽 패널 안에 있었는데,
+        그 패널이 기본으로 접히면서 h1이 `aria-hidden` 아래로 들어가 접근성 트리에서
+        사라졌다 — 스크린리더에게는 제목 없는 페이지가 됐고, e2e 14건이 전부
+        "heading not found"로 떨어졌다. 어느 패널에도 두지 않는다.
+      */}
+      <header className="copilot-topbar">
+        <img
+          src="/brand-mark.svg"
+          alt=""
+          width={28}
+          height={28}
+          className="size-7 shrink-0 rounded-lg shadow-sm ring-1 ring-slate-200/80"
+        />
+        <div className="min-w-0">
+          <h1 className="ui-body-lg truncate font-black text-slate-950">경남 AI GIS</h1>
+        </div>
+        <p className="copilot-topbar-meta ui-caption truncate text-slate-500">
+          {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth} ·{" "}
+          {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동
+        </p>
+        <span
+          className={`ui-status ml-auto ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
+          title={modeBadgeLabel(snapshot.mode)}
+        >
+          {snapshot.mode === "live" ? "실데이터" : "시연"}
+        </span>
+      </header>
+
       {/* LEFT: controls only */}
       <aside
         id="left-panel"
@@ -2579,7 +2649,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           layout.leftCollapsed ? "is-collapsed" : ""
         }`}
         aria-label="분석 조작 패널"
-        aria-hidden={layout.leftCollapsed || undefined}
+        /*
+          접근성 트리에서 빼는 기준은 "정말 안 보이는가"다. 좁은 화면에서는 시트가 열려
+          있으면 보이는 것이므로, 접힘 상태(leftCollapsed)만 보고 숨기면 시트를 열어도
+          내용이 스크린리더에 없다 — e2e에서 시트를 열고도 '이용' 탭을 못 찾았다.
+        */
+        aria-hidden={(sheetMode === "left" ? false : layout.leftCollapsed) || undefined}
       >
         <div
           className="sheet-handle"
@@ -2614,33 +2689,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </button>
           ))}
         </div>
-        <header className="border-b border-slate-200/80 px-4 pb-3 pt-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <img
-                src="/brand-mark.svg"
-                alt=""
-                width={32}
-                height={32}
-                className="size-8 shrink-0 rounded-[10px] shadow-sm ring-1 ring-slate-200/80"
-              />
-              <div className="min-w-0">
-                <h1 className="ui-title truncate text-slate-950">경남 AI GIS</h1>
-                <p className="ui-chip mt-0.5 text-slate-500">
-                  {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth} ·{" "}
-                  {snapshot.regions.length.toLocaleString("ko-KR")}동
-                </p>
-              </div>
-            </div>
-            <span
-              className={`ui-status ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
-              title={modeBadgeLabel(snapshot.mode)}
-            >
-              {snapshot.mode === "live" ? "실데이터" : "시연"}
-            </span>
-          </div>
-        </header>
-
+        {/* 제품 헤더는 상단 바(copilot-topbar)로 올렸다. 여기서는 탭부터 시작한다. */}
         <nav className="px-3 pt-3" aria-label="왼쪽 패널 탭">
           <div className="grid grid-cols-3 rounded-xl bg-slate-100 p-1" role="tablist">
             {(
@@ -2670,7 +2719,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           {activeTab === "control" ? (
             <div className="space-y-5">
               <section>
-                <h2 className="section-label">레이어</h2>
+                <h2 className="section-label">레이어 직접 고르기</h2>
+                <p className="ui-caption mb-2 -mt-1">
+                  질문으로 안 될 때 손으로 고릅니다 · {LAYER_OPTIONS.length}개
+                </p>
                 <LayerSwitcher
                   layers={LAYER_OPTIONS}
                   activeId={activeLayerId}
@@ -2722,121 +2774,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 ) : null}
               </section>
 
-              <section>
-                <h2 className="section-label">1. 질문하기</h2>
-                <form className="relative" onSubmit={submitQuery}>
-                  <label htmlFor="analysis-query" className="sr-only">
-                    분석 질의
-                  </label>
-                  <input
-                    id="analysis-query"
-                    ref={queryInputRef}
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: 생활인구 많은 동네? 시군구별 평균소득?"
-                    maxLength={1000}
-                    className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-12 ui-body-lg shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                  />
-                  <button
-                    type="submit"
-                    aria-label="질의 실행"
-                    disabled={isParsing || !query.trim()}
-                    className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-[10px] bg-blue-600 ui-body font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-200"
-                  >
-                    {isParsing ? "…" : "↑"}
-                  </button>
-                </form>
-                <div className="chip-scroll mt-2.5" aria-label="추천 질문">
-                  {QUERY_SUGGESTIONS.slice(0, 6).map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className="ui-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 transition hover:border-blue-300 hover:text-blue-700"
-                      onClick={() => {
-                        setQuery(item);
-                        queryInputRef.current?.focus();
-                      }}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-                {parseStage === "intent" || parseStage === "analyze" ? (
-                  <div
-                    className="mt-2.5 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 ui-body text-blue-800"
-                    role="status"
-                    data-testid="parse-stage"
-                  >
-                    <span className="inline-block size-1.5 animate-pulse rounded-full bg-blue-500" />
-                    {parseStage === "intent" ? "질문을 이해하는 중…" : "분석을 실행하는 중…"}
-                  </div>
-                ) : null}
-                {queryNotice ? (
-                  <p
-                    role="status"
-                    aria-live={queryNoticeTone === "error" ? "assertive" : "polite"}
-                    data-testid="query-notice"
-                    className={`mt-2.5 rounded-lg px-3 py-2.5 ui-body ${
-                      queryNoticeTone === "error"
-                        ? "bg-rose-50 text-rose-700"
-                        : queryNoticeTone === "success"
-                          ? "bg-emerald-50 text-emerald-800"
-                          : "bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    {queryNotice}
-                  </p>
-                ) : null}
-                {querySuggestions.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {querySuggestions.slice(0, 6).map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        className="ui-chip rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-blue-300 hover:text-blue-700"
-                        onClick={() => {
-                          setQuery(suggestion);
-                          setQuerySuggestions([]);
-                        }}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {recentQueries.length > 0 ? (
-                  <div className="mt-3" data-testid="recent-queries">
-                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <p className="ui-caption">최근 질문</p>
-                      <button
-                        type="button"
-                        className="ui-caption font-bold text-slate-500 underline-offset-2 hover:text-rose-600 hover:underline"
-                        data-testid="clear-recent-queries"
-                        onClick={clearRecentQueries}
-                      >
-                        지우기
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {recentQueries.slice(0, 4).map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          className="ui-chip max-w-full truncate rounded-full border border-slate-100 bg-slate-50 px-3 py-1.5 text-slate-600 hover:border-blue-300 hover:bg-white hover:text-blue-700"
-                          title={item}
-                          onClick={() => setQuery(item)}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </section>
-
+              {/*
+                질의창은 이 패널에 없다. 지도 위 히어로(QueryHero)로 올렸다 — 주기능이
+                레이어 버튼 아래에 묻혀 있었고, 모바일에서는 결과 시트에 덮여 아예 닿지
+                않았다. 이 패널은 이제 "직접 고르기"만 맡는다.
+              */}
               {activeLayerId === "medical" ? (
                 <section>
-                  <h2 className="section-label">2. 빠른 분석</h2>
+                  <h2 className="section-label">빠른 분석</h2>
                   <p className="ui-caption mb-2 -mt-1">클릭 한 번으로 바로 결과 확인</p>
                   <div className="grid grid-cols-2 gap-2">
                     {QUICK_ANALYSES.map((item) => (
@@ -3063,7 +3008,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
               {activeLayerId === "medical" ? (
                 <section>
-                  <h2 className="section-label">3. 접근 반경</h2>
+                  <h2 className="section-label">접근 반경</h2>
                   <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
                     {([1, 2, 3] as const).map((radius) => (
                       <button
@@ -3528,6 +3473,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       게시된 live 스냅샷 없음 · POST /api/data/sync 필요
                     </p>
                   )}
+                  {/* 갱신 권장 사유는 운영자용이다. 첫 화면 토스트에서 여기로 옮겼다. */}
+                  {syncOps.reason ? (
+                    <p className="ui-chip mt-1 text-slate-600" data-testid="sync-ops-reason">
+                      {syncOps.reason}
+                    </p>
+                  ) : null}
                   {syncOps.lastAttemptAt ? (
                     <p className="ui-chip mt-1 text-slate-600">
                       최근 시도 {new Date(syncOps.lastAttemptAt).toLocaleString("ko-KR")}
@@ -3643,6 +3594,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           focusRegionCodes={focusRegionCodes}
           radiusKm={radiusKm}
           showFacilities={analysis.isFacilityResult}
+          followSelection={followSelection}
+          /*
+           * 반경 원은 "2km 안에 의료시설이 있는가"를 묻는 분석의 표시다. 생활인구·소비
+           * 순위에도 늘 겹쳐 그려서, 뜻 없는 파란 원이 지도를 덮고 있었다.
+           */
+          showRadius={activeLayerId === "medical" && !customAnalysis}
           legendLabel={analysis.legendLabel}
           onSelectRegion={selectRegion}
           onSelectFacility={selectFacility}
@@ -3650,15 +3607,44 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           onEngineChange={setMapEngine}
         />
 
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-2xl border border-white/80 bg-white/90 px-4 py-2.5 shadow-lg backdrop-blur max-md:left-3 max-md:translate-x-0">
+        <QueryHero
+          query={query}
+          onQueryChange={setQuery}
+          onSubmit={submitQuery}
+          inputRef={queryInputRef}
+          isParsing={isParsing}
+          parseStage={parseStage}
+          notice={queryNotice}
+          noticeTone={queryNoticeTone}
+          suggestions={querySuggestions}
+          onPickSuggestion={(value) => {
+            setQuery(value);
+            setQuerySuggestions([]);
+            queryInputRef.current?.focus();
+          }}
+          examples={QUERY_SUGGESTIONS}
+          recentQueries={recentQueries}
+          onClearRecent={clearRecentQueries}
+        />
+
+        {/*
+          무엇을 보고 있는지 알려 주는 배지. 히어로가 상단 가운데를 쓰므로 왼쪽 아래로
+          내렸다. 지도 조작을 가리지 않도록 pointer-events는 없다.
+        */}
+        <div className="map-context-badge">
           {mapFacilitiesCapped ? (
             <p className="ui-caption mb-1 font-semibold text-amber-700">
               지도 시설 {MAP_FACILITY_CAP}개 표시 · 전체 {typedMapFacilities.length.toLocaleString("ko-KR")}
             </p>
           ) : null}
           <p className="ui-caption font-bold text-blue-600">{analysis.title}</p>
+          {/*
+            지도가 비추는 곳을 말해야 한다. 사용자가 직접 고르기 전까지 지도는 경남 전역을
+            비추는데, 앞 분석에서 남은 선택 지역 이름을 여기 띄우면 "생활인구 1위는 양산시
+            물금읍"이라는 결론 옆에 엉뚱하게 거창군 북상면이 적힌다.
+          */}
           <p className="max-w-[260px] truncate ui-body font-bold text-slate-900">
-            {selectedRegion ? compactName(selectedRegion) : "경상남도"}
+            {followSelection && selectedRegion ? compactName(selectedRegion) : "경상남도 전역"}
           </p>
           {isCompareView && focusRegionCodes ? (
             <p className="ui-caption mt-1 font-bold text-amber-800">
@@ -3668,86 +3654,32 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         </div>
 
         <div className="map-float-dock absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 max-md:bottom-20">
+          {/*
+            레이아웃 프리셋 5개(지도 넓게·분석 넓게·결과 넓게·균형·레이아웃)가 지도의 알짜
+            공간을 두 줄로 차지하고 있었다. 패널을 여닫는 일은 조작·결과 두 버튼과 가장자리
+            토글로 충분하다. 프리셋은 왼쪽 패널 '화면 설정'과 단축키에 남아 있다.
+          */}
           <div className="map-float-bar">
             <button
               type="button"
               className="mobile-panel-btn !m-0 !shadow-none"
-              onClick={() => setSheetMode((mode) => (mode === "left" ? "none" : "left"))}
+              /*
+                좁은 화면에서는 leftCollapsed가 늘 참(기본값)이라 sheetMode만 남고,
+                넓은 화면에서는 sheetMode가 늘 "none"이라 접힘 상태만 남는다. 한 식으로
+                두 모델을 다 읽는다.
+              */
+              aria-pressed={sheetMode === "left" || !layout.leftCollapsed}
+              onClick={toggleControls}
             >
               조작
             </button>
             <button
               type="button"
               className="mobile-panel-btn !m-0 !shadow-none"
-              onClick={() => setSheetMode((mode) => (mode === "right" ? "none" : "right"))}
+              aria-pressed={sheetMode === "right" || !layout.rightCollapsed}
+              onClick={toggleResults}
             >
               결과
-            </button>
-            <button
-              type="button"
-              className="map-float-btn hidden md:inline-flex"
-              title="지도 넓게 ( \\ )"
-              onClick={() => applyLayoutPreset("map")}
-            >
-              지도 넓게
-            </button>
-            <button
-              type="button"
-              className="map-float-btn hidden md:inline-flex"
-              title="분석 집중"
-              onClick={() => applyLayoutPreset("analyze")}
-            >
-              분석 넓게
-            </button>
-            <button
-              type="button"
-              className="map-float-btn hidden md:inline-flex"
-              title="결과 집중"
-              onClick={() => applyLayoutPreset("results")}
-            >
-              결과 넓게
-            </button>
-            <button
-              type="button"
-              className="map-float-btn hidden md:inline-flex"
-              title="균형 레이아웃"
-              onClick={() => applyLayoutPreset("balanced")}
-            >
-              균형
-            </button>
-            <button
-              type="button"
-              className="map-float-btn hidden md:inline-flex"
-              title="레이아웃 초기화 (Shift+0)"
-              onClick={() => {
-                resetLayout();
-                setLayoutPreset("balanced");
-                showToast("레이아웃 초기화");
-              }}
-            >
-              레이아웃
-            </button>
-            <button
-              type="button"
-              className="map-float-btn"
-              data-testid="theme-cycle-btn"
-              title={`테마 전환 (Shift+D) · 현재 ${THEME_LABELS[themePreference]}`}
-              aria-label={`테마 전환, 현재 ${THEME_LABELS[themePreference]}`}
-              onClick={() => {
-                setThemePreference((current) => {
-                  const next = cycleThemePreference(current);
-                  showToast(`테마: ${THEME_LABELS[next]}`);
-                  return next;
-                });
-              }}
-            >
-              {resolveTheme(themePreference) === "dark"
-                ? "다크"
-                : resolveTheme(themePreference) === "contrast"
-                  ? "고대비"
-                  : themePreference === "system"
-                    ? "시스템"
-                    : "라이트"}
             </button>
           </div>
         </div>
@@ -3812,7 +3744,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           layout.rightCollapsed ? "is-collapsed" : ""
         }`}
         aria-label="분석 결과 패널"
-        aria-hidden={layout.rightCollapsed || undefined}
+        aria-hidden={(sheetMode === "right" ? false : layout.rightCollapsed) || undefined}
         data-testid="result-panel"
       >
         <div
@@ -3979,17 +3911,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             {" · "}{activeLayerProvider}
             {snapshot.mode === "demo" ? " · 정책 판단용 아님" : ""}
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <span className="ui-chip rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-              {analysis.isFacilityResult
-                ? `${filteredFacilitiesList.length}개 시설`
-                : `${filteredRanked.length}개 동`}
-            </span>
-            {currentRank > 0 ? (
-              <span className="ui-chip rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
-                선택 {currentRank}위
-              </span>
-            ) : null}
+          {/*
+            읽을 것(몇 개인가·선택은 몇 위인가)과 할 것(내보내기)이 한 칩 구름에 섞여 있어
+            무엇이 눌리는지 구분되지 않았다. 사실은 문장으로, 동작만 버튼으로 나눈다.
+          */}
+          <p className="ui-caption mt-2.5 text-slate-500" data-testid="result-meta">
+            {analysis.isFacilityResult
+              ? `${filteredFacilitiesList.length.toLocaleString("ko-KR")}개 시설`
+              : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${unitWordOf(activeLayerId, adminLevel)}`}
+            {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="내보내기">
             <button
               type="button"
               data-testid="export-csv"
@@ -4191,7 +4123,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="rank-name block truncate">{row.name}</span>
-                          <span className="rank-note mt-0.5 block">{row.note}</span>
+                          {/*
+                            note가 "총생활인구 · 97,787.3명"이면 오른쪽 값(97,787.3명)과
+                            패널 제목(총생활인구 순위)을 합친 것과 같아, 한 줄에 같은 숫자가
+                            두 번 찍혔다. 교차·추세 결과처럼 note가 다른 것을 말할 때만 남긴다.
+                          */}
+                          {row.note && !row.note.endsWith(row.valueLabel) ? (
+                            <span className="rank-note mt-0.5 block">{row.note}</span>
+                          ) : null}
                         </span>
                         <span className="rank-value">{row.valueLabel}</span>
                       </button>

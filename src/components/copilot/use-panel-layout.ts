@@ -9,12 +9,19 @@ export type PanelLayout = {
   rightCollapsed: boolean;
 };
 
-export const PANEL_LAYOUT_STORAGE_KEY = "ralphton-panel-layout-v1";
+// v1은 질의창이 왼쪽 패널에 있던 시절의 기본값이라, 그때 저장된 배치를 그대로 복원하면
+// 새 기본(왼쪽 접힘)이 적용되지 않는다. 배치의 의미가 바뀌었으므로 키를 올린다.
+export const PANEL_LAYOUT_STORAGE_KEY = "ralphton-panel-layout-v2";
 
 export const PANEL_DEFAULTS: PanelLayout = {
   left: 300,
   right: 360,
-  leftCollapsed: false,
+  /*
+   * 왼쪽은 기본으로 접는다. 질의창이 지도 위 히어로로 올라가면서 이 패널에 남은 것은
+   * "직접 고르기"(레이어·지표·단위·프리셋)뿐이다 — 처음 열었을 때 필요한 것이 아니라,
+   * 자연어로 안 되는 것을 손으로 할 때 필요한 것이다. 지도에 자리를 내준다.
+   */
+  leftCollapsed: true,
   rightCollapsed: false,
 };
 
@@ -27,7 +34,8 @@ export const LAYOUT_PRESETS: Record<
   balanced: {
     label: "균형",
     hint: "조작·지도·결과 균등",
-    layout: { ...PANEL_DEFAULTS },
+    // 기본값을 그대로 쓰면 왼쪽이 접힌 채로 "균형"이 된다. 이 프리셋은 셋을 다 보이는 뜻이다.
+    layout: { ...PANEL_DEFAULTS, leftCollapsed: false, rightCollapsed: false },
   },
   map: {
     label: "지도 넓게",

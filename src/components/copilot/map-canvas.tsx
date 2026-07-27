@@ -18,6 +18,10 @@ type MapCanvasProps = {
   focusRegionCodes?: Set<string> | null;
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
+  /** 선택 지역을 지도가 따라갈지. 사용자가 직접 고른 선택에만 켠다. */
+  followSelection?: boolean;
+  /** 반경 원 표시 여부. 의료 접근성 분석에서만 뜻이 있다. */
+  showRadius?: boolean;
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
@@ -29,7 +33,16 @@ export function MapCanvas(props: MapCanvasProps) {
   const [kakaoFailed, setKakaoFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-  const { kakaoMapKey, onEngineChange, livePlaces, onSelectLivePlace, ...mapProps } = props;
+  // DemoMap은 Kakao 전용 카메라 제어 속성을 받지 않는다. 여기서 갈라 둔다.
+  const {
+    kakaoMapKey,
+    onEngineChange,
+    livePlaces,
+    onSelectLivePlace,
+    followSelection,
+    showRadius,
+    ...mapProps
+  } = props;
 
   const handleError = useCallback(
     (message: string) => {
@@ -66,6 +79,8 @@ export function MapCanvas(props: MapCanvasProps) {
         {...mapProps}
         livePlaces={livePlaces}
         onSelectLivePlace={onSelectLivePlace}
+        followSelection={followSelection}
+        showRadius={showRadius}
         onError={handleError}
         onReady={handleReady}
       />
