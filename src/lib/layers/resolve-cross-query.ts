@@ -1,5 +1,5 @@
 import type { CrossMode } from "@/lib/layers/cross-analysis";
-import { detectAdminLevel } from "@/lib/layers/resolve-layer-query";
+import { detectAdminLevel, detectRegionFilter } from "@/lib/layers/resolve-layer-query";
 import type { AdminLevel, LayerDescriptor } from "@/lib/layers/types";
 
 type LayerLike = Omit<LayerDescriptor, "months"> | LayerDescriptor;
@@ -17,6 +17,8 @@ export type CrossQueryMatch = {
   b: CrossOperandRef;
   mode: CrossMode;
   adminLevel: AdminLevel;
+  /** 질의에 시군구가 적혀 있으면 그 이름. 단일 지표 경로와 같은 규칙으로 좁힌다. */
+  regionFilter: string | null;
 };
 
 // "A 대비 B" → gap(zA−zB, A 높고 B 낮은 순). "A·B 모두" → both(zA+zB).
@@ -150,5 +152,7 @@ export function resolveCrossQuery(
       first.sggOnly || second.sggOnly
         ? "sgg"
         : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+    // "창원에서 소득 낮고 의료 취약한 곳"이 경남 전체를 답하고 있었다.
+    regionFilter: detectRegionFilter(text),
   };
 }

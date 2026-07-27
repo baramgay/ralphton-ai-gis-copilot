@@ -13,7 +13,25 @@ export type TrendQueryMatch = {
   /** rising = 증가폭이 큰 순, falling = 감소폭이 큰 순. */
   direction: "rising" | "falling";
   adminLevel: AdminLevel;
+  /** 질의에 적힌 기간(개월). 없으면 null이고 화면의 기간 설정을 그대로 쓴다. */
+  months: number | null;
 };
+
+/**
+ * "최근 3개월"처럼 적힌 기간을 읽는다.
+ *
+ * 안 읽으면 화면의 기간 설정(기본 전체)이 그대로 쓰여, "최근 3개월 카드매출 늘어나는 동"에
+ * 12개월 변화율을 답하게 된다(prod 실측). 물어본 기간과 답한 기간이 다르면 그 자체로
+ * 틀린 답이다.
+ */
+const MONTHS_PATTERN = /(?:최근\s*)?(\d{1,2})\s*개?월/;
+
+export function detectTrendMonths(query: string): number | null {
+  const match = query.match(MONTHS_PATTERN);
+  if (!match) return null;
+  const months = Number(match[1]);
+  return Number.isFinite(months) && months >= 2 && months <= 36 ? months : null;
+}
 
 // "늘어나는 / 증가하는" 계열과 "줄어드는 / 감소하는" 계열.
 const RISING_CUES = ["증가", "늘어", "늘고", "늘어나", "상승", "오르", "성장", "커지", "많아지"];
@@ -77,6 +95,7 @@ export function resolveTrendQuery(
             metric.scope === "sgg"
               ? "sgg"
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+          months: detectTrendMonths(text),
           triggerLength: trigger.length,
         };
       }

@@ -447,7 +447,8 @@ async function main() {
       for (const metric of METRIC_KEYS) series[metric].push(values ? values[metric] : null);
     }
 
-    const name = `${dongName} ${label}격자`;
+    // 이름은 뒤에서 읍면동별로 번호를 붙여 유일하게 만든다(한 동에 여러 칸이 있다).
+    const name = dongName;
     cells.push({
       code: key,
       name,
@@ -472,6 +473,32 @@ async function main() {
         coordinates: [[[west, south], [east, south], [east, north], [west, north], [west, south]]],
       },
     });
+  }
+
+  /*
+   * 한 읍면동 안에 칸이 여러 개라 이름이 겹친다. 순위표에 "김해시 장유3동 500m격자"가
+   * 세 줄 나란히 뜨면 어느 칸인지 알 수 없다(prod 실측). 북서→남동 순으로 번호를 붙여
+   * 유일하게 만든다. 한 칸뿐인 동은 번호를 붙이지 않는다.
+   */
+  {
+    const byDong = new Map();
+    for (const cell of cells) {
+      const bucket = byDong.get(cell.name) ?? [];
+      bucket.push(cell);
+      byDong.set(cell.name, bucket);
+    }
+    const nameByCode = new Map();
+    for (const [dongName, bucket] of byDong) {
+      bucket.sort((a, b) => b.point.lat - a.point.lat || a.point.lng - b.point.lng);
+      bucket.forEach((cell, index) => {
+        cell.name = bucket.length === 1 ? `${dongName} ${label}격자` : `${dongName} ${label}격자 ${index + 1}`;
+        nameByCode.set(cell.code, cell.name);
+      });
+    }
+    for (const feature of features) {
+      const named = nameByCode.get(feature.properties.adm_cd2);
+      if (named) feature.properties.adm_nm = named;
+    }
   }
 
   const cube = {

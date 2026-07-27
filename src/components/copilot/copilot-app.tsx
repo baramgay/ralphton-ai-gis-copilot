@@ -1914,6 +1914,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         { cube: cubeB, metric: metricB, metrics: metricsB },
         cross.mode,
         cross.adminLevel,
+        cross.regionFilter,
       );
       const view = crossResultToView(
         result,
@@ -1929,7 +1930,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${view.ranked.length}개 행정동`,
+        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${cross.regionFilter ? `${cross.regionFilter} 안 ` : ""}${view.ranked.length}개 ${cross.adminLevel === "sgg" ? "시군구" : "행정동"}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -1961,17 +1962,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const metrics = CUBE_LAYER_METRICS[trendMatch.layerId as CubeLayerId];
     const metric = metrics?.find((item) => item.key === trendMatch.metricKey);
     if (cube && metric) {
+      // 질의에 기간이 적혀 있으면 화면 설정보다 그것을 따른다.
+      const months = trendMatch.months ?? trendMonths;
       const result = buildTrendRanking(
         cube,
         metric,
         metrics,
         trendMatch.direction,
         trendMatch.adminLevel,
-        trendMonths,
+        months,
       );
       const directionLabel = trendMatch.direction === "rising" ? "증가" : "감소";
       // 화면마다 기준이 다르면 혼란스러우므로 프로파일과 같은 기간을 쓰고, 그 사실을 밝힌다.
-      const periodLabel = trendMonths > 0 ? ` (최근 ${trendMonths}개월)` : "";
+      const periodLabel = months > 0 ? ` (최근 ${months}개월)` : "";
       const view: AnalysisView = {
         id: "cross",
         title: `${trendMatch.metricLabel} ${directionLabel} 추세${periodLabel}`,
