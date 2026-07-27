@@ -45,3 +45,18 @@ describe("suggestMetrics", () => {
     expect(suggestMetrics("가", CUBE_LAYERS)).toHaveLength(0);
   });
 });
+
+describe("여러 지표에 걸치는 말", () => {
+  // "상권 좋은 곳"은 오타가 아니라 범위가 넓은 말이다. 편집거리로는 안 잡히므로
+  // 질의의 두 글자 이상 토막이 트리거에 들어 있으면 후보로 올린다.
+  test("상권이 들어간 지표들을 제안한다", () => {
+    const labels = suggestMetrics("상권 좋은 곳", CUBE_LAYERS).map((item) => item.metricLabel);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.join(" ")).toMatch(/비중|상권/);
+  });
+
+  test("질의 뼈대를 이루는 말은 제안 근거가 되지 못한다", () => {
+    // "높은"·"지역"이 지표 이름과 겹친다고 제안하면 아무 질의나 걸린다.
+    expect(suggestMetrics("높은 지역 알려줘", CUBE_LAYERS)).toHaveLength(0);
+  });
+});

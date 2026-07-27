@@ -61,6 +61,12 @@ export type MetricSuggestion = {
  * 걸린다("오늘 날씨 어때"에 지표 셋을 제안하고 있었다). 두 글자짜리 트리거는 아예 제안에
  * 쓰지 않는다 — 그 정도로 짧으면 오타인지 다른 말인지 가릴 수 없다.
  */
+/** 질의의 뼈대를 이루는 말. 지표 이름과 우연히 겹쳐도 제안 근거가 되지 못한다. */
+const SHAPE_WORDS = new Set([
+  "높은", "낮은", "많은", "적은", "상위", "하위", "지역", "행정동", "시군구", "읍면동",
+  "어디", "알려", "찾아", "보여", "순위", "비중", "비율", "기준", "그리고", "에서",
+]);
+
 export function suggestMetrics(
   query: string,
   layers: readonly LayerLike[],
@@ -75,6 +81,25 @@ export function suggestMetrics(
       let best = Number.POSITIVE_INFINITY;
       let bestTrigger = metric.triggers[0] ?? metric.label;
       let bestAllowed = 0;
+
+      /*
+       * "상권 좋은 곳"처럼 여러 지표에 걸치는 말은 오타가 아니라 범위가 넓은 것이다.
+       * 편집거리로는 안 잡히므로, 질의의 두 글자 이상 토막이 트리거 안에 들어 있으면
+       * 후보로 올린다("상권" → 야간 상권 · 카페 상권 · 유흥 상권).
+       */
+      // 띄어쓰기를 없앤 문자열에서 뽑으면 문장 전체가 한 단어가 된다. 원문에서 뽑는다.
+      const words = (query.match(/[가-힣]{2,}/g) ?? []).filter((word) => !SHAPE_WORDS.has(word));
+      for (const trigger of metric.triggers) {
+        const key = trigger.replace(/\s+/g, "");
+        if (key.length < 3) continue;
+        if (words.some((word) => word.length >= 2 && key.includes(word))) {
+          best = 0;
+          bestTrigger = trigger;
+          bestAllowed = 0;
+          break;
+        }
+      }
+
       for (const trigger of metric.triggers) {
         const key = trigger.replace(/\s+/g, "");
         // 두 글자 이하는 오타인지 다른 말인지 가릴 수 없어 제안에 쓰지 않는다.
