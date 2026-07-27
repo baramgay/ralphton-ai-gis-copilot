@@ -86,8 +86,9 @@ const REGION_TOKENS = (() => {
   for (const label of GYEONGNAM_DISTRICT_LABELS) {
     const compact = label.replace(/\s+/g, "");
     tokens.push({ match: compact, filter: label });
-    // "김해" → 김해시
-    const short = compact.replace(/시$/, "");
+    // "김해" → 김해시, "거창" → 거창군. 군을 빼먹어 경남 10개 군 전체가 축약형으로
+    // 안 걸렸다 — "거창 카드매출 높은 곳"이 경남 전체 순위를 답했다(prod 실측).
+    const short = compact.replace(/[시군]$/, "");
     if (short !== compact) tokens.push({ match: short, filter: label });
     // "창원" → 창원시 전체(5개 구). 어느 구인지 안 적었으면 시 전체로 본다.
     const cityHead = compact.match(/^(.+?시)(?=.*구$)/)?.[1];

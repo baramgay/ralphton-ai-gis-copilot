@@ -75,10 +75,21 @@ function allHits(text: string, layers: readonly LayerLike[]): Hit[] {
 }
 
 /** 지표 바로 뒤에 붙은 말에서 그 지표의 방향을 읽는다. */
+/*
+ * "줄다"의 관형사형 축약. "작년보다 소비 늘고 인구 준 동"에서 인구 조건이 통째로 빠졌다
+ * (prod 실측) — 방향을 못 읽으면 교차가 통째로 null이 되어 단일 지표로 폴백한다.
+ *
+ * 낱말 목록에 "준"을 그냥 넣으면 "수준"·"기준"에 걸려 정반대로 읽는다. 앞이 한글이 아닌
+ * 자리의 "준"만 본다.
+ */
+const FALLING_SHORT = /(?:^|[^가-힣])준(?=[\s가-힣])/;
+
 function directionAfter(text: string, from: number, to: number): "rising" | "falling" | null {
   const tail = text.slice(from, to);
   const rising = RISING_CUES.map((cue) => tail.indexOf(cue)).filter((at) => at >= 0);
   const falling = FALLING_CUES.map((cue) => tail.indexOf(cue)).filter((at) => at >= 0);
+  const shortFall = FALLING_SHORT.exec(tail);
+  if (shortFall) falling.push(shortFall.index);
   if (rising.length === 0 && falling.length === 0) return null;
   if (falling.length === 0) return "rising";
   if (rising.length === 0) return "falling";

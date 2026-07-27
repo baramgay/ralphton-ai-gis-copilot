@@ -44,15 +44,39 @@ export type Match = {
   end: number;
 };
 
+/*
+ * 트리거를 찾되, 두 낱말짜리는 사이에 조사가 끼어도 찾는다.
+ *
+ * "의료도 부족하고 소비도 적은 곳"에서 의료 조건이 통째로 빠졌다(prod 실측). 지표가
+ * 하나만 잡히면 교차가 성립하지 않아 단일 지표로 폴백하고, 사용자는 자기가 낸 조건
+ * 하나가 사라진 줄 모른다. 위치를 그대로 쓰므로(겹침 제거에 필요) text는 압축하지 않는다.
+ */
+const CROSS_PARTICLE_GAP = "[은는이가도을를의에서와과만로\\s]{0,3}";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function findTrigger(text: string, trigger: string): { start: number; end: number } | null {
+  const at = text.indexOf(trigger);
+  if (at >= 0) return { start: at, end: at + trigger.length };
+  const parts = trigger.trim().split(/\s+/);
+  if (parts.length < 2) return null;
+  const found = new RegExp(parts.map(escapeRegExp).join(CROSS_PARTICLE_GAP)).exec(text);
+  return found ? { start: found.index, end: found.index + found[0].length } : null;
+}
+
 export function allMatches(text: string, layers: readonly LayerLike[]): Match[] {
   const matches: Match[] = [];
   for (const layer of layers) {
     for (const metric of layer.metrics) {
-      let best: { trigger: string; start: number } | null = null;
+      let best: { trigger: string; start: number; end: number } | null = null;
       for (const trigger of metric.triggers) {
-        const at = text.indexOf(trigger);
-        if (at < 0) continue;
-        if (best === null || trigger.length > best.trigger.length) best = { trigger, start: at };
+        const found = findTrigger(text, trigger);
+        if (found === null) continue;
+        if (best === null || trigger.length > best.trigger.length) {
+          best = { trigger, start: found.start, end: found.end };
+        }
       }
       if (best) {
         matches.push({
@@ -66,7 +90,7 @@ export function allMatches(text: string, layers: readonly LayerLike[]): Match[] 
           metricKeyId: `${layer.id}/${metric.key}`,
           sggOnly: metric.scope === "sgg",
           start: best.start,
-          end: best.start + best.trigger.length,
+          end: best.end,
         });
       }
     }
