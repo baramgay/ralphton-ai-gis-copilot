@@ -82,6 +82,8 @@ import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
 import { resolveTrendQuery, type TrendQueryMatch } from "@/lib/layers/resolve-trend-query";
 import { buildTrendRanking } from "@/lib/layers/trend-view";
+import { trendCrossView } from "@/lib/layers/trend-cross";
+import { resolveTrendCrossQuery, type TrendCrossMatch } from "@/lib/layers/resolve-trend-cross-query";
 import { describeTrend } from "@/lib/layers/trend";
 import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
@@ -1112,7 +1114,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 아니라 필요한 것을 받아서 이어가면 된다.
    */
   const [pendingCubeQuery, setPendingCubeQuery] = useState<
-    { kind: "trend"; match: TrendQueryMatch } | { kind: "cross"; match: CrossQueryMatch } | null
+    | { kind: "trend"; match: TrendQueryMatch }
+    | { kind: "cross"; match: CrossQueryMatch }
+    | { kind: "trendCross"; match: TrendCrossMatch }
+    | null
   >(null);
 
   const requestCubesAndRetry = useCallback(
@@ -2093,19 +2098,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [adminLevel, runTrend],
   );
 
-  // 실행 함수를 담아 두면 그 클로저가 옛 remoteCubes를 붙잡아 큐브가 와도 없다고 본다.
-  // 그래서 무엇을 물었는지(match)만 남기고, 실행은 지금 시점의 콜백으로 한다.
-  useEffect(() => {
-    if (!pendingCubeQuery) return;
-    const ok =
-      pendingCubeQuery.kind === "trend"
-        ? runTrend(pendingCubeQuery.match)
-        : runCross(pendingCubeQuery.match);
-    if (!ok) return; // 아직 다 안 왔다. 다음 큐브 도착 때 다시 본다.
-    setPendingCubeQuery(null);
-    setQueryNotice(null);
-    setParseStage("done");
-  }, [pendingCubeQuery, runTrend, runCross]);
+
 
   /**
    * 질의문 하나를 해석해 실행한다.
@@ -2114,6 +2107,124 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 입력창에 채우고 실행하지 않아, "평균소득 낮은 동"을 공유하면 열었을 때 기본 의료
    * 분석이 떠 있었다(prod 실측). 링크를 보고서에 붙이는 용도라 그러면 쓸모가 없다.
    */
+  /**
+   * 두 지표의 변화를 겹쳐 본다("생활인구는 느는데 소비는 주는 곳").
+   *
+   * 값의 크기를 겹치는 교차분석과 달리 변화율을 겹친다. 이 경로가 없어 생활인구 단순
+   * 순위로 답하고 있었다 — 물어본 것과 다른 답이다. 큐브가 아직 없으면 false를 돌린다.
+   */
+  const runTrendCross = useCallback(
+    (match: TrendCrossMatch): boolean => {
+      const cubeFor = (id: string) =>
+        id === "population" ? populationCube : id === "medical" ? medicalCube : remoteCubes[id] ?? null;
+      const cubeA = cubeFor(match.a.layerId);
+      const cubeB = cubeFor(match.b.layerId);
+      const metricsA = CUBE_LAYER_METRICS[match.a.layerId];
+      const metricsB = CUBE_LAYER_METRICS[match.b.layerId];
+      const metricA = metricsA?.find((item) => item.key === match.a.metricKey);
+      const metricB = metricsB?.find((item) => item.key === match.b.metricKey);
+      if (!cubeA || !cubeB || !metricA || !metricB) return false;
+
+      const months = match.months ?? trendMonths;
+      const result = trendCrossView(
+        { cube: cubeA, metric: metricA, metrics: metricsA, direction: match.a.direction },
+        { cube: cubeB, metric: metricB, metrics: metricsB, direction: match.b.direction },
+        match.adminLevel,
+        months,
+        match.regionFilter,
+      );
+
+      const word = (d: "rising" | "falling") => (d === "rising" ? "증가" : "감소");
+      const periodLabel = months > 0 ? ` (최근 ${months}개월)` : "";
+      const unitLabel = match.adminLevel === "sgg" ? "시군구" : "행정동";
+      const top = result.ranked[0];
+      const view: AnalysisView = {
+        id: "cross",
+        title: `${match.a.metricLabel} ${word(match.a.direction)} × ${match.b.metricLabel} ${word(match.b.direction)}${periodLabel}`,
+        summary:
+          result.ranked.length === 0
+            ? "두 지표 모두 추세를 낼 수 있는 지역이 없음"
+            : // 요구를 다 만족하는 곳이 없을 수 있다. 그때 "가장 가까운 순"이라고 밝혀야
+              // 1위가 실제로 그런 곳이라고 읽히지 않는다.
+              (result.matching === 0
+                ? `${match.a.metricLabel} ${word(match.a.direction)}·${match.b.metricLabel} ${word(match.b.direction)}를 모두 만족하는 ${unitLabel} 없음. 가장 가까운 순. `
+                : `${match.a.metricLabel} ${word(match.a.direction)}·${match.b.metricLabel} ${word(match.b.direction)}가 겹치는 순(${result.matching}곳 해당). `) +
+              `1위 ${top.name.replace(/^경상남도\s*/, "")}은 ${match.a.metricLabel} ${top.rateA > 0 ? "+" : ""}${top.rateA.toFixed(1)}% · ${match.b.metricLabel} ${top.rateB > 0 ? "+" : ""}${top.rateB.toFixed(1)}%`,
+        ranked: result.ranked.slice(0, 30).map((row) => {
+          const name = row.name.replace(/^경상남도\s*/, "");
+          return {
+            code: row.code,
+            name,
+            district: name.split(/\s+/)[0] ?? "지역",
+            mapScore: result.scores.get(row.code) ?? 0,
+            valueLabel: `${row.rateA > 0 ? "+" : ""}${row.rateA.toFixed(1)}% / ${row.rateB > 0 ? "+" : ""}${row.rateB.toFixed(1)}%`,
+            note: `${match.a.metricLabel} ${row.rateA > 0 ? "+" : ""}${row.rateA.toFixed(1)}% · ${match.b.metricLabel} ${row.rateB > 0 ? "+" : ""}${row.rateB.toFixed(1)}%`,
+            metrics: [
+              {
+                label: `${match.a.metricLabel} 변화율`,
+                value: row.rateA,
+                unit: "%",
+                formula: `기간 첫 관측월 대비 최근월 변화율 (${match.a.provider})`,
+                referenceMonth: cubeA.referenceMonth,
+                limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
+              },
+              {
+                label: `${match.b.metricLabel} 변화율`,
+                value: row.rateB,
+                unit: "%",
+                formula: `기간 첫 관측월 대비 최근월 변화율 (${match.b.provider})`,
+                referenceMonth: cubeB.referenceMonth,
+                limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
+              },
+            ],
+          };
+        }),
+        filteredFacilities: [],
+        legendLabel: `${match.a.metricLabel}·${match.b.metricLabel} 변화 합성점수`,
+        isFacilityResult: false,
+        formulaNotes: [
+          `합성점수 = z(${match.a.metricLabel} ${word(match.a.direction)}폭) + z(${match.b.metricLabel} ${word(match.b.direction)}폭)`,
+          `${match.a.metricLabel}: ${metricA.formula} (${match.a.provider})`,
+          `${match.b.metricLabel}: ${metricB.formula} (${match.b.provider})`,
+          "각 지표는 물어본 방향으로 부호를 맞춰 표준화한다",
+        ],
+        totalCount: result.comparable,
+      };
+
+      setActiveLayerId("medical");
+      setCustomAnalysis(view);
+      setActiveTab("control");
+      if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
+      if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+      setLastIntent(null);
+      setParseStage("done");
+      setQueryNotice(
+        `추세 교차 · ${match.a.metricLabel} ${word(match.a.direction)} × ${match.b.metricLabel} ${word(match.b.direction)} — ${match.regionFilter ? `${match.regionFilter} 안 ` : ""}${result.comparable}개 ${unitLabel}`,
+      );
+      setQueryNoticeTone("success");
+      setQuerySuggestions([]);
+      window.setTimeout(() => setParseStage("idle"), 1200);
+      return true;
+    },
+    [adminLevel, medicalCube, populationCube, remoteCubes, trendMonths],
+  );
+
+  // 실행 함수를 담아 두면 그 클로저가 옛 remoteCubes를 붙잡아 큐브가 와도 없다고 본다.
+  // 그래서 무엇을 물었는지(match)만 남기고, 실행은 지금 시점의 콜백으로 한다.
+  useEffect(() => {
+    if (!pendingCubeQuery) return;
+    const ok =
+      pendingCubeQuery.kind === "trend"
+        ? runTrend(pendingCubeQuery.match)
+        : pendingCubeQuery.kind === "trendCross"
+          ? runTrendCross(pendingCubeQuery.match)
+          : runCross(pendingCubeQuery.match);
+    if (!ok) return; // 아직 다 안 왔다. 다음 큐브 도착 때 다시 본다.
+    setPendingCubeQuery(null);
+    setQueryNotice(null);
+    setParseStage("done");
+  }, [pendingCubeQuery, runTrend, runCross, runTrendCross]);
+
   const runQueryText = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
@@ -2135,6 +2246,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       );
       setQueryNoticeTone("error");
       setAnsweredLastQuery(false);
+      return;
+    }
+
+    // 두 지표의 변화를 겹쳐 묻는 질의를 먼저 본다. 지표가 둘이라 단일 추세보다 구체적이다.
+    const trendCross = resolveTrendCrossQuery(trimmed, CROSS_LAYERS, {
+      adminLevelFallback: adminLevel,
+      dongNames: dongNamesForQuery,
+    });
+    if (trendCross) {
+      rememberQuery(trimmed);
+      if (runTrendCross(trendCross)) {
+        setAnsweredLastQuery(true);
+        return;
+      }
+      requestCubesAndRetry([trendCross.a.layerId, trendCross.b.layerId], {
+        kind: "trendCross",
+        match: trendCross,
+      });
+      setParseStage("analyze");
+      setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
+      setQueryNoticeTone("neutral");
       return;
     }
 
