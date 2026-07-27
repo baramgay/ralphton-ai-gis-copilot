@@ -30,12 +30,12 @@ const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면�
 // Contrastive polarity: one metric high, the other low → gap even without a "대비" cue.
 // "과한"은 그 지표가 많다는 뜻이다. 없으면 "소득 대비 소비가 과한 지역"이
 // 소비가 부족한 순으로 나온다(prod 실측).
-const HIGH_CUES = ["많", "높", "큰", "크게", "상위", "취약", "부족", "과한", "과다", "넘치", "활발"];
-const LOW_CUES = ["낮", "적", "작", "하위"];
+export const HIGH_CUES = ["많", "높", "큰", "크게", "상위", "취약", "부족", "과한", "과다", "넘치", "활발"];
+export const LOW_CUES = ["낮", "적", "작", "하위"];
 // Conjunction that lets two same-direction metrics read as "both high".
 const CONJUNCTION = /고\s|와\s|과\s|랑\s|이랑|그리고|같이|함께/;
 
-type Match = {
+export type Match = {
   ref: CrossOperandRef;
   metricKeyId: string; // `${layerId}/${metricKey}` for distinctness
   /** 시군구까지만 있는 지표인가. 한쪽이라도 그렇다면 교차도 시군구로 봐야 한다. */
@@ -44,7 +44,7 @@ type Match = {
   end: number;
 };
 
-function allMatches(text: string, layers: readonly LayerLike[]): Match[] {
+export function allMatches(text: string, layers: readonly LayerLike[]): Match[] {
   const matches: Match[] = [];
   for (const layer of layers) {
     for (const metric of layer.metrics) {
@@ -75,7 +75,7 @@ function allMatches(text: string, layers: readonly LayerLike[]): Match[] {
 }
 
 /** Keep longest, non-overlapping matches so "생활인구" wins over the "인구" inside it. */
-function pruneOverlaps(matches: Match[]): Match[] {
+export function pruneOverlaps(matches: Match[]): Match[] {
   const byLength = [...matches].sort((a, b) => b.end - b.start - (a.end - a.start));
   const kept: Match[] = [];
   for (const candidate of byLength) {

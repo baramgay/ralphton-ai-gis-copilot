@@ -722,6 +722,36 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("one-line-conclusion")).toHaveTextContent(/가장 부족한 곳/);
   }, 30_000);
 
+  /*
+   * 리졸버 테스트가 통과해도 화면에서 실행되는지는 별개다.
+   *
+   * 의료 교차가 그렇게 새어 나갔다 — resolveCrossQuery는 정상이었는데 CUBE_LAYER_METRICS에
+   * medical이 빠져 있어 runCross가 조용히 false를 돌려주고, 화면은 아무 말 없이 단일 결과를
+   * 보여줬다. 리졸버 테스트는 전부 통과하고 있었다. 그래서 여기서는 **실제로 실행됐는지**를
+   * 화면 글자로 확인한다.
+   */
+  test("세 지표 질의가 다중조건으로 실행된다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "생활인구 많고 카드매출 높고 연체율 낮은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    const hits = await screen.findAllByText(/다중조건/, {}, { timeout: 15_000 });
+    expect(hits.length).toBeGreaterThan(0);
+
+    // 세 지표가 모두 결과에 나타나야 한다 — 두 개만 잡고 하나를 버리면 안 된다.
+    const method = screen.getByTestId("method-summary");
+    expect(method).toHaveTextContent(/총생활인구/);
+    expect(method).toHaveTextContent(/카드/);
+    expect(method).toHaveTextContent(/연체/);
+    // 마지막 지표는 낮은 쪽으로 물었으므로 부호가 −여야 한다.
+    expect(method).toHaveTextContent(/−z\(/);
+  }, 30_000);
+
   test("routes a 주야비 query to the SKT day/night layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

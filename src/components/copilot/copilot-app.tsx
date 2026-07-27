@@ -83,6 +83,8 @@ import { medicalCubeFromSnapshot, populationCubeFromSnapshot } from "@/lib/layer
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
 import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
+import { resolveMultiQuery, type MultiQueryMatch } from "@/lib/layers/resolve-multi-query";
+import { multiLayerView, type MultiLayerResult } from "@/lib/layers/multi-analysis";
 import { resolveTrendQuery, type TrendQueryMatch } from "@/lib/layers/resolve-trend-query";
 import { buildTrendRanking } from "@/lib/layers/trend-view";
 import { trendCrossView } from "@/lib/layers/trend-cross";
@@ -466,6 +468,86 @@ function crossResultToView(
           ? a.referenceMonth
           : `${a.referenceMonth} / ${b.referenceMonth}`,
       source: `${a.provider} ${a.metric.label} × ${b.provider} ${b.metric.label}`,
+    },
+  };
+}
+
+/**
+ * 세 지표 이상 겹쳐 본 결과를 화면 모델로 옮긴다.
+ *
+ * 2지표(crossResultToView)와 다른 점은 지표 수가 정해져 있지 않다는 것과, gap(대비) 개념이
+ * 없다는 것이다. 대신 지표마다 물어본 방향을 문장에 그대로 적어 준다 — "생활인구 많고
+ * 소득 높고 연체 낮은"을 화면이 다시 말해 줘야 사용자가 자기 질문이 제대로 읽혔는지 안다.
+ */
+function multiResultToView(
+  result: MultiLayerResult,
+  operands: Array<{
+    provider: string;
+    metric: MetricDef;
+    referenceMonth: string;
+    direction: "high" | "low";
+  }>,
+  adminLevel: AdminLevel,
+  limit = 30,
+): AnalysisView {
+  const wordOf = (direction: "high" | "low") => (direction === "high" ? "높은" : "낮은");
+  const condition = operands
+    .map((operand) => `${operand.metric.label} ${wordOf(operand.direction)}`)
+    .join(" · ");
+
+  const ranked: RankedRegion[] = result.ranked.slice(0, limit).map((row) => {
+    const name = row.name.replace(/^경상남도\s*/, "");
+    return {
+      code: row.code,
+      name,
+      district: name.split(/\s+/)[0] ?? "지역",
+      mapScore: result.scores.get(row.code) ?? 0,
+      valueLabel: `합성 ${row.composite.toFixed(2)}`,
+      note: operands
+        .map((operand, index) => `${operand.metric.label} ${formatCrossValue(row.values[index] ?? null, operand.metric.unit)}`)
+        .join(" · "),
+      metrics: operands.map((operand, index) => ({
+        label: `${operand.metric.label} (${operand.provider})`,
+        value: row.values[index] ?? null,
+        unit: operand.metric.unit,
+        formula: operand.metric.formula,
+        referenceMonth: operand.referenceMonth,
+        limitation: operand.metric.limitation,
+      })),
+    };
+  });
+
+  const unit = adminLevel === "sgg" ? "시군구" : "행정동";
+  /*
+   * 몇 곳을 견줬는지 밝힌다. 지표가 늘수록 전부 값이 있는 지역은 줄어드는데, 그 사실을
+   * 말하지 않으면 "경남 전체를 본 결과"로 읽힌다.
+   */
+  const dropped = result.total - result.comparable;
+  const summary =
+    result.comparable === 0
+      ? `${condition} 조건을 모두 볼 수 있는 ${unit}이 없습니다. 지표 하나라도 값이 없는 곳은 비교에서 빠집니다.`
+      : `${condition} 순으로 ${result.comparable.toLocaleString("ko-KR")}개 ${unit}을 비교했습니다.` +
+        (dropped > 0
+          ? ` ${dropped.toLocaleString("ko-KR")}개는 지표 중 일부가 없어 제외했습니다.`
+          : "");
+
+  return {
+    id: "cross",
+    title: `다중조건 · ${condition}`,
+    summary,
+    ranked,
+    filteredFacilities: [],
+    formulaNotes: [
+      `합성점수 = ${operands.map((operand) => `${operand.direction === "high" ? "+" : "−"}z(${operand.metric.label})`).join(" ")}`,
+      ...operands.map((operand) => `${operand.metric.label}: ${operand.metric.formula} (${operand.provider})`),
+      `z-표준화는 경남 ${unit} 전체 분포 기준이며, 모든 지표에 값이 있는 곳만 비교합니다.`,
+    ],
+    legendLabel: `${condition} 분포`,
+    isFacilityResult: false,
+    totalCount: result.ranked.length,
+    provenance: {
+      referenceMonth: [...new Set(operands.map((operand) => operand.referenceMonth))].join(" / "),
+      source: operands.map((operand) => `${operand.provider} ${operand.metric.label}`).join(" × "),
     },
   };
 }
@@ -1153,6 +1235,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [pendingCubeQuery, setPendingCubeQuery] = useState<
     | { kind: "trend"; match: TrendQueryMatch }
     | { kind: "cross"; match: CrossQueryMatch }
+    | { kind: "multi"; match: MultiQueryMatch }
     | { kind: "trendCross"; match: TrendCrossMatch }
     | null
   >(null);
@@ -2047,6 +2130,65 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [adminLevel, medicalCube, populationCube, remoteCubes],
   );
 
+  /**
+   * 세 지표 이상을 겹쳐 실행한다. 큐브가 하나라도 아직 없으면 false를 돌려, 호출부가
+   * 필요한 큐브를 받아 와 다시 태우게 한다(2지표 교차와 같은 규약).
+   */
+  const runMulti = useCallback(
+    (match: MultiQueryMatch): boolean => {
+      const cubeFor = (id: string) =>
+        id === "population" ? populationCube : id === "medical" ? medicalCube : remoteCubes[id] ?? null;
+
+      const prepared = match.operands.map((operand) => {
+        const cube = cubeFor(operand.layerId);
+        const metrics = CUBE_LAYER_METRICS[operand.layerId as CubeLayerId];
+        const metric = metrics?.find((item) => item.key === operand.metricKey);
+        return { operand, cube, metrics, metric };
+      });
+      if (prepared.some((item) => !item.cube || !item.metric || !item.metrics)) return false;
+
+      const result = multiLayerView(
+        prepared.map((item) => ({
+          cube: item.cube!,
+          metric: item.metric!,
+          metrics: item.metrics!,
+          direction: item.operand.direction,
+        })),
+        match.adminLevel,
+        match.regionFilters,
+      );
+      const view = multiResultToView(
+        result,
+        prepared.map((item) => ({
+          provider: item.operand.provider,
+          metric: item.metric!,
+          referenceMonth: item.cube!.referenceMonth,
+          direction: item.operand.direction,
+        })),
+        match.adminLevel,
+      );
+
+      setActiveLayerId("medical");
+      setCustomAnalysis(view);
+      setActiveTab("control");
+      if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
+      adminLevelSourceRef.current = "query";
+      if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
+      setLastIntent(null);
+      setParseStage("done");
+      setQueryNotice(
+        `다중조건 · ${match.operands.map((operand) => `${operand.metricLabel}(${operand.provider})`).join(" × ")} — ${
+          match.regionFilters.length ? `${match.regionFilters.join("·")} 안 ` : ""
+        }${result.comparable.toLocaleString("ko-KR")}개 ${unitWordOf(match.operands[0].layerId, match.adminLevel)}`,
+      );
+      setQueryNoticeTone(result.comparable === 0 ? "error" : "success");
+      setQuerySuggestions([]);
+      window.setTimeout(() => setParseStage("idle"), 1200);
+      return true;
+    },
+    [adminLevel, medicalCube, populationCube, remoteCubes],
+  );
+
   /** One-click 교차분석 preset: resolve its canned query, then run it through runCross. */
   const runCrossPreset = useCallback(
     (presetQuery: string) => {
@@ -2303,12 +2445,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         ? runTrend(pendingCubeQuery.match)
         : pendingCubeQuery.kind === "trendCross"
           ? runTrendCross(pendingCubeQuery.match)
-          : runCross(pendingCubeQuery.match);
+          : pendingCubeQuery.kind === "multi"
+            ? runMulti(pendingCubeQuery.match)
+            : runCross(pendingCubeQuery.match);
     if (!ok) return; // 아직 다 안 왔다. 다음 큐브 도착 때 다시 본다.
     setPendingCubeQuery(null);
     setQueryNotice(null);
     setParseStage("done");
-  }, [pendingCubeQuery, runTrend, runCross, runTrendCross]);
+  }, [pendingCubeQuery, runTrend, runCross, runTrendCross, runMulti]);
 
   const runQueryText = async (raw: string) => {
     const trimmed = raw.trim();
@@ -2396,6 +2540,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const crossLayers = wantsGrid
       ? CROSS_LAYERS.filter((layer) => layer.id.startsWith("kcb-grid"))
       : CROSS_LAYERS;
+    /*
+     * 지표가 셋 이상이면 다중조건이 먼저다. 2지표 교차보다 뒤에 두면 앞의 두 개만 잡고
+     * 나머지를 조용히 버린다 — 물어본 것보다 적게 답하면서 그 사실을 말하지 않게 된다.
+     */
+    const multi = resolveMultiQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
+    if (multi) {
+      rememberQuery(trimmed);
+      if (runMulti(multi)) { setAnsweredLastQuery(true); return; }
+
+      requestCubesAndRetry(
+        multi.operands.map((operand) => operand.layerId),
+        { kind: "multi", match: multi },
+      );
+      setParseStage("analyze");
+      setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
+      setQueryNoticeTone("neutral");
+      return;
+    }
+
     const cross = resolveCrossQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (cross) {
       rememberQuery(trimmed);
