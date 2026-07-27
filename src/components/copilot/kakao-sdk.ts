@@ -196,6 +196,12 @@ export function loadKakaoSdk(appKey: string): Promise<KakaoMapsNamespace> {
 
   readyPromise = new Promise<KakaoMapsNamespace>((resolve, reject) => {
     let settled = false;
+    /*
+     * prefer-const가 걸리지만 const로 바꿀 수 없다. cleanup()이 이 변수를 **선언보다 먼저**
+     * 읽는데, 대입은 한참 뒤(폴링 시작 시점)에 일어난다. const로 옮기면 SDK 로드가 그
+     * 전에 실패했을 때 cleanup이 TDZ에 걸려 던진다 — 폴백(DemoMap)으로 갈 길이 막힌다.
+     */
+    // eslint-disable-next-line prefer-const
     let pollId: number | undefined;
 
     const cleanup = () => {

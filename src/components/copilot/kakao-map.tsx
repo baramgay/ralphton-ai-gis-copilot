@@ -154,10 +154,20 @@ export function KakaoMap({
   } | null>(null);
   const [status, setStatus] = useState("Kakao 지도를 연결하는 중…");
 
+  /*
+   * 최신 콜백을 ref에 담아 두는 흔한 수법이다. SDK 로드는 비동기라, 그 사이 부모가 새
+   * 콜백을 넘겨도 지도를 다시 만들지 않고 최신 것을 부르려는 것이다.
+   *
+   * 다만 대입을 **렌더 중**에 하고 있었다. React 19의 동시 렌더에서는 버려지는 렌더가
+   * 있어서, 화면에 반영되지도 않은 콜백이 ref에 남을 수 있다. 커밋된 뒤에만 쓰도록
+   * effect로 옮긴다. 이 ref는 마운트 이후 비동기 콜백에서만 읽으므로 시점 문제도 없다.
+   */
   const onErrorRef = useRef(onError);
   const onReadyRef = useRef(onReady);
-  onErrorRef.current = onError;
-  onReadyRef.current = onReady;
+  useEffect(() => {
+    onErrorRef.current = onError;
+    onReadyRef.current = onReady;
+  });
 
   useEffect(() => {
     let active = true;
