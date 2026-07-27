@@ -1449,11 +1449,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const selectedRegion = snapshot?.regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   const defaultMedicalFacilities = snapshot?.facilities.filter((facility) => facility.type !== "약국") ?? [];
+  /*
+   * 의료시설 핀은 의료를 물었을 때만 뜻이 있다.
+   *
+   * 생활인구·카드매출 순위를 보는 화면에도 병의원 4,272곳이 클러스터로 얹혀, 단계구분도
+   * 위에 128·83·60 같은 숫자 방울이 떠 있었다(prod 실측). 지금 보는 지표와 아무 관계가
+   * 없는 숫자라 지도를 읽는 것을 방해한다.
+   */
+  const showMedicalFacilities = activeLayerId === "medical";
   const rawMapFacilities = analysis?.isFacilityResult
     ? analysis.filteredFacilities
-    : (analysis?.filteredFacilities.length ?? 0) > 0
-      ? (analysis?.filteredFacilities ?? [])
-      : defaultMedicalFacilities;
+    : !showMedicalFacilities
+      ? []
+      : (analysis?.filteredFacilities.length ?? 0) > 0
+        ? (analysis?.filteredFacilities ?? [])
+        : defaultMedicalFacilities;
   const scopedMapFacilities =
     markerScope === "selected" && selectedRegionCode
       ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
