@@ -4115,6 +4115,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <button
                         type="button"
                         className="flex w-full items-center gap-2.5 text-left"
+                        /*
+                         * 이름과 값 사이에 읽을 구분이 없으면 붙어서 읽힌다. 격자 이름은
+                         * 숫자로 끝나므로("…500m격자 6") 값과 이어지면 "격자 612,893명"이
+                         * 된다 — 스크린리더에게도, 화면 텍스트를 읽는 검증 스크립트에게도
+                         * 없는 숫자가 생긴다.
+                         */
+                        aria-label={`${
+                          analysis.ranked.findIndex((item) => item.code === row.code) + 1 || index + 1
+                        }위 ${row.name}, ${row.valueLabel}`}
                         onPointerDown={() => selectRegion(row.code)}
                         onClick={(event) => {
                           if (event.detail === 0) selectRegion(row.code);
