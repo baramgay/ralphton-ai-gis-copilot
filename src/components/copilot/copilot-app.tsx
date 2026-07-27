@@ -32,6 +32,7 @@ import {
   METHOD_SUMMARY,
 } from "@/lib/analysis/evaluator-guide";
 import { topicOf } from "@/lib/analysis/korean-particle";
+import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import { detectOutOfScopePlace } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
@@ -2373,7 +2374,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         );
         setQueryNoticeTone("error");
         setAnsweredLastQuery(false);
-        setQuerySuggestions(data.suggestions?.length ? data.suggestions : [...QUERY_SUGGESTIONS]);
+        /*
+         * 오타 한 글자 때문에 못 찾은 것일 수 있다("카드매츨"). 자동으로 고쳐 답하지는
+         * 않는다 — "소비"와 "소득"은 한 글자 차이지만 전혀 다른 지표다. 대신 가까운 지표를
+         * 그대로 쓸 수 있는 문장으로 제안하고, 고르는 것은 사람이 한다.
+         */
+        const near = suggestMetrics(trimmed, CROSS_LAYERS);
+        if (near.length > 0) {
+          setQueryNotice(
+            `찾는 지표를 알아보지 못했습니다. 혹시 ${near.map((item) => `「${item.metricLabel}」`).join(" · ")}인가요?`,
+          );
+          setQuerySuggestions(near.map((item) => item.example));
+        } else {
+          setQuerySuggestions(data.suggestions?.length ? data.suggestions : [...QUERY_SUGGESTIONS]);
+        }
         rememberQuery(trimmed);
         return;
       }
