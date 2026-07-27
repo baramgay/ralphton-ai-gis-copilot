@@ -1128,6 +1128,12 @@ input:hover {
 }
 
 .query-hero-chip {
+  /*
+   * 줄어들지 않는다. flex 기본값(flex-shrink:1)이면 한 줄로 굴리는 칩이 좁은 화면에서
+   * 서로 눌려 "생활인구 …"처럼 잘린다 — 무엇을 물을 수 있는지 알려 주려고 놓은 것인데
+   * 정작 읽히지 않는다. 좁으면 잘리는 대신 옆으로 굴러가야 한다.
+   */
+  flex: 0 0 auto;
   max-width: 100%;
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 70%);
