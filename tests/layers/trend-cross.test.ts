@@ -61,7 +61,7 @@ describe("trendCrossView", () => {
   });
 
   test("지역을 좁히면 그 안만 남는다", () => {
-    const result = trendCrossView(a, b, "dong", undefined, "동2");
+    const result = trendCrossView(a, b, "dong", undefined, ["동2"]);
     expect(result.ranked).toHaveLength(1);
     expect(result.ranked[0].code).toBe("4811200000");
   });

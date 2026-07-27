@@ -8,11 +8,11 @@ describe("교차 질의의 지역 한정", () => {
   // "창원에서 소득 낮고 의료 취약한 곳"이 거창군 북상면을 답하고 있었다.
   test("시군구를 적으면 싣는다", () => {
     const match = resolveCrossQuery("창원에서 소득 낮고 의료 취약한 곳", CROSS_CANDIDATE_LAYERS);
-    expect(match?.regionFilter).toMatch(/^창원시/);
+    expect(match?.regionFilters[0]).toMatch(/^창원시/);
   });
 
   test("적지 않으면 null", () => {
-    expect(resolveCrossQuery("소득 낮고 의료 취약한 곳", CROSS_CANDIDATE_LAYERS)?.regionFilter).toBeNull();
+    expect(resolveCrossQuery("소득 낮고 의료 취약한 곳", CROSS_CANDIDATE_LAYERS)?.regionFilters).toEqual([]);
   });
 });
 

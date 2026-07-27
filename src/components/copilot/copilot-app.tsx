@@ -157,6 +157,8 @@ type AnalysisView = {
   filteredFacilities: Facility[];
   formulaNotes: string[];
   legendLabel: string;
+  /** 순위 방향. 결론 문구가 "상위/가장 낮은"을 고를 때 쓴다(값에서 역추론하면 틀린다). */
+  rankDirection?: "desc" | "asc";
   isFacilityResult: boolean;
   /** 교차분석처럼 공공 스냅샷과 기준월·출처가 다른 결과의 표기용 메타(내보내기에 사용). */
   provenance?: { referenceMonth: string; source: string };
@@ -743,7 +745,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // 새 질의·레이어 선택 때마다 다시 정한다.
   const [layerDirection, setLayerDirection] = useState<"desc" | "asc">("desc");
   // 질의에 시군구가 적혀 있으면 그 안에서만 줄을 세운다.
-  const [layerRegionFilter, setLayerRegionFilter] = useState<string | null>(null);
+  const [layerRegionFilters, setLayerRegionFilters] = useState<string[]>([]);
   /**
    * 방금 질의에 답하지 못했는가.
    *
@@ -1232,8 +1234,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const layerAnalysisResult = useMemo(() => {
     if (activeLayerId === "medical" || !activeMetric || !activeCube) return null;
-    return layerCubeToAnalysisView(activeCube, activeMetric, activeLayerMetrics, adminLevel, layerDirection, layerRegionFilter);
-  }, [activeLayerId, activeMetric, activeLayerMetrics, activeCube, adminLevel, layerDirection, layerRegionFilter]);
+    return layerCubeToAnalysisView(activeCube, activeMetric, activeLayerMetrics, adminLevel, layerDirection, layerRegionFilters);
+  }, [activeLayerId, activeMetric, activeLayerMetrics, activeCube, adminLevel, layerDirection, layerRegionFilters]);
 
   /**
    * 선택한 지역이 지금 레이어에 없으면 그 레이어의 1위로 옮긴다.
@@ -1311,7 +1313,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveLayerId(match.layerId as LayerId);
       setActiveMetricKey(match.metricKey);
       setLayerDirection(match.direction);
-      setLayerRegionFilter(match.regionFilter);
+      setLayerRegionFilters(match.regionFilters);
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       adminLevelSourceRef.current = "query";
       setQueryNotice(
@@ -1394,7 +1396,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         legend: [],
         formulaNotes: analysis.formulaNotes,
       },
-      { selectedRegionCode },
+      { selectedRegionCode, ascending: analysis.rankDirection === "asc" },
     );
   }, [analysis, selectedRegionCode, snapshot]);
 
@@ -1950,7 +1952,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         { cube: cubeB, metric: metricB, metrics: metricsB },
         cross.mode,
         cross.adminLevel,
-        cross.regionFilter,
+        cross.regionFilters,
       );
       const view = crossResultToView(
         result,
@@ -1967,7 +1969,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${cross.regionFilter ? `${cross.regionFilter} 안 ` : ""}${view.ranked.length}개 ${cross.adminLevel === "sgg" ? "시군구" : "행정동"}`,
+        `교차분석 · ${cross.a.metricLabel}(${cross.a.provider}) ${cross.mode === "gap" ? "대비" : "×"} ${cross.b.metricLabel}(${cross.b.provider}) — ${cross.regionFilters.length ? `${cross.regionFilters.join("·")} 안 ` : ""}${view.ranked.length}개 ${cross.adminLevel === "sgg" ? "시군구" : "행정동"}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2086,7 +2088,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 행정동`,
+        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 ${trendMatch.adminLevel === "sgg" ? "시군구" : "행정동"}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2145,7 +2147,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         { cube: cubeB, metric: metricB, metrics: metricsB, direction: match.b.direction },
         match.adminLevel,
         months,
-        match.regionFilter,
+        match.regionFilters,
       );
 
       const word = (d: "rising" | "falling") => (d === "rising" ? "증가" : "감소");
@@ -2214,7 +2216,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `추세 교차 · ${match.a.metricLabel} ${word(match.a.direction)} × ${match.b.metricLabel} ${word(match.b.direction)} — ${match.regionFilter ? `${match.regionFilter} 안 ` : ""}${result.comparable}개 ${unitLabel}`,
+        `추세 교차 · ${match.a.metricLabel} ${word(match.a.direction)} × ${match.b.metricLabel} ${word(match.b.direction)} — ${match.regionFilters.length ? `${match.regionFilters.join("·")} 안 ` : ""}${result.comparable}개 ${unitLabel}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2330,14 +2332,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveLayerId(layerMatch.layerId as LayerId);
       setActiveMetricKey(layerMatch.metricKey);
       setLayerDirection(layerMatch.direction);
-      setLayerRegionFilter(layerMatch.regionFilter);
+      setLayerRegionFilters(layerMatch.regionFilters);
       setAnsweredLastQuery(true);
       if (layerMatch.adminLevel !== adminLevel) setAdminLevel(layerMatch.adminLevel);
       adminLevelSourceRef.current = "query";
       setActiveTab("control");
       setParseStage("done");
       setQueryNotice(
-        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.regionFilter ? `${layerMatch.regionFilter} 안 ` : ""}${layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${layerMatch.direction === "asc" ? " · 낮은 순" : ""}).`,
+        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.regionFilters.length ? `${layerMatch.regionFilters.join("·")} 안 ` : ""}${layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${layerMatch.direction === "asc" ? " · 낮은 순" : ""}).`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2642,7 +2644,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     // 앞 질의에서 "낮은 순"이었으면 레이어만 바꿨을 때도 그대로 남는다.
                     // 버튼으로 고른 것은 방향 요구가 없으므로 기본(높은 순)으로 되돌린다.
                     setLayerDirection("desc");
-                    setLayerRegionFilter(null);
+                    setLayerRegionFilters([]);
                     if (nextId !== "medical") {
                       setActiveMetricKey(CUBE_LAYER_METRICS[nextId][0].key);
                     }

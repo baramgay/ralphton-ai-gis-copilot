@@ -1,4 +1,4 @@
-import { detectAdminLevel, detectRegionFilter } from "@/lib/layers/resolve-layer-query";
+import { detectAdminLevel, detectRegionFilters } from "@/lib/layers/resolve-layer-query";
 import { detectTrendMonths } from "@/lib/layers/resolve-trend-query";
 import type { AdminLevel, LayerDescriptor, MetricDef } from "@/lib/layers/types";
 
@@ -19,7 +19,7 @@ export type TrendCrossMatch = {
   a: TrendCrossOperand;
   b: TrendCrossOperand;
   adminLevel: AdminLevel;
-  regionFilter: string | null;
+  regionFilters: string[];
   months: number | null;
 };
 
@@ -113,7 +113,7 @@ export function resolveTrendCrossQuery(
     a: { ...first.operand, direction: firstDirection },
     b: { ...second.operand, direction: secondDirection },
     adminLevel: detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
-    regionFilter: detectRegionFilter(text, options.dongNames ?? []),
+    regionFilters: detectRegionFilters(text, options.dongNames ?? []),
     months: detectTrendMonths(text),
   };
 }

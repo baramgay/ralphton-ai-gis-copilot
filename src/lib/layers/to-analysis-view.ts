@@ -21,6 +21,8 @@ export type LayerAnalysisRow = {
 };
 
 export type LayerAnalysisView = {
+  /** 순위 방향. 결론 문구가 "상위/가장 낮은"을 고를 때 쓴다. */
+  rankDirection?: "desc" | "asc";
   id: string;
   title: string;
   summary: string;
@@ -65,10 +67,10 @@ export function layerCubeToAnalysisView(
   metrics: MetricDef[],
   adminLevel: AdminLevel,
   direction: "desc" | "asc" = "desc",
-  regionFilter: string | null = null,
+  regionFilters: readonly string[] = [],
 ): LayerAnalysisResult {
   const monthIndex = monthIndexOf(cube);
-  const view = buildLayerView(cube, metric.key, adminLevel, monthIndex, metrics, direction, regionFilter);
+  const view = buildLayerView(cube, metric.key, adminLevel, monthIndex, metrics, direction, regionFilters);
 
   const finiteValues = view.ranking
     .map((row) => row.value)
@@ -112,9 +114,10 @@ export function layerCubeToAnalysisView(
   return {
     analysis: {
       id: cube.layerId,
+      rankDirection: direction,
       title: `${metric.label} 순위`,
       // 방향을 밝히지 않으면 낮은 순 결과도 "상위"로 읽힌다.
-      summary: `${cube.referenceMonth} 기준 ${metric.label} ${direction === "asc" ? "낮은" : "높은"} 순 (${regionFilter ? `${regionFilter} · ` : ""}${levelLabel})`,
+      summary: `${cube.referenceMonth} 기준 ${metric.label} ${direction === "asc" ? "낮은" : "높은"} 순 (${regionFilters.length ? `${regionFilters.join("·")} · ` : ""}${levelLabel})`,
       ranked,
       filteredFacilities: [],
       formulaNotes: [metric.formula, metric.limitation].filter((note) => note.length > 0),

@@ -8,8 +8,8 @@ export type LayerQueryMatch = {
   layerId: string;
   /** 낮은 쪽을 물었으면 "asc". 기본은 큰 값부터. */
   direction: "desc" | "asc";
-  /** 질의에 시군구가 적혀 있으면 그 이름. 순위를 그 안으로 좁힌다. */
-  regionFilter: string | null;
+  /** 질의에 적힌 지역들. 순위를 그 안으로 좁힌다. 없으면 빈 배열. */
+  regionFilters: string[];
   layerLabel: string;
   provider: LayerDescriptor["provider"];
   metricKey: string;
@@ -85,20 +85,57 @@ const REGION_TOKENS = (() => {
 })();
 
 export function detectRegionFilter(query: string, dongNames: readonly string[] = []): string | null {
+  return detectRegionFilters(query, dongNames)[0] ?? null;
+}
+
+/**
+ * 질의에 적힌 지역을 **모두** 찾는다.
+ *
+ * "창원과 김해의 생활인구"에서 하나만 잡으면 나머지를 조용히 버린다(prod에서 김해가
+ * 사라졌다). 읍면동이 시군구보다 좁으므로 먼저 보고, 겹치는 것은 긴 쪽만 남긴다.
+ */
+export function detectRegionFilters(query: string, dongNames: readonly string[] = []): string[] {
   const compact = query.replace(/\s+/g, "");
-  // 읍면동이 시군구보다 좁으므로 먼저 본다("물금읍"이 "양산시"를 이긴다).
-  let bestDong: string | null = null;
+  const found: Array<{ at: number; length: number; filter: string; kind: "dong" | "sgg" }> = [];
+
   for (const name of dongNames) {
     const key = name.replace(/\s+/g, "");
-    if (key.length >= 2 && compact.includes(key) && (bestDong === null || key.length > bestDong.length)) {
-      bestDong = key;
-    }
+    if (key.length < 2) continue;
+    const at = compact.indexOf(key);
+    if (at >= 0) found.push({ at, length: key.length, filter: key, kind: "dong" });
   }
-  if (bestDong) return bestDong;
   for (const { match, filter } of REGION_TOKENS) {
-    if (match.length >= 2 && compact.includes(match)) return filter;
+    if (match.length < 2) continue;
+    const at = compact.indexOf(match);
+    if (at >= 0) found.push({ at, length: match.length, filter, kind: "sgg" });
   }
-  return null;
+
+  // 같은 자리를 여러 이름이 물면 긴 쪽만 남긴다("물금읍"이 "양산시"를, "창원시성산구"가
+  // "창원시"를 이긴다).
+  found.sort((left, right) => right.length - left.length);
+  const kept: typeof found = [];
+  for (const item of found) {
+    const overlaps = kept.some(
+      (other) => item.at < other.at + other.length && other.at < item.at + item.length,
+    );
+    if (!overlaps) kept.push(item);
+  }
+  /*
+   * "양산시 물금읍"처럼 시군구 바로 뒤에 읍면동이 붙으면 한 곳을 가리키는 말이다.
+   * 둘 다 남기면 어느 하나라도 맞으면 통과라 양산 전체로 넓어진다 — 물어본 것보다 넓다.
+   * 붙어 있는 경우만 좁은 쪽을 남긴다("창원과 김해"처럼 떨어져 있으면 둘 다 살린다).
+   */
+  const narrowed = kept.filter(
+    (item) =>
+      item.kind === "dong" ||
+      !kept.some((other) => other.kind === "dong" && Math.abs(other.at - (item.at + item.length)) <= 1),
+  );
+
+  const seen = new Set<string>();
+  return narrowed
+    .sort((left, right) => left.at - right.at)
+    .map((item) => item.filter)
+    .filter((filter) => (seen.has(filter) ? false : (seen.add(filter), true)));
 }
 
 export function detectDirection(query: string): "desc" | "asc" {
@@ -183,7 +220,7 @@ export function resolveLayerQuery(
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           ),
           direction: detectDirection(text),
-          regionFilter: detectRegionFilter(text, options.dongNames ?? []),
+          regionFilters: detectRegionFilters(text, options.dongNames ?? []),
           matchedTrigger: trigger,
           triggerLength: trigger.length,
         };

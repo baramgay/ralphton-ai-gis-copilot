@@ -48,8 +48,8 @@ export function crossLayerView(
   b: CrossOperand,
   mode: CrossMode,
   adminLevel: AdminLevel,
-  /** 이 문자열이 이름에 든 지역만 순위에 남긴다(공백 무시). 지도 채색은 그대로 둔다. */
-  regionFilter: string | null = null,
+  /** 이 이름들 중 하나라도 든 지역만 순위에 남긴다(공백 무시). */
+  regionFilters: readonly string[] = [],
 ): CrossLayerResult {
   const viewA = buildLayerView(a.cube, a.metric.key, adminLevel, monthIndexOf(a.cube), a.metrics);
   const viewB = buildLayerView(b.cube, b.metric.key, adminLevel, monthIndexOf(b.cube), b.metrics);
@@ -78,13 +78,13 @@ export function crossLayerView(
   }
 
   // 두 지표 모두 값이 있는 지역만(읍면동 질의면 읍면동, 시군구 질의면 시군구).
-  const compactFilter = regionFilter?.replace(/\s+/g, "") ?? null;
-  const codes = [...entriesA.keys()].filter(
-    (code) =>
-      entriesB.has(code) &&
-      (compactFilter === null ||
-        (nameByCode.get(code) ?? "").replace(/\s+/g, "").includes(compactFilter)),
-  );
+  const compactFilters = regionFilters.map((filter) => filter.replace(/\s+/g, "")).filter(Boolean);
+  const codes = [...entriesA.keys()].filter((code) => {
+    if (!entriesB.has(code)) return false;
+    if (compactFilters.length === 0) return true;
+    const name = (nameByCode.get(code) ?? "").replace(/\s+/g, "");
+    return compactFilters.some((filter) => name.includes(filter));
+  });
   const aValues = codes.map((code) => entriesA.get(code)!.value);
   const bValues = codes.map((code) => entriesB.get(code)!.value);
   const statA = standardize(aValues);

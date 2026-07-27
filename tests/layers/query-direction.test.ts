@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { CUBE_LAYERS } from "@/lib/layers/catalog";
-import { detectDirection, detectRegionFilter, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
+import { detectDirection, detectRegionFilter, detectRegionFilters, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { buildLayerView } from "@/lib/layers/select";
 import type { LayerCube, MetricDef } from "@/lib/layers/types";
 
@@ -105,7 +105,7 @@ describe("지역 한정", () => {
     const all = buildLayerView(cube, "v", "dong", 0, [metric]);
     expect(all.ranking[0].name).toContain("물금읍");
 
-    const scoped = buildLayerView(cube, "v", "dong", 0, [metric], "desc", "창원시 성산구");
+    const scoped = buildLayerView(cube, "v", "dong", 0, [metric], "desc", ["창원시 성산구"]);
     expect(scoped.ranking).toHaveLength(1);
     expect(scoped.ranking[0].name).toContain("중앙동");
   });
@@ -140,8 +140,13 @@ describe("읍면동 지정", () => {
     expect(detectRegionFilter("진영읍 카드매출 높은 곳", dongs)).toBe("진영읍");
   });
 
-  test("읍면동이 시군구보다 우선한다", () => {
-    expect(detectRegionFilter("양산시 물금읍 생활인구", dongs)).toBe("물금읍");
+  test("시군구 바로 뒤에 읍면동이 붙으면 좁은 쪽만 남긴다", () => {
+    // 둘 다 남기면 어느 하나라도 맞으면 통과라 양산 전체로 넓어진다.
+    expect(detectRegionFilters("양산시 물금읍 생활인구", dongs)).toEqual(["물금읍"]);
+  });
+
+  test("떨어져 있는 두 지역은 둘 다 살린다", () => {
+    expect(detectRegionFilters("창원과 김해의 생활인구", dongs)).toEqual(["창원시", "김해시"]);
   });
 
   test("목록에 없으면 시군구로 떨어진다", () => {

@@ -28,7 +28,7 @@ function shortName(admNm: string): string {
  */
 export function buildOneLineConclusion(
   result: AnalysisResult,
-  options?: { selectedRegionCode?: string | null },
+  options?: { selectedRegionCode?: string | null; ascending?: boolean },
 ): string {
   const top = result.rankedRegions.slice(0, 3);
   const selected =
@@ -52,11 +52,14 @@ export function buildOneLineConclusion(
     const lastValue = result.rankedRegions[result.rankedRegions.length - 1]?.metrics[0]?.value;
     // 두세 곳뿐인 결과(지역 비교 등)는 정렬이 아니라 나열이라 방향을 읽으면 안 된다.
     // "진주 vs 사천 비교"가 "가장 낮은 2곳"으로 나왔다.
+    // 호출부가 방향을 알면 그것을 쓴다. 값에서 역추론하는 것은 최후 수단이다 —
+    // 격자처럼 metrics 구성이 다른 뷰에서는 못 알아본다(prod 실측).
     const ascending =
-      result.rankedRegions.length >= 3 &&
-      typeof firstValue === "number" &&
-      typeof lastValue === "number" &&
-      firstValue < lastValue;
+      options?.ascending ??
+      (result.rankedRegions.length >= 3 &&
+        typeof firstValue === "number" &&
+        typeof lastValue === "number" &&
+        firstValue < lastValue);
     const rankWord = ascending ? "가장 낮은" : "상위";
     return `${metricHint}${rankWord} ${names.length}곳은 ${names.join(" · ")}입니다.${selectedHint}`;
   }
@@ -81,7 +84,7 @@ export function buildOneLineConclusion(
 export function interpretAnalysisResult(
   result: AnalysisResult,
   snapshot: AnalysisSnapshot,
-  options?: { selectedRegionCode?: string | null },
+  options?: { selectedRegionCode?: string | null; ascending?: boolean },
 ): Interpretation {
   const top = result.rankedRegions.slice(0, 3);
   const selected =

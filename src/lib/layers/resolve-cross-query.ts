@@ -1,5 +1,5 @@
 import type { CrossMode } from "@/lib/layers/cross-analysis";
-import { detectAdminLevel, detectRegionFilter } from "@/lib/layers/resolve-layer-query";
+import { detectAdminLevel, detectRegionFilters } from "@/lib/layers/resolve-layer-query";
 import type { AdminLevel, LayerDescriptor } from "@/lib/layers/types";
 
 type LayerLike = Omit<LayerDescriptor, "months"> | LayerDescriptor;
@@ -17,15 +17,16 @@ export type CrossQueryMatch = {
   b: CrossOperandRef;
   mode: CrossMode;
   adminLevel: AdminLevel;
-  /** 질의에 시군구가 적혀 있으면 그 이름. 단일 지표 경로와 같은 규칙으로 좁힌다. */
-  regionFilter: string | null;
+  /** 질의에 적힌 지역들. 단일 지표 경로와 같은 규칙으로 좁힌다. */
+  regionFilters: string[];
 };
 
 // "A 대비 B" → gap(zA−zB, A 높고 B 낮은 순). "A·B 모두" → both(zA+zB).
 // "A보다 B가 많은"도 두 지표를 견주는 말이다. 없으면 "전입보다 전출이 많은 곳"이
 // 전입 순위로 답한다(prod 실측) — 정반대 개념이다.
 const GAP_CUES = ["대비해", "대비", "대해서", "비해", "보다", " 대 "];
-const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면서", "면서 높", "겹치는"];
+// "많으면서 …도 높은"처럼 어미가 붙으면 기존 목록에 안 걸려 단일 지표로 떨어졌다.
+const BOTH_CUES = ["모두 높", "모두 많", "둘 다", "동시에", "이면서", "면서", "으면서", "도 높", "도 많", "겹치는"];
 // Contrastive polarity: one metric high, the other low → gap even without a "대비" cue.
 // "과한"은 그 지표가 많다는 뜻이다. 없으면 "소득 대비 소비가 과한 지역"이
 // 소비가 부족한 순으로 나온다(prod 실측).
@@ -163,6 +164,6 @@ export function resolveCrossQuery(
         ? "sgg"
         : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
     // "창원에서 소득 낮고 의료 취약한 곳"이 경남 전체를 답하고 있었다.
-    regionFilter: detectRegionFilter(text),
+    regionFilters: detectRegionFilters(text),
   };
 }

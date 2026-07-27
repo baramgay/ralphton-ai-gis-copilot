@@ -35,6 +35,6 @@ describe("추세 교차 해석", () => {
   test("기간과 지역도 함께 읽는다", () => {
     const match = resolveTrendCrossQuery("최근 6개월 창원 생활인구는 느는데 소비는 주는 곳", CUBE_LAYERS);
     expect(match?.months).toBe(6);
-    expect(match?.regionFilter).toMatch(/^창원시/);
+    expect(match?.regionFilters[0]).toMatch(/^창원시/);
   });
 });

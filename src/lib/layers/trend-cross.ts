@@ -51,18 +51,20 @@ export function trendCrossView(
   b: TrendCrossOperandInput,
   adminLevel: AdminLevel,
   trendMonths?: number,
-  regionFilter: string | null = null,
+  regionFilters: readonly string[] = [],
 ): TrendCrossResult {
   const rankA = buildTrendRanking(a.cube, a.metric, a.metrics, a.direction, adminLevel, trendMonths);
   const rankB = buildTrendRanking(b.cube, b.metric, b.metrics, b.direction, adminLevel, trendMonths);
 
   const byCodeB = new Map(rankB.ranked.map((row) => [row.code, row]));
-  const compactFilter = regionFilter?.replace(/\s+/g, "") ?? null;
+  const compactFilters = regionFilters.map((filter) => filter.replace(/\s+/g, "")).filter(Boolean);
   const pairs = rankA.ranked
     .filter((row) => byCodeB.has(row.code))
-    .filter(
-      (row) => compactFilter === null || row.name.replace(/\s+/g, "").includes(compactFilter),
-    )
+    .filter((row) => {
+      if (compactFilters.length === 0) return true;
+      const name = row.name.replace(/\s+/g, "");
+      return compactFilters.some((filter) => name.includes(filter));
+    })
     .map((row) => ({ row, other: byCodeB.get(row.code)! }));
 
   // 물어본 방향으로 부호를 맞춘다. 감소를 물었으면 많이 줄수록(음수가 클수록) 큰 값이다.

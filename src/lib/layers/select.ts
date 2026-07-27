@@ -32,12 +32,15 @@ export function buildLayerView(
   monthIndex: number,
   metrics: MetricDef[],
   direction: "desc" | "asc" = "desc",
-  /** 이 문자열이 이름에 든 지역만 순위에 남긴다(공백 무시). 지도 채색은 그대로 둔다. */
-  regionFilter: string | null = null,
+  /** 이 이름들 중 하나라도 든 지역만 순위에 남긴다(공백 무시). 지도 채색은 그대로 둔다. */
+  regionFilters: readonly string[] = [],
 ): LayerView {
-  const compactFilter = regionFilter?.replace(/\s+/g, "") ?? null;
-  const inRegion = (name: string) =>
-    compactFilter === null || name.replace(/\s+/g, "").includes(compactFilter);
+  const compactFilters = regionFilters.map((filter) => filter.replace(/\s+/g, "")).filter(Boolean);
+  const inRegion = (name: string) => {
+    if (compactFilters.length === 0) return true;
+    const compactName = name.replace(/\s+/g, "");
+    return compactFilters.some((filter) => compactName.includes(filter));
+  };
   if (adminLevel === "dong") {
     const scores = new Map<string, number>();
     const ranking: LayerRankRow[] = cube.cells.map((cell) => {
