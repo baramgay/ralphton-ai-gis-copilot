@@ -109,6 +109,40 @@ test.describe("AI GIS Copilot core journey", () => {
     expect(await page.locator(".layer-switcher-item").count()).toBeGreaterThan(10);
   });
 
+  /*
+   * 화면이 답과 같은 지역을 가리켜야 한다.
+   *
+   * 선택 지역은 "순위에 없을 때만" 옮겼는데, 읍면동은 어느 지표에서나 순위에 들어 있어
+   * 한 번 선택된 지역이 분석을 바꿔도 계속 남았다. 그래서 "1위는 양산시 물금읍"이라는
+   * 결론 옆에 `선택 278위`와 `거창군 북상면 민간데이터 종합`이 붙어 있었다(prod 실측).
+   * 순위·결론·프로파일이 각각은 맞는데 서로 다른 곳을 말하고 있었다.
+   */
+  test("분석을 바꾸면 선택도 그 답을 따라간다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
+      timeout: 60_000,
+    });
+    await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
+
+    // 먼저 한 분석을 돌려 선택이 생기게 한 뒤, 다른 분석으로 바꾼다.
+    await page.getByLabel("분석 질의").fill("의료 취약 지역");
+    await page.getByRole("button", { name: "질의 실행" }).click();
+    await page.waitForTimeout(1500);
+
+    await page.getByLabel("분석 질의").fill("생활인구 많은 동");
+    await page.getByRole("button", { name: "질의 실행" }).click();
+    await expect(page.getByTestId("result-meta")).toContainText("선택 1위", { timeout: 30_000 });
+
+    const topName = ((await page.locator(".rank-row .rank-name").first().textContent()) ?? "").trim();
+    expect(topName.length).toBeGreaterThan(0);
+
+    const profile = page.getByTestId("region-profile");
+    if (await profile.isVisible().catch(() => false)) {
+      // 프로파일이 가리키는 지역이 1위와 같아야 한다.
+      await expect(profile).toContainText(topName.replace(/^경상남도\s*/, ""));
+    }
+  });
+
   test("runs natural language query path", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({

@@ -88,7 +88,7 @@ import { buildTrendRanking } from "@/lib/layers/trend-view";
 import { trendCrossView } from "@/lib/layers/trend-cross";
 import { resolveTrendCrossQuery, type TrendCrossMatch } from "@/lib/layers/resolve-trend-cross-query";
 import { describeTrend } from "@/lib/layers/trend";
-import { resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
+import { detectResultCount, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
 import {
@@ -791,7 +791,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // 추세를 볼 기간. 0은 전 기간. 장기 추세와 최근 흐름이 갈리는 동이 14%라 바꿔 볼 수 있어야 한다.
   const [trendMonths, setTrendMonths] = useState<number>(0);
   const [remoteCubeErrors, setRemoteCubeErrors] = useState<Record<string, string | null>>({});
-  const [sheetHeight, setSheetHeight] = useState(72);
+  /*
+   * 바텀시트 기본 높이. 72dvh이면 답을 받는 순간 지도가 거의 다 덮인다 — 지도가 이
+   * 도구의 산출물인데 순위만 남는다. 절반(56)이면 한 줄 결론과 1~2위가 보이면서 지도도
+   * 남는다. 더 보고 싶으면 손잡이를 끌거나 "높게"를 누르면 된다.
+   */
+  const [sheetHeight, setSheetHeight] = useState(56);
   const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -1262,12 +1267,23 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 겹치지 않는다. 그대로 두면 지도가 격자가 없는 옛 읍면동을 계속 비춘다 — 격자 레이어로
    * 바꿨는데 화면은 거창군 북상면 산속을 보여주고 있었다(prod 실측).
    */
+  /*
+   * 사용자가 직접 고르지 않았다면 선택은 늘 이번 분석의 1위를 가리킨다.
+   *
+   * 이전에는 "순위에 없을 때만" 옮겼는데, 읍면동은 어느 지표에서나 순위에 들어 있으므로
+   * 한 번 선택된 지역이 분석을 바꿔도 계속 남았다. 그래서 "생활인구 1위는 양산시 물금읍"
+   * 이라는 결론 옆에 `선택 278위`와 `거창군 북상면 민간데이터 종합`이 붙어 있었다
+   * (prod 실측) — 답과 화면이 서로 다른 지역을 가리켰다.
+   */
   useEffect(() => {
     const ranked = layerAnalysisResult?.analysis.ranked;
     if (!ranked || ranked.length === 0) return;
-    if (selectedRegionCode && ranked.some((row) => row.code === selectedRegionCode)) return;
+    if (followSelection && selectedRegionCode && ranked.some((row) => row.code === selectedRegionCode)) {
+      return;
+    }
+    if (selectedRegionCode === ranked[0].code) return;
     setSelectedRegionCode(ranked[0].code);
-  }, [layerAnalysisResult, selectedRegionCode]);
+  }, [layerAnalysisResult, selectedRegionCode, followSelection]);
 
   // A choropleth layer is "loading" when it's active, its cube hasn't arrived yet,
   // and it hasn't errored out (errors already surface via activeLayerError). While this
@@ -2301,6 +2317,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // 새 질의는 새 분포다. 앞 질의에서 확대해 둔 자리에 갇히지 않게 전체 보기로 돌린다.
     setFollowSelection(false);
 
+    /*
+     * "상위 5곳만"처럼 개수를 지정했으면 그만큼만 보여 준다. 지정이 없으면 기본으로
+     * 되돌린다 — 앞 질의의 5곳이 다음 질의까지 따라오면, 물어보지도 않은 개수로 잘린
+     * 결과를 보게 된다(단위가 새던 것과 같은 종류의 결함).
+     */
+    setResultLimit(detectResultCount(trimmed) ?? RESULT_PAGE_STEP);
+
 
     /*
      * 경남 밖 지역을 물었으면 여기서 멈춘다.
@@ -2644,8 +2667,34 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth} ·{" "}
           {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동
         </p>
+        {/*
+          이용법·데이터 출처는 접힌 조작 패널 안에만 있어서, 처음 온 사람이 출처를 보려면
+          "조작"을 먼저 눌러야 했다. 공공기관 자료로 쓰는 도구에서 출처는 한 번에 닿아야
+          한다. 눌러 두 단계를 한 번에 처리한다(패널 열기 + 해당 탭 선택).
+        */}
+        <nav className="ml-auto flex items-center gap-1" aria-label="도움말·데이터">
+          {(
+            [
+              ["help", "이용"],
+              ["data", "데이터"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className="copilot-topbar-link"
+              onClick={() => {
+                setActiveTab(id);
+                if (isNarrowNow()) setSheetMode("left");
+                else if (layout.leftCollapsed) toggleLeft();
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
         <span
-          className={`ui-status ml-auto ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
+          className={`ui-status ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
           title={modeBadgeLabel(snapshot.mode)}
         >
           {snapshot.mode === "live" ? "실데이터" : "시연"}
@@ -3707,14 +3756,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               이렇게 써 보세요
             </h2>
             <ol className="mt-3 space-y-2 ui-body text-slate-200">
+              {/* 질의창이 지도 위 맨 위로 올라갔다. 어디를 보라는 말인지 맞춰 둔다. */}
               <li>
-                <span className="font-bold text-white">1.</span> 질문창에 「생활인구 많은 동네」처럼 적습니다
+                <span className="font-bold text-white">1.</span> 맨 위 질문창에 「생활인구 많은 동네」처럼 적습니다
               </li>
               <li>
                 <span className="font-bold text-white">2.</span> SKT·NH·KCB 민간데이터가 지도에 칠해집니다
               </li>
               <li>
-                <span className="font-bold text-white">3.</span> 오른쪽에서 순위·해석을 보고 보고서로 내보냅니다
+                <span className="font-bold text-white">3.</span> 결과 패널에서 순위·해석을 보고 보고서로 내보냅니다
               </li>
             </ol>
             <div className="mt-4 flex flex-wrap gap-2">

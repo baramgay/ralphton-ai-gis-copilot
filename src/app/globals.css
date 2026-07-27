@@ -774,6 +774,23 @@ input:hover {
   padding: 0 0.875rem;
 }
 
+.copilot-topbar-link {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  font-size: var(--fs-chip);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  color: #475569;
+  white-space: nowrap;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.copilot-topbar-link:hover {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
 /* 좁은 화면에서는 기준월 문구를 접는다. 제품명과 데이터 상태가 먼저다. */
 @media (max-width: 560px) {
   .copilot-topbar-meta {
@@ -933,11 +950,16 @@ input:hover {
   backdrop-filter: blur(10px);
 }
 
+/*
+ * 첫 방문 안내. "맨 위 질문창에 적습니다"라고 말하는데 카드가 화면 아래에 있으면 눈이
+ * 반대쪽을 본다. 히어로 바로 밑에 붙여 가리키는 곳과 읽는 곳을 맞춘다.
+ * (좁은 화면은 아래쪽 그대로 — 위에 두면 히어로를 덮는다.)
+ */
 .onboard-card {
   position: absolute;
   z-index: 30;
   left: 50%;
-  bottom: 5.5rem;
+  top: 10.5rem;
   width: min(92vw, 22rem);
   transform: translateX(-50%);
   border: 1px solid rgb(148 163 184 / 35%);
@@ -957,6 +979,8 @@ input:hover {
      * (Pixel 5 393×727에서 조작 버튼 중심의 히트 대상이 .onboard-card로 나왔다).
      * 바를 완전히 비켜서도록 올린다.
      */
+    /* 좁은 화면은 아래쪽 유지. top을 풀지 않으면 위아래가 다 묶여 카드가 늘어난다. */
+    top: auto;
     bottom: 9rem;
     left: 0.75rem;
     right: 0.75rem;
@@ -1773,6 +1797,17 @@ input:hover {
    */
   .copilot-shell[data-sheet="left"] .query-hero-chips.is-optional,
   .copilot-shell[data-sheet="right"] .query-hero-chips.is-optional {
+    display: none;
+  }
+
+  /*
+   * 시트를 열면 첫 방문 안내는 접는다. 시트 높이를 56dvh로 낮추자 시트 위쪽(탭 줄)이
+   * 카드 자리로 내려와 카드가 탭을 덮었다 — 카드를 닫기 전에는 '이용' 탭이 눌리지
+   * 않았다(e2e 실측). 패널을 연 사람은 이미 시작한 것이므로 안내를 비켜 준다.
+   * 시트를 닫으면 다시 보인다.
+   */
+  .copilot-shell[data-sheet="left"] .onboard-card,
+  .copilot-shell[data-sheet="right"] .onboard-card {
     display: none;
   }
 

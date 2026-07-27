@@ -149,6 +149,41 @@ export function detectDirection(query: string): "desc" | "asc" {
   return Math.max(...low) > Math.max(...high) ? "asc" : "desc";
 }
 
+/**
+ * "상위 5곳만"처럼 **몇 개를 보고 싶은지**를 읽는다. 없으면 null.
+ *
+ * 숫자를 아무거나 집으면 안 된다. 질의에는 개수가 아닌 숫자가 훨씬 많다 — "20대 여성",
+ * "2km 안", "500m 격자", "최근 6개월", "3분위". 그래서 **개수를 세는 단위가 숫자 바로
+ * 뒤에 붙어 있을 때만** 개수로 본다.
+ */
+const COUNT_UNITS = ["곳", "군데", "동네", "개"];
+/** 숫자 앞에 붙으면 개수가 아닌 것이 확실한 말. */
+const NOT_COUNT_BEFORE = ["최근", "지난", "최소", "반경"];
+/**
+ * "개" 뒤에 이어지면 단위가 아직 안 끝난 것 — 개수가 아니다.
+ * 조사(만·는·를…)와 갈라야 한다. "10개만"의 만은 조사, "6개월"의 월은 단위다.
+ */
+const NOT_COUNT_AFTER_GAE = ["월", "소", "국", "년", "사"];
+
+export function detectResultCount(query: string): number | null {
+  const text = query.replace(/\s+/g, " ");
+  const pattern = new RegExp(`(\\d{1,3})\\s*(${COUNT_UNITS.join("|")})`, "g");
+  for (const match of text.matchAll(pattern)) {
+    const at = match.index ?? 0;
+    const before = text.slice(Math.max(0, at - 6), at);
+    if (NOT_COUNT_BEFORE.some((word) => before.includes(word))) continue;
+    if (match[2] === "개") {
+      const next = text.charAt(at + match[0].length);
+      if (NOT_COUNT_AFTER_GAE.includes(next)) continue;
+    }
+    const value = Number(match[1]);
+    // 0곳은 뜻이 없고, 세 자리를 넘으면 개수 지정이라기보다 값이다.
+    if (!Number.isFinite(value) || value < 1 || value > 300) continue;
+    return value;
+  }
+  return null;
+}
+
 export function detectAdminLevel(query: string, fallback: AdminLevel = "dong"): AdminLevel {
   if (SGG_CUES.some((cue) => query.includes(cue))) return "sgg";
   // 문장 끝의 "…동"도 명시로 본다("카드매출 늘어나는 동").
