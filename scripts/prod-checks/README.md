@@ -26,7 +26,8 @@ node scripts/prod-checks/sweep.mjs
 | `verify-batch.mjs` | 격자 단위·없는 차원 (배치 A) | 12/12 |
 | `verify-b.mjs` | 군 축약·조사 낀 트리거 (배치 B) | 19/19 |
 | `verify-c.mjs` | 없는 시설·비슷한 지표·3지역 절단 (배치 C) | 16/16 |
-| `verify-d.mjs` | 부정문·고령화 속도·비율/값 조건 (배치 D) | 15/15 |
+| `verify-d.mjs` | 부정문·고령화 속도·비율/값 조건 (배치 D) | 17/17 |
+| `combo.mjs` | 기능 조합(값조건×교차/다중/추세/격자/시군구) | 눈으로 읽는다 |
 | `sgg.mjs` | 시군구 단위 합산 | 7/8 (의료취약은 의도적 제외) |
 | `households.mjs` | 공공 지표가 답에 닿는가 | 전부 "답함" |
 | `uishot.mjs` | 스크린샷 (`SHOT_TAG=이름 node …`) | — |

@@ -28,5 +28,17 @@ export function topicOf(word: string): string {
  * "이 지표의 단위는 백만원라서…"가 화면에 나갔다(prod 실측). 받침이 있으면 "이라서"다.
  */
 export function becauseItIs(word: string): string {
-  return `${word}${hasFinalConsonant(word) ? "이라서" : "라서"}`;
+  return `${word}${needsIeora(word) ? "이라서" : "라서"}`;
+}
+
+/**
+ * 기호는 **읽는 소리**로 받침을 따진다. "%"는 "퍼센트"라서 받침이 없다 —
+ * 글자만 보면 한글이 아니라 받침 있는 쪽으로 가서 "%이라서"가 된다.
+ */
+const SYMBOL_READINGS: Record<string, boolean> = { "%": false, "㎡": false, "㎢": false };
+
+function needsIeora(word: string): boolean {
+  const last = word.trim().slice(-1);
+  if (last in SYMBOL_READINGS) return SYMBOL_READINGS[last];
+  return hasFinalConsonant(word);
 }

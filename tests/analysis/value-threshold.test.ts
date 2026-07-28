@@ -100,5 +100,7 @@ describe("조사", () => {
     expect(becauseItIs("만원/월")).toBe("만원/월이라서");
     expect(becauseItIs("세대")).toBe("세대라서");
     expect(becauseItIs("명")).toBe("명이라서");
+    // 기호는 읽는 소리로 따진다 — "%"는 "퍼센트"라서 받침이 없다.
+    expect(becauseItIs("%")).toBe("%라서");
   });
 });
