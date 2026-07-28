@@ -1612,8 +1612,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 숫자만 비교하면 조용히 틀린 필터가 걸린다 — 안 거르는 것보다 나쁘다.
    * 단위가 안 맞으면 여기서 아무것도 하지 않고, 대신 화면에 그 사실을 밝힌다.
    */
+  /*
+   * 교차·다중조건·추세교차는 여러 지표를 z로 합친 **합성 점수**로 줄을 세운다. 그 순위를
+   * 대표하는 단일 지표가 없으므로 값 조건을 걸 자리가 없다. `metrics[0]`은 성분 하나일
+   * 뿐인데 그것을 "이 지표의 단위"라고 말하면("단위는 명이라서") 순위가 명 단위인 줄 안다.
+   */
+  const isComposite = analysis?.id === "cross";
   const thresholdUnitMatches =
     valueThreshold !== null &&
+    !isComposite &&
     analysis?.ranked[0]?.metrics[0] !== undefined &&
     baseUnit(analysis.ranked[0].metrics[0].unit) === valueThreshold.unit;
 
@@ -1673,6 +1680,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const queryCaveat = (() => {
     if (!valueThreshold || !analysis) return null;
+    if (isComposite) {
+      return `여러 지표를 합쳐 줄 세운 결과라 「${valueThreshold.value.toLocaleString("ko-KR")}${valueThreshold.unit}」 같은 값 조건을 걸 자리가 없습니다. 지표 하나로 물으면 걸 수 있습니다.`;
+    }
     const metricUnit = analysis.ranked[0]?.metrics[0]?.unit;
     if (!thresholdUnitMatches) {
       return `이 지표의 단위는 ${becauseItIs(metricUnit ?? "다른 단위")} 「${valueThreshold.value.toLocaleString("ko-KR")}${valueThreshold.unit}」 조건을 걸지 못했습니다. 아래는 그 조건을 빼고 낸 순위입니다.`;
