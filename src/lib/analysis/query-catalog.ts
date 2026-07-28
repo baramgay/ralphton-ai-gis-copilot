@@ -21,6 +21,8 @@ export type ToolCatalogEntry = {
    * 병원 거리는 아무 뜻이 없다.
    */
   supportsDistrictLevel?: boolean;
+  /** 이 도구가 **변화**를 답하는가. 아니면 방향을 물어도 수준으로 답한다는 뜻이다. */
+  answersTrend?: boolean;
 };
 
 function medicalTypes(signals: QuerySignals): AnalysisIntent["filters"]["facilityTypes"] {
@@ -67,6 +69,33 @@ function scopeFilters(
 /**
  * Declarative tool catalog. Add a row here when a new GIS analysis tool ships.
  */
+/*
+ * 인구 증감률 도구는 **총인구**를 다룬다. 그런데 "세대수 늘어나는 동"·"1인가구 늘어나는 동"이
+ * 여기로 왔다(prod 실측) — 방향 단서 점수가 커서, 질의가 지목한 지표를 통째로 무시하고
+ * 전혀 다른 질문에 답했다. 고령비율에서 겪은 것과 같은 함정이다.
+ *
+ * 추세 도구가 없는 지표라면 **수준이라도 그 지표로** 답하는 편이 낫다. 지표가 맞고
+ * 방향만 못 맞춘 답은 사용자가 알아볼 수 있지만, 지표가 다른 답은 알아볼 수 없다.
+ * 반영하지 못한 방향은 안내에 따로 밝힌다(query-rules).
+ */
+const NON_POPULATION_METRIC_CUES: MetricCue[] = [
+  "households",
+  "singleHousehold",
+  "birth",
+  "death",
+  "naturalIncrease",
+  "naturalDecrease",
+  "density",
+  "elderly",
+  "medical",
+  "scarcity",
+  "youth",
+];
+
+export function namesOtherMetric(signals: QuerySignals): boolean {
+  return NON_POPULATION_METRIC_CUES.some((cue) => signals.metrics.has(cue));
+}
+
 export const TOOL_CATALOG: ToolCatalogEntry[] = [
   {
     id: "rankHospitalScarcity",
@@ -110,6 +139,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankElderlyRatioTrend",
+    answersTrend: true,
     supportsDistrictLevel: true,
     label: "고령화 속도",
     examples: ["고령비율 상승하는 동", "노인 인구 비율 늘어나는 곳", "고령화 빠른 지역"],
@@ -131,6 +161,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankPopulationGrowthPressure",
+    answersTrend: true,
     supportsDistrictLevel: true,
     label: "인구 증가",
     examples: ["인구가 늘어나는 지역", "인구 증가 압력", "어디 인구가 늘고 있어"],
@@ -140,7 +171,9 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     baseScore: 35,
     cueBonus: 20,
     scoreExtra: (s) =>
-      s.metrics.has("growth")
+      namesOtherMetric(s)
+        ? -60
+        : s.metrics.has("growth")
         ? 32
         : s.metrics.has("population") && s.polarityHigh && s.normalized.includes("늘")
           ? 12
@@ -150,6 +183,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankPopulationDeclineRisk",
+    answersTrend: true,
     supportsDistrictLevel: true,
     label: "인구 감소",
     examples: ["인구가 줄어드는 동", "인구 감소 위험", "인구 유출"],
@@ -158,7 +192,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     spatialCues: ["rank"],
     baseScore: 35,
     cueBonus: 20,
-    scoreExtra: (s) => (s.metrics.has("decline") ? 32 : 0),
+    scoreExtra: (s) => (namesOtherMetric(s) ? -60 : s.metrics.has("decline") ? 32 : 0),
     build: (s) => scopeFilters({}, s),
     notice: () => "12개월 인구 감소율이 높은 행정동 순으로 정렬했습니다.",
   },

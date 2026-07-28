@@ -2,6 +2,7 @@ import { AnalysisIntentSchema, type AnalysisIntent } from "./intent-schema";
 import {
   TOOL_CATALOG,
   scoreCatalogEntry,
+  type ToolCatalogEntry,
 } from "./query-catalog";
 import {
   GYEONGNAM_DISTRICT_LABELS,
@@ -151,6 +152,19 @@ function topSuggestions(signals: QuerySignals): string[] {
  * Score every registered tool against extracted signals and pick the best.
  * New GIS tools only need a TOOL_CATALOG row + registry implementation.
  */
+/*
+ * 늘고 주는 것을 물었는데 그 지표에 추세 도구가 없으면, 수준으로 답하되 **그 사실을 밝힌다.**
+ *
+ * 예전에는 방향 단서 점수가 커서 "세대수 늘어나는 동"이 총인구 증감률로 갔다 — 지표가
+ * 다른 답이라 사용자가 알아볼 수 없었다. 이제 지표는 맞추되, 방향을 못 맞췄다는 것을
+ * 말해 준다. 지표가 맞고 방향만 빠진 답은 알아볼 수 있다.
+ */
+function withTrendCaveat(notice: string, entry: ToolCatalogEntry, signals: QuerySignals): string {
+  const asksTrend = signals.metrics.has("growth") || signals.metrics.has("decline");
+  if (!asksTrend || entry.answersTrend === true) return notice;
+  return `${notice} 늘고 주는 변화는 이 지표로 아직 낼 수 없어 지금 수준으로 답했습니다.`;
+}
+
 export function resolveQueryWithRules(query: string): RuleParseResult {
   const safety = assessQuerySafety(query);
 
@@ -214,11 +228,15 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
       // 안내 문구는 도구마다 "…행정동 순입니다"로 고정돼 있다. 단위를 바꿨으면 말도 바꾼다.
       // 못 바꾸는 도구였으면 그 사실을 밝힌다 — 시군구를 물었는데 말없이 행정동을 주면
       // 사용자는 자기가 요청한 단위로 답을 받은 줄 안다.
-      notice: useDistrict
-        ? best.entry.notice(signals).replaceAll("행정동", "시군구")
-        : signals.wantsDistrictLevel && best.entry.supportsDistrictLevel !== true
-          ? `${best.entry.notice(signals)} 이 지표는 시설까지의 거리로 내기 때문에 시군구로 합칠 수 없어 행정동 단위로 답했습니다.`
-          : best.entry.notice(signals),
+      notice: withTrendCaveat(
+        useDistrict
+          ? best.entry.notice(signals).replaceAll("행정동", "시군구")
+          : signals.wantsDistrictLevel && best.entry.supportsDistrictLevel !== true
+            ? `${best.entry.notice(signals)} 이 지표는 시설까지의 거리로 내기 때문에 시군구로 합칠 수 없어 행정동 단위로 답했습니다.`
+            : best.entry.notice(signals),
+        best.entry,
+        signals,
+      ),
       score: best.score,
       enrichment: buildEnrichment(signals),
     };
