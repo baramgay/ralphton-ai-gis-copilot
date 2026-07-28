@@ -173,6 +173,12 @@ type AnalysisView = {
   legendLabel: string;
   /** 순위 방향. 결론 문구가 "상위/가장 낮은"을 고를 때 쓴다(값에서 역추론하면 틀린다). */
   rankDirection?: "desc" | "asc";
+  /**
+   * 여러 지표를 z로 합쳐 줄 세운 결과인가. 그러면 순위를 대표하는 단일 지표가 없어
+   * 값 조건을 걸 자리가 없다. `id === "cross"`로는 못 가린다 — 단일 지표 추세도 그 id를
+   * 쓰기 때문에, 그걸로 판단했더니 "카드매출 늘어나는 동"까지 합성이라고 말했다.
+   */
+  compositeRanking?: boolean;
   isFacilityResult: boolean;
   /** 교차분석처럼 공공 스냅샷과 기준월·출처가 다른 결과의 표기용 메타(내보내기에 사용). */
   provenance?: { referenceMonth: string; source: string };
@@ -459,6 +465,7 @@ function crossResultToView(
   return {
     id: "cross",
     title: `교차분석 · ${modeLabel} 지역`,
+    compositeRanking: true,
     summary: interpretation,
     ranked,
     filteredFacilities: [],
@@ -544,6 +551,7 @@ function multiResultToView(
   return {
     id: "cross",
     title: `다중조건 · ${condition}`,
+    compositeRanking: true,
     summary,
     ranked,
     filteredFacilities: [],
@@ -1617,7 +1625,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 대표하는 단일 지표가 없으므로 값 조건을 걸 자리가 없다. `metrics[0]`은 성분 하나일
    * 뿐인데 그것을 "이 지표의 단위"라고 말하면("단위는 명이라서") 순위가 명 단위인 줄 안다.
    */
-  const isComposite = analysis?.id === "cross";
+  const isComposite = analysis?.compositeRanking === true;
   const thresholdUnitMatches =
     valueThreshold !== null &&
     !isComposite &&
@@ -2454,6 +2462,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const view: AnalysisView = {
         id: "cross",
         title: `${match.a.metricLabel} ${word(match.a.direction)} × ${match.b.metricLabel} ${word(match.b.direction)}${periodLabel}`,
+        // 추세 교차도 두 지표를 겹친 합성이다. 단일 지표 추세와 달리 값 조건을 걸 자리가 없다.
+        compositeRanking: true,
         summary:
           result.ranked.length === 0
             ? "두 지표 모두 추세를 낼 수 있는 지역이 없음"
