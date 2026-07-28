@@ -662,25 +662,64 @@ export function extractQuerySignals(query: string): QuerySignals {
 }
 
 /**
- * 값 조건(임계값)은 아직 거를 수 없다.
+ * "100만원 이상"처럼 값 조건을 읽는다. 없으면 null.
  *
- * "소득 100만원 이상인 동"이 조건을 통째로 무시하고 기본 순위를 그대로 답했다(prod 실측).
- * 순위 자체는 쓸모가 있으므로 막지는 않되, **거르지 않았다는 사실은 밝힌다** — 조용히
- * 무시하면 사용자는 걸러진 결과를 본 줄 안다.
+ * **단위를 함께 돌려주는 것이 핵심이다.** 지표마다 단위가 다르다 — 평균소득은 만원/월,
+ * 카드매출은 백만원, 생활인구는 명이다. 사람이 쓴 단위와 지표의 단위가 다른데 숫자만
+ * 비교하면 조용히 틀린 필터가 걸린다("카드매출 1,000만원 이상"을 1,000 백만원으로 읽는
+ * 식). 그건 안 거르는 것보다 나쁘다. 단위가 맞을 때만 거르고, 아니면 고지한다.
  *
- * 개수("5곳만")와 비율("상위 10%")은 실제로 동작한다. 여기 걸리는 것은 **값** 조건뿐이다.
- * 값은 지표마다 단위가 다르고(카드매출은 백만원인데 사람은 "1,000만원"이라 쓴다) 잘못
- * 환산하면 조용히 틀린 필터가 걸린다 — 안 거르는 것보다 나쁘다.
+ * "100만원"의 만원은 **단위**이고 "5만 명"의 만은 **자릿수**다. 단위가 만원일 때는
+ * 앞의 만·천·억을 자릿수로 보지 않는다.
  */
-const THRESHOLD_PATTERNS: Array<[RegExp, string]> = [
-  // "5만 명"처럼 자릿수 말(만·천·억)이 숫자와 단위 사이에 끼는 꼴을 함께 본다.
-  [
-    /\d[\d,]*\s*(만|천|억)?\s*(만원|원|명|세대|%)\s*(이상|이하|넘는|넘게|미만|초과|위|아래)/,
-    "「100만원 이상」 같은 값 조건",
-  ],
-];
+const THRESHOLD_UNITS = ["만원", "백만원", "원", "명", "세대", "%", "점", "곳"] as const;
+const SCALES: Record<string, number> = { 만: 10_000, 천: 1_000, 억: 100_000_000 };
 
-export function detectUnsupportedThreshold(text: string): string | null {
-  const hit = THRESHOLD_PATTERNS.find(([pattern]) => pattern.test(text));
-  return hit ? hit[1] : null;
+export type ValueThreshold = { op: ">=" | ">" | "<=" | "<"; value: number; unit: string };
+
+export function detectValueThreshold(text: string): ValueThreshold | null {
+  const units = [...THRESHOLD_UNITS].sort((a, b) => b.length - a.length).join("|");
+  /*
+   * 자릿수 그룹을 **lazy(`??`)로** 둔다. greedy면 "100만원"의 만을 자릿수로 먹고 단위가
+   * "원"이 되어, 단위가 "만원/월"인 평균소득과는 영영 안 맞는다. lazy면 단위 후보를
+   * 먼저 시도해 "만원"을 통째로 집고, "5만 명"처럼 단위가 따로 있을 때만 자릿수로 물러난다.
+   *
+   * String.raw가 아니면 템플릿 리터럴이 \d·\s의 역슬래시를 먹어 정규식이 통째로 깨진다.
+   */
+  const pattern = new RegExp(
+    String.raw`(\d[\d,]*)\s*(만|천|억)??\s*(${units})\s*(이상|넘는|넘게|초과|이하|미만|아래)`,
+  );
+  const match = pattern.exec(text.replace(/\s+/g, " "));
+  if (!match) return null;
+
+  const raw = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+
+  const unit = match[3];
+  // 단위가 금액이면 앞의 "만"은 단위의 일부다("100만원"). 그 밖에는 자릿수다("5만 명").
+  const scale = match[2] && unit !== "만원" ? (SCALES[match[2]] ?? 1) : 1;
+  const value = raw * scale;
+
+  const word = match[4];
+  const op = word === "초과" ? ">" : word === "미만" || word === "아래" ? "<" : word === "이하" ? "<=" : ">=";
+  return { op, value, unit };
+}
+
+/** 지표 단위에서 분모를 떼어 비교 가능한 꼴로 만든다("만원/월" → "만원"). */
+export function baseUnit(unit: string): string {
+  return unit.split("/")[0].trim();
+}
+
+export function thresholdMatches(value: number | null, threshold: ValueThreshold): boolean {
+  if (value === null || !Number.isFinite(value)) return false;
+  switch (threshold.op) {
+    case ">":
+      return value > threshold.value;
+    case ">=":
+      return value >= threshold.value;
+    case "<":
+      return value < threshold.value;
+    default:
+      return value <= threshold.value;
+  }
 }

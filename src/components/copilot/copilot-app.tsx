@@ -35,12 +35,15 @@ import { topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import {
+  baseUnit,
   detectMissingMetric,
   detectOutOfScopePlace,
   detectUnsupportedDimension,
   detectUnsupportedFacility,
-  detectUnsupportedThreshold,
+  detectValueThreshold,
   prefersPublicTool,
+  thresholdMatches,
+  type ValueThreshold,
 } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
@@ -798,8 +801,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [query, setQuery] = useState("");
   const [queryNotice, setQueryNotice] = useState<string | null>(null);
   const [queryNoticeTone, setQueryNoticeTone] = useState<"neutral" | "error" | "success">("neutral");
-  /* 답은 냈지만 요청의 일부를 반영하지 못했을 때 그 사실을 밝히는 줄. 어느 분기로 가든 남는다. */
-  const [queryCaveat, setQueryCaveat] = useState<string | null>(null);
   const [querySuggestions, setQuerySuggestions] = useState<string[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseStage, setParseStage] = useState<"idle" | "intent" | "analyze" | "done">("idle");
@@ -829,6 +830,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
   /* "상위 10%"는 전체 행 수를 알아야 개수가 나온다. 분석이 끝난 뒤 렌더에서 환산한다. */
   const [percentLimit, setPercentLimit] = useState<number | null>(null);
+  /* "100만원 이상" 같은 값 조건. 지표 단위가 맞을 때만 실제로 거른다. */
+  const [valueThreshold, setValueThreshold] = useState<ValueThreshold | null>(null);
   /** Facility list sort when showing facilities */
   const [facilitySort, setFacilitySort] = useState<"name" | "type">("name");
   const [reloadToken, setReloadToken] = useState(0);
@@ -1604,17 +1607,30 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (facility) => facility.adm_cd2 === selectedRegionCode,
   );
 
+  /*
+   * 값 조건은 **지표 단위가 맞을 때만** 건다. 사람이 쓴 단위와 지표의 단위가 다른데
+   * 숫자만 비교하면 조용히 틀린 필터가 걸린다 — 안 거르는 것보다 나쁘다.
+   * 단위가 안 맞으면 여기서 아무것도 하지 않고, 대신 화면에 그 사실을 밝힌다.
+   */
+  const thresholdUnitMatches =
+    valueThreshold !== null &&
+    analysis?.ranked[0]?.metrics[0] !== undefined &&
+    baseUnit(analysis.ranked[0].metrics[0].unit) === valueThreshold.unit;
+
   const filteredRanked = useMemo(() => {
     if (!analysis) return [];
     const q = resultSearch.trim().toLowerCase();
-    if (!q) return analysis.ranked;
-    return analysis.ranked.filter(
-      (row) =>
-        row.name.toLowerCase().includes(q) ||
-        row.district.toLowerCase().includes(q) ||
-        row.code.includes(q),
-    );
-  }, [analysis, resultSearch]);
+    const bySearch = q
+      ? analysis.ranked.filter(
+          (row) =>
+            row.name.toLowerCase().includes(q) ||
+            row.district.toLowerCase().includes(q) ||
+            row.code.includes(q),
+        )
+      : analysis.ranked;
+    if (!valueThreshold || !thresholdUnitMatches) return bySearch;
+    return bySearch.filter((row) => thresholdMatches(row.metrics[0]?.value ?? null, valueThreshold));
+  }, [analysis, resultSearch, valueThreshold, thresholdUnitMatches]);
 
   const filteredFacilitiesList = useMemo(() => {
     if (!analysis) return [];
@@ -1648,6 +1664,28 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     percentLimit !== null && filteredRanked.length > 0
       ? Math.max(1, Math.ceil((filteredRanked.length * percentLimit) / 100))
       : resultLimit;
+  /*
+   * 값 조건을 어떻게 처리했는지 화면에 밝힌다. 세 갈래다.
+   * - 단위가 달라 못 걸렀다 → 순위는 그대로 내고 그 사실을 말한다
+   * - 걸렀는데 하나도 없다 → **0행은 "데이터 없음"으로 오독된다.** 조건 때문임을 말하고
+   *   전체 1위를 함께 보여 준다
+   * - 걸러서 남았다 → 군더더기를 붙이지 않는다
+   */
+  const queryCaveat = (() => {
+    if (!valueThreshold || !analysis) return null;
+    const metricUnit = analysis.ranked[0]?.metrics[0]?.unit;
+    if (!thresholdUnitMatches) {
+      return `이 지표의 단위는 ${metricUnit ?? "다른 단위"}라서 「${valueThreshold.value.toLocaleString("ko-KR")}${valueThreshold.unit}」 조건을 걸지 못했습니다. 아래는 그 조건을 빼고 낸 순위입니다.`;
+    }
+    if (filteredRanked.length === 0) {
+      const top = analysis.ranked[0];
+      return top
+        ? `조건에 맞는 곳이 없습니다(데이터가 없는 것이 아닙니다). 전체 1위는 ${top.name} ${top.valueLabel}입니다.`
+        : "조건에 맞는 곳이 없습니다.";
+    }
+    return null;
+  })();
+
   const visibleRanked = filteredRanked.slice(0, effectiveLimit);
   const visibleFacilities = filteredFacilitiesList.slice(0, resultLimit);
   const selectedFacility =
@@ -2522,6 +2560,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      */
     setResultLimit(detectResultCount(trimmed) ?? RESULT_PAGE_STEP);
     setPercentLimit(detectPercentLimit(trimmed));
+    setValueThreshold(detectValueThreshold(trimmed));
 
 
     /*
@@ -2542,18 +2581,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setAnsweredLastQuery(false);
       return;
     }
-
-    /*
-     * 값 조건은 아직 거를 수 없다. 순위 자체는 쓸모가 있으므로 막지 않되, 거르지 않았다는
-     * 사실을 남긴다 — 조용히 무시하면 사용자는 걸러진 결과를 본 줄 안다. 어느 분기로 가든
-     * 화면에 남도록 여기서 한 번만 세운다.
-     */
-    const threshold = detectUnsupportedThreshold(trimmed);
-    setQueryCaveat(
-      threshold
-        ? `${threshold}은 아직 걸러 주지 못합니다. 아래는 그 조건을 빼고 낸 순위입니다. 개수(「상위 5곳만」)와 비율(「상위 10%」)은 반영됩니다.`
-        : null,
-    );
 
     /*
      * 없는 차원을 물었으면 여기서 멈춘다. 범위 밖 지역과 같은 이유다 — 답할 수 없는 것을

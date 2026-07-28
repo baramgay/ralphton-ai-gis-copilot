@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { detectUnsupportedThreshold } from "@/lib/analysis/query-signals";
+import { detectValueThreshold } from "@/lib/analysis/query-signals";
 import { detectDirection, detectPercentLimit, detectResultCount } from "@/lib/layers/resolve-layer-query";
 
 /*
@@ -45,18 +45,19 @@ describe("detectPercentLimit", () => {
   });
 });
 
-describe("고지는 값 조건에만 남는다", () => {
+describe("비율과 값 조건은 서로 다른 경로다", () => {
   test.each(["상위 10% 소득 지역", "하위 20% 소득 동"])(
-    "비율은 실제로 반영되므로 고지하지 않는다: %s",
+    "비율은 값 조건으로 읽지 않는다: %s",
     (query) => {
-      expect(detectUnsupportedThreshold(query)).toBeNull();
+      expect(detectValueThreshold(query)).toBeNull();
     },
   );
 
   test.each(["소득 100만원 이상인 동", "생활인구 5만 명 넘는 동"])(
-    "값 조건은 계속 고지한다: %s",
+    "값 조건은 비율로 읽지 않는다: %s",
     (query) => {
-      expect(detectUnsupportedThreshold(query)).toContain("값 조건");
+      expect(detectPercentLimit(query)).toBeNull();
+      expect(detectValueThreshold(query)).not.toBeNull();
     },
   );
 });
