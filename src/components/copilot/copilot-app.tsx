@@ -97,7 +97,7 @@ import { buildTrendRanking } from "@/lib/layers/trend-view";
 import { trendCrossView } from "@/lib/layers/trend-cross";
 import { resolveTrendCrossQuery, type TrendCrossMatch } from "@/lib/layers/resolve-trend-cross-query";
 import { describeTrend } from "@/lib/layers/trend";
-import { detectResultCount, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
+import { detectPercentLimit, detectResultCount, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
 import {
@@ -827,6 +827,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [facilityTypeFilter, setFacilityTypeFilter] = useState<string | "all">("all");
   const [resultSearch, setResultSearch] = useState("");
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
+  /* "상위 10%"는 전체 행 수를 알아야 개수가 나온다. 분석이 끝난 뒤 렌더에서 환산한다. */
+  const [percentLimit, setPercentLimit] = useState<number | null>(null);
   /** Facility list sort when showing facilities */
   const [facilitySort, setFacilitySort] = useState<"name" | "type">("name");
   const [reloadToken, setReloadToken] = useState(0);
@@ -1638,7 +1640,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return sorted;
   }, [analysis, facilitySort, resultSearch]);
 
-  const visibleRanked = filteredRanked.slice(0, resultLimit);
+  /*
+   * 비율로 물었으면(상위 10%) 행 수에서 개수를 낸다. 질의 시점에는 전체가 몇 개인지
+   * 모른다 — 읍면동 305개인지 시군구 22개인지가 분석 결과에 달려 있다.
+   */
+  const effectiveLimit =
+    percentLimit !== null && filteredRanked.length > 0
+      ? Math.max(1, Math.ceil((filteredRanked.length * percentLimit) / 100))
+      : resultLimit;
+  const visibleRanked = filteredRanked.slice(0, effectiveLimit);
   const visibleFacilities = filteredFacilitiesList.slice(0, resultLimit);
   const selectedFacility =
     analysis?.filteredFacilities.find((facility) => facility.id === selectedFacilityId) ?? null;
@@ -2511,6 +2521,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      * 결과를 보게 된다(단위가 새던 것과 같은 종류의 결함).
      */
     setResultLimit(detectResultCount(trimmed) ?? RESULT_PAGE_STEP);
+    setPercentLimit(detectPercentLimit(trimmed));
 
 
     /*
@@ -2540,7 +2551,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const threshold = detectUnsupportedThreshold(trimmed);
     setQueryCaveat(
       threshold
-        ? `${threshold}은 아직 걸러 주지 못합니다. 아래는 그 조건을 빼고 낸 순위입니다. 개수 지정(「상위 5곳만」)은 반영됩니다.`
+        ? `${threshold}은 아직 걸러 주지 못합니다. 아래는 그 조건을 빼고 낸 순위입니다. 개수(「상위 5곳만」)와 비율(「상위 10%」)은 반영됩니다.`
         : null,
     );
 
@@ -4369,8 +4380,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </p>
                 <p className="ui-caption text-slate-400">
                   {analysis.isFacilityResult
-                    ? `${Math.min(resultLimit, filteredFacilitiesList.length)}/${filteredFacilitiesList.length}`
-                    : `${Math.min(resultLimit, filteredRanked.length)}/${filteredRanked.length}`}
+                    ? `${Math.min(effectiveLimit, filteredFacilitiesList.length)}/${filteredFacilitiesList.length}`
+                    : `${Math.min(effectiveLimit, filteredRanked.length)}/${filteredRanked.length}`}
                 </p>
               </div>
               <label className="mt-2 block">
@@ -4507,8 +4518,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </div>
                   ))}
               {(analysis.isFacilityResult
-                ? filteredFacilitiesList.length > resultLimit
-                : filteredRanked.length > resultLimit) ? (
+                ? filteredFacilitiesList.length > effectiveLimit
+                : filteredRanked.length > effectiveLimit) ? (
                 <button
                   type="button"
                   className="w-full border-t border-slate-100 py-2.5 ui-body font-bold text-blue-700 hover:bg-slate-50"
@@ -4518,7 +4529,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   더 보기 (
                   {(analysis.isFacilityResult
                     ? filteredFacilitiesList.length
-                    : filteredRanked.length) - resultLimit}
+                    : filteredRanked.length) - effectiveLimit}
                   개 남음)
                 </button>
               ) : null}

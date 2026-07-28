@@ -175,6 +175,24 @@ const NOT_COUNT_BEFORE = ["최근", "지난", "최소", "반경"];
  */
 const NOT_COUNT_AFTER_GAE = ["월", "소", "국", "년", "사"];
 
+/**
+ * "상위 10%"처럼 **비율로** 몇 개를 볼지 읽는다. 없으면 null.
+ *
+ * 값 조건("100만원 이상")과 달리 비율은 **단위 변환이 없어** 안전하다. 값 조건은 지표마다
+ * 단위가 다르고(카드매출은 백만원인데 사람은 "1,000만원"이라 쓴다) 잘못 환산하면 조용히
+ * 틀린 필터가 걸린다 — 안 거르는 것보다 나쁘다. 그래서 비율만 실제로 반영한다.
+ *
+ * "하위 10%"의 방향은 `detectDirection`이 이미 본다("하위"가 LOW_CUES에 있다).
+ * 여기서는 몇 개인지만 정한다.
+ */
+export function detectPercentLimit(query: string): number | null {
+  const match = /(상위|하위|top)\s*(\d{1,2})\s*%/i.exec(query.replace(/\s+/g, " "));
+  if (!match) return null;
+  const value = Number(match[2]);
+  // 0%는 뜻이 없고, 100%는 전체라 자를 것이 없다.
+  return Number.isFinite(value) && value >= 1 && value < 100 ? value : null;
+}
+
 export function detectResultCount(query: string): number | null {
   const text = neutralizeNegatedDirection(query.replace(/\s+/g, " "));
   const pattern = new RegExp(`(\\d{1,3})\\s*(${COUNT_UNITS.join("|")})`, "g");
