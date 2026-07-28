@@ -123,4 +123,10 @@ describe("시군구 단위 배선", () => {
     const parsed = resolveQueryWithRules("시군구별 2km 안에 병원 많은 곳");
     expect(parsed.intent?.adminLevel).toBeUndefined();
   });
+
+  test("합칠 수 없으면 그 사실을 밝힌다 — 말없이 다른 단위로 답하지 않는다", () => {
+    const parsed = resolveQueryWithRules("의료 취약한 시군구");
+    expect(parsed.intent?.adminLevel).toBeUndefined();
+    expect(parsed.notice).toMatch(/시군구로 합칠 수 없어/);
+  });
 });

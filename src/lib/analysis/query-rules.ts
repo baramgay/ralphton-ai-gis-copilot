@@ -212,9 +212,13 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
       kind: "intent",
       intent,
       // 안내 문구는 도구마다 "…행정동 순입니다"로 고정돼 있다. 단위를 바꿨으면 말도 바꾼다.
+      // 못 바꾸는 도구였으면 그 사실을 밝힌다 — 시군구를 물었는데 말없이 행정동을 주면
+      // 사용자는 자기가 요청한 단위로 답을 받은 줄 안다.
       notice: useDistrict
         ? best.entry.notice(signals).replaceAll("행정동", "시군구")
-        : best.entry.notice(signals),
+        : signals.wantsDistrictLevel && best.entry.supportsDistrictLevel !== true
+          ? `${best.entry.notice(signals)} 이 지표는 시설까지의 거리로 내기 때문에 시군구로 합칠 수 없어 행정동 단위로 답했습니다.`
+          : best.entry.notice(signals),
       score: best.score,
       enrichment: buildEnrichment(signals),
     };
