@@ -672,12 +672,12 @@ export function extractQuerySignals(query: string): QuerySignals {
  * 조건뿐이다.
  */
 const THRESHOLD_PATTERNS: Array<[RegExp, string]> = [
-  [/상위\s*\d+\s*%/, "상위 N%"],
-  [/하위\s*\d+\s*%/, "하위 N%"],
+  [/상위\s*\d+\s*%/, "「상위 N%」 같은 비율 조건"],
+  [/하위\s*\d+\s*%/, "「하위 N%」 같은 비율 조건"],
   // "5만 명"처럼 자릿수 말(만·천·억)이 숫자와 단위 사이에 끼는 꼴을 함께 본다.
   [
     /\d[\d,]*\s*(만|천|억)?\s*(만원|원|명|세대|%)\s*(이상|이하|넘는|넘게|미만|초과|위|아래)/,
-    "값 조건",
+    "「100만원 이상」 같은 값 조건",
   ],
 ];
 

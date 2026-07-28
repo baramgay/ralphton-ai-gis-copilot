@@ -2540,7 +2540,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const threshold = detectUnsupportedThreshold(trimmed);
     setQueryCaveat(
       threshold
-        ? `"${threshold}" 같은 값 조건은 아직 걸러 주지 못합니다. 아래는 조건을 빼고 낸 순위입니다. 개수 지정("상위 5곳만")은 반영됩니다.`
+        ? `${threshold}은 아직 걸러 주지 못합니다. 아래는 그 조건을 빼고 낸 순위입니다. 개수 지정(「상위 5곳만」)은 반영됩니다.`
         : null,
     );
 
