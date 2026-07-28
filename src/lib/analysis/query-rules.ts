@@ -196,15 +196,25 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
 
   if (best && (hardWinner || clearWinner)) {
     const filters = withLimit(best.entry.build(signals));
+    /*
+     * "시군구별"을 물었고 그 도구가 합산 가능하면 시군구 단위로 답한다. 이 배선이 없어
+     * 공공 지표 6종이 전부 행정동 순위를 답하고 있었다 — `adminLevel`은 스키마에만 있고
+     * 아무도 세우지 않았다(prod 실측). 시설 거리·반경 도구는 합칠 수 없으므로 제외된다.
+     */
+    const useDistrict = signals.wantsDistrictLevel && best.entry.supportsDistrictLevel === true;
     const intent = AnalysisIntentSchema.parse({
       tool: best.entry.id,
       filters,
+      ...(useDistrict ? { adminLevel: "sgg" as const } : {}),
     });
 
     return {
       kind: "intent",
       intent,
-      notice: best.entry.notice(signals),
+      // 안내 문구는 도구마다 "…행정동 순입니다"로 고정돼 있다. 단위를 바꿨으면 말도 바꾼다.
+      notice: useDistrict
+        ? best.entry.notice(signals).replaceAll("행정동", "시군구")
+        : best.entry.notice(signals),
       score: best.score,
       enrichment: buildEnrichment(signals),
     };

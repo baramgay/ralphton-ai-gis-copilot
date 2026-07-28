@@ -1,7 +1,7 @@
 import type { Facility } from "@/lib/domain/schemas";
 import { matchPlacesInText, type MatchedPlace } from "@/lib/geo/place-index";
 
-import { DISTRICT_ALIASES, DISTRICT_LABELS } from "./query-catalog-meta";
+import { DISTRICT_ALIASES, DISTRICT_LABELS, SGG_CUES } from "./query-catalog-meta";
 
 export type SpatialCue =
   | "nearby"
@@ -47,6 +47,8 @@ export type QuerySignals = {
   polarityHigh: boolean;
   polarityLow: boolean;
   freePlaceQuery: string | null;
+  /** "시군구별"처럼 시군구 단위를 명시적으로 요구했는가. */
+  wantsDistrictLevel: boolean;
   wantsBest: boolean;
   wantsWorst: boolean;
   /** Direction for nearest/farthest-facility distance ranking ("가까운" vs "먼"). */
@@ -628,6 +630,8 @@ export function extractQuerySignals(query: string): QuerySignals {
     spatial.add("detail");
   }
 
+  const wantsDistrictLevel = SGG_CUES.some((cue) => normalized.includes(cue));
+
   return {
     raw,
     normalized,
@@ -641,6 +645,7 @@ export function extractQuerySignals(query: string): QuerySignals {
     polarityHigh,
     polarityLow,
     freePlaceQuery,
+    wantsDistrictLevel,
     wantsBest,
     wantsWorst,
     nearestDirection,

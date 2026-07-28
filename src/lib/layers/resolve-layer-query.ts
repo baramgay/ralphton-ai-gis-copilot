@@ -1,4 +1,4 @@
-import { GYEONGNAM_DISTRICT_LABELS } from "@/lib/analysis/query-catalog-meta";
+import { GYEONGNAM_DISTRICT_LABELS, SGG_CUES } from "@/lib/analysis/query-catalog-meta";
 import type { AdminLevel, LayerDescriptor, MetricDef } from "@/lib/layers/types";
 
 /** A layer descriptor with or without its resolved `months` (catalog entries omit months). */
@@ -34,17 +34,6 @@ export function detectGridScope(query: string): boolean {
   return GRID_CUES.some((cue) => compact.includes(cue.replace(/\s+/g, "")));
 }
 
-/** 시군구 단위를 명시적으로 요구하는 표현. 없으면 행정동(dong) 기본. */
-const SGG_CUES = [
-  "시군구",
-  "시·군·구",
-  "시군별",
-  "구별",
-  "군별",
-  "시별",
-  "지자체별",
-  "행정구역별",
-] as const;
 
 /**
  * 읍면동을 명시적으로 요구하는 표현. 이것이 없으면 직전 질의의 단위가 그대로 이어져,

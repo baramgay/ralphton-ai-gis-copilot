@@ -13,6 +13,14 @@ export type ToolCatalogEntry = {
   scoreExtra?: (signals: QuerySignals) => number;
   notice: (signals: QuerySignals) => string;
   domains: Array<"population" | "vital" | "medical" | "access" | "region" | "kakao" | "future-gis">;
+  /**
+   * 읍면동 원계열을 시군구로 합쳐 답할 수 있는 도구인가.
+   *
+   * 값이 RegionSeries 성분(인구·세대·출생…)에서만 나오는 도구만 true다. 시설 거리·
+   * 반경처럼 지점 기하가 필요한 도구는 합칠 수 없다 — 시군구 대표점에서 잰 최근접
+   * 병원 거리는 아무 뜻이 없다.
+   */
+  supportsDistrictLevel?: boolean;
 };
 
 function medicalTypes(signals: QuerySignals): AnalysisIntent["filters"]["facilityTypes"] {
@@ -102,6 +110,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankPopulationGrowthPressure",
+    supportsDistrictLevel: true,
     label: "인구 증가",
     examples: ["인구가 늘어나는 지역", "인구 증가 압력", "어디 인구가 늘고 있어"],
     domains: ["population"],
@@ -120,6 +129,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankPopulationDeclineRisk",
+    supportsDistrictLevel: true,
     label: "인구 감소",
     examples: ["인구가 줄어드는 동", "인구 감소 위험", "인구 유출"],
     domains: ["population"],
@@ -133,6 +143,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankSingleHouseholdRisk",
+    supportsDistrictLevel: true,
     label: "1인가구",
     examples: ["1인가구 비중 높은 동", "단독가구 많은 곳"],
     domains: ["population"],
@@ -146,6 +157,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankDeathCount",
+    supportsDistrictLevel: true,
     label: "사망 수",
     examples: ["사망자 많은 곳", "사망 수가 높은 동", "어디 사망이 많아"],
     domains: ["vital", "population"],
@@ -159,6 +171,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankHouseholdCount",
+    supportsDistrictLevel: true,
     label: "세대 수",
     examples: ["세대수 많은 동", "가구 수 많은 읍면동", "세대 많은 지역"],
     domains: ["population"],
@@ -174,6 +187,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankBirthCount",
+    supportsDistrictLevel: true,
     label: "출생 수",
     examples: ["출생이 많은 지역", "출생아 많은 동", "출산 많은 곳"],
     domains: ["vital", "population"],
@@ -190,6 +204,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankNaturalDecrease",
+    supportsDistrictLevel: true,
     label: "자연감소",
     examples: ["자연감소가 큰 곳", "사망이 출생보다 많은 동"],
     domains: ["vital", "population"],
@@ -208,6 +223,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankNaturalIncrease",
+    supportsDistrictLevel: true,
     label: "자연증가",
     examples: ["자연증가가 큰 곳", "인구 자연증가 높은 지역", "출생이 사망보다 많은 동"],
     domains: ["vital", "population"],
@@ -226,6 +242,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankPopulationDensity",
+    supportsDistrictLevel: true,
     label: "인구밀도",
     examples: ["인구밀도 높은 동", "밀집 지역", "빽빽한 동네"],
     domains: ["population", "future-gis"],
@@ -239,6 +256,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankPopulationSize",
+    supportsDistrictLevel: true,
     label: "총인구",
     examples: ["인구가 많은 동", "주민 수 많은 지역", "사람 많은 곳"],
     domains: ["population"],
@@ -258,6 +276,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   },
   {
     id: "rankElderlyRatio",
+    supportsDistrictLevel: true,
     label: "고령화율",
     examples: ["고령화율 높은 동", "노인 비율 높은 곳"],
     domains: ["population"],

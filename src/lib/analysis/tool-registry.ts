@@ -130,13 +130,88 @@ function regionTokens(intent: AnalysisIntent): string[] {
   return intent.filters.regions ?? intent.filters.compare ?? [];
 }
 
-function scopedRegions(intent: AnalysisIntent, snapshot: AnalysisSnapshot): RegionSeries[] {
-  const tokens = regionTokens(intent);
-  if (tokens.length === 0) {
-    return [...snapshot.regions];
+/*
+ * 읍면동 시계열을 시군구 하나로 합친다.
+ *
+ * 공공 지표 6종이 "시군구별"을 물어도 전부 행정동 순위를 답하고 있었다(prod 실측).
+ * `filters.adminLevel`은 스키마에만 있고 아무도 읽지 않았다.
+ *
+ * **원계열을 더하고, 비율은 각 도구가 제 공식으로 다시 낸다.** 읍면동 비율을 평균 내면
+ * 인구 100명짜리 면과 5만 명짜리 동이 같은 무게가 되어 값이 틀린다. 성분(고령인구·총인구)을
+ * 더해 두면 기존 `percentage(elderly, population)`가 그대로 인구 가중 비율을 낸다 —
+ * 도구를 고칠 필요가 없다.
+ *
+ * 1인가구는 원자료에 결측이 있다. 하나라도 비면 그 시군구는 null로 둔다 — 있는 것만
+ * 더하면 실제보다 작은 값이 그럴듯한 얼굴로 순위에 올라간다(추정하지 않는다 원칙).
+ */
+function sumSeries(members: RegionSeries[], pick: (region: RegionSeries) => number[]): number[] {
+  const length = pick(members[0]).length;
+  return Array.from({ length }, (_, index) =>
+    members.reduce((total, member) => total + (pick(member)[index] ?? 0), 0),
+  );
+}
+
+function sumNullableSeries(
+  members: RegionSeries[],
+  pick: (region: RegionSeries) => Array<number | null>,
+): Array<number | null> {
+  const length = pick(members[0]).length;
+  return Array.from({ length }, (_, index) => {
+    const values = members.map((member) => pick(member)[index]);
+    if (values.some((value) => value === null || value === undefined)) return null;
+    return values.reduce((total: number, value) => total + (value as number), 0);
+  });
+}
+
+export function rollupToDistricts(regions: RegionSeries[]): RegionSeries[] {
+  const groups = new Map<string, RegionSeries[]>();
+  for (const region of regions) {
+    const key = districtLabel(region);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(region);
+    else groups.set(key, [region]);
   }
 
-  return snapshot.regions.filter((region) => tokens.some((token) => regionMatches(region, token)));
+  return [...groups.entries()].map(([label, members]) => {
+    const population = sumSeries(members, (region) => region.population);
+    const areaSquareKm = members.reduce((total, member) => total + member.areaSquareKm, 0);
+    const totalPopulation = population[population.length - 1] || 0;
+    // 대표점은 인구 가중 중심. 면적 중심으로 잡으면 산지가 넓은 군에서 사람 없는 곳을 찍는다.
+    const weight = (member: RegionSeries) =>
+      totalPopulation > 0 ? (member.population[member.population.length - 1] || 0) / totalPopulation : 1 / members.length;
+
+    return {
+      // 행정동 코드 10자리 규약을 지키되 시군구임을 알 수 있게 뒤를 0으로 채운다.
+      adm_cd2: `${members[0].adm_cd2.slice(0, 5)}00000`,
+      adm_nm: `경상남도 ${label}`,
+      representativePoint: {
+        lat: members.reduce((sum, member) => sum + member.representativePoint.lat * weight(member), 0),
+        lng: members.reduce((sum, member) => sum + member.representativePoint.lng * weight(member), 0),
+      },
+      areaSquareKm,
+      months: members[0].months,
+      population,
+      households: sumSeries(members, (region) => region.households),
+      populationDensity: population.map((value) => (areaSquareKm > 0 ? value / areaSquareKm : 0)),
+      youthPopulation: sumSeries(members, (region) => region.youthPopulation),
+      workingAgePopulation: sumSeries(members, (region) => region.workingAgePopulation),
+      elderlyPopulation: sumSeries(members, (region) => region.elderlyPopulation),
+      onePersonHouseholds: sumNullableSeries(members, (region) => region.onePersonHouseholds),
+      births: sumSeries(members, (region) => region.births),
+      deaths: sumSeries(members, (region) => region.deaths),
+      naturalChange: sumSeries(members, (region) => region.naturalChange),
+    };
+  });
+}
+
+function scopedRegions(intent: AnalysisIntent, snapshot: AnalysisSnapshot): RegionSeries[] {
+  const tokens = regionTokens(intent);
+  const base =
+    tokens.length === 0
+      ? [...snapshot.regions]
+      : snapshot.regions.filter((region) => tokens.some((token) => regionMatches(region, token)));
+
+  return intent.adminLevel === "sgg" ? rollupToDistricts(base) : base;
 }
 
 function resolvedFacilityTypes(intent: AnalysisIntent): Set<Facility["type"]> {
