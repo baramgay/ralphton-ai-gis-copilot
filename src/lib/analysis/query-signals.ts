@@ -1,7 +1,12 @@
 import type { Facility } from "@/lib/domain/schemas";
 import { matchPlacesInText, type MatchedPlace } from "@/lib/geo/place-index";
 
-import { DISTRICT_ALIASES, DISTRICT_LABELS, SGG_CUES } from "./query-catalog-meta";
+import {
+  DISTRICT_ALIASES,
+  DISTRICT_LABELS,
+  neutralizeNegatedDirection,
+  SGG_CUES,
+} from "./query-catalog-meta";
 
 export type SpatialCue =
   | "nearby"
@@ -303,7 +308,7 @@ function extractFacilityTypes(text: string): Facility["type"][] {
  */
 export function extractQuerySignals(query: string): QuerySignals {
   const raw = query.trim();
-  const normalized = raw.replace(/\s+/g, " ");
+  const normalized = neutralizeNegatedDirection(raw.replace(/\s+/g, " "));
   const text = normalized;
   const districts = extractDistricts(text);
   const dongs = matchPlacesInText(text);

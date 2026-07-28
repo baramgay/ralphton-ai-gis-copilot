@@ -1,3 +1,4 @@
+import { neutralizeNegatedDirection } from "@/lib/analysis/query-catalog-meta";
 import { detectAdminLevel, detectRegionFilters } from "@/lib/layers/resolve-layer-query";
 import { detectTrendMonths } from "@/lib/layers/resolve-trend-query";
 import type { AdminLevel, LayerDescriptor, MetricDef } from "@/lib/layers/types";
@@ -101,7 +102,7 @@ export function resolveTrendCrossQuery(
   layers: readonly LayerLike[],
   options: { adminLevelFallback?: AdminLevel; dongNames?: readonly string[] } = {},
 ): TrendCrossMatch | null {
-  const text = query.replace(/\s+/g, " ").trim();
+  const text = neutralizeNegatedDirection(query.replace(/\s+/g, " ").trim());
   if (!text) return null;
   const compact = text.replace(/\s+/g, "");
 

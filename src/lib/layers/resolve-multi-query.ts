@@ -1,3 +1,4 @@
+import { neutralizeNegatedDirection } from "@/lib/analysis/query-catalog-meta";
 import {
   allMatches,
   pruneOverlaps,
@@ -40,7 +41,7 @@ export function resolveMultiQuery(
   layers: readonly LayerLike[],
   options: { adminLevelFallback?: AdminLevel } = {},
 ): MultiQueryMatch | null {
-  const text = query.replace(/\s+/g, " ").trim();
+  const text = neutralizeNegatedDirection(query.replace(/\s+/g, " ").trim());
   if (!text) return null;
 
   const kept = pruneOverlaps(allMatches(text, layers));

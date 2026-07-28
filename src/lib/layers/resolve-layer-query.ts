@@ -1,4 +1,8 @@
-import { GYEONGNAM_DISTRICT_LABELS, SGG_CUES } from "@/lib/analysis/query-catalog-meta";
+import {
+  GYEONGNAM_DISTRICT_LABELS,
+  neutralizeNegatedDirection,
+  SGG_CUES,
+} from "@/lib/analysis/query-catalog-meta";
 import type { AdminLevel, LayerDescriptor, MetricDef } from "@/lib/layers/types";
 
 /** A layer descriptor with or without its resolved `months` (catalog entries omit months). */
@@ -172,7 +176,7 @@ const NOT_COUNT_BEFORE = ["최근", "지난", "최소", "반경"];
 const NOT_COUNT_AFTER_GAE = ["월", "소", "국", "년", "사"];
 
 export function detectResultCount(query: string): number | null {
-  const text = query.replace(/\s+/g, " ");
+  const text = neutralizeNegatedDirection(query.replace(/\s+/g, " "));
   const pattern = new RegExp(`(\\d{1,3})\\s*(${COUNT_UNITS.join("|")})`, "g");
   for (const match of text.matchAll(pattern)) {
     const at = match.index ?? 0;
@@ -264,7 +268,7 @@ export function resolveLayerQuery(
   layers: readonly LayerLike[],
   options: { adminLevelFallback?: AdminLevel; dongNames?: readonly string[] } = {},
 ): LayerQueryMatch | null {
-  const text = query.replace(/\s+/g, " ").trim();
+  const text = neutralizeNegatedDirection(query.replace(/\s+/g, " ").trim());
   if (!text) return null;
 
   let best: (LayerQueryMatch & { triggerLength: number; gridRank: number }) | null = null;

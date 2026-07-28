@@ -1,3 +1,4 @@
+import { neutralizeNegatedDirection } from "@/lib/analysis/query-catalog-meta";
 import { detectAdminLevel } from "@/lib/layers/resolve-layer-query";
 import type { AdminLevel, LayerDescriptor } from "@/lib/layers/types";
 
@@ -70,7 +71,7 @@ export function resolveTrendQuery(
   layers: readonly LayerLike[],
   options: { adminLevelFallback?: AdminLevel } = {},
 ): TrendQueryMatch | null {
-  const text = query.replace(/\s+/g, " ").trim();
+  const text = neutralizeNegatedDirection(query.replace(/\s+/g, " ").trim());
   if (!text) return null;
 
   const direction = detectDirection(text);
