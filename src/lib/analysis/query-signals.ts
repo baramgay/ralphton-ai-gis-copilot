@@ -235,9 +235,20 @@ export function detectMissingMetric(text: string): { label: string; have: string
   return hit ? { label: hit.label, have: hit.have } : null;
 }
 
+/**
+ * 이 가드는 **위치·거리**를 물을 때만 걸어야 한다.
+ *
+ * 처음엔 낱말만 보고 막았다가 "음식점 비중 높은 동"·"카페 상권 발달한 동"·"편의점 비중
+ * 높은 동"·"주유소 비중 높은 동" 넷을 함께 막아 버렸다(값 대조 46 → 42). 이것들은
+ * NH 생활업종 **소비 비중** 지표로 멀쩡히 답하던 질의다. 없는 것은 그 업종의 *위치*이지
+ * 그 업종에 대한 *지표*가 아니다.
+ */
+const PROXIMITY_CUES = ["반경", "근처", "인근", "주변", "안에", "이내", "km", "킬로", "키로", "m 안"];
+
 export function detectUnsupportedFacility(text: string): string | null {
   // 의료기관을 함께 물었으면 그쪽은 실제로 답할 수 있으므로 막지 않는다.
   if (FACILITY_CUES.some((cue) => text.includes(cue))) return null;
+  if (!PROXIMITY_CUES.some((cue) => text.includes(cue))) return null;
   return NO_POI_DATA.find((name) => text.includes(name)) ?? null;
 }
 

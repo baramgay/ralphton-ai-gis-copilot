@@ -30,6 +30,19 @@ describe("detectUnsupportedFacility", () => {
   test.each(["생활인구 많은 동", "카드매출 낮은 읍면동"])("일반 지표 질의는 안 건드린다: %s", (query) => {
     expect(detectUnsupportedFacility(query)).toBeNull();
   });
+
+  /*
+   * 없는 것은 그 업종의 *위치*이지 그 업종에 대한 *지표*가 아니다. 낱말만 보고 막았다가
+   * NH 생활업종 비중 질의 넷을 함께 막았다(값 대조 46 → 42, prod 실측).
+   */
+  test.each([
+    "음식점 비중 높은 동",
+    "카페 상권 발달한 동",
+    "편의점 비중 높은 동",
+    "주유소 비중 높은 동",
+  ])("업종 비중 지표는 막지 않는다: %s", (query) => {
+    expect(detectUnsupportedFacility(query)).toBeNull();
+  });
 });
 
 describe("prefersPublicTool", () => {
