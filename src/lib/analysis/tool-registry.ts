@@ -530,6 +530,73 @@ export function rankElderlyUnderserved(intent: AnalysisIntent, snapshot: Analysi
   });
 }
 
+/*
+ * 고령화 **속도**. "노인 인구 비율 상승하는 곳"이 고령비율 **수준** 순위로 답하고,
+ * "고령비율 늘어나는 동"은 아예 12개월 **인구** 증감률로 갔다(prod 실측) — 고령비율에
+ * 추세 도구가 없어서 growth 단서가 인구 쪽 도구를 이겼다.
+ *
+ * 수준과 속도는 정책적으로 다른 질문이다. 이미 고령비율이 높은 군 지역은 오래전부터
+ * 높았고, 지금 빠르게 늙는 곳은 대개 다른 데다. 둘을 섞으면 대상지가 뒤바뀐다.
+ *
+ * 비율의 변화는 **%포인트**로 낸다. "5%에서 10%가 됐다"를 100% 증가라고 하면 낮은
+ * 데서 시작한 곳이 무조건 이긴다.
+ */
+function elderlyRatioChange(region: RegionSeries, referenceMonth: string): number | null {
+  const currentIndex = referenceIndex(region, referenceMonth);
+  const current = percentage(
+    numericValueAt(region.elderlyPopulation, currentIndex),
+    numericValueAt(region.population, currentIndex),
+  );
+  const prior = percentage(
+    numericValueAt(region.elderlyPopulation, currentIndex - 12),
+    numericValueAt(region.population, currentIndex - 12),
+  );
+  if (current === null || prior === null) return null;
+  return current - prior;
+}
+
+export function rankElderlyRatioTrend(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const change = elderlyRatioChange(region, snapshot.referenceMonth);
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    return analysisRegion(region, change, [
+      metric(
+        "고령비율 12개월 변화",
+        change,
+        "%p",
+        "기준월 고령비율 − 12개월 전 고령비율",
+        snapshot.referenceMonth,
+        "비율의 차이라 단위는 %포인트입니다. 비율끼리의 증감률로 읽지 마세요.",
+      ),
+      metric(
+        "고령인구 비율",
+        percentage(numericValueAt(region.elderlyPopulation, index), numericValueAt(region.population, index)),
+        "%",
+        "65세 이상 인구 ÷ 총인구 × 100",
+        snapshot.referenceMonth,
+        "지금 수준입니다. 위의 변화량과 함께 보세요.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "고령화가 빠른 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "고령비율 변화를 낼 수 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 고령비율이 빠르게 오르는 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: [
+      "기준월과 정확히 12개월 전의 고령비율을 %포인트로 뺀 값입니다.",
+      "이미 고령비율이 높은 곳과 지금 빠르게 오르는 곳은 다릅니다. 수준은 「고령비율 높은 동」으로 따로 보세요.",
+    ],
+  });
+}
+
 export function rankPopulationGrowthPressure(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const regions = scopedRegions(intent, snapshot);
   const analyzed = regions.map((region) => {
@@ -1271,6 +1338,7 @@ export const toolRegistry = {
   rankDeathCount,
   rankBirthCount,
   rankHouseholdCount,
+  rankElderlyRatioTrend,
   rankNaturalDecrease,
   rankNaturalIncrease,
   rankPopulationDensity,

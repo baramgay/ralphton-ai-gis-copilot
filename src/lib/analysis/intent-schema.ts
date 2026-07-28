@@ -21,6 +21,7 @@ export const ALLOWED_TOOLS = [
   'rankDeathCount',
   'rankBirthCount',
   'rankHouseholdCount',
+  'rankElderlyRatioTrend',
   'rankNaturalDecrease',
   'rankNaturalIncrease',
   'rankPopulationDensity',

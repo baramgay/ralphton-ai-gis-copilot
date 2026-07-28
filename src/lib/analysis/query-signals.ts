@@ -484,6 +484,10 @@ export function extractQuerySignals(query: string): QuerySignals {
       "증가세",
       "인구가 늘",
       "몰리",
+      // "고령비율 상승하는 동"이 수준 순위로 답하고 있었다 — 방향 낱말이 목록에 없었다.
+      "상승",
+      "빨라지",
+      "가팔라",
     ])
   ) {
     metrics.add("growth");

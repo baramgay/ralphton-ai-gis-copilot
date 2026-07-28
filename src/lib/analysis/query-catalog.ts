@@ -109,6 +109,27 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     notice: () => "고령 수요 대비 의료 공급이 약한 행정동 순입니다.",
   },
   {
+    id: "rankElderlyRatioTrend",
+    supportsDistrictLevel: true,
+    label: "고령화 속도",
+    examples: ["고령비율 상승하는 동", "노인 인구 비율 늘어나는 곳", "고령화 빠른 지역"],
+    domains: ["population"],
+    metricCues: ["elderly"],
+    spatialCues: ["rank"],
+    baseScore: 45,
+    cueBonus: 25,
+    /*
+     * 고령 + 방향(늘/상승) 이 함께 있을 때만 이긴다. 고령 단서만 있으면 수준 순위
+     * (rankElderlyRatio)가 맞고, 방향만 있으면 인구 증감률이 맞다. 셋을 가르지 않으면
+     * "고령비율 늘어나는 동"이 인구 증감률로 샌다(prod 실측).
+     */
+    scoreExtra: (s) =>
+      s.metrics.has("elderly") && (s.metrics.has("growth") || s.metrics.has("decline")) ? 40 : -20,
+    build: (s) => scopeFilters({}, s),
+    notice: () =>
+      "고령비율이 12개월간 많이 오른 행정동 순입니다(%포인트). 이미 높은 곳이 아니라 빠르게 오르는 곳입니다.",
+  },
+  {
     id: "rankPopulationGrowthPressure",
     supportsDistrictLevel: true,
     label: "인구 증가",
