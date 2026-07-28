@@ -27,18 +27,19 @@
 
 ## 1. 정기 회귀 (배포할 때마다)
 
-`.prod-*.mjs`는 gitignore된 검증 스크립트다. 프로젝트 루트에서 `node`로 돌린다.
+상시 회귀 스크립트는 **`scripts/prod-checks/`에 버전관리**돼 있다. 기대값과 읽는 법은
+그 안의 `README.md`가 정본이다. 일회성 재현 스크립트만 `.prod-*.mjs`(gitignore)로 둔다.
 
 ```bash
 cd /c/업무/랄프톤
-node .prod-sweep.mjs      # 라우팅 56건 — 질의가 의도한 지표로 가는가
-node .prod-values.mjs     # 값 대조 46건 — 화면 1위 = 큐브에서 독립 계산한 1위
-node .prod-hard.mjs       # 방향·지역·범위 밖
-node .prod-round5.mjs     # 정책 시나리오 12건
-node .prod-round6.mjs     # 실무 표현 14건
-node .prod-round7.mjs     # 개수 지정·오검출·선택 추종
-node .prod-round8.mjs     # 다중조건(3지표 이상)
-node .prod-surfaces.mjs   # 내보내기·공유·프로파일
+node scripts/prod-checks/sweep.mjs      # 라우팅 56건 — 질의가 의도한 지표로 가는가
+node scripts/prod-checks/values.mjs     # 값 대조 46건 — 화면 1위 = 큐브에서 독립 계산한 1위
+node scripts/prod-checks/hard.mjs       # 방향·지역·범위 밖
+node scripts/prod-checks/round5.mjs     # 정책 시나리오 12건
+node scripts/prod-checks/round6.mjs     # 실무 표현 14건
+node scripts/prod-checks/round7.mjs     # 개수 지정·오검출·선택 추종
+node scripts/prod-checks/round8.mjs     # 다중조건(3지표 이상)
+node scripts/prod-checks/surfaces.mjs   # 내보내기·공유·프로파일
 ```
 
 **기대값**
