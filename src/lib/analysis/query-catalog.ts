@@ -382,7 +382,14 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     }),
     notice: (s) => {
       const pair = s.districts.length >= 2 ? s.districts.slice(0, 2) : ["창원시", "김해시"];
-      return `${pair.join(" · ")} 구·군 단위 지표를 합산 비교합니다.`;
+      // 이 도구는 두 지역씩만 견준다. 셋을 물었는데 말없이 둘로 자르면 빠진 지역이
+      // 비교에 들어갔다고 오해한다 — "창원 김해 진주 중 어디가 나은가"에서 진주가
+      // 아무 언급 없이 사라지고 있었다(prod 실측).
+      const dropped = s.districts.slice(2);
+      const cut = dropped.length
+        ? ` ${dropped.join("·")}은(는) 빠졌습니다 — 한 번에 두 지역씩만 견줄 수 있습니다.`
+        : "";
+      return `${pair.join(" · ")} 구·군 단위 지표를 합산 비교합니다.${cut}`;
     },
   },
   {

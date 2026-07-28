@@ -160,6 +160,79 @@ export function detectUnsupportedDimension(text: string): string | null {
   return NO_TIME_AXIS_CUES.find((cue) => text.includes(cue)) ?? null;
 }
 
+/**
+ * 이 도구에 위치 데이터가 없는 **시설**.
+ *
+ * "1km 안에 편의점 많은 동"이 "1km 반경 **의료기관** 수를 비교했습니다"로 답하고 있었다
+ * (prod 실측). 시설 사전이 의료기관 8종뿐이라 매칭이 비면 반경검색이 의료기관 전체를
+ * 기본값으로 세는 탓이다. 물어본 것과 다른 시설을 세어 놓고 그 사실을 안내에 적어도,
+ * 사용자는 자기가 물은 편의점 답을 받은 줄 안다.
+ *
+ * "학교 근처 소비 많은 동"처럼 큐브 지표에 붙은 공간 조건도 여기서 걸린다 — 임의 지점과의
+ * 거리 조인이 아예 없어서 그 조건이 통째로 무시되고 무조건부 순위와 같은 답이 나온다.
+ *
+ * 지명·행정용어와 겹칠 수 있는 말(시장·공원 등)은 일부러 뺐다. 못 잡는 것보다 잘못
+ * 잡는 것이 나쁘다.
+ */
+const NO_POI_DATA = [
+  "편의점",
+  "대형마트",
+  "마트",
+  "카페",
+  "초등학교",
+  "중학교",
+  "고등학교",
+  "대학교",
+  "학교",
+  "어린이집",
+  "유치원",
+  "은행",
+  "주유소",
+  "도서관",
+  "터미널",
+  "군부대",
+  "헬스장",
+  "미용실",
+  "음식점",
+  "식당",
+  "노래방",
+  "영화관",
+] as const;
+
+/**
+ * 비슷한 지표는 있지만 **물어본 그것**은 없는 경우.
+ *
+ * 아무 지표도 없으면 도구가 정직하게 못 하겠다고 말한다. 문제는 비슷한 것이 있을 때다 —
+ * "1인가구 많은 동"이 "가구"에 걸려 세대수(총 가구 수)로 답했다(prod 실측). 도시 동이
+ * 둘 다 1위라 답이 그럴듯해 보이는 것이 더 나쁘다. "출산율"도 출생 **수**로 답했다 —
+ * 인구 많은 동네가 그냥 이긴다.
+ *
+ * 막기만 하지 않고 가진 것을 함께 알려, 사용자가 대신 물을지 고르게 한다.
+ */
+const NEAR_MISS_METRICS: Array<{ asked: string[]; label: string; have: string }> = [
+  {
+    asked: ["1인가구", "1인 가구", "일인가구", "독거", "혼자 사는"],
+    label: "1인가구",
+    have: "세대수(총 가구 수)",
+  },
+  {
+    asked: ["출산율", "합계출산율", "출생률"],
+    label: "출산율",
+    have: "출생 수(건수)",
+  },
+];
+
+export function detectMissingMetric(text: string): { label: string; have: string } | null {
+  const hit = NEAR_MISS_METRICS.find((entry) => entry.asked.some((cue) => text.includes(cue)));
+  return hit ? { label: hit.label, have: hit.have } : null;
+}
+
+export function detectUnsupportedFacility(text: string): string | null {
+  // 의료기관을 함께 물었으면 그쪽은 실제로 답할 수 있으므로 막지 않는다.
+  if (FACILITY_CUES.some((cue) => text.includes(cue))) return null;
+  return NO_POI_DATA.find((name) => text.includes(name)) ?? null;
+}
+
 function extractRadiusKm(text: string): 1 | 2 | 3 | null {
   for (const match of text.matchAll(RADIUS_PATTERN)) {
     const value = Number.parseFloat(match[1]);

@@ -34,7 +34,12 @@ import {
 import { topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
-import { detectOutOfScopePlace, detectUnsupportedDimension } from "@/lib/analysis/query-signals";
+import {
+  detectMissingMetric,
+  detectOutOfScopePlace,
+  detectUnsupportedDimension,
+  detectUnsupportedFacility,
+} from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
   DEFAULT_COMPARE,
@@ -2533,6 +2538,39 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setParseStage("idle");
       setQueryNotice(
         `"${unsupported}"은(는) 이 데이터로 답할 수 없습니다. 큐브가 월 단위 집계라 요일·시간대 구분이 없습니다. 월 단위로 바꿔 물어보세요 — 예: "생활인구 많은 동".`,
+      );
+      setQueryNoticeTone("error");
+      setAnsweredLastQuery(false);
+      return;
+    }
+
+    /*
+     * 위치 데이터가 없는 시설을 물었으면 여기서 멈춘다. 그러지 않으면 반경검색이 기본값인
+     * 의료기관을 대신 세거나("편의점" → 의료기관 수), 큐브 지표에서는 공간 조건이 통째로
+     * 사라져 무조건부 순위와 똑같은 답이 나온다.
+     */
+    const noPoi = detectUnsupportedFacility(trimmed);
+    if (noPoi) {
+      rememberQuery(trimmed);
+      setParseStage("idle");
+      setQueryNotice(
+        `"${noPoi}" 위치 데이터가 없습니다. 이 도구가 가진 시설은 의료기관(병원·의원·약국·치과·한의원·보건소)뿐입니다. 소비·인구 지표로 바꿔 물어보세요.`,
+      );
+      setQueryNoticeTone("error");
+      setAnsweredLastQuery(false);
+      return;
+    }
+
+    /*
+     * 비슷한 지표는 있지만 물어본 그것이 없으면, 가진 것을 대신 내놓지 말고 이름을 밝힌다.
+     * 비율을 물었는데 건수로 답하면 인구 많은 동네가 그냥 이긴다.
+     */
+    const missing = detectMissingMetric(trimmed);
+    if (missing) {
+      rememberQuery(trimmed);
+      setParseStage("idle");
+      setQueryNotice(
+        `${missing.label} 지표가 없습니다. 이 도구에 있는 것은 ${missing.have}이고, 둘은 다른 값입니다. ${missing.have}(으)로 보시겠다면 그렇게 물어보세요.`,
       );
       setQueryNoticeTone("error");
       setAnsweredLastQuery(false);
