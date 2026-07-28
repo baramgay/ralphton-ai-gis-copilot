@@ -1145,6 +1145,12 @@ input:hover {
   color: #9f1239;
 }
 
+/* 답은 냈지만 요청의 일부를 반영하지 못했을 때. 오류는 아니므로 붉은색은 쓰지 않는다. */
+.query-hero-notice.is-warn {
+  background: rgb(254 243 199 / 96%);
+  color: #854d0e;
+}
+
 .query-hero-chips {
   display: flex;
   flex-wrap: wrap;

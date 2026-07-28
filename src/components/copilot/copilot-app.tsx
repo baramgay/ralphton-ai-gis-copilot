@@ -39,6 +39,7 @@ import {
   detectOutOfScopePlace,
   detectUnsupportedDimension,
   detectUnsupportedFacility,
+  detectUnsupportedThreshold,
   prefersPublicTool,
 } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
@@ -797,6 +798,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [query, setQuery] = useState("");
   const [queryNotice, setQueryNotice] = useState<string | null>(null);
   const [queryNoticeTone, setQueryNoticeTone] = useState<"neutral" | "error" | "success">("neutral");
+  /* 답은 냈지만 요청의 일부를 반영하지 못했을 때 그 사실을 밝히는 줄. 어느 분기로 가든 남는다. */
+  const [queryCaveat, setQueryCaveat] = useState<string | null>(null);
   const [querySuggestions, setQuerySuggestions] = useState<string[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseStage, setParseStage] = useState<"idle" | "intent" | "analyze" | "done">("idle");
@@ -2530,6 +2533,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
 
     /*
+     * 값 조건은 아직 거를 수 없다. 순위 자체는 쓸모가 있으므로 막지 않되, 거르지 않았다는
+     * 사실을 남긴다 — 조용히 무시하면 사용자는 걸러진 결과를 본 줄 안다. 어느 분기로 가든
+     * 화면에 남도록 여기서 한 번만 세운다.
+     */
+    const threshold = detectUnsupportedThreshold(trimmed);
+    setQueryCaveat(
+      threshold
+        ? `"${threshold}" 같은 값 조건은 아직 걸러 주지 못합니다. 아래는 조건을 빼고 낸 순위입니다. 개수 지정("상위 5곳만")은 반영됩니다.`
+        : null,
+    );
+
+    /*
      * 없는 차원을 물었으면 여기서 멈춘다. 범위 밖 지역과 같은 이유다 — 답할 수 없는 것을
      * 답할 수 있는 다른 것으로 바꿔 답하면, 사용자는 그것이 답인 줄 안다.
      */
@@ -3948,6 +3963,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           parseStage={parseStage}
           notice={queryNotice}
           noticeTone={queryNoticeTone}
+          caveat={queryCaveat}
           suggestions={querySuggestions}
           onPickSuggestion={(value) => {
             setQuery(value);

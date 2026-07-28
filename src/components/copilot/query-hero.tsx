@@ -10,6 +10,8 @@ export type QueryHeroProps = {
   isParsing: boolean;
   parseStage: "idle" | "intent" | "analyze" | "done";
   notice: string | null;
+  /** 답은 냈지만 요청의 일부를 반영하지 못했을 때 그 사실을 밝히는 줄. */
+  caveat?: string | null;
   noticeTone: "neutral" | "error" | "success";
   /** 오타·모호한 말에 되묻는 후보. 자동 교정은 하지 않는다. */
   suggestions: readonly string[];
@@ -40,6 +42,7 @@ export function QueryHero({
   parseStage,
   notice,
   noticeTone,
+  caveat,
   suggestions,
   onPickSuggestion,
   examples,
@@ -89,6 +92,12 @@ export function QueryHero({
           className={`query-hero-notice is-${noticeTone}`}
         >
           {notice}
+        </p>
+      ) : null}
+
+      {caveat ? (
+        <p role="status" aria-live="polite" data-testid="query-caveat" className="query-hero-notice is-warn">
+          {caveat}
         </p>
       ) : null}
 

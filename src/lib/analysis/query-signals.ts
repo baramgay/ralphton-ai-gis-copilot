@@ -660,3 +660,28 @@ export function extractQuerySignals(query: string): QuerySignals {
     nearestDirection,
   };
 }
+
+/**
+ * 값 조건(임계값)은 아직 거를 수 없다.
+ *
+ * "소득 100만원 이상인 동"·"상위 10% 소득 지역"이 조건을 통째로 무시하고 기본 순위를
+ * 그대로 답했다(prod 실측). 순위 자체는 쓸모가 있으므로 막지는 않되, **거르지 않았다는
+ * 사실은 밝힌다** — 조용히 무시하면 사용자는 걸러진 결과를 본 줄 안다.
+ *
+ * 개수 지정("5곳만")은 `detectResultCount`로 실제 동작한다. 여기 걸리는 것은 값·비율
+ * 조건뿐이다.
+ */
+const THRESHOLD_PATTERNS: Array<[RegExp, string]> = [
+  [/상위\s*\d+\s*%/, "상위 N%"],
+  [/하위\s*\d+\s*%/, "하위 N%"],
+  // "5만 명"처럼 자릿수 말(만·천·억)이 숫자와 단위 사이에 끼는 꼴을 함께 본다.
+  [
+    /\d[\d,]*\s*(만|천|억)?\s*(만원|원|명|세대|%)\s*(이상|이하|넘는|넘게|미만|초과|위|아래)/,
+    "값 조건",
+  ],
+];
+
+export function detectUnsupportedThreshold(text: string): string | null {
+  const hit = THRESHOLD_PATTERNS.find(([pattern]) => pattern.test(text));
+  return hit ? hit[1] : null;
+}
