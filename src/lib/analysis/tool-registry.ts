@@ -586,6 +586,54 @@ export function rankDeathCount(intent: AnalysisIntent, snapshot: AnalysisSnapsho
   });
 }
 
+/*
+ * 세대수는 큐브에도 있고 카탈로그에도 있는데 순위 도구만 없었다. "세대수 많은 동"이
+ * 어떤 표현으로도 "등록된 분석 도구와 맞지 않습니다"로 떨어졌다(prod 실측) — 총인구·
+ * 고령비율·출생은 되는데 세대수만 안 됐다. 세대당 인구를 함께 낸다. 세대수만 보면
+ * 인구 많은 동네가 그냥 이겨서, 가구 규모가 작은 곳(1인가구·고령 단독)을 못 가른다.
+ */
+export function rankHouseholdCount(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    const households = numericValueAt(region.households, index);
+    const population = numericValueAt(region.population, index);
+    const perHousehold =
+      households === null || population === null || households <= 0 ? null : population / households;
+    return analysisRegion(region, households, [
+      metric(
+        "세대 수",
+        households,
+        "세대",
+        "해당 기준월 세대 수",
+        snapshot.referenceMonth,
+        "세대 구성은 별도로 반영하지 않습니다.",
+      ),
+      metric(
+        "세대당 인구",
+        perHousehold,
+        "명",
+        "총인구 ÷ 세대 수",
+        snapshot.referenceMonth,
+        "값이 작을수록 1인·소규모 가구가 많습니다.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "세대 수가 많은 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "세대 수 데이터가 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 기준월 세대 수가 많은 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: ["세대 수는 절대량이라 인구가 많은 곳이 상위에 오기 쉽습니다. 세대당 인구를 함께 보세요."],
+  });
+}
+
 export function rankBirthCount(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const regions = scopedRegions(intent, snapshot);
   const analyzed = regions.map((region) => {
@@ -1147,6 +1195,7 @@ export const toolRegistry = {
   rankSingleHouseholdRisk,
   rankDeathCount,
   rankBirthCount,
+  rankHouseholdCount,
   rankNaturalDecrease,
   rankNaturalIncrease,
   rankPopulationDensity,

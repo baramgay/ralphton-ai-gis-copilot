@@ -158,6 +158,21 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     notice: () => "기준월 사망 수가 많은 행정동 순입니다. 전입·전출은 포함하지 않습니다.",
   },
   {
+    id: "rankHouseholdCount",
+    label: "세대 수",
+    examples: ["세대수 많은 동", "가구 수 많은 읍면동", "세대 많은 지역"],
+    domains: ["population"],
+    metricCues: ["households"],
+    spatialCues: ["rank"],
+    baseScore: 45,
+    cueBonus: 25,
+    // 1인가구를 물었으면 그쪽이 훨씬 구체적이므로 양보한다.
+    scoreExtra: (s) => (s.metrics.has("singleHousehold") ? -30 : s.metrics.has("households") ? 15 : 0),
+    build: (s) => scopeFilters({}, s),
+    notice: () =>
+      "기준월 세대 수가 많은 행정동 순입니다. 절대량이라 인구가 많은 곳이 상위에 오기 쉬우니 세대당 인구를 함께 보세요.",
+  },
+  {
     id: "rankBirthCount",
     label: "출생 수",
     examples: ["출생이 많은 지역", "출생아 많은 동", "출산 많은 곳"],
