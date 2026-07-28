@@ -21,3 +21,12 @@ export function subjectOf(word: string): string {
 export function topicOf(word: string): string {
   return `${word}${hasFinalConsonant(word) ? "은" : "는"}`;
 }
+
+/**
+ * 서술격 조사 + 이유 어미: 이라서/라서.
+ *
+ * "이 지표의 단위는 백만원라서…"가 화면에 나갔다(prod 실측). 받침이 있으면 "이라서"다.
+ */
+export function becauseItIs(word: string): string {
+  return `${word}${hasFinalConsonant(word) ? "이라서" : "라서"}`;
+}

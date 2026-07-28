@@ -31,7 +31,7 @@ import {
   EVALUATOR_SCRIPT,
   METHOD_SUMMARY,
 } from "@/lib/analysis/evaluator-guide";
-import { topicOf } from "@/lib/analysis/korean-particle";
+import { becauseItIs, topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import {
@@ -1675,7 +1675,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (!valueThreshold || !analysis) return null;
     const metricUnit = analysis.ranked[0]?.metrics[0]?.unit;
     if (!thresholdUnitMatches) {
-      return `이 지표의 단위는 ${metricUnit ?? "다른 단위"}라서 「${valueThreshold.value.toLocaleString("ko-KR")}${valueThreshold.unit}」 조건을 걸지 못했습니다. 아래는 그 조건을 빼고 낸 순위입니다.`;
+      return `이 지표의 단위는 ${becauseItIs(metricUnit ?? "다른 단위")} 「${valueThreshold.value.toLocaleString("ko-KR")}${valueThreshold.unit}」 조건을 걸지 못했습니다. 아래는 그 조건을 빼고 낸 순위입니다.`;
     }
     if (filteredRanked.length === 0) {
       const top = analysis.ranked[0];

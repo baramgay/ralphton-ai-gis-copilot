@@ -91,3 +91,14 @@ describe("thresholdMatches", () => {
     expect(thresholdMatches(Number.NaN, ge)).toBe(false);
   });
 });
+
+describe("조사", () => {
+  test("받침에 맞는 서술격 조사를 쓴다", async () => {
+    const { becauseItIs } = await import("@/lib/analysis/korean-particle");
+    // "백만원라서"가 화면에 나갔다(prod 실측).
+    expect(becauseItIs("백만원")).toBe("백만원이라서");
+    expect(becauseItIs("만원/월")).toBe("만원/월이라서");
+    expect(becauseItIs("세대")).toBe("세대라서");
+    expect(becauseItIs("명")).toBe("명이라서");
+  });
+});

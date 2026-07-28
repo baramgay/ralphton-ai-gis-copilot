@@ -26,6 +26,8 @@ const ask = async (q) => {
     caveat: clean(await page.getByTestId("query-caveat").textContent().catch(() => "")),
     first: clean(await page.locator(".rank-name").first().textContent().catch(() => "")),
     rows: (await page.locator(".rank-row").allTextContents()).length,
+    // "24행"은 표시 상한이라 필터가 걸렸는지 증명하지 못한다. 전체 모수를 따로 읽는다.
+    total: clean(await page.locator("[data-testid=result-total]").textContent().catch(() => "")),
   };
 };
 
@@ -47,8 +49,12 @@ const CASES = [
   // 비율은 실제로 반영된다 — 305개 읍면동의 10% = 31행
   ["상위 10% 소득 지역", (r) => r.caveat === "" && r.rows === 31, "비율 반영"],
   ["하위 20% 소득 동", (r) => r.caveat === "" && r.rows === 61, "비율 반영(낮은 쪽)"],
-  ["소득 100만원 이상인 동", (r) => /아직 걸러 주지 못합니다/.test(r.caveat), "값 조건 고지"],
-  ["생활인구 5만 명 넘는 동", (r) => /아직 걸러 주지 못합니다/.test(r.caveat), "값 조건 고지"],
+  // 값 조건 — 단위가 맞으면 실제로 거른다
+  // 소득 300만원 이상은 실제로 소수만 남는다 — 24행 상한에 가려지지 않는 증거다.
+  ["소득 300만원 이상인 동", (r) => r.caveat === "" && r.rows > 0 && r.rows < 24, "값 조건 반영(소득)"],
+  ["소득 500만원 이상인 동", (r) => /조건에 맞는 곳이 없습니다/.test(r.caveat), "0건을 밝힘"],
+  ["생활인구 5만 명 넘는 동", (r) => r.caveat === "" && r.rows > 0 && r.rows < 305, "값 조건 반영(인구)"],
+  ["카드매출 1,000만원 이상 상권", (r) => /단위는/.test(r.caveat), "단위 불일치는 고지"],
   ["카드매출 상위 5곳만", (r) => r.caveat === "" && r.rows === 5, "개수는 실제로 반영"],
   ["생활인구 많은 동", (r) => r.caveat === "", "조건 없으면 고지 없음"],
 ];
