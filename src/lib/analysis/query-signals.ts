@@ -211,16 +211,24 @@ const NO_POI_DATA = [
  */
 const NEAR_MISS_METRICS: Array<{ asked: string[]; label: string; have: string }> = [
   {
-    asked: ["1인가구", "1인 가구", "일인가구", "독거", "혼자 사는"],
-    label: "1인가구",
-    have: "세대수(총 가구 수)",
-  },
-  {
     asked: ["출산율", "합계출산율", "출생률"],
     label: "출산율",
-    have: "출생 수(건수)",
+    have: "기준월 출생 수(건수)",
   },
 ];
+
+/**
+ * 공공 도구가 실제로 답할 수 있는데 큐브 트리거가 먼저 가로채는 말.
+ *
+ * "1인가구 많고 소득 낮은 동"이 세대수(총 가구 수)로 답했다(prod 실측) — 큐브의 "가구"
+ * 트리거가 "1인가구" 안의 "가구"에 걸려서다. 1인가구 비율은 rankSingleHouseholdRisk로
+ * 멀쩡히 있는 지표다. 없는 것이 아니라 **가로채인 것**이라, 막을 게 아니라 비켜 줘야 한다.
+ */
+const PUBLIC_FIRST_CUES = ["1인가구", "1인 가구", "일인가구", "단독가구", "단독세대", "독거"];
+
+export function prefersPublicTool(text: string): boolean {
+  return PUBLIC_FIRST_CUES.some((cue) => text.includes(cue));
+}
 
 export function detectMissingMetric(text: string): { label: string; have: string } | null {
   const hit = NEAR_MISS_METRICS.find((entry) => entry.asked.some((cue) => text.includes(cue)));

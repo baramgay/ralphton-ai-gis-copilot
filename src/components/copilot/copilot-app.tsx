@@ -39,6 +39,7 @@ import {
   detectOutOfScopePlace,
   detectUnsupportedDimension,
   detectUnsupportedFacility,
+  prefersPublicTool,
 } from "@/lib/analysis/query-signals";
 import type { AnalysisResult, MetricDescriptor } from "@/lib/analysis/result";
 import {
@@ -2577,8 +2578,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       return;
     }
 
+    /*
+     * 공공 도구가 정확히 답할 수 있는 질의는 민간 큐브 경로를 건너뛴다. 큐브 트리거가
+     * 더 짧은 말("가구")로 먼저 잡아채면, 있는 지표(1인가구 비율)를 두고 다른 지표
+     * (세대수)로 답하게 된다. 비켜 주기만 하면 아래 공공 파싱이 제 일을 한다.
+     */
+    const publicFirst = prefersPublicTool(trimmed);
+
     // 두 지표의 변화를 겹쳐 묻는 질의를 먼저 본다. 지표가 둘이라 단일 추세보다 구체적이다.
-    const trendCross = resolveTrendCrossQuery(trimmed, /격자|블록/.test(trimmed)
+    const trendCross = publicFirst ? null : resolveTrendCrossQuery(trimmed, /격자|블록/.test(trimmed)
       ? CROSS_LAYERS.filter((layer) => layer.id.startsWith("kcb-grid"))
       : CROSS_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
@@ -2602,7 +2610,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
     // 추세 질의("카드매출 늘어나는 동")를 먼저 본다. 값의 크기가 아니라 변화를 묻는
     // 표현이므로 단일 시점 라우팅으로 넘기면 "많은 곳"과 구별되지 않는다.
-    const trendMatch = resolveTrendQuery(trimmed, PRIVATE_NL_LAYERS, {
+    const trendMatch = publicFirst ? null : resolveTrendQuery(trimmed, PRIVATE_NL_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
     });
     if (trendMatch) {
@@ -2633,7 +2641,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      * 지표가 셋 이상이면 다중조건이 먼저다. 2지표 교차보다 뒤에 두면 앞의 두 개만 잡고
      * 나머지를 조용히 버린다 — 물어본 것보다 적게 답하면서 그 사실을 말하지 않게 된다.
      */
-    const multi = resolveMultiQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
+    const multi = publicFirst
+      ? null
+      : resolveMultiQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (multi) {
       rememberQuery(trimmed);
       if (runMulti(multi)) { setAnsweredLastQuery(true); return; }
@@ -2648,7 +2658,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       return;
     }
 
-    const cross = resolveCrossQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
+    const cross = publicFirst
+      ? null
+      : resolveCrossQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (cross) {
       rememberQuery(trimmed);
       if (runCross(cross)) { setAnsweredLastQuery(true); return; }
@@ -2666,7 +2678,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // layer metric ("생활인구", "유동인구", …), switch the active choropleth layer instead
     // of falling through to the public tool-registry (which would misroute "생활인구" to the
     // public 인구 ranking because "생활인구" contains "인구"). Synchronous, no network.
-    const layerMatch = resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
+    const layerMatch = publicFirst ? null : resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
       // 읍면동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
       dongNames: dongNamesForQuery,

@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   detectMissingMetric,
   detectUnsupportedFacility,
+  prefersPublicTool,
 } from "@/lib/analysis/query-signals";
 
 /*
@@ -31,13 +32,32 @@ describe("detectUnsupportedFacility", () => {
   });
 });
 
-describe("detectMissingMetric", () => {
-  test("1인가구는 세대수가 아니다", () => {
-    const hit = detectMissingMetric("1인가구 많고 소득 낮은 동");
-    expect(hit?.label).toBe("1인가구");
-    expect(hit?.have).toContain("세대수");
-  });
+describe("prefersPublicTool", () => {
+  /*
+   * 1인가구 비율은 rankSingleHouseholdRisk로 멀쩡히 있는 지표다. 큐브의 "가구" 트리거가
+   * "1인가구" 안의 "가구"를 먼저 잡아 세대수로 답하고 있었다 — 없는 것이 아니라 가로채인
+   * 것이므로, 막을 게 아니라 비켜 줘야 한다.
+   */
+  test.each(["1인가구 많고 소득 낮은 동", "단독가구 많은 곳", "독거 어르신 많은 동"])(
+    "공공 도구에 길을 내준다: %s",
+    (query) => {
+      expect(prefersPublicTool(query)).toBe(true);
+    },
+  );
 
+  test.each(["세대수 많은 동", "가구 수 많은 읍면동", "생활인구 많은 동"])(
+    "일반 가구·지표 질의는 큐브 경로 그대로: %s",
+    (query) => {
+      expect(prefersPublicTool(query)).toBe(false);
+    },
+  );
+
+  test("1인가구를 막지 않는다", () => {
+    expect(detectMissingMetric("1인가구 많고 소득 낮은 동")).toBeNull();
+  });
+});
+
+describe("detectMissingMetric", () => {
   test("출산율은 출생 수가 아니다", () => {
     const hit = detectMissingMetric("출산율 높은 지역");
     expect(hit?.label).toBe("출산율");
