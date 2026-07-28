@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { TOOL_CATALOG } from "@/lib/analysis/query-catalog";
+import { resolveQueryWithRules } from "@/lib/analysis/query-rules";
 import { extractQuerySignals } from "@/lib/analysis/query-signals";
 
 /*
@@ -11,16 +12,15 @@ import { extractQuerySignals } from "@/lib/analysis/query-signals";
  * 이 결함은 회귀 스크립트가 아니라, 1인가구 안내가 "세대수로 물어보세요"라고 가리킨
  * 자리가 정작 답이 안 되는 것을 화면 글자에서 읽고 드러났다.
  */
+/*
+ * 앱이 실제로 쓰는 경로를 그대로 부른다. 처음엔 채점 규칙을 손으로 옮겨 적은 테스트를
+ * 썼는데, 그것은 카탈로그 행이 있는지만 확인할 뿐 **질의가 답에 닿는지**는 확인하지
+ * 못한다. 문턱값(SOFT_SCORE_THRESHOLD·GAP)을 넘지 못해 "도구와 맞지 않습니다"로
+ * 떨어지는 경우가 그 테스트에서는 통과로 보인다.
+ */
 function bestTool(query: string): string {
-  const signals = extractQuerySignals(query);
-  const scored = TOOL_CATALOG.map((entry) => {
-    const cueHit = entry.metricCues.some((cue) => signals.metrics.has(cue));
-    const spatialHit = entry.spatialCues.some((cue) => signals.spatial.has(cue));
-    const base = cueHit || spatialHit ? entry.baseScore : 0;
-    const bonus = (cueHit ? entry.cueBonus : 0) + (entry.scoreExtra?.(signals) ?? 0);
-    return { id: entry.id, score: base === 0 ? 0 : base + bonus };
-  }).sort((a, b) => b.score - a.score);
-  return scored[0]?.id ?? "";
+  const parsed = resolveQueryWithRules(query);
+  return parsed.intent?.tool ?? `(답못함:${parsed.kind})`;
 }
 
 describe("세대 수 순위 도구", () => {
