@@ -130,3 +130,23 @@ describe("시군구 단위 배선", () => {
     expect(parsed.notice).toMatch(/시군구로 합칠 수 없어/);
   });
 });
+
+describe("시군구는 전부 보여 준다", () => {
+  test("22개가 20행 상한에 잘리지 않는다", () => {
+    // 상한 20은 305개 읍면동에서 "상위 20"을 뜻한다. 시군구는 통틀어 22개뿐이라
+    // 같은 상한을 걸면 2개가 화면에도 CSV에도 없이 사라진다(prod 실측).
+    const parsed = resolveQueryWithRules("총인구 많은 시군구");
+    expect(parsed.intent?.filters.limit).toBeGreaterThanOrEqual(22);
+  });
+
+  test("행정동 질의의 상한은 그대로 20", () => {
+    expect(resolveQueryWithRules("총인구 많은 동").intent?.filters.limit).toBe(20);
+  });
+
+  test("\"5곳만\"은 이 층이 아니라 화면 표시 상한이 자른다", () => {
+    // 공공 경로의 intent.limit은 "분석 대상 모수"고, 몇 개를 보여 줄지는 화면이 정한다.
+    // 여기서 5로 줄이면 22개 중 5개만 분석하게 되어 순위 자체가 달라진다.
+    const parsed = resolveQueryWithRules("총인구 많은 시군구 5곳만");
+    expect(parsed.intent?.filters.limit).toBeGreaterThanOrEqual(22);
+  });
+});

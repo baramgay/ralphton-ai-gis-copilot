@@ -1366,5 +1366,18 @@ function assertUniqueRegionCodes(snapshot: AnalysisSnapshot): void {
 export function executeAnalysisIntent(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const validatedIntent = AnalysisIntentSchema.parse(intent);
   assertUniqueRegionCodes(snapshot);
-  return toolRegistry[validatedIntent.tool](validatedIntent, snapshot);
+  const result = toolRegistry[validatedIntent.tool](validatedIntent, snapshot);
+  if (validatedIntent.adminLevel !== "sgg") return result;
+
+  /*
+   * 도구 13개가 각자 "N개 행정동을 …" 하고 요약문을 만든다. 시군구로 합쳐 놓고 이 문장을
+   * 그대로 두면, 위쪽 안내는 "시군구"라 말하는데 결과 패널은 "행정동"이라 말한다 —
+   * 같은 화면 안에서 두 문장이 서로 모순된다(prod 실측). 도구마다 고치는 대신 유일한
+   * 길목인 여기서 바로잡는다. 내보내기·공유도 이 결과를 그대로 쓰므로 함께 맞는다.
+   */
+  return {
+    ...result,
+    summary: result.summary.replaceAll("행정동", "시군구"),
+    formulaNotes: result.formulaNotes?.map((note) => note.replaceAll("행정동", "시군구")),
+  };
 }

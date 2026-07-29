@@ -117,7 +117,7 @@ function safetyNotice(reason: SafetyReason): string {
   }
 }
 
-function withLimit(filters: AnalysisIntent["filters"], limit = 20): AnalysisIntent["filters"] {
+function withLimit(filters: AnalysisIntent["filters"], limit: number | undefined = 20): AnalysisIntent["filters"] {
   return { ...filters, limit: filters.limit ?? limit };
 }
 
@@ -209,13 +209,21 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   const hardWinner = best && best.score >= INTENT_SCORE_THRESHOLD;
 
   if (best && (hardWinner || clearWinner)) {
-    const filters = withLimit(best.entry.build(signals));
+    /*
+     * 기본 상한 20은 305개 읍면동에서 "상위 20"을 보여 주려는 것이다. 그런데 시군구는
+     * 통틀어 22개뿐이라, 같은 상한을 걸면 **2개가 조용히 사라진다** — 화면에도 CSV에도
+     * 없고 "더 보기"도 안 뜬다(더 볼 것이 없다고 판단하므로). 시군구면 전부 보여 준다.
+     */
+    const useDistrict = signals.wantsDistrictLevel && best.entry.supportsDistrictLevel === true;
+    const filters = withLimit(
+      best.entry.build(signals),
+      useDistrict ? GYEONGNAM_DISTRICT_LABELS.length : undefined,
+    );
     /*
      * "시군구별"을 물었고 그 도구가 합산 가능하면 시군구 단위로 답한다. 이 배선이 없어
      * 공공 지표 6종이 전부 행정동 순위를 답하고 있었다 — `adminLevel`은 스키마에만 있고
      * 아무도 세우지 않았다(prod 실측). 시설 거리·반경 도구는 합칠 수 없으므로 제외된다.
      */
-    const useDistrict = signals.wantsDistrictLevel && best.entry.supportsDistrictLevel === true;
     const intent = AnalysisIntentSchema.parse({
       tool: best.entry.id,
       filters,
