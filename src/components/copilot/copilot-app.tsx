@@ -179,6 +179,12 @@ type AnalysisView = {
    * 쓰기 때문에, 그걸로 판단했더니 "카드매출 늘어나는 동"까지 합성이라고 말했다.
    */
   compositeRanking?: boolean;
+  /**
+   * 이 결과의 행이 무엇인가("시군구"). 공공 도구 결과는 activeLayerId가 "medical"인 채로
+   * 렌더돼, 화면 아래 "N개 …" 표기가 시군구 결과에도 "행정동"이라 적혔다(prod 실측).
+   * 결과가 스스로 말하게 한다.
+   */
+  unitWord?: string;
   isFacilityResult: boolean;
   /** 교차분석처럼 공공 스냅샷과 기준월·출처가 다른 결과의 표기용 메타(내보내기에 사용). */
   provenance?: { referenceMonth: string; source: string };
@@ -627,6 +633,12 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
       : result.selectedRegion
         ? [result.selectedRegion]
         : [];
+  /*
+   * 시군구로 합쳐진 행은 이름이 "경상남도 김해시"(2토큰)이고 읍면동은 3토큰이다.
+   * 데이터 자체로 판별하면 호출부마다 단위를 들고 다니지 않아도 된다.
+   */
+  const isDistrictLevel =
+    source.length > 0 && source.every((region) => region.adm_nm.trim().split(/\s+/).length <= 2);
   const values = source.map((region) => region.score ?? region.metrics[0]?.value ?? null);
   const finite = values.filter((value): value is number => value !== null && Number.isFinite(value));
   const minimum = finite.length ? Math.min(...finite) : 0;
@@ -663,6 +675,7 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
     formulaNotes: result.formulaNotes,
     legendLabel: `${titleOverride ?? result.title} 상대 분포`,
     isFacilityResult: id === "facilities" || (result.filteredFacilities.length > 0 && ranked.length === 0),
+    unitWord: isDistrictLevel ? "시군구" : undefined,
   };
 }
 
@@ -4336,7 +4349,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           <p className="ui-caption mt-2.5 text-slate-500" data-testid="result-meta">
             {analysis.isFacilityResult
               ? `${filteredFacilitiesList.length.toLocaleString("ko-KR")}개 시설`
-              : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${unitWordOf(activeLayerId, adminLevel)}`}
+              : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${analysis.unitWord ?? unitWordOf(activeLayerId, adminLevel)}`}
             {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="내보내기">

@@ -99,3 +99,12 @@ describe("방법론이 그 질의의 산식을 말한다", () => {
     expect(result.formulaNotes.length).toBeGreaterThan(0);
   });
 });
+
+describe("조사까지 바꾼다", () => {
+  test("\"22개 행정동을\"이 \"22개 시군구을\"이 되지 않는다", () => {
+    // 동은 받침이 있고 구는 없다. 낱말만 갈아 끼우면 조사가 깨진다(prod 실측).
+    const { result } = run("총인구 많은 시군구");
+    expect(result.summary).not.toMatch(/시군구을|시군구은|시군구이 |시군구과/);
+    expect(result.summary).toMatch(/시군구를|시군구는|시군구가|시군구 순/);
+  });
+});

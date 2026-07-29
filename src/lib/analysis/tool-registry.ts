@@ -1363,6 +1363,23 @@ function assertUniqueRegionCodes(snapshot: AnalysisSnapshot): void {
   }
 }
 
+/*
+ * "행정동"을 "시군구"로 바꾸되 **뒤에 붙은 조사까지** 바꾼다. 그냥 갈아 끼우면
+ * "22개 행정동을" → "22개 시군구을"이 된다(prod 실측) — 동은 받침이 있고 구는 없다.
+ */
+const DISTRICT_RELABEL: Array<[RegExp, string]> = [
+  [/행정동을/g, "시군구를"],
+  [/행정동은/g, "시군구는"],
+  [/행정동이/g, "시군구가"],
+  [/행정동과/g, "시군구와"],
+  [/행정동으로/g, "시군구로"],
+  [/행정동/g, "시군구"],
+];
+
+function relabelToDistrict(text: string): string {
+  return DISTRICT_RELABEL.reduce((acc, [pattern, replacement]) => acc.replace(pattern, replacement), text);
+}
+
 export function executeAnalysisIntent(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const validatedIntent = AnalysisIntentSchema.parse(intent);
   assertUniqueRegionCodes(snapshot);
@@ -1377,7 +1394,7 @@ export function executeAnalysisIntent(intent: AnalysisIntent, snapshot: Analysis
    */
   return {
     ...result,
-    summary: result.summary.replaceAll("행정동", "시군구"),
-    formulaNotes: result.formulaNotes?.map((note) => note.replaceAll("행정동", "시군구")),
+    summary: relabelToDistrict(result.summary),
+    formulaNotes: result.formulaNotes?.map(relabelToDistrict),
   };
 }
