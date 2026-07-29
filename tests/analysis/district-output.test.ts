@@ -70,3 +70,32 @@ describe("시군구 22개가 잘리지 않는다", () => {
     }
   });
 });
+
+describe("방법론이 그 질의의 산식을 말한다", () => {
+  /*
+   * 공공 도구 결과는 `activeLayerId`가 "medical"인 채로 렌더돼, 화면 아래 "방법론" 칸이
+   * 무엇을 물어도 의료취약지수 공식만 보여 주고 있었다(prod 실측). "세대수 많은 동"을
+   * 물었는데 "공급 부족 35% + 고령 수요 25% …"가 붙어 나왔다 — 오도성이 크다.
+   *
+   * 도구마다 이미 제 산식을 formulaNotes로 낸다. 그것이 비어 있으면 화면이 기본값으로
+   * 떨어질 수밖에 없으므로, 여기서는 **각 도구가 제 산식을 실제로 채우는지**를 잠근다.
+   */
+  test.each([
+    "세대수 많은 동",
+    "총인구 많은 동",
+    "고령비율 높은 동",
+    "출생 많은 동",
+    "1인가구 많은 동",
+    "고령비율 상승하는 동",
+    "인구 늘어나는 동",
+  ])("%s — 제 산식이 있고 의료취약지수가 아니다", (query) => {
+    const { result } = run(query);
+    expect(result.formulaNotes.length).toBeGreaterThan(0);
+    expect(result.formulaNotes.join(" ")).not.toMatch(/의료취약지수|공급 부족 35%/);
+  });
+
+  test("의료 취약 질의는 제 산식을 말한다", () => {
+    const { result } = run("의료 취약한 동");
+    expect(result.formulaNotes.length).toBeGreaterThan(0);
+  });
+});

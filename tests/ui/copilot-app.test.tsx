@@ -636,6 +636,44 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("공공");
   });
 
+  test("공공 도구 질의는 그 질의의 산식을 방법론에 보여 준다", async () => {
+    /*
+     * 공공 도구 결과는 activeLayerId가 "medical"인 채로 렌더돼, 방법론 칸이 무엇을 물어도
+     * 의료취약지수 공식만 보여 주고 있었다(prod 실측). "세대수 많은 동"을 물었는데 화면
+     * 아래에 "공급 부족 35% + 고령 수요 25% …"가 붙어 나왔다.
+     */
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    // 공용 목은 늘 시설 검색을 돌려준다. 이 테스트는 **순위** 결과가 필요하므로 그것만 바꾼다.
+    const inner = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ai/parse")) {
+        return new Response(
+          JSON.stringify({
+            mode: "demo",
+            intent: { tool: "rankHouseholdCount", filters: { limit: 20 } },
+            notice: "기준월 세대 수가 많은 행정동 순입니다.",
+          }),
+          { status: 200 },
+        );
+      }
+      return inner(input, init);
+    }) as typeof global.fetch;
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "세대수 많은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/세대/);
+    });
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/공급 부족 35%/);
+  });
+
   test("routes a 생활인구 natural-language query to the SKT private layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");

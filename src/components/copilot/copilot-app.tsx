@@ -2959,13 +2959,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // 교차분석은 activeLayerId를 medical로 두고 customAnalysis로 렌더하므로, 방법론·기준월이
   // 의료 레이어 값으로 새지 않도록 교차 결과 자체의 산식을 쓴다.
   const isCrossView = analysis?.id === "cross";
+  /*
+   * 공공 도구 결과는 `activeLayerId`가 "medical"인 채로 렌더된다. 그래서 이 자리가
+   * 무엇을 물어도 의료취약지수 공식만 보여 주고 있었다 — "세대수 많은 동"을 물었는데
+   * 화면 아래에 "공급 부족 35% + 고령 수요 25% …"가 붙어 나왔다(prod 실측).
+   *
+   * 도구마다 이미 제 산식을 `formulaNotes`로 낸다. 그것을 쓰면 된다. 단 **시설 검색은
+   * 제외한다** — 그 산식은 "약국을 제외한 모든 의료기관"처럼 목록을 거르는 규칙이라,
+   * 지도에 그려진 지표(의료취약지수)와 무관하다. METHOD_SUMMARY는 그럴 때의 기본값이다.
+   */
   const methodSummaryText = isCrossView
     ? analysis.formulaNotes.join(" · ")
     : activeLayerId !== "medical" && activeMetric
       ? `${activeMetric.label} = ${activeMetric.formula}${
           activeMetric.limitation ? ` · ${activeMetric.limitation}` : ""
         }`
-      : METHOD_SUMMARY;
+      : analysis && !analysis.isFacilityResult && analysis.formulaNotes.length > 0
+        ? analysis.formulaNotes.join(" · ")
+        : METHOD_SUMMARY;
   const referenceMonthLabel =
     activeLayerId !== "medical" && activeCube ? activeCube.referenceMonth : snapshot.referenceMonth;
 
