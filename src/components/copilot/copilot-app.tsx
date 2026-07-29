@@ -2018,7 +2018,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
     downloadTextFile(`ralphton-rank-${stamp}.csv`, csv);
     showToast("순위 CSV 저장");
-  }, [analysis, exportProvenance, showToast, snapshot]);
+  }, [analysis, exportProvenance, exportRanked, showToast, snapshot]);
 
   /**
    * 화면의 분석을 보고서용 개조식 마크다운으로 저장하고 클립보드에도 넣는다.
@@ -2061,7 +2061,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       // 클립보드가 막힌 환경에서도 파일 저장은 이미 끝났다.
       showToast("보고서 저장");
     }
-  }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
+  }, [
+    analysis,
+    answeredLastQuery,
+    exportProvenance,
+    exportRanked,
+    exportTotal,
+    oneLineConclusion,
+    showToast,
+    snapshot,
+  ]);
 
   /**
    * 한글(HWP) 붙여넣기용 내보내기. 마크다운 표는 한글에 붙이면 평문이 되지만, HTML
@@ -2099,7 +2108,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
     const copied = await copyHtmlToClipboard(html, buildMarkdownReport(reportInput));
     showToast(copied ? "한글 문서 저장·표 복사" : "한글 문서 저장");
-  }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
+  }, [
+    analysis,
+    answeredLastQuery,
+    exportProvenance,
+    exportRanked,
+    exportTotal,
+    oneLineConclusion,
+    showToast,
+    snapshot,
+  ]);
 
   /**
    * 발표용 슬라이드(표지·핵심결과·근거 3장) 내보내기. PPTX 바이너리 대신 파워포인트·한글이
@@ -2135,7 +2153,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       "text/html;charset=utf-8",
     );
     showToast("슬라이드 저장 (브라우저에서 열어 인쇄→PDF)");
-  }, [analysis, exportProvenance, oneLineConclusion, showToast, snapshot]);
+  }, [
+    analysis,
+    answeredLastQuery,
+    exportProvenance,
+    exportRanked,
+    exportTotal,
+    oneLineConclusion,
+    showToast,
+    snapshot,
+  ]);
 
   const applyLayoutPreset = useCallback(
     (id: LayoutPresetId) => {
