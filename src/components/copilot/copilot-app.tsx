@@ -851,6 +851,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
   /* "상위 10%"는 전체 행 수를 알아야 개수가 나온다. 분석이 끝난 뒤 렌더에서 환산한다. */
   const [percentLimit, setPercentLimit] = useState<number | null>(null);
+  /* "5곳만"처럼 **사용자가 적은** 개수. 화면 페이징 기본값과 구분해야 내보내기가 맞는다. */
+  const [explicitCount, setExplicitCount] = useState<number | null>(null);
   /* "100만원 이상" 같은 값 조건. 지표 단위가 맞을 때만 실제로 거른다. */
   const [valueThreshold, setValueThreshold] = useState<ValueThreshold | null>(null);
   /** Facility list sort when showing facilities */
@@ -1717,6 +1719,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     return null;
   })();
 
+  /*
+   * 내보내기는 **조건은 반영하되 페이징은 빼야** 한다.
+   *
+   * 화면은 31행인데 CSV가 305행으로 나가고 있었다(prod 실측) — `analysis.ranked`를 그대로
+   * 썼기 때문이다. 사용자는 화면을 보고 내려받는데 파일에는 전혀 다른(더 많은) 데이터가
+   * 들어 있다. 반대로 화면에 보이는 24행만 내보내면, 조건 없이 물었을 때 나머지가 잘린다.
+   *
+   * 갈라야 할 것은 "사용자가 적은 개수·비율"과 "화면이 정한 기본 페이지 크기"다.
+   */
+  const exportLimit =
+    percentLimit !== null && filteredRanked.length > 0
+      ? Math.max(1, Math.ceil((filteredRanked.length * percentLimit) / 100))
+      : explicitCount;
+  const exportRanked = exportLimit ? filteredRanked.slice(0, exportLimit) : filteredRanked;
+  /* 보고서의 "대상 N개 중"도 조건을 반영해야 한다. 걸러 놓고 305라 적으면 앞뒤가 안 맞는다. */
+  const exportTotal =
+    analysis && exportRanked.length !== analysis.ranked.length ? exportRanked.length : analysis?.totalCount;
+
   const visibleRanked = filteredRanked.slice(0, effectiveLimit);
   const visibleFacilities = filteredFacilitiesList.slice(0, resultLimit);
   const selectedFacility =
@@ -1985,7 +2005,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       stamp,
       source,
       snapshot.mode,
-      analysis.ranked.map((row, index) => {
+      exportRanked.map((row, index) => {
         return {
           rank: index + 1,
           code: row.code,
@@ -2012,15 +2032,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       referenceMonth: exportProvenance.referenceMonth,
       source: exportProvenance.source,
       mode: snapshot.mode,
-      formulaNotes: analysis.formulaNotes,
-      rows: analysis.ranked.map((row, index) => ({
+      formulaNotes: answeredLastQuery
+        ? analysis.formulaNotes
+        : [
+            "⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다.",
+            ...analysis.formulaNotes,
+          ],
+      rows: exportRanked.map((row, index) => ({
         rank: index + 1,
         code: row.code,
         name: row.name,
         valueLabel: row.valueLabel,
         note: row.note,
       })),
-      totalCount: analysis.totalCount,
+      totalCount: exportTotal,
       exportedAt: new Date().toLocaleString("ko-KR"),
     });
 
@@ -2050,15 +2075,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       referenceMonth: exportProvenance.referenceMonth,
       source: exportProvenance.source,
       mode: snapshot.mode,
-      formulaNotes: analysis.formulaNotes,
-      rows: analysis.ranked.map((row, index) => ({
+      formulaNotes: answeredLastQuery
+        ? analysis.formulaNotes
+        : [
+            "⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다.",
+            ...analysis.formulaNotes,
+          ],
+      rows: exportRanked.map((row, index) => ({
         rank: index + 1,
         code: row.code,
         name: row.name,
         valueLabel: row.valueLabel,
         note: row.note,
       })),
-      totalCount: analysis.totalCount,
+      totalCount: exportTotal,
       exportedAt: new Date().toLocaleString("ko-KR"),
     };
     const html = buildHwpHtmlReport(reportInput);
@@ -2083,15 +2113,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       referenceMonth: exportProvenance.referenceMonth,
       source: exportProvenance.source,
       mode: snapshot.mode,
-      formulaNotes: analysis.formulaNotes,
-      rows: analysis.ranked.map((row, index) => ({
+      formulaNotes: answeredLastQuery
+        ? analysis.formulaNotes
+        : [
+            "⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다.",
+            ...analysis.formulaNotes,
+          ],
+      rows: exportRanked.map((row, index) => ({
         rank: index + 1,
         code: row.code,
         name: row.name,
         valueLabel: row.valueLabel,
         note: row.note,
       })),
-      totalCount: analysis.totalCount,
+      totalCount: exportTotal,
       exportedAt: new Date().toLocaleString("ko-KR"),
     });
     downloadTextFile(
@@ -2591,7 +2626,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      * 되돌린다 — 앞 질의의 5곳이 다음 질의까지 따라오면, 물어보지도 않은 개수로 잘린
      * 결과를 보게 된다(단위가 새던 것과 같은 종류의 결함).
      */
-    setResultLimit(detectResultCount(trimmed) ?? RESULT_PAGE_STEP);
+    const asked = detectResultCount(trimmed);
+    setExplicitCount(asked);
+    setResultLimit(asked ?? RESULT_PAGE_STEP);
     setPercentLimit(detectPercentLimit(trimmed));
     setValueThreshold(detectValueThreshold(trimmed));
 
