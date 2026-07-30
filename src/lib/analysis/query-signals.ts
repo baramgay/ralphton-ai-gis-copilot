@@ -495,6 +495,13 @@ export function extractQuerySignals(query: string): QuerySignals {
        */
       "오르",
       "올라",
+      /*
+       * NEGATED_DIRECTIONS(query-catalog-meta.ts)는 "커지"·"많아지"도 상승 낱말로 다루는데
+       * 이 목록엔 없었다 — "총인구 많아지는 동"이 기존 증가 추세 도구(rankPopulationGrowthPressure)를
+       * 타지 못하고 조용히 수준 순위로 답하고 있었다(prod 실측).
+       */
+      "커지",
+      "많아지",
     ])
   ) {
     metrics.add("growth");
@@ -511,6 +518,14 @@ export function extractQuerySignals(query: string): QuerySignals {
       "줄고",
       "감소세",
       "인구가 줄",
+      /*
+       * 위와 같은 이유로 하락 쪽도 비대칭이었다 — "고령비율 하락하는 동"·"떨어지는 동"이
+       * 기존 감소 추세 도구(rankElderlyRatioTrend 등)를 못 타고 수준 순위로 답했다(prod 실측).
+       */
+      "하락",
+      "떨어지",
+      "작아지",
+      "적어지",
     ])
   ) {
     metrics.add("decline");
