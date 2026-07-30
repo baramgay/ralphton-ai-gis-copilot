@@ -659,9 +659,20 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
         : region.score === null
           ? "데이터 없음"
           : formatMetric(region.score, "점"),
-      note: primaryMetric
-        ? `${primaryMetric.label} · ${formatMetric(primaryMetric.value, primaryMetric.unit)}`
-        : "상세 지표",
+      /*
+       * 도구가 동반 지표를 붙였으면 전부 담는다 — 고령화 속도+현재 수준, 세대 수+세대당 인구,
+       * 사망 수+1만 명당. 이 `note` 한 칸이 목록·CSV·HWP·리포트·슬라이드가 공통으로 읽는
+       * 자리라, 첫 지표만 담으면 산식 각주는 "함께 보세요"라 말하는데 함께 볼 곳이 없다.
+       * 지금까지 두 번째 지표는 클릭해야 나오는 상세 카드에만 있었다(prod 실측).
+       */
+      note:
+        region.metrics.length > 1
+          ? region.metrics
+              .map((metric) => `${metric.label} ${formatMetric(metric.value, metric.unit)}`)
+              .join(" · ")
+          : primaryMetric
+            ? `${primaryMetric.label} · ${formatMetric(primaryMetric.value, primaryMetric.unit)}`
+            : "상세 지표",
       metrics: region.metrics,
     };
   });
@@ -893,6 +904,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [answeredLastQuery, setAnsweredLastQuery] = useState(true);
   // 부트 이펙트가 runQueryText 정의보다 위에 있어 ref로 잡아 둔다.
   const runQueryTextRef = useRef<((raw: string) => Promise<void>) | null>(null);
+  /*
+   * 공유 링크의 질문은 스냅샷이 **상태에 반영된 뒤** 실행해야 한다.
+   *
+   * 복원은 스냅샷 fetch의 .then 안에서 일어나는데, 그 시점의 runQueryText 클로저는 아직
+   * snapshot이 null이라 `if (!snapshot) return;`에 걸려 조용히 아무것도 안 한다. 민간 큐브
+   * 질의는 그 줄 앞에서 반환해 우연히 살아 있었고, 공공 도구 질의만 죽어 있었다.
+   */
+  const [pendingShareQuery, setPendingShareQuery] = useState<string | null>(null);
+  const shareQueryRunRef = useRef(false);
 
   const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
@@ -1129,13 +1149,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             if (hit) setSelectedRegionCode(hit.adm_cd2);
           }
           /*
-           * 공공 도구가 아니면(민간 레이어·교차·추세) 질문을 다시 실행해 복원한다.
-           * 예전에는 입력창만 채우고 실행하지 않아, "평균소득 낮은 동"을 공유하면 열었을 때
-           * 기본 의료 분석이 떠 있었다. 방향·지역 한정까지 URL에 담을 것 없이, 질문 그대로
-           * 같은 경로로 다시 태우면 모두 재현된다.
+           * 질문이 실려 있으면 **그 질문을 다시 실행해** 복원한다. 도구 이름만 재생하지 않는다.
+           *
+           * 처음에는 민간·교차·추세 결과에만 이 경로를 썼다. 공공 도구는 `tool`을 재생하면
+           * 된다고 봤는데, 그러면 질문에만 있던 조건이 조용히 사라진다 — 시군구 단위(adminLevel),
+           * "상위 10%"(percentLimit), "400만원 이상"(valueThreshold)은 전부 질문을 파싱해야
+           * 나오는 값이라 `tool` 하나에 담기지 않는다. "총인구 많은 시군구 상위 10%"를 공유하면
+           * 305개 읍면동 전체 순위로 열렸다(prod 실측). 조건이 빠진 채 답이 나오는 것이 최악이다.
+           *
+           * 조건을 URL 필드로 하나씩 늘리는 대신 질문을 다시 태운다 — 앞으로 새 조건이 생겨도
+           * 링크 형식을 건드릴 일이 없다. `tool` 경로는 질문 없이 빠른 버튼만 눌러 공유한
+           * 경우에 그대로 남는다.
            */
-          if (!share.tool && share.q) {
-            void runQueryTextRef.current?.(share.q);
+          if (share.q) {
+            setPendingShareQuery(share.q);
             return;
           }
           if (share.tool) {
@@ -2979,6 +3006,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   useEffect(() => {
     runQueryTextRef.current = runQueryText;
   });
+
+  /*
+   * 공유 링크의 질문을 스냅샷이 도착한 뒤 한 번 실행한다.
+   *
+   * 이 effect는 위의 ref 대입 **뒤에** 선언해야 한다 — 같은 커밋 안에서 effect는 선언 순서로
+   * 돌기 때문에, 앞에 두면 스냅샷을 못 보는 옛 클로저를 다시 부르게 된다.
+   */
+  useEffect(() => {
+    if (!pendingShareQuery || !snapshot || shareQueryRunRef.current) return;
+    shareQueryRunRef.current = true;
+    void runQueryTextRef.current?.(pendingShareQuery);
+  }, [pendingShareQuery, snapshot]);
 
   const submitQuery = async (event: FormEvent) => {
     event.preventDefault();

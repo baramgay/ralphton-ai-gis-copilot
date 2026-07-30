@@ -103,6 +103,12 @@ const boundary = {
 
 describe("CopilotApp", () => {
   beforeEach(() => {
+    /*
+     * 질의를 실행하면 앱이 공유 URL을 `history.replaceState`로 주소창에 쓴다. jsdom의 URL은
+     * 파일 전체가 공유하므로, 앞 테스트가 남긴 `?tool=…&q=…`를 다음 테스트가 "공유 링크로
+     * 열렸다"로 읽고 그 질의를 복원 실행한다. 매 테스트를 빈 주소에서 시작한다.
+     */
+    window.history.replaceState(null, "", "/");
     window.localStorage.setItem("ralphton-onboard-v1", "1");
     vi.stubGlobal(
       "fetch",
@@ -615,7 +621,7 @@ describe("CopilotApp", () => {
 
     // Medical is the default layer: quick analysis grid is present.
     expect(screen.getByRole("button", { name: "의료 취약" })).toBeInTheDocument();
-    expect(screen.getByTestId("method-summary")).toHaveTextContent(/의료취약지수/);
+    expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
 
     const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
     fireEvent.click(within(layerGroup).getByRole("button", { name: /^인구/ }));
@@ -631,7 +637,7 @@ describe("CopilotApp", () => {
 
     // Methodology now describes the active metric (총인구), not the medical formula.
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/총인구/);
-    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/2km 무시설 15%/);
     // Reference-month/provider badge is sourced from the active layer, not left dangling.
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("공공");
   });
@@ -670,7 +676,7 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/세대/);
     });
-    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/2km 무시설 15%/);
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/공급 부족 35%/);
   });
 
@@ -755,7 +761,7 @@ describe("CopilotApp", () => {
     // methodology must describe the cross formula, not the medical layer it borrows
     // activeLayerId from
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/합성점수/);
-    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/의료취약지수/);
+    expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/2km 무시설 15%/);
     // the one-line conclusion must not claim the ranking is by operand A alone
     expect(screen.getByTestId("one-line-conclusion")).toHaveTextContent(/가장 부족한 곳/);
   }, 30_000);
@@ -978,7 +984,7 @@ describe("CopilotApp", () => {
       expect(within(screen.getByTestId("result-panel")).queryAllByText(/교차분석/)).toHaveLength(0);
     });
     // 의료 레이어의 기본 분석(의료취약지수)이 돌아왔는지 방법론으로 확인
-    expect(screen.getByTestId("method-summary")).toHaveTextContent(/의료취약지수/);
+    expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
   }, 30_000);
 
   test("의료취약 × 민간 교차가 실제로 실행된다", async () => {
@@ -1057,4 +1063,83 @@ describe("CopilotApp", () => {
     expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
     expect(screen.getByTestId("result-panel")).toBeInTheDocument();
   }, 30_000);
+
+  test("동반 지표가 목록 줄에 실린다 — 상세 카드에만 있지 않다", async () => {
+    /*
+     * `rankHouseholdCount`는 세대 수와 **세대당 인구** 둘을 붙이고, 산식 각주는
+     * "세대당 인구를 함께 보세요"라고 말한다. 그런데 행의 `note`가 metrics[0] 하나로만
+     * 만들어져서 두 번째 지표는 클릭해야 나오는 상세 카드에만 있었다(prod 실측).
+     *
+     * 이 `note`는 목록뿐 아니라 CSV·HWP·리포트·슬라이드 다섯 곳이 공통으로 읽는 칸이라,
+     * 여기서 빠지면 내보낸 파일에도 없다. 목록에 보이면 파일에도 실린다.
+     *
+     * 첫 지표만 담으면 note가 오른쪽 값과 같아져 화면이 통째로 숨긴다 — 그래서 이 검사는
+     * `.rank-note`가 **존재하는지**부터 본다.
+     */
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    const inner = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ai/parse")) {
+        return new Response(
+          JSON.stringify({
+            mode: "demo",
+            intent: { tool: "rankHouseholdCount", filters: { limit: 20 } },
+            notice: "기준월 세대 수가 많은 행정동 순입니다.",
+          }),
+          { status: 200 },
+        );
+      }
+      return inner(input, init);
+    }) as typeof global.fetch;
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "세대수 많은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("result-panel").querySelector(".rank-note")).not.toBeNull();
+    });
+    expect(screen.getByTestId("result-panel").querySelector(".rank-note")?.textContent).toMatch(
+      /세대당 인구/,
+    );
+  });
+
+  test("공유 링크는 질문을 다시 실행한다 — 도구 이름만 재생하지 않는다", async () => {
+    /*
+     * 링크는 `tool`과 `q`를 함께 싣는다. 예전에는 `tool`이 있으면 그것만 재생하고 `q`는
+     * 입력창에 채워 두기만 했다. 그런데 시군구 단위(adminLevel)·"상위 10%"(percentLimit)·
+     * "400만원 이상"(valueThreshold)은 **질문을 파싱해야** 나오는 조건이라 `tool` 하나에
+     * 담기지 않는다 — "총인구 많은 시군구 상위 10%"를 공유하면 305개 읍면동 전체 순위로
+     * 열렸다(prod 실측). 조건이 조용히 빠진 답이 나오는 것이 가장 나쁘다.
+     *
+     * 질문을 다시 태우면 그 조건들이 원래 경로에서 다시 나온다. 그래서 이 검사는
+     * **질문이 실제로 실행됐는지**를 본다 — 입력창에 글자만 채우는 것으로는 통과하지 않는다.
+     */
+    const parsed: string[] = [];
+    const inner = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ai/parse") && typeof init?.body === "string") {
+        parsed.push(JSON.parse(init.body).query as string);
+      }
+      return inner(input, init);
+    }) as typeof global.fetch;
+
+    const shared = "총인구 많은 시군구 상위 10%";
+    window.history.replaceState(null, "", `?tool=rankPopulation&q=${encodeURIComponent(shared)}`);
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByText("DemoMap");
+      await waitFor(() => expect(parsed).toContain(shared));
+      expect((screen.getByRole("textbox", { name: "분석 질의" }) as HTMLInputElement).value).toBe(
+        shared,
+      );
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  }, 20_000);
 });
