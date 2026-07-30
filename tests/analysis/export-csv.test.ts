@@ -113,6 +113,14 @@ describe("regionUnitLabel", () => {
     expect(regionUnitLabel([])).toBe("행정동");
   });
 
+  test("공공 도구 시군구 합산(10자리, 뒤 5자리 0)도 시군구로 본다", () => {
+    // rollupToDistricts(tool-registry.ts)는 10자리 행정동 코드 규약을 지키며 뒤를 0으로
+    // 채운다("4817000000") — 5자리 판정만으로는 안 걸려 "행정동"으로 잘못 표기됐다(4차 리포트).
+    expect(regionUnitLabel(["4817000000", "4825000000"])).toBe("시군구");
+    // 진짜 행정동 코드는 뒤가 우연히도 0 다섯 개로 끝나지 않는다 — 실데이터로 확인됨.
+    expect(regionUnitLabel(["4812125000"])).toBe("행정동");
+  });
+
   test("시군구 결과의 CSV 머리글은 시군구코드다", () => {
     const csv = rankedToCsv("전출인구(시군구) 순위", "2025-12", "KCB · 거주이동", "live", [
       { rank: 1, code: "48250", sido: "경남", name: "김해시", valueLabel: "40,152명", note: "비고" },

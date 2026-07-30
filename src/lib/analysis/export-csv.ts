@@ -49,13 +49,19 @@ export function resolveExportProvenance(input: {
  *
  * 시군구까지만 있는 지표(KCB 전출)나 "시군구별로" 물은 질의는 결과가 22개 시군구인데,
  * 표 머리글과 요약이 "행정동"으로 고정돼 있어 22개 행정동을 본 것처럼 읽혔다.
- * 코드는 행에 이미 실려 있다(읍면동 10자리 / 시군구 5자리) — 따로 넘길 필요가 없다.
+ * 코드는 행에 이미 실려 있다 — 따로 넘길 필요가 없다.
+ *
+ * 시군구 코드는 두 형태가 섞여 있다: 민간 레이어 집계(aggregate.ts)는 5자리 그대로
+ * ("48170")를 쓰고, 공공 도구 합산(tool-registry.ts의 rollupToDistricts)은 10자리
+ * 행정동 코드 규약을 지키며 뒤 5자리를 0으로 채운다("4817000000"). 5자리만 보면
+ * 후자가 걸러지지 않아 22개 시군구 결과가 다시 "행정동"으로 표기됐다(4차 리포트, prod 실측).
  */
 export function regionUnitLabel(codes: readonly string[]): "행정동" | "시군구" | "격자" {
   if (codes.length === 0) return "행정동";
   // 격자 코드는 "gx_gy"라 자리수로 가릴 수 없다. 밑줄이 그 표시다.
   if (codes.every((code) => code.includes("_"))) return "격자";
-  return codes.every((code) => code.length === 5) ? "시군구" : "행정동";
+  const isSggCode = (code: string) => code.length === 5 || (code.length === 10 && code.endsWith("00000"));
+  return codes.every(isSggCode) ? "시군구" : "행정동";
 }
 
 export function toCsv(headers: string[], rows: string[][]): string {
