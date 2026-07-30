@@ -488,6 +488,13 @@ export function extractQuerySignals(query: string): QuerySignals {
       "상승",
       "빨라지",
       "가팔라",
+      /*
+       * "고령비율 빨리 오르는 동"이 같은 이유로 현재 수준 순위를 답했다(prod 실측).
+       * 부정문 중화(NEGATED_DIRECTIONS)는 "오르"를 이미 상승 낱말로 다루고 있었는데
+       * 이 목록에만 빠져 있어, 한쪽은 알아듣고 한쪽은 못 알아듣는 상태였다.
+       */
+      "오르",
+      "올라",
     ])
   ) {
     metrics.add("growth");
