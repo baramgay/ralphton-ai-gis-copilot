@@ -33,6 +33,17 @@ describe("populationIsLive", () => {
     expect(populationIsLive("live", ["인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다."])).toBe(false);
   });
 
+  test("하이브리드가 가장 위험하다 — 최신월만 실측이고 나머지는 합성", () => {
+    /*
+     * `mergeLatestPopulation`은 `population[last]` 한 칸만 바꾼다. 이 상태에서 12개월
+     * 추세를 내면 실측 1개월과 합성 12개월을 빼는 셈이라, 전부 합성일 때보다 나쁘다.
+     * live-sync의 하이브리드 각주에는 "유지"가 없어 앞선 정규식이 못 잡았다.
+     */
+    const hybrid = ["인구: 경남 최신월 일부 live 반영(305개 동). 나머지 시계열은 기준 스냅샷."];
+    expect(populationIsLive("live", hybrid)).toBe(false);
+    expect(dataModeLabel("live", hybrid)).toBe("시설 실데이터");
+  });
+
   test("인구까지 실데이터면 참", () => {
     expect(populationIsLive("live", FULLY_LIVE_NOTES)).toBe(true);
   });

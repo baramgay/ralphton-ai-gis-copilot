@@ -16,8 +16,14 @@ export function populationIsLive(mode: string, sourceNotes: readonly string[]): 
   /*
    * 각주 문구로 가른다. 별도 필드를 두면 각주와 어긋날 수 있고, 어긋나는 순간
    * 어느 쪽이 참인지 알 수 없다 — 각주는 사용자도 읽는 것이라 그쪽을 정본으로 삼는다.
+   *
+   * "기준 스냅샷"이 들어간 각주는 전부 걸러야 한다. live-sync는 두 문장을 쓴다:
+   * 전부 실패하면 "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다", 일부 성공하면
+   * "인구: 경남 최신월 일부 live 반영(N개 동). 나머지 시계열은 기준 스냅샷." — 후자가
+   * 더 위험하다. `mergeLatestPopulation`은 **최신월 한 칸만** 바꾸므로, 그 상태의
+   * 12개월 추세는 실측 1개월과 합성 12개월을 비교하는 셈이 된다.
    */
-  return !sourceNotes.some((note) => /합성값|기준 스냅샷을 유지/.test(note));
+  return !sourceNotes.some((note) => /합성값|기준 스냅샷/.test(note));
 }
 
 /** 상단 배지에 쓸 짧은 말. 좁은 화면에서도 잘려선 안 되므로 최대한 짧게. */
