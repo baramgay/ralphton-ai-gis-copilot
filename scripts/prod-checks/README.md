@@ -22,7 +22,7 @@ node scripts/prod-checks/sweep.mjs
 | `round6.mjs` | 실무 표현 | 14/14 |
 | `round7.mjs` | 개수 지정("5곳만")·오검출·선택 추종 | 실패 0 |
 | `round8.mjs` | 다중조건(3지표 이상) | 실패 0 |
-| `surfaces.mjs` | 내보내기·공유·프로파일 | — |
+| `surfaces.mjs` | 내보내기(CSV·MD·HWP·슬라이드)·공유·프로파일 — 시군구/비율/값조건/동반지표 | 16/16 |
 | `verify-batch.mjs` | 격자 단위·없는 차원 (배치 A) | 12/12 |
 | `verify-b.mjs` | 군 축약·조사 낀 트리거 (배치 B) | 19/19 |
 | `verify-c.mjs` | 없는 시설·비슷한 지표·3지역 절단 (배치 C) | 16/16 |
