@@ -133,9 +133,17 @@ async function mapWithConcurrency<T, R>(
 }
 
 export type PopulationBackfillOptions = {
-  /** 동시 요청 수. 기본 8 — 1,220회를 30초 안쪽으로 끝내면서 공급자를 자극하지 않는 선. */
+  /*
+   * 동시 요청 수. 기본 8로 처음 배포했다가 prod에서 504 FUNCTION_INVOCATION_TIMEOUT으로
+   * 죽었다(`writeSyncStatus`도 못 남길 만큼 이른 시점). 라우트의 `maxDuration=300`에
+   * 맞춰 1,220회 ÷ 16 ≈ 76배치 × 1.5~2초 ≈ 114~152초로 여유를 뒀다.
+   */
   concurrency?: number;
-  /** 창 하나당 재시도 횟수. 한 창이 실패하면 그 지역 전체를 버리므로 한 번은 더 해 본다. */
+  /*
+   * 창 하나당 재시도 횟수. 기본을 1에서 0으로 낮췄다 — 재시도가 있으면 실패한 배치마다
+   * 최악의 경우 시간이 두 배가 되어 타임아웃을 오히려 앞당긴다. 실패는 예외로 잡혀
+   * "전부 아니면 전무" 경로로 이미 안전하게 처리되므로, 속도가 안정성보다 급하다.
+   */
   retries?: number;
 };
 
@@ -160,9 +168,9 @@ export async function fetchAndMergeRegionalPopulation(
   const jobs = base.regions.flatMap((region) =>
     windows.map((window) => ({ code: region.adm_cd2, window })),
   );
-  const retries = Math.max(0, options.retries ?? 1);
+  const retries = Math.max(0, options.retries ?? 0);
 
-  const settled = await mapWithConcurrency(jobs, options.concurrency ?? 8, async (job) => {
+  const settled = await mapWithConcurrency(jobs, options.concurrency ?? 16, async (job) => {
     for (let attempt = 0; attempt <= retries; attempt += 1) {
       try {
         return await fetchAllPublicDataPages(
