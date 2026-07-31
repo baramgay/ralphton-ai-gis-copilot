@@ -83,15 +83,15 @@ for (const [query, layerId, metricKey] of CASES) {
   await page.getByLabel("분석 질의").fill(query);
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1400);
-  const first = clean((await page.locator(".rank-row").first().textContent().catch(() => "")) ?? "");
+  const first = clean((await page.locator(".rank-row").first().textContent({ timeout: 1500 }).catch(() => "")) ?? "");
   /*
    * 이름과 값은 각각의 요소에서 읽는다. 행 전체 textContent를 정규식으로 훑으면 격자처럼
    * 숫자로 끝나는 이름이 값과 이어붙어("…격자 6" + "12,893명" → 612,893) 없는 숫자가
    * 생긴다. 값 자체는 맞는데 검증이 틀리는 것이라, 실제 결함을 가리게 된다.
    */
   const row = page.locator(".rank-row").first();
-  const nameText = clean((await row.locator(".rank-name").textContent().catch(() => "")) ?? "");
-  const valueText = clean((await row.locator(".rank-value").textContent().catch(() => "")) ?? "");
+  const nameText = clean((await row.locator(".rank-name").textContent({ timeout: 1500 }).catch(() => "")) ?? "");
+  const valueText = clean((await row.locator(".rank-value").textContent({ timeout: 1500 }).catch(() => "")) ?? "");
 
   const lastWord = top.name.split(" ").pop();
   const nameOk = nameText.includes(lastWord);

@@ -103,7 +103,7 @@ trendFirst.includes("고령인구 비율") ? ok("CSV에 동반 지표(고령인�
 console.log("\n=== 표면 5: 공유 링크 복원 (시군구·비율 조건) ===");
 async function checkShareRestore(label, query) {
   await ask(query);
-  const before = clean(await page.getByTestId("one-line-conclusion").textContent().catch(() => ""));
+  const before = clean(await page.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => ""));
   await page.getByRole("button", { name: "공유" }).first().click();
   await page.waitForTimeout(700);
   const shareUrl = await page.evaluate(() => navigator.clipboard.readText().catch(() => null));
@@ -116,7 +116,7 @@ async function checkShareRestore(label, query) {
   await page2.goto(shareUrl);
   await page2.getByRole("heading", { name: /경남 AI GIS/i }).waitFor({ timeout: 60_000 });
   await page2.waitForTimeout(4000);
-  const after = clean(await page2.getByTestId("one-line-conclusion").textContent().catch(() => ""));
+  const after = clean(await page2.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => ""));
   after === before ? ok(`${label} 공유 복원 일치`) : fail(`${label} 공유 복원`, `이전: ${before.slice(0, 70)} / 복원: ${after.slice(0, 70)}`);
   await page2.close();
 }
@@ -130,7 +130,7 @@ const profileToggle = page.getByText(/민간데이터 종합/).first();
 if (await profileToggle.isVisible().catch(() => false)) {
   await profileToggle.click();
   await page.waitForTimeout(800);
-  const text = clean(await page.getByTestId("result-panel").textContent().catch(() => ""));
+  const text = clean(await page.getByTestId("result-panel").textContent({ timeout: 1500 }).catch(() => ""));
   const hasProviders = ["SKT", "NH", "KCB"].filter((p) => text.includes(p)).length;
   hasProviders === 3 ? ok("프로파일 제공사 3/3 노출") : fail("프로파일 제공사", `${hasProviders}/3`);
 } else {

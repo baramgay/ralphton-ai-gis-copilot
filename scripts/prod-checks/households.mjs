@@ -21,7 +21,7 @@ for (const q of [
   await page.getByLabel("분석 질의").fill(q);
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1800);
-  const notice = clean(await page.getByTestId("query-notice").textContent().catch(() => ""));
+  const notice = clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => ""));
   const stale = await page.getByTestId("stale-answer-notice").isVisible().catch(() => false);
   console.log(`[${q}] ${stale ? "★답못함" : "답함"}`);
   console.log(`    ${notice.slice(0, 120)}`);

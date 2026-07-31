@@ -16,11 +16,11 @@ const ask = async (q) => {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1900);
   return {
-    meta: clean(await page.getByTestId("result-meta").textContent().catch(() => "")),
-    conclusion: clean(await page.getByTestId("one-line-conclusion").textContent().catch(() => "")).replace("한 줄 결론복사", ""),
+    meta: clean(await page.getByTestId("result-meta").textContent({ timeout: 1500 }).catch(() => "")),
+    conclusion: clean(await page.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => "")).replace("한 줄 결론복사", ""),
     rows: (await page.locator(".rank-row").allTextContents()).length,
-    top: clean(await page.locator(".rank-row .rank-name").first().textContent().catch(() => "")),
-    profile: clean(await page.getByTestId("region-profile").textContent().catch(() => "")).slice(0, 40),
+    top: clean(await page.locator(".rank-row .rank-name").first().textContent({ timeout: 1500 }).catch(() => "")),
+    profile: clean(await page.getByTestId("region-profile").textContent({ timeout: 1500 }).catch(() => "")).slice(0, 40),
   };
 };
 

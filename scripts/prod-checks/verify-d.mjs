@@ -22,12 +22,12 @@ const ask = async (q) => {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1800);
   return {
-    notice: clean(await page.getByTestId("query-notice").textContent().catch(() => "")),
-    caveat: clean(await page.getByTestId("query-caveat").textContent().catch(() => "")),
-    first: clean(await page.locator(".rank-name").first().textContent().catch(() => "")),
+    notice: clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => "")),
+    caveat: clean(await page.getByTestId("query-caveat").textContent({ timeout: 1500 }).catch(() => "")),
+    first: clean(await page.locator(".rank-name").first().textContent({ timeout: 1500 }).catch(() => "")),
     rows: (await page.locator(".rank-row").allTextContents()).length,
     // "24행"은 표시 상한이라 필터가 걸렸는지 증명하지 못한다. 전체 모수를 따로 읽는다.
-    total: clean(await page.locator("[data-testid=result-total]").textContent().catch(() => "")),
+    total: clean(await page.locator("[data-testid=result-total]").textContent({ timeout: 1500 }).catch(() => "")),
   };
 };
 

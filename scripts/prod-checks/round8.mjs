@@ -14,9 +14,9 @@ const ask = async (q) => {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(2600);
   return {
-    notice: clean(await page.getByTestId("query-notice").textContent().catch(() => "")),
-    title: clean(await page.locator("[data-testid=result-panel] h2").first().textContent().catch(() => "")),
-    method: clean(await page.getByTestId("method-summary").textContent().catch(() => "")),
+    notice: clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => "")),
+    title: clean(await page.locator("[data-testid=result-panel] h2").first().textContent({ timeout: 1500 }).catch(() => "")),
+    method: clean(await page.getByTestId("method-summary").textContent({ timeout: 1500 }).catch(() => "")),
     rows: (await page.locator(".rank-row").allTextContents()).length,
   };
 };

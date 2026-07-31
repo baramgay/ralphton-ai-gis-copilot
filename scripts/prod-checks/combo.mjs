@@ -21,10 +21,10 @@ for (const q of [
   await p.getByLabel("분석 질의").fill(q);
   await p.getByRole("button",{name:"질의 실행"}).click();
   await p.waitForTimeout(2400);
-  const n = clean(await p.getByTestId("query-notice").textContent().catch(()=>""));
-  const c = clean(await p.getByTestId("query-caveat").textContent().catch(()=>""));
+  const n = clean(await p.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(()=>""));
+  const c = clean(await p.getByTestId("query-caveat").textContent({ timeout: 1500 }).catch(()=>""));
   const rows = (await p.locator(".rank-row").allTextContents()).length;
-  const v = clean(await p.locator(".rank-value").first().textContent().catch(()=>""));
+  const v = clean(await p.locator(".rank-value").first().textContent({ timeout: 1500 }).catch(()=>""));
   console.log(`[${q}] ${rows}행 1위값=${v}`);
   console.log(`    안내 ${n.slice(0,100)}`);
   if (c) console.log(`    고지 ${c.slice(0,130)}`);

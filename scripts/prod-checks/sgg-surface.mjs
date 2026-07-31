@@ -21,9 +21,9 @@ const ask = async (q) => {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(2600);
   return {
-    notice: clean(await page.getByTestId("query-notice").textContent().catch(() => "")),
-    method: clean(await page.getByTestId("method-summary").textContent().catch(() => "")),
-    summary: clean(await page.getByTestId("one-line-conclusion").textContent().catch(() => "")),
+    notice: clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => "")),
+    method: clean(await page.getByTestId("method-summary").textContent({ timeout: 1500 }).catch(() => "")),
+    summary: clean(await page.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => "")),
     rows: (await page.locator(".rank-row").allTextContents()).length,
     panel: clean(await page.locator("[data-testid=result-panel]").innerText().catch(() => "")),
   };

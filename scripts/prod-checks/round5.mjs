@@ -16,8 +16,8 @@ const ask = async (q) => {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1800);
   return {
-    notice: clean(await page.getByTestId("query-notice").textContent().catch(() => "")),
-    conclusion: clean(await page.getByTestId("one-line-conclusion").textContent().catch(() => "")).replace("한 줄 결론복사", ""),
+    notice: clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => "")),
+    conclusion: clean(await page.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => "")).replace("한 줄 결론복사", ""),
     stale: await page.getByTestId("stale-answer-notice").isVisible().catch(() => false),
     rows: (await page.locator(".rank-row").allTextContents()).length,
   };

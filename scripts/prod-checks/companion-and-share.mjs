@@ -51,7 +51,7 @@ const COMPANIONS = [
 for (const [query, want, why] of COMPANIONS) {
   total += 1;
   await ask(query);
-  const note = (await page.locator(".rank-note").first().textContent().catch(() => null)) ?? "";
+  const note = (await page.locator(".rank-note").first().textContent({ timeout: 1500 }).catch(() => null)) ?? "";
   const ok = want.test(note);
   if (ok) pass += 1;
   console.log(`${ok ? "✓" : "✗"} [동반 지표 · ${why}] ${query} — note "${note.trim() || "(없음)"}"`);
@@ -81,7 +81,7 @@ const SHARES = [
     tool: "rankPopulation",
     why: "시군구 단위가 살아 있는가",
     check: async () => {
-      const notice = (await page.getByTestId("query-notice").textContent().catch(() => "")) ?? "";
+      const notice = (await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => "")) ?? "";
       const rows = await page.locator(".rank-row").count();
       return { ok: /시군구/.test(notice) && !/행정동/.test(notice) && rows > 20, detail: `${rows}행 · ${notice.trim()}` };
     },

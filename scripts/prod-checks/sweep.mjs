@@ -92,9 +92,9 @@ for (const [kind, query, expect] of CASES) {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1500);
 
-  const notice = clean(await page.getByTestId("query-notice").textContent().catch(() => ""));
-  const method = clean(await page.getByTestId("method-summary").textContent().catch(() => ""));
-  const conclusion = clean(await page.getByTestId("one-line-conclusion").textContent().catch(() => ""))
+  const notice = clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => ""));
+  const method = clean(await page.getByTestId("method-summary").textContent({ timeout: 1500 }).catch(() => ""));
+  const conclusion = clean(await page.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => ""))
     .replace("한 줄 결론복사", "");
   const rows = (await page.locator(".rank-row").allTextContents()).length;
   const haystack = `${notice} ${method} ${conclusion}`;

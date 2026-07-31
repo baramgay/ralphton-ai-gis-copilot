@@ -50,10 +50,10 @@ const ask = async (q) => {
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.waitForTimeout(1500);
   return {
-    first: clean((await page.locator(".rank-row").first().textContent().catch(() => "")) ?? ""),
+    first: clean((await page.locator(".rank-row").first().textContent({ timeout: 1500 }).catch(() => "")) ?? ""),
     rows: (await page.locator(".rank-row").allTextContents()).length,
-    notice: clean(await page.getByTestId("query-notice").textContent().catch(() => "")),
-    conclusion: clean(await page.getByTestId("one-line-conclusion").textContent().catch(() => "")).replace("한 줄 결론복사", ""),
+    notice: clean(await page.getByTestId("query-notice").textContent({ timeout: 1500 }).catch(() => "")),
+    conclusion: clean(await page.getByTestId("one-line-conclusion").textContent({ timeout: 1500 }).catch(() => "")).replace("한 줄 결론복사", ""),
   };
 };
 
