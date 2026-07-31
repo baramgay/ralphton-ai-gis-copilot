@@ -16,6 +16,7 @@ import {
   rankedToCsv,
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
+import { dataModeLabel, dataModeTitle, populationIsLive } from "@/lib/analysis/data-mode";
 import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
 import { buildRegionProfile } from "@/lib/layers/region-profile";
 import { buildMarkdownReport } from "@/lib/analysis/export-report";
@@ -711,10 +712,6 @@ function executeQuickAnalysis(
 
 const MAP_FACILITY_CAP = 900;
 const RESULT_PAGE_STEP = 24;
-
-function modeBadgeLabel(mode: AnalysisSnapshot["mode"]): string {
-  return mode === "live" ? "데이터: 실데이터" : "데이터: 데모";
-}
 
 function dataSourceLabel(source: string): string {
   if (source === "demo") return "출처: 로컬 데모";
@@ -1607,6 +1604,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     for (const layer of REMOTE_CUBE_LAYERS) cubes[layer.id] = remoteCubes[layer.id] ?? null;
     return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_NL_LAYERS, cubes, trendMonths);
   }, [populationCube, remoteCubes, selectedRegionCode, snapshot, trendMonths]);
+
+  /*
+   * 시군구로 합친 결과의 코드는 `4817000000`이라 스냅샷 읍면동 목록에 없다. 그래서
+   * `regionProfile`이 null이 되고 패널이 **말없이 사라졌다** — 읍면동 결과에선 있던 칸이
+   * 시군구 결과에선 없어진다(prod 실측, 4차 리포트는 "대응 뷰가 없어서"로 추측했으나
+   * 실제로는 조회 실패다).
+   *
+   * 민간 큐브가 읍면동 단위라 시군구 합산 프로파일은 따로 만들어야 한다. 그때까지는
+   * 사라진 이유를 밝힌다 — 말없이 없어지는 것이 이 프로젝트에서 가장 나쁜 실패다.
+   */
+  const profileMissingForDistrict = useMemo(() => {
+    if (!selectedRegionCode || !snapshot || regionProfile) return false;
+    return !snapshot.regions.some((region) => region.adm_cd2 === selectedRegionCode);
+  }, [regionProfile, selectedRegionCode, snapshot]);
 
   const focusRegionCodes = useMemo(() => {
     if (!snapshot || !isCompareView) return null;
@@ -3137,7 +3148,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           <h1 className="ui-body-lg truncate font-black text-slate-950">경남 AI GIS</h1>
         </div>
         <p className="copilot-topbar-meta ui-caption truncate text-slate-500">
-          {snapshot.mode === "live" ? "실데이터" : "시연 데이터"} · {snapshot.referenceMonth} ·{" "}
+          {dataModeLabel(snapshot.mode, snapshot.sourceNotes)} · {snapshot.referenceMonth} ·{" "}
           {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동
         </p>
         {/*
@@ -3168,9 +3179,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         </nav>
         <span
           className={`ui-status ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
-          title={modeBadgeLabel(snapshot.mode)}
+          title={dataModeTitle(snapshot.mode, snapshot.sourceNotes)}
         >
-          {snapshot.mode === "live" ? "실데이터" : "시연"}
+          {dataModeLabel(snapshot.mode, snapshot.sourceNotes)}
         </span>
       </header>
 
@@ -3870,15 +3881,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 }`}
                 data-testid="data-mode-banner"
               >
+                {/*
+                  "실데이터 스냅샷"이라는 한 문장이 인구 통계의 출처를 규정한다. mode가 live여도
+                  갱신된 것은 시설뿐이고 인구·세대는 기준 스냅샷(합성값)인 상태가 실제로 있었다
+                  (prod 실측). 그 상태를 "실데이터"라고 부르면 합성값이 보고서에 실린다.
+                */}
                 <p className="ui-body font-bold">
-                  {snapshot.mode === "live"
-                    ? "지금 실데이터 스냅샷을 보고 있습니다"
-                    : "지금 시연용 데이터를 보고 있습니다"}
+                  {snapshot.mode !== "live"
+                    ? "지금 시연용 데이터를 보고 있습니다"
+                    : populationIsLive(snapshot.mode, snapshot.sourceNotes)
+                      ? "지금 실데이터 스냅샷을 보고 있습니다"
+                      : "시설만 실데이터입니다 — 인구·세대는 기준 스냅샷입니다"}
                 </p>
                 <p className="ui-body mt-1.5 opacity-90">
-                  {snapshot.mode === "live"
-                    ? "기준월과 출처 노트를 함께 확인하세요. 시설·인구 원천이 다를 수 있습니다."
-                    : "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 live 스냅샷으로 전환됩니다."}
+                  {snapshot.mode !== "live"
+                    ? "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 live 스냅샷으로 전환됩니다."
+                    : populationIsLive(snapshot.mode, snapshot.sourceNotes)
+                      ? "기준월과 출처 노트를 함께 확인하세요. 시설·인구 원천이 다를 수 있습니다."
+                      : "의료기관은 HIRA 실데이터입니다. 인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요."}
                 </p>
                 <p className="ui-caption mt-2 font-semibold opacity-95">
                   범위: 경상남도 · 산식: 공급35+고령25+거리25+2km무시설15
@@ -4359,6 +4379,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 {oneLineConclusion}
               </p>
             </div>
+          ) : null}
+          {profileMissingForDistrict ? (
+            <p className="ui-caption mt-2.5 text-slate-500" data-testid="region-profile-unavailable">
+              민간데이터 종합은 읍면동 단위로만 있습니다. 시군구로 합친 결과에서는 볼 수 없어, 읍면동을
+              고르면 나타납니다.
+            </p>
           ) : null}
           {regionProfile && regionProfile.entries.length > 0 ? (
             <details className="mt-2.5 rounded-lg border border-slate-200 bg-white" data-testid="region-profile">

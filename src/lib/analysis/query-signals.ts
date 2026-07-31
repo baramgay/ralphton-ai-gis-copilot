@@ -502,6 +502,8 @@ export function extractQuerySignals(query: string): QuerySignals {
        */
       "커지",
       "많아지",
+      // 두 목록 어디에도 없어 "고령비율 높아지는 동"이 수준 순위로 답했다(4차 리포트 §2).
+      "높아지",
     ])
   ) {
     metrics.add("growth");
@@ -526,6 +528,8 @@ export function extractQuerySignals(query: string): QuerySignals {
       "떨어지",
       "작아지",
       "적어지",
+      // 위와 같다 — "낮아지는"은 자연스러운 표현인데 어느 목록에도 없었다.
+      "낮아지",
     ])
   ) {
     metrics.add("decline");

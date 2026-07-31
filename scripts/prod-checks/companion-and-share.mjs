@@ -107,6 +107,40 @@ for (const share of SHARES) {
   console.log(`${ok ? "✓" : "✗"} [공유 복원 · ${share.why}] "${share.q}" — ${detail}`);
 }
 
+/* ── 3. 데이터 라벨이 사실을 말하는가 ───────────────────────────── */
+/*
+ * prod는 `mode: "live"`인데 인구·세대는 기준 스냅샷(합성값)이다 — 갱신되는 것은 HIRA
+ * 시설뿐이다. 배지가 그냥 "실데이터"라고 적혀 있으면 합성 인구가 보고서에 실린다.
+ * 스냅샷 각주와 화면 글자가 같은 말을 하는지 본다.
+ */
+total += 1;
+await open();
+const snap = await (await fetch(`${URL}/api/data/snapshot`)).json();
+const notesSaySynthetic = (snap.sourceNotes ?? []).some((n) => /합성값|기준 스냅샷을 유지/.test(n));
+const badge = ((await page.locator(".ui-status").first().textContent().catch(() => "")) ?? "").trim();
+const labelOk = notesSaySynthetic ? badge === "시설 실데이터" : badge === "실데이터" || badge === "시연";
+if (labelOk) pass += 1;
+console.log(
+  `${labelOk ? "✓" : "✗"} [라벨이 사실을 말한다] mode=${snap.mode} · 각주는 ${notesSaySynthetic ? "합성 인구" : "실인구"} · 배지 "${badge}"`,
+);
+
+/* ── 4. 시군구에서 프로파일이 말없이 사라지지 않는가 ──────────────── */
+total += 1;
+await ask("총인구 많은 시군구");
+await page.locator(".rank-row").first().click().catch(() => {});
+await page.waitForTimeout(1200);
+const profileNote = await page
+  .getByTestId("region-profile-unavailable")
+  .textContent({ timeout: 1500 })
+  .catch(() => null);
+const hasProfile = (await page.getByTestId("region-profile").count()) > 0;
+// 둘 중 하나는 있어야 한다 — 프로파일이 뜨거나, 왜 없는지 밝히거나.
+const silenceOk = hasProfile || Boolean(profileNote);
+if (silenceOk) pass += 1;
+console.log(
+  `${silenceOk ? "✓" : "✗"} [시군구 프로파일이 말없이 사라지지 않는다] ${hasProfile ? "패널 있음" : `안내 "${(profileNote ?? "(없음)").trim()}"`}`,
+);
+
 console.log(`\n통과 ${pass}/${total} · JS 에러 ${errors.length}건`);
 await browser.close();
 process.exit(pass === total && errors.length === 0 ? 0 : 1);

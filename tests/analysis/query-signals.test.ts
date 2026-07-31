@@ -39,6 +39,13 @@ describe("extractQuerySignals", () => {
     ["카드매출 떨어지는 동", "decline"],
     ["총인구 작아지는 동", "decline"],
     ["소득 적어지는 곳", "decline"],
+    /*
+     * 이 둘은 두 목록 **어디에도** 없어 4차 리포트가 "차집합 범위 밖"으로 남겼던 것이다.
+     * 비대칭이 아니라 양쪽 다 누락이었을 뿐, 사용자에게 보이는 증상은 같다 —
+     * "고령비율 낮아지는 동"이 조용히 수준 순위로 답했다.
+     */
+    ["고령비율 높아지는 동", "growth"],
+    ["고령비율 낮아지는 동", "decline"],
   ] as const)("detects %s as %s", (text, metric) => {
     const signals = extractQuerySignals(text);
     expect(signals.metrics.has(metric)).toBe(true);
