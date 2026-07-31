@@ -23,7 +23,15 @@ export function populationIsLive(mode: string, sourceNotes: readonly string[]): 
    * 더 위험하다. `mergeLatestPopulation`은 **최신월 한 칸만** 바꾸므로, 그 상태의
    * 12개월 추세는 실측 1개월과 합성 12개월을 비교하는 셈이 된다.
    */
-  return !sourceNotes.some((note) => /합성값|기준 스냅샷/.test(note));
+  /*
+   * **인구·세대를 말하는** 각주만 본다. 백필이 성공하면 출생·사망은 여전히 합성값이라
+   * "출생·사망 값은 합성값입니다" 각주가 남는데, 그걸로 인구까지 합성이라 판정하면
+   * 영영 "실데이터"가 되지 못한다. 반대로 대상을 안 가리고 "실데이터"라 부르면
+   * 합성 인구가 보고서에 실린다 — 양쪽 다 틀린다.
+   */
+  return !sourceNotes.some(
+    (note) => /인구|세대/.test(note) && /합성|기준 스냅샷/.test(note),
+  );
 }
 
 /** 상단 배지에 쓸 짧은 말. 좁은 화면에서도 잘려선 안 되므로 최대한 짧게. */

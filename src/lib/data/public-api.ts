@@ -19,6 +19,11 @@ export interface PublicDataUrlOptions {
   pageNo?: number;
   numOfRows?: number;
   referenceMonth?: string;
+  /** 조회 시작·종료 월. 한 번에 최대 4개월. */
+  fromMonth?: string;
+  toMonth?: string;
+  /** 행정동 10자리. 이 API는 시도·시군구 코드로는 NODATA를 돌려준다. */
+  admmCode?: string;
   ctpvCode?: string;
   sggCode?: string;
 }
@@ -48,6 +53,11 @@ const UrlOptionsSchema = z
     pageNo: z.number().int().positive().optional(),
     numOfRows: z.number().int().min(1).max(10_000).optional(),
     referenceMonth: z.string().regex(/^\d{4}-?(0[1-9]|1[0-2])$/).optional(),
+    /** 조회 시작·종료 월. 한 번에 최대 4개월(5개월부터 QUERY_PERIOD_LIMIT_EXCEEDED). */
+    fromMonth: z.string().regex(/^\d{4}-?(0[1-9]|1[0-2])$/).optional(),
+    toMonth: z.string().regex(/^\d{4}-?(0[1-9]|1[0-2])$/).optional(),
+    /** 행정동 10자리. 이 API는 시도·시군구 코드로는 NODATA를 돌려준다. */
+    admmCode: z.string().regex(/^\d{10}$/).optional(),
     ctpvCode: z.string().regex(/^\d{2}$/).optional(),
     sggCode: z.string().regex(/^\d{2,5}$/).optional(),
   })
@@ -79,8 +89,20 @@ export function buildPublicDataUrl(
   url.searchParams.set('numOfRows', String(parsed.data.numOfRows ?? 1_000));
   url.searchParams.set('type', 'json');
 
-  if (parsed.data.referenceMonth) {
-    url.searchParams.set('stdgMtrYm', parsed.data.referenceMonth.replace('-', ''));
+  /*
+   * 이 API가 요구하는 월 파라미터는 `srchFrYm`·`srchToYm`이다. 예전에는 `stdgMtrYm`을
+   * 보내고 있었고, 그래서 어떤 달을 물어도 NO_MANDATORY_REQUEST_PARAMETERS_ERROR가 왔다
+   * — 인구 live가 한 번도 동작하지 않은 이유 중 하나다(docs/POPULATION-API-FINDINGS.md).
+   * `referenceMonth`는 "그 달 하나"를 뜻하므로 시작·종료를 같게 둔다.
+   */
+  const from = parsed.data.fromMonth ?? parsed.data.referenceMonth;
+  const to = parsed.data.toMonth ?? parsed.data.referenceMonth;
+  if (from) url.searchParams.set('srchFrYm', from.replace('-', ''));
+  if (to) url.searchParams.set('srchToYm', to.replace('-', ''));
+
+  // 행정동 10자리가 필수다. 시도(4800000000)·시군구(4817000000)는 NODATA를 돌려준다.
+  if (parsed.data.admmCode) {
+    url.searchParams.set('admmCd', parsed.data.admmCode);
   }
 
   if (parsed.data.ctpvCode) {
@@ -125,6 +147,13 @@ function extractResultCode(response: Record<string, unknown>): string | null {
   if (header) {
     const code = header.resultCode ?? header.resultCd;
     return typeof code === 'string' || typeof code === 'number' ? String(code) : null;
+  }
+
+  // 1741000 계열은 `head`가 객체다(`{ resultCode, resultMsg, totalCount }`).
+  const head = Array.isArray(response.head) ? null : asRecord(response.head);
+  if (head) {
+    const code = head.resultCode ?? head.resultCd;
+    if (typeof code === 'string' || typeof code === 'number') return String(code);
   }
 
   if (Array.isArray(response.head)) {
@@ -181,13 +210,16 @@ export function parsePublicDataPage(value: unknown): PublicDataPage {
     throw new PublicDataError('공공데이터 공급자가 요청을 거부했습니다.');
   }
 
-  const body = asRecord(response.body);
+  /*
+   * 1741000(행안부 주민등록) 계열은 `body`를 두지 않는다. `items`와 `head`가 `Response`
+   * 바로 아래에 있다 — `Response.items.item[]`, `Response.head.totalCount`. 예전 파서는
+   * `response.body`만 봐서, 응답이 정상(resultCode 0, totalCount 61)인데도 0행으로
+   * 읽었다(docs/POPULATION-API-FINDINGS.md).
+   */
+  const body = asRecord(response.body) ?? response;
+  const head = asRecord(response.head);
 
-  if (!body) {
-    throw new PublicDataError('공공데이터 응답 본문이 없습니다.');
-  }
-
-  const totalCount = toNonnegativeInteger(body.totalCount, 0);
+  const totalCount = toNonnegativeInteger(body.totalCount ?? head?.totalCount, 0);
   const items = parseItems(body.items);
 
   if (!items && totalCount !== 0) {

@@ -1,7 +1,8 @@
 /**
- * Partial live population merge onto a verified base snapshot.
- * Fetches resident population for Gyeongnam (ctpv 48) and updates the latest month only.
- * Full 13-month live rebuild remains optional (normalizePublicData) when complete feeds exist.
+ * 기준 스냅샷 위에 행정안전부 주민등록 인구·세대 **시계열 전체**를 덮어쓴다.
+ *
+ * 이 API는 읍면동 10자리 코드로만 답하고 한 번에 최대 4개월치를 준다. 경남 305개
+ * 읍면동 × 13개월이면 1,220회 호출이다. 규격 실측은 docs/POPULATION-API-FINDINGS.md.
  */
 
 import type { AnalysisSnapshot, RegionSeries } from "@/lib/domain/schemas";
@@ -31,7 +32,11 @@ function asAdmCode(row: Record<string, unknown>): string | null {
 
 function asPopulation(row: Record<string, unknown>): number | null {
   const raw =
-    row.population ?? row.totNmpr ?? row.totPpltn ?? row.ppltnCnt ?? row.totPop;
+    /*
+     * 실제 필드명은 `totNmprCnt`다(실측). 후보 목록에 `totNmpr`만 있어서, 응답이 정상이어도
+     * 인구를 못 읽고 0행으로 취급하고 있었다(docs/POPULATION-API-FINDINGS.md).
+     */
+    row.totNmprCnt ?? row.population ?? row.totNmpr ?? row.totPpltn ?? row.ppltnCnt ?? row.totPop;
   if (raw == null) return null;
   const n = typeof raw === "number" ? raw : Number(String(raw).replaceAll(",", ""));
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
@@ -55,167 +60,181 @@ function asMonth(row: Record<string, unknown>): string | null {
   return null;
 }
 
-/**
- * Map public API rows → adm_cd2 → {population, households, month}.
- */
-export function indexResidentRows(
-  rows: Array<Record<string, unknown>>,
-): Map<string, { population: number; households: number | null; month: string | null }> {
-  const map = new Map<
-    string,
-    { population: number; households: number | null; month: string | null }
-  >();
-  for (const row of rows) {
-    const code = asAdmCode(row);
-    const population = asPopulation(row);
-    if (!code || population === null) continue;
-    const prev = map.get(code);
-    // Sum tong/ban fragments if multiple rows share an adm code
-    map.set(code, {
-      population: (prev?.population ?? 0) + population,
-      households:
-        asHouseholds(row) !== null
-          ? (prev?.households ?? 0) + (asHouseholds(row) as number)
-          : (prev?.households ?? null),
-      month: asMonth(row) ?? prev?.month ?? null,
-    });
-  }
-  return map;
-}
-
-export function mergeLatestPopulation(
-  base: AnalysisSnapshot,
-  indexed: Map<string, { population: number; households: number | null; month: string | null }>,
-): PopulationMergeResult {
-  const notes: string[] = [];
-  if (indexed.size === 0) {
-    return {
-      regions: base.regions,
-      updatedCount: 0,
-      month: null,
-      notes: ["인구 live 행을 매핑하지 못했습니다."],
-    };
-  }
-
-  const last = base.months.length - 1;
-  let updatedCount = 0;
-  let month: string | null = null;
-
-  const regions = base.regions.map((region) => {
-    const hit = indexed.get(region.adm_cd2);
-    if (!hit) return region;
-    updatedCount += 1;
-    month = hit.month ?? month;
-    const population = [...region.population];
-    const households = [...region.households];
-    const populationDensity = [...region.populationDensity];
-    population[last] = hit.population;
-    if (hit.households !== null) households[last] = hit.households;
-    populationDensity[last] =
-      region.areaSquareKm > 0 ? hit.population / region.areaSquareKm : region.populationDensity[last];
-    return {
-      ...region,
-      population,
-      households,
-      populationDensity,
-    };
-  });
-
-  notes.push(
-    `인구 live: 기준 스냅샷 최신월에 ${updatedCount}/${base.regions.length}개 동 인구를 반영했습니다.`,
-  );
-  if (month) notes.push(`인구 원천 월 표기: ${month}`);
-
-  return { regions, updatedCount, month, notes };
-}
-
-/**
- * 기준월부터 과거로 내려가며 조회할 월 목록. "2026-06" → ["202606","202605","202604"].
- *
- * 주민등록 인구 통계는 보통 한두 달 지연되어 공개된다. 기준월 하나만 물어보면 아직 올라오지
- * 않은 달에 걸려 인구 갱신이 통째로 실패하고, 화면은 조용히 옛 스냅샷을 계속 보여준다.
- * 실제로 있는 가장 최근 달을 찾아 쓰기 위해 후보를 만든다.
- */
-export function monthCandidates(referenceMonth: string, lookback = 3): string[] {
-  const match = /^(\d{4})-?(\d{2})$/.exec(referenceMonth.trim());
-  if (!match) return [referenceMonth.replace("-", "")];
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const candidates: string[] = [];
-  for (let step = 0; step < Math.max(1, lookback); step += 1) {
-    const total = year * 12 + (month - 1) - step;
-    if (total < 0) break;
-    const y = Math.floor(total / 12);
-    const m = (total % 12) + 1;
-    candidates.push(`${y}${String(m).padStart(2, "0")}`);
-  }
-  return candidates;
-}
-
 /** 행정표준 시도 코드: 경남 48 */
 export const POPULATION_CTPV_CODES = ["48"] as const;
 
 /**
- * Merge latest resident population for one or more ctpv codes (default 경남).
+ * 한 번에 조회할 수 있는 최대 개월 수.
+ *
+ * 5개월을 넘기면 `QUERY_PERIOD_LIMIT_EXCEEDED`가 온다(실측). 이 상수를 늘리면 조용히
+ * 0행이 되므로, 호출 수를 줄이고 싶어도 여기를 건드리면 안 된다.
+ */
+export const MAX_QUERY_MONTHS = 4;
+
+/** `["2025-06", …, "2026-06"]` → `[["202506","202509"], …]`. 각 구간은 4개월 이하. */
+export function monthWindows(
+  months: readonly string[],
+  size = MAX_QUERY_MONTHS,
+): Array<[string, string]> {
+  const compact = months.map((month) => month.replace("-", ""));
+  const windows: Array<[string, string]> = [];
+  for (let index = 0; index < compact.length; index += size) {
+    const chunk = compact.slice(index, index + size);
+    windows.push([chunk[0], chunk[chunk.length - 1]]);
+  }
+  return windows;
+}
+
+/**
+ * 통·반 행을 (행정동, 월)별로 합친다.
+ *
+ * 행은 통·반 단위이고 서로 겹치지 않는다 — 통 합계·동 합계 같은 중복 행은 없다.
+ * `tong`·`ban`이 빈 행이 하나씩 섞여 있는데(거주불명자로 보인다) 그것도 합산 대상이다.
+ * 문산읍 2026-03: 61행 합계 7,396명.
+ */
+export function sumRowsByDongMonth(
+  rows: ReadonlyArray<Record<string, unknown>>,
+): Map<string, { population: number; households: number | null }> {
+  const totals = new Map<string, { population: number; households: number | null }>();
+  for (const row of rows) {
+    const code = asAdmCode(row);
+    const month = asMonth(row);
+    const population = asPopulation(row);
+    if (!code || !month || population === null) continue;
+    const key = `${code}|${month}`;
+    const prev = totals.get(key);
+    const households = asHouseholds(row);
+    totals.set(key, {
+      population: (prev?.population ?? 0) + population,
+      households: households === null ? prev?.households ?? null : (prev?.households ?? 0) + households,
+    });
+  }
+  return totals;
+}
+
+/** 동시 실행 수를 묶어 순회한다. 1,220회를 한꺼번에 던지면 공급자가 막는다. */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    for (;;) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= items.length) return;
+      results[index] = await run(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+export type PopulationBackfillOptions = {
+  /** 동시 요청 수. 기본 8 — 1,220회를 30초 안쪽으로 끝내면서 공급자를 자극하지 않는 선. */
+  concurrency?: number;
+  /** 창 하나당 재시도 횟수. 한 창이 실패하면 그 지역 전체를 버리므로 한 번은 더 해 본다. */
+  retries?: number;
+};
+
+/**
+ * 경남 305개 읍면동의 인구·세대 **시계열 전체**를 실데이터로 채운다.
+ *
+ * 예전 구현은 시도 코드 하나로 한 번 호출해 **최신월 한 칸만** 바꾸려 했다. 그 요청은
+ * 규격이 달라 한 번도 성공한 적이 없고, 설령 성공했더라도 실측 1개월 + 합성 12개월이 되어
+ * 12개월 추세가 실측과 합성의 단차를 줄 세웠을 것이다(docs/POPULATION-API-FINDINGS.md).
+ *
+ * **전부 아니면 전무로 간다.** 일부 지역만 실데이터로 바뀌면 지역 간 순위가 실측과 합성을
+ * 섞어 비교하게 된다 — 조용히 틀린 답이고, 이 프로젝트에서 가장 나쁜 실패다. 한 지역이라도
+ * 한 달이라도 빠지면 기준 스냅샷을 그대로 둔다.
  */
 export async function fetchAndMergeRegionalPopulation(
   base: AnalysisSnapshot,
   serviceKey: string,
   deps: PublicDataFetchDeps = {},
-  referenceMonth?: string,
-  ctpvCodes: readonly string[] = POPULATION_CTPV_CODES,
+  options: PopulationBackfillOptions = {},
 ): Promise<PopulationMergeResult> {
-  const candidates = monthCandidates(referenceMonth ?? base.referenceMonth);
-  const allRows: Array<Record<string, unknown>> = [];
-  const notes: string[] = [];
+  const windows = monthWindows(base.months);
+  const jobs = base.regions.flatMap((region) =>
+    windows.map((window) => ({ code: region.adm_cd2, window })),
+  );
+  const retries = Math.max(0, options.retries ?? 1);
 
-  try {
-    // 아직 공개되지 않은 달에 걸리면 인구가 통째로 갱신되지 않으므로, 실제로 값이 있는
-    // 가장 최근 달을 찾을 때까지 과거로 내려간다.
-    for (const month of candidates) {
-      for (const ctpvCode of ctpvCodes) {
-        try {
-          const rows = await fetchAllPublicDataPages(
-            "residentPopulation",
-            {
-              serviceKey,
-              ctpvCode,
-              referenceMonth: month,
-              numOfRows: 1_000,
-            },
-            deps,
-          );
-          allRows.push(...rows);
-          notes.push(`인구 ${month} ctpv ${ctpvCode}: ${rows.length}행`);
-        } catch {
-          notes.push(`인구 ${month} ctpv ${ctpvCode} 요청 실패`);
-        }
+  const settled = await mapWithConcurrency(jobs, options.concurrency ?? 8, async (job) => {
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        return await fetchAllPublicDataPages(
+          "residentPopulation",
+          {
+            serviceKey,
+            admmCode: job.code,
+            fromMonth: job.window[0],
+            toMonth: job.window[1],
+            numOfRows: 1_000,
+          },
+          deps,
+        );
+      } catch {
+        if (attempt === retries) return null;
       }
-      if (allRows.length > 0) break;
     }
+    return null;
+  });
 
-    if (allRows.length === 0) {
-      return {
-        regions: base.regions,
-        updatedCount: 0,
-        month: null,
-        notes: ["인구 live 요청 실패 — 인구 시계열은 기준 스냅샷을 유지합니다.", ...notes],
-      };
-    }
-
-    const indexed = indexResidentRows(allRows);
-    const merged = mergeLatestPopulation(base, indexed);
-    return {
-      ...merged,
-      notes: [...notes, ...merged.notes],
-    };
-  } catch {
+  const failed = settled.filter((rows) => rows === null).length;
+  if (failed > 0) {
     return {
       regions: base.regions,
       updatedCount: 0,
       month: null,
-      notes: ["인구 live 요청 실패 — 인구 시계열은 기준 스냅샷을 유지합니다."],
+      notes: [
+        `인구 live 요청 ${failed}/${jobs.length}건 실패 — 인구·세대 시계열은 기준 스냅샷을 유지합니다.`,
+      ],
     };
   }
+
+  // 키의 월은 `asMonth`가 정규화한 "2026-03" 꼴이다. 요청은 "202603"으로 보내지만
+  // 조회는 스냅샷의 월 표기를 그대로 쓴다 — 두 표기를 섞으면 전부 미스가 난다.
+  const totals = sumRowsByDongMonth(settled.flatMap((rows) => rows ?? []));
+
+  // 한 칸이라도 비면 그 지역은 못 쓴다 — 섞인 시계열은 추세를 거짓말하게 만든다.
+  const missing = base.regions.filter((region) =>
+    base.months.some((month) => !totals.has(`${region.adm_cd2}|${month}`)),
+  );
+  if (missing.length > 0) {
+    return {
+      regions: base.regions,
+      updatedCount: 0,
+      month: null,
+      notes: [
+        `인구 live: ${missing.length}/${base.regions.length}개 동의 시계열이 불완전해 기준 스냅샷을 유지합니다(예: ${missing[0].adm_nm}).`,
+      ],
+    };
+  }
+
+  const regions = base.regions.map((region) => {
+    const population = base.months.map(
+      (month) => totals.get(`${region.adm_cd2}|${month}`)!.population,
+    );
+    const households = base.months.map((month, index) => {
+      const hit = totals.get(`${region.adm_cd2}|${month}`)!.households;
+      return hit === null ? region.households[index] : hit;
+    });
+    const populationDensity = population.map((value, index) =>
+      region.areaSquareKm > 0 ? value / region.areaSquareKm : region.populationDensity[index],
+    );
+    return { ...region, population, households, populationDensity };
+  });
+
+  return {
+    regions,
+    updatedCount: regions.length,
+    month: base.months[base.months.length - 1],
+    notes: [
+      `인구 live: 경남 ${regions.length}개 읍면동의 인구·세대 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
+      `요청 ${jobs.length}건(동 ${base.regions.length} × 구간 ${windows.length}).`,
+    ],
+  };
 }

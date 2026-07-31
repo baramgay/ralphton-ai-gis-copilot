@@ -193,11 +193,21 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       mode: "live",
       regions: populationRegions,
       facilities,
+      /*
+       * 인구 백필은 전부 아니면 전무다(population-live.ts). 성공하면 인구·세대는 실측이고
+       * 출생·사망만 합성값으로 남으므로, 기준 스냅샷의 "인구·세대·출생·사망 값은 합성값"
+       * 각주를 그대로 두면 안 된다 — 화면 배지가 그 각주를 읽고 인구까지 합성이라 판정한다.
+       * 각주는 사용자도 읽고 배지도 읽는 정본이라, 사실이 바뀌면 문장도 바꾼다.
+       */
       sourceNotes: [
-        ...base.sourceNotes,
+        ...base.sourceNotes.map((note) =>
+          hybrid && note.includes("인구·세대·출생·사망 값은 합성값")
+            ? note.replace("인구·세대·출생·사망 값은 합성값", "출생·사망 값은 합성값")
+            : note,
+        ),
         `HIRA 병원정보서비스(v2)로 경남 시설 ${facilities.length}곳을 갱신했습니다.`,
         hybrid
-          ? `인구: 경남 최신월 일부 live 반영(${populationUpdated}개 동). 나머지 시계열은 기준 스냅샷.`
+          ? `인구·세대 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${populationUpdated}개 읍면동).`
           : "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
       ],
     });

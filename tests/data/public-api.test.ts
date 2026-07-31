@@ -27,6 +27,7 @@ describe('official data.go.kr endpoint builders', () => {
         pageNo: 2,
         numOfRows: 250,
         ctpvCode: '26',
+        admmCode: '4817025000',
       }),
     );
 
@@ -34,7 +35,16 @@ describe('official data.go.kr endpoint builders', () => {
     expect(url.hostname).toBe('apis.data.go.kr');
     expect(url.pathname).toBe(expectedPath);
     expect(url.searchParams.get('serviceKey')).toBe(FAKE_SERVICE_KEY);
-    expect(url.searchParams.get('stdgMtrYm')).toBe('202606');
+    /*
+     * 예전에는 `stdgMtrYm`을 보냈고, 그래서 어떤 달을 물어도
+     * NO_MANDATORY_REQUEST_PARAMETERS_ERROR가 왔다. 이 API의 월 파라미터는
+     * `srchFrYm`·`srchToYm`이고, 지역은 행정동 10자리 `admmCd`가 필수다
+     * (docs/POPULATION-API-FINDINGS.md).
+     */
+    expect(url.searchParams.get('srchFrYm')).toBe('202606');
+    expect(url.searchParams.get('srchToYm')).toBe('202606');
+    expect(url.searchParams.get('admmCd')).toBe('4817025000');
+    expect(url.searchParams.get('stdgMtrYm')).toBeNull();
     expect(url.searchParams.get('pageNo')).toBe('2');
     expect(url.searchParams.get('numOfRows')).toBe('250');
     expect(url.searchParams.get('ctpvCd')).toBe('26');

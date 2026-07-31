@@ -8,6 +8,13 @@ import {
   writeSyncStatus,
 } from "@/lib/data/sync-status";
 
+/*
+ * 인구 백필이 경남 305개 읍면동 × 4개 구간 = 1,220회 호출이라 기본 실행 시간(60초)으로는
+ * 모자란다. 중간에 끊기면 전부-아니면-전무 규칙에 따라 통째로 버려지므로, 끊기지 않는 것이
+ * 곧 성공 조건이다. 플랜 상한을 넘는 값은 Vercel이 알아서 낮춘다.
+ */
+export const maxDuration = 300;
+
 const SyncBodySchema = z
   .object({
     publish: z.boolean().optional(),
