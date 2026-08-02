@@ -82,14 +82,25 @@ const pctCsv = csvBody((await downloadByTestId("export-csv")).text);
 pctCsv.rows.length === 31 ? ok(`CSV 본문 31행(전체 305 아님)`) : fail("CSV 본문 행수", `실측 ${pctCsv.rows.length}`);
 const pctMd = (await downloadByTestId("export-report")).text;
 pctMd.includes("대상 행정동 31개") ? ok("MD 요약이 모수 31 반영") : fail("MD 요약", pctMd.match(/대상[^\n]*/)?.[0]);
+// HWP·슬라이드는 여기서 처음 본다 — 4차까지는 시군구 조건에서만 4개 표면 전부를 확인했다.
+const pctHwp = (await downloadByTestId("export-hwp")).text;
+pctHwp.includes("대상 행정동 31개") ? ok("HWP 요약이 모수 31 반영") : fail("HWP 요약", pctHwp.match(/대상[^<]*/)?.[0]);
+const pctSlide = (await downloadByTestId("export-slides")).text;
+pctSlide.includes("대상 행정동 31개") ? ok("슬라이드 요약이 모수 31 반영") : fail("슬라이드 요약", pctSlide.match(/대상[^<]*/)?.[0]);
 
-// ── 3) 값 조건 — 표시 상한(24)에 안 걸리는 임계값으로, 화면=CSV=MD 전부 3행 ──
+// ── 3) 값 조건 — 표시 상한(24)에 안 걸리는 임계값으로, 화면=CSV=MD=HWP=슬라이드 전부 3행 ──
 console.log("\n=== 표면 3: 값 조건 (소득 400만원 이상인 동) ===");
 await ask("소득 400만원 이상인 동");
 const valScreenRows = await screenRows();
 valScreenRows === 3 ? ok(`화면 3행`) : fail("화면 행수", `실측 ${valScreenRows}`);
 const valCsv = csvBody((await downloadByTestId("export-csv")).text);
 valCsv.rows.length === 3 ? ok(`CSV 본문 3행`) : fail("CSV 본문 행수", `실측 ${valCsv.rows.length}`);
+const valMd = (await downloadByTestId("export-report")).text;
+valMd.includes("대상 행정동 3개") ? ok("MD 요약이 모수 3 반영") : fail("MD 요약", valMd.match(/대상[^\n]*/)?.[0]);
+const valHwp = (await downloadByTestId("export-hwp")).text;
+valHwp.includes("대상 행정동 3개") ? ok("HWP 요약이 모수 3 반영") : fail("HWP 요약", valHwp.match(/대상[^<]*/)?.[0]);
+const valSlide = (await downloadByTestId("export-slides")).text;
+valSlide.includes("대상 행정동 3개") ? ok("슬라이드 요약이 모수 3 반영") : fail("슬라이드 요약", valSlide.match(/대상[^<]*/)?.[0]);
 
 // ── 4) 동반 지표 — CSV note에 2번째 지표가 실리는가 ──
 console.log("\n=== 표면 4: 동반 지표 (고령비율 상승하는 동, %p+수준) ===");
