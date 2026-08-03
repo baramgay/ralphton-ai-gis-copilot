@@ -221,6 +221,23 @@ describe("toolRegistry", () => {
     expect(decline.rankedRegions[0]).toMatchObject({ adm_cd2: declineRegion.adm_cd2, score: 20 });
   });
 
+  /*
+   * 하락 도구는 점수를 뒤집어 매긴다(하락폭이 클수록 위). 그런데 목록에 보이는 값이 뒤집기
+   * 전 변화량이면 1위 행이 음수로 뜨고, 바로 아래 각주 "음수 값은 오히려 올랐음을 뜻합니다"와
+   * 정면으로 어긋난다 — 같은 화면에서 1위가 오른 곳이 된다(prod 실측: 1위 -0.03%p).
+   * 인구 감소 도구는 감소율(뒤집은 값)을 그대로 보여 준다. 같은 규약을 쓴다.
+   */
+  test("고령비율 하락 도구는 순위값과 표시값의 부호가 같다", () => {
+    const result = executeAnalysisIntent({ tool: "rankElderlyRatioDecline", filters: {} }, snapshot());
+    const top = result.rankedRegions[0];
+
+    // 다동: 인구 100→120, 고령 20 고정 → 20% → 16.67%, 하락폭 +3.33%p
+    expect(top.adm_cd2).toBe(growthRegion.adm_cd2);
+    expect(top.score).toBeCloseTo(3.33, 1);
+    expect(top.metrics[0].label).toContain("하락");
+    expect(top.metrics[0].value).toBeCloseTo(3.33, 1);
+  });
+
   test("excludes missing one-person-household values instead of substituting zero", () => {
     const result = executeAnalysisIntent({ tool: "rankSingleHouseholdRisk", filters: {} }, snapshot());
 

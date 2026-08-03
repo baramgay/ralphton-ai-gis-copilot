@@ -604,11 +604,16 @@ export function rankElderlyRatioDecline(intent: AnalysisIntent, snapshot: Analys
     const decline = change === null ? null : -change;
     const index = referenceIndex(region, snapshot.referenceMonth);
     return analysisRegion(region, decline, [
+      /*
+       * 보여 주는 값도 순위값과 같이 뒤집은 것이어야 한다. 변화량을 그대로 두면 1위가 음수로
+       * 뜨면서 아래 각주("음수 값은 오히려 올랐음")와 정면으로 어긋난다 — prod에서 1위가
+       * "-0.03%p"로 떴다. 인구 감소 도구가 감소율을 그대로 보여 주는 것과 같은 규약이다.
+       */
       metric(
-        "고령비율 12개월 변화",
-        change,
+        "고령비율 12개월 하락폭",
+        decline,
         "%p",
-        "기준월 고령비율 − 12개월 전 고령비율",
+        "12개월 전 고령비율 − 기준월 고령비율",
         snapshot.referenceMonth,
         "비율의 차이라 단위는 %포인트입니다. 비율끼리의 증감률로 읽지 마세요.",
       ),
@@ -618,7 +623,7 @@ export function rankElderlyRatioDecline(intent: AnalysisIntent, snapshot: Analys
         "%",
         "65세 이상 인구 ÷ 총인구 × 100",
         snapshot.referenceMonth,
-        "지금 수준입니다. 위의 변화량과 함께 보세요.",
+        "지금 수준입니다. 위의 하락폭과 함께 보세요.",
       ),
     ]);
   });
