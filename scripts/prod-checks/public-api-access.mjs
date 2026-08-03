@@ -24,8 +24,8 @@ if (!KEY) throw new Error(".env.local에 DATA_GO_KR_SERVICE_KEY 없음");
 const OPERATIONS = [
   ["admmPpltnHhStus", "인구·세대현황 (15108065)", "이미 코드에서 사용 중"],
   ["admmSexdAgePpltn", "성/연령별 인구수 (15108072)", "연령별 분석에 필요"],
-  ["admmSexdBrthReg", "성별 출생등록자수 (15108075)", "코드 경로가 틀렸다(admmBrthRegist) — 이걸로 고쳐야 함"],
-  ["admmSexdAgeErsr", "성/연령별 사망말소자수 (15108077)", "코드 경로가 틀렸다(admmDthRegist) — 이걸로 고쳐야 함"],
+  ["admmSexdBrthReg", "성별 출생등록자수 (15108075)", "이미 코드에서 사용 중(646ec3f)"],
+  ["admmSexdAgeErsr", "성/연령별 사망말소자수 (15108077)", "이미 코드에서 사용 중(646ec3f)"],
   ["admmHsmbHh", "세대원수별 세대수 (15108081)", "현재 앱 지표 범위 밖"],
   ["admmSexdAgeOneHh", "성/연령별 1인세대수 (15108083)", "1인가구 지표에 필요"],
   ["admmSexdPpltnAvrgAge", "성별 평균연령 (15108087)", "현재 앱 지표 범위 밖"],
