@@ -13,13 +13,13 @@
 | 사망(deaths) | `/1741000/admmSexdAgeErsr/selectAdmmSexdAgeErsr` | ✅ **정상 — 경로만 고치면 됨** | HTTP 200 (실측 2026-08-04) |
 | 고령·청년(ageSexPopulation) | `/1741000/admmSexdAgePpltn/selectAdmmSexdAgePpltn` | 🔑 **경로 있음, 이 키 미승인** | 403 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` |
 | 1인가구(onePersonHouseholds) | `/1741000/admmSexdAgeOneHh/selectAdmmSexdAgeOneHh` | 🔑 **경로 있음, 이 키 미승인** | 403 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` |
-| 출생(births) | ❓ **미확인** (코드의 `admmBrthRegist`는 없는 경로) | ❌ 경로 이름을 모른다 | 후보 15개 전부 `NO_OPENAPI_SERVICE_ERROR` |
+| 출생(births) | `/1741000/admmSexdBrthReg/selectAdmmSexdBrthReg` | ✅ **정상 — 경로만 고치면 됨** | HTTP 200 (실측 2026-08-04, 포털 Swagger에서 확인) |
 
 **코드가 들고 있던 사망 경로 `/1741000/admmDthRegist/selectAdmmDthRegist`는 존재하지
 않는다.** 실제 이름은 `admmSexdAgeErsr`(사망**말소**자수)다. 출생도 마찬가지로 코드의
-`admmBrthRegist`가 없는 경로이며, 올바른 이름은 아직 못 찾았다
-([포털 15108075](https://www.data.go.kr/data/15108075/openapi.do)의 "요청주소"를 직접
-봐야 한다 — 로그인 없이 보이는지 미확인).
+`admmBrthRegist`가 없는 경로였다 — 올바른 이름은 `admmSexdBrthReg`다
+([포털 15108075](https://www.data.go.kr/data/15108075/openapi.do) Swagger의 "Base URL"에서
+확인, **로그인 벽 없음**). 오라클로 재확인하니 `HTTP 200`, 이미 이 키에 승인돼 있다.
 
 ## 오라클 — 세 응답을 가르면 원인이 갈린다
 
@@ -38,7 +38,7 @@
 > 이전 판이 본 `HTTP 500 Unexpected errors`는 지금 재현되지 않는다(일시적이었다).
 > 지금은 없는 경로 대조군과 **완전히 같은** 400을 낸다.
 
-재현: `.probe-403-control.mjs`, `.probe-endpoints.mjs` (키 값은 출력하지 않는다).
+재현: `scripts/prod-checks/public-api-access.mjs` (키 값은 출력하지 않는다).
 
 ---
 
@@ -81,18 +81,32 @@ data.go.kr은 같은 제공기관 안에서도 오퍼레이션마다 별도 활�
 
 같은 계열에서 앞으로 쓸 만한 것도 미승인 상태다: 인구증감 `admmSexdPpltnIrds`.
 
-## 5. 출생(births) — 경로 이름을 모른다
+## 5. 출생(births) — 경로 확정됨 (2026-08-04)
 
-코드의 `admmBrthRegist`는 없는 경로다. 이름 후보 15개
-(`admmSexdBrth`·`admmSexdBrthRegist`·`admmSexdBrthRgst`·`admmSexdBirth`·`admmSexdNtvt` 등)
-를 전부 두드렸으나 모두 `NO_OPENAPI_SERVICE_ERROR`였다. 사망이 `admmSexdAgeErsr`인 것으로
-보아 명명 규칙을 추측으로 맞히기는 어렵다.
+코드의 `admmBrthRegist`는 없는 경로였다. 이름 후보 15개를 추측으로 두드렸으나 전부
+`NO_OPENAPI_SERVICE_ERROR`였고, 결국 [포털 15108075](https://www.data.go.kr/data/15108075/openapi.do)의
+Swagger 위젯(로그인 불필요)에서 직접 읽어 확정했다: **`admmSexdBrthReg`**
+(`/selectAdmmSexdBrthReg`). 오라클로 재확인하니 `HTTP 200`, 이미 이 키에 승인돼 있다.
+필드는 `ctpvNm·sggNm·dongNm·admmCd·tong·ban·statsYm·totNmprCnt·maleNmprCnt·femlNmprCnt` —
+인구 API와 같은 통·반 행 단위, 같은 `totNmprCnt` 필드명이다. 합계 행 유무는 미확인.
 
-→ **조치: [포털 15108075](https://www.data.go.kr/data/15108075/openapi.do)의 "요청주소"를
-직접 확인.** 웹 검색으로는 사망(15108077)만 나오고 출생은 안 나왔다.
+세부: `docs/PUBLIC-DATA-ACCESS-2026-08-04.md`.
+
+### `1741000` 계열(행정동별 통반단위) 전수 8종 — 2026-08-04
+
+인구·출생·사망 외 5종을 포털 검색으로 전수 확인했다(API 호출 아님, 페이지 열람만):
+`admmSexdAgePpltn`(성/연령 인구, 403)·`admmSexdAgeOneHh`(1인세대수, 403)·
+`admmHsmbHh`(세대원수별 세대수, 403, 앱 범위 밖)·`admmSexdPpltnAvrgAge`(평균연령, 403,
+앱 범위 밖)·`admmSexdPpltnIrds`(인구증감, 403, 이미 자체 계산 중이라 불필요). 신청이
+실제로 필요한 것은 `admmSexdAgePpltn`·`admmSexdAgeOneHh` 2종뿐 — 세부는
+`docs/PUBLIC-DATA-ACCESS-2026-08-04.md` 참고. 진단 스크립트는
+`scripts/prod-checks/public-api-access.mjs`로 상시화했다.
 
 ### 남은 공통 미확인 사항
 
-4종 모두 **필드명·행 단위·합산 규칙·최신 가용월**은 미확인이다. 인구와 같은 계열이라
-규격이 같을 것이라는 가설은 여전히 **검증되지 않았다** — 사망 하나만 200을 받았을 뿐
-응답 본문을 아직 안 뜯었다. 이 문서를 근거로 인구용 파서를 그대로 적용하면 안 된다.
+출생은 필드명까지 확인했으나 **합계 행 유무**는 미확인이다. 사망은 200만 확인했을 뿐
+필드명·행 단위·합계 행 유무 전부 미확인이다. 고령·1인가구는 403이라 아예 응답 본문을
+못 봤다 — 활용신청 승인 전에는 확인할 방법이 없다. 인구와 같은 계열이라 규격이 같을
+것이라는 가설(통·반 행 단위, `totNmprCnt` 계열 필드명)은 출생에서는 **맞았지만**,
+사망·고령·1인가구까지 같다고 단정하면 안 된다 — 각각 실제 응답을 눈으로 본 뒤 어댑터를
+짠다.
