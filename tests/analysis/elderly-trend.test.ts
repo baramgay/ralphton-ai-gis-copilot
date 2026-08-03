@@ -43,6 +43,18 @@ describe("고령화 속도와 수준을 가른다", () => {
     expect(tool("인구 줄어드는 동")).toBe("rankPopulationDeclineRisk");
   });
 
+  /*
+   * "고령비율 하락하는 동"이 rankElderlyRatioTrend(상승 전용, 항상 descending)로 새면
+   * 요청과 반대인 "가장 빠르게 오르는 동"이 나온다(4차 피드백에서 지적). 인구 증가/감소가
+   * 별도 도구 쌍인 것과 같은 구조로 하락 전용 도구가 있어야 한다.
+   */
+  test.each(["고령비율 하락하는 동", "노인 인구 비율 낮아지는 곳", "고령비율 떨어지는 동"])(
+    "고령 + 하락 방향 → 하락 전용 도구: %s",
+    (query) => {
+      expect(tool(query)).toBe("rankElderlyRatioDecline");
+    },
+  );
+
   test("시군구로도 답할 수 있다 — 성분 합에서 비율을 다시 내므로", () => {
     expect(resolveQueryWithRules("고령비율 상승하는 시군구").intent?.adminLevel).toBe("sgg");
   });

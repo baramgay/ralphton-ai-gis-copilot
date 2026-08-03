@@ -597,6 +597,49 @@ export function rankElderlyRatioTrend(intent: AnalysisIntent, snapshot: Analysis
   });
 }
 
+export function rankElderlyRatioDecline(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
+  const regions = scopedRegions(intent, snapshot);
+  const analyzed = regions.map((region) => {
+    const change = elderlyRatioChange(region, snapshot.referenceMonth);
+    const decline = change === null ? null : -change;
+    const index = referenceIndex(region, snapshot.referenceMonth);
+    return analysisRegion(region, decline, [
+      metric(
+        "고령비율 12개월 변화",
+        change,
+        "%p",
+        "기준월 고령비율 − 12개월 전 고령비율",
+        snapshot.referenceMonth,
+        "비율의 차이라 단위는 %포인트입니다. 비율끼리의 증감률로 읽지 마세요.",
+      ),
+      metric(
+        "고령인구 비율",
+        percentage(numericValueAt(region.elderlyPopulation, index), numericValueAt(region.population, index)),
+        "%",
+        "65세 이상 인구 ÷ 총인구 × 100",
+        snapshot.referenceMonth,
+        "지금 수준입니다. 위의 변화량과 함께 보세요.",
+      ),
+    ]);
+  });
+  const rankedRegions = ranked(analyzed, "descending", requestedLimit(intent, analyzed.length));
+
+  return result({
+    title: "고령비율이 낮아지는 지역",
+    summary:
+      rankedRegions.length === 0
+        ? "고령비율 변화를 낼 수 있는 행정동이 없습니다."
+        : `${rankedRegions.length}개 행정동을 고령비율이 빠르게 낮아지는 순서로 정렬했습니다.`,
+    rankedRegions,
+    selectedRegion: rankedRegions[0] ?? null,
+    legend: SINGLE_COLOR_LEGEND,
+    formulaNotes: [
+      "기준월과 정확히 12개월 전의 고령비율을 %포인트로 뺀 값에 부호를 뒤집은 것입니다.",
+      "음수 값은 같은 기간 고령비율이 오히려 올랐음을 뜻합니다.",
+    ],
+  });
+}
+
 export function rankPopulationGrowthPressure(intent: AnalysisIntent, snapshot: AnalysisSnapshot): AnalysisResult {
   const regions = scopedRegions(intent, snapshot);
   const analyzed = regions.map((region) => {
@@ -1339,6 +1382,7 @@ export const toolRegistry = {
   rankBirthCount,
   rankHouseholdCount,
   rankElderlyRatioTrend,
+  rankElderlyRatioDecline,
   rankNaturalDecrease,
   rankNaturalIncrease,
   rankPopulationDensity,

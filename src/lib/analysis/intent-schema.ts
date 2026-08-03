@@ -22,6 +22,7 @@ export const ALLOWED_TOOLS = [
   'rankBirthCount',
   'rankHouseholdCount',
   'rankElderlyRatioTrend',
+  'rankElderlyRatioDecline',
   'rankNaturalDecrease',
   'rankNaturalIncrease',
   'rankPopulationDensity',

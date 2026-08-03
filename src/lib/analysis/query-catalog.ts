@@ -149,15 +149,32 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     baseScore: 45,
     cueBonus: 25,
     /*
-     * 고령 + 방향(늘/상승) 이 함께 있을 때만 이긴다. 고령 단서만 있으면 수준 순위
+     * 고령 + 상승 방향이 함께 있을 때만 이긴다. 고령 단서만 있으면 수준 순위
      * (rankElderlyRatio)가 맞고, 방향만 있으면 인구 증감률이 맞다. 셋을 가르지 않으면
      * "고령비율 늘어나는 동"이 인구 증감률로 샌다(prod 실측).
+     * 하락 방향은 rankElderlyRatioDecline이 맡는다 — 여기서 함께 이기면 하락 질의도
+     * 항상 상승 정렬로 답하는 반대 방향 버그가 난다.
      */
-    scoreExtra: (s) =>
-      s.metrics.has("elderly") && (s.metrics.has("growth") || s.metrics.has("decline")) ? 40 : -20,
+    scoreExtra: (s) => (s.metrics.has("elderly") && s.metrics.has("growth") ? 40 : -20),
     build: (s) => scopeFilters({}, s),
     notice: () =>
       "고령비율이 12개월간 많이 오른 행정동 순입니다(%포인트). 이미 높은 곳이 아니라 빠르게 오르는 곳입니다.",
+  },
+  {
+    id: "rankElderlyRatioDecline",
+    answersTrend: true,
+    supportsDistrictLevel: true,
+    label: "고령화 둔화",
+    examples: ["고령비율 하락하는 동", "노인 인구 비율 낮아지는 곳", "고령비율 떨어지는 동"],
+    domains: ["population"],
+    metricCues: ["elderly"],
+    spatialCues: ["rank"],
+    baseScore: 45,
+    cueBonus: 25,
+    scoreExtra: (s) => (s.metrics.has("elderly") && s.metrics.has("decline") ? 40 : -20),
+    build: (s) => scopeFilters({}, s),
+    notice: () =>
+      "고령비율이 12개월간 많이 낮아진 행정동 순입니다(%포인트). 이미 낮은 곳이 아니라 빠르게 내려가는 곳입니다.",
   },
   {
     id: "rankPopulationGrowthPressure",
