@@ -19,6 +19,13 @@ const SyncBodySchema = z
   .object({
     publish: z.boolean().optional(),
     boundaryVersion: z.string().regex(/^\d{8}$/).optional(),
+    /*
+     * 한 실행에 인구(1,220회)와 출생·사망(2,440회)을 함께 넣으면 실측 처리량 기준 약 420초라
+     * `maxDuration` 300초를 넘긴다. 단계로 나눠 돌리고, 두 번째 실행은 `baseFrom:"published"`로
+     * 앞 단계 결과 위에 얹는다. 기본값은 인구 하나 — 예전 동작 그대로다.
+     */
+    datasets: z.array(z.enum(["population", "vitals"])).min(1).optional(),
+    baseFrom: z.enum(["demo", "published"]).optional(),
   })
   .strict()
   .optional();
@@ -135,6 +142,8 @@ export async function POST(request: Request) {
   const result = await runLiveSync({
     publish: parsed.data?.publish,
     boundaryVersion: parsed.data?.boundaryVersion,
+    datasets: parsed.data?.datasets,
+    baseFrom: parsed.data?.baseFrom,
   });
 
   await writeSyncStatus({

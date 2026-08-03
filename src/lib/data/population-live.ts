@@ -113,7 +113,7 @@ export function sumRowsByDongMonth(
 }
 
 /** 동시 실행 수를 묶어 순회한다. 1,220회를 한꺼번에 던지면 공급자가 막는다. */
-async function mapWithConcurrency<T, R>(
+export async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
   run: (item: T, index: number) => Promise<R>,

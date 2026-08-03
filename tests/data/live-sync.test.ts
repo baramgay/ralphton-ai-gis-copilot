@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { runLiveSync } from "@/lib/data/live-sync";
+import { rewriteSyntheticNote, runLiveSync } from "@/lib/data/live-sync";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
 
 const baseSnapshot: AnalysisSnapshot = {
@@ -139,5 +139,39 @@ describe("runLiveSync", () => {
     expect(result.snapshot.mode).toBe("live");
     expect(result.snapshot.facilities[0]?.name).toBe("실데이터의원");
     expect(result.published).toBe(true);
+  });
+});
+
+/*
+ * 각주는 화면 배지(`populationIsLive`)가 읽는 정본이다. 남은 합성 항목을 정확히 말하지
+ * 않으면 배지가 거짓말을 한다 — `mode: "live"`인데 인구가 합성이던 사건이 그랬다.
+ * 단계 실행에서는 인구만 실측인 중간 상태가 실제로 존재하므로 네 경우를 모두 잠근다.
+ */
+describe("rewriteSyntheticNote", () => {
+  const SYNTHETIC = "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.";
+
+  it("아무것도 실측이 아니면 그대로 둔다", () => {
+    expect(rewriteSyntheticNote(SYNTHETIC, { population: false, vitals: false })).toBe(SYNTHETIC);
+  });
+
+  it("인구만 실측이면 출생·사망만 합성이라 말한다", () => {
+    expect(rewriteSyntheticNote(SYNTHETIC, { population: true, vitals: false })).toBe(
+      "출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+    );
+  });
+
+  it("출생·사망만 실측이면 인구·세대만 합성이라 말한다", () => {
+    expect(rewriteSyntheticNote(SYNTHETIC, { population: false, vitals: true })).toBe(
+      "인구·세대 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+    );
+  });
+
+  it("둘 다 실측이면 각주를 지운다", () => {
+    expect(rewriteSyntheticNote(SYNTHETIC, { population: true, vitals: true })).toBeNull();
+  });
+
+  it("합성 각주가 아닌 줄은 건드리지 않는다", () => {
+    const other = "분석 거리는 행정동 대표점 기준 직선거리입니다.";
+    expect(rewriteSyntheticNote(other, { population: true, vitals: true })).toBe(other);
   });
 });

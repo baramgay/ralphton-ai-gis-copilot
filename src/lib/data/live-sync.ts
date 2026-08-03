@@ -10,6 +10,7 @@ import {
   resolveHiraServiceKey,
 } from "@/lib/data/hira-hospitals";
 import { fetchAndMergeRegionalPopulation } from "@/lib/data/population-live";
+import { fetchAndMergeVitals } from "@/lib/data/vitals-live";
 import type { AssignableRegion } from "@/lib/data/region-assignment";
 import {
   AnalysisSnapshotSchema,
@@ -51,6 +52,8 @@ const BoundaryCollectionSchema = z.object({
   features: z.array(BoundaryFeatureSchema).min(1),
 });
 
+export type LiveDataset = "population" | "vitals";
+
 export type LiveSyncStatus =
   | "demo-only"
   | "facilities-live"
@@ -75,6 +78,15 @@ export interface LiveSyncOptions {
   publish?: boolean;
   /** Attempt partial population merge (default true when service key present). */
   includePopulation?: boolean;
+  /*
+   * 한 번에 채울 데이터셋. 실측 처리량이 동시성 16에서 1,220회당 약 140초라,
+   * 인구(1,220회)와 출생·사망(2,440회)을 한 실행에 넣으면 약 420초로 `maxDuration`
+   * 300초를 넘긴다. 그래서 기본은 인구 하나이고, 출생·사망은 별도 실행으로 이어 붙인다.
+   * 이어 붙일 때는 `baseFrom: "published"`로 앞선 실행 결과 위에 얹어야 한다.
+   */
+  datasets?: ReadonlyArray<LiveDataset>;
+  /** 기준 스냅샷 출처. 단계 실행에서 앞 단계 결과를 이어받으려면 "published". */
+  baseFrom?: "demo" | "published";
   snapshotId?: string;
   fetch?: typeof fetch;
   timeoutMs?: number;
@@ -111,6 +123,26 @@ function checksumOf(snapshot: AnalysisSnapshot): string {
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
 
+const SYNTHETIC_NOTE_PREFIX = "인구·세대·출생·사망 값은 합성값";
+
+/**
+ * 합성값 각주를 **남은 합성 항목만** 말하도록 다시 쓴다. 전부 실측이면 각주를 지운다.
+ *
+ * 각주는 화면 배지(`populationIsLive`)가 읽는 정본이다. 사실이 바뀌었는데 문장이 그대로면
+ * 배지가 거짓말을 한다 — `mode: "live"`인데 인구가 합성이던 사건이 정확히 그랬다.
+ * 별도 필드를 두지 않는 이유도 같다: 두 벌이 되면 어긋나는 순간 어느 쪽이 참인지 모른다.
+ */
+export function rewriteSyntheticNote(
+  note: string,
+  live: { population: boolean; vitals: boolean },
+): string | null {
+  if (!note.startsWith(SYNTHETIC_NOTE_PREFIX)) return note;
+  if (live.population && live.vitals) return null;
+  if (live.population) return "출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.";
+  if (live.vitals) return "인구·세대 값은 합성값이며 실제 주민등록 통계가 아닙니다.";
+  return note;
+}
+
 /**
  * Build a live-capable snapshot without breaking offline demos.
  * - No key → bundled demo snapshot.
@@ -126,7 +158,21 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
     options.includePopulation !== false &&
     process.env.LIVE_POPULATION_DISABLED?.trim() !== "1";
 
-  const base = await loadDemo();
+  /*
+   * 단계 실행에서 앞 단계 결과를 이어받는다. 게시본이 없으면 데모로 떨어진다 — 첫 실행이
+   * 곧 그 경우다. 조용히 떨어지면 앞 단계 결과가 사라진 줄 모르므로 각주에 남긴다.
+   */
+  let base = await loadDemo();
+  if (options.baseFrom === "published") {
+    const { readPublishedSnapshotMeta } = await import("@/lib/supabase/public");
+    const published = await readPublishedSnapshotMeta("live");
+    if (published) {
+      base = published.snapshot;
+      notes.push("기준 스냅샷을 게시된 live 스냅샷에서 이어받았습니다.");
+    } else {
+      notes.push("게시된 live 스냅샷이 없어 데모 스냅샷에서 시작합니다.");
+    }
+  }
   const populationKey =
     options.serviceKey?.trim() ?? process.env.DATA_GO_KR_SERVICE_KEY?.trim() ?? "";
   const hiraKey = resolveHiraServiceKey(options.hiraServiceKey ?? options.serviceKey);
@@ -171,23 +217,62 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       };
     }
 
-    let populationRegions = base.regions;
+    const datasets = options.datasets ?? ["population"];
+    let mergedRegions = base.regions;
     let populationUpdated = 0;
-    if (wantPopulation && populationKey) {
+    let vitalsUpdated = 0;
+
+    if (wantPopulation && populationKey && datasets.includes("population")) {
       const pop = await fetchAndMergeRegionalPopulation(base, populationKey, {
         fetch: options.fetch,
         timeoutMs: options.timeoutMs,
       });
-      populationRegions = pop.regions;
+      mergedRegions = pop.regions;
       populationUpdated = pop.updatedCount;
       notes.push(...pop.notes);
     } else if (wantPopulation && !populationKey) {
       notes.push("인구 live는 DATA_GO_KR_SERVICE_KEY가 없어 생략했습니다.");
-    } else {
+    } else if (!wantPopulation) {
       notes.push("인구 live 병합이 비활성입니다(LIVE_POPULATION_DISABLED=1).");
     }
 
-    const hybrid = populationUpdated > 0;
+    if (populationKey && datasets.includes("vitals")) {
+      const vitals = await fetchAndMergeVitals(
+        { ...base, regions: mergedRegions },
+        populationKey,
+        { fetch: options.fetch, timeoutMs: options.timeoutMs },
+      );
+      mergedRegions = vitals.regions;
+      vitalsUpdated = vitals.updatedCount;
+      notes.push(...vitals.notes);
+    }
+
+    /*
+     * 이어 붙이기: 앞 단계에서 이미 실측이 된 항목은 이번 실행이 건드리지 않아도 실측이다.
+     * 그 사실은 기준 스냅샷의 각주에만 남아 있으므로, 각주를 읽어 되살린다.
+     *
+     * **단계 실행에서만 따진다.** 데모 스냅샷에는 각주가 아예 없을 수도 있는데, 그때
+     * "합성 각주가 없으니 실측"으로 읽으면 아무것도 안 채우고 실데이터라 말하게 된다.
+     */
+    const staged = options.baseFrom === "published";
+    const carriedPopulationLive =
+      staged &&
+      !base.sourceNotes.some(
+        (note) =>
+          note.startsWith("인구·세대·출생·사망 값은 합성값") ||
+          note.startsWith("인구·세대 값은 합성값"),
+      );
+    const carriedVitalsLive =
+      staged &&
+      !base.sourceNotes.some(
+        (note) =>
+          note.startsWith("인구·세대·출생·사망 값은 합성값") ||
+          note.startsWith("출생·사망 값은 합성값"),
+      );
+    const populationLive = populationUpdated > 0 || carriedPopulationLive;
+    const vitalsLive = vitalsUpdated > 0 || carriedVitalsLive;
+    const populationRegions = mergedRegions;
+    const hybrid = populationLive || vitalsLive;
     const liveSnapshot = AnalysisSnapshotSchema.parse({
       ...base,
       mode: "live",
@@ -200,15 +285,16 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
        * 각주는 사용자도 읽고 배지도 읽는 정본이라, 사실이 바뀌면 문장도 바꾼다.
        */
       sourceNotes: [
-        ...base.sourceNotes.map((note) =>
-          hybrid && note.includes("인구·세대·출생·사망 값은 합성값")
-            ? note.replace("인구·세대·출생·사망 값은 합성값", "출생·사망 값은 합성값")
-            : note,
-        ),
+        ...base.sourceNotes
+          .map((note) => rewriteSyntheticNote(note, { population: populationLive, vitals: vitalsLive }))
+          .filter((note): note is string => note !== null),
         `HIRA 병원정보서비스(v2)로 경남 시설 ${facilities.length}곳을 갱신했습니다.`,
-        hybrid
-          ? `인구·세대 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${populationUpdated}개 읍면동).`
+        populationLive
+          ? `인구·세대 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${populationUpdated || base.regions.length}개 읍면동).`
           : "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
+        vitalsLive
+          ? `출생·사망 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${vitalsUpdated || base.regions.length}개 읍면동).`
+          : "출생·사망 시계열은 검증된 기준 스냅샷을 유지합니다.",
       ],
     });
 

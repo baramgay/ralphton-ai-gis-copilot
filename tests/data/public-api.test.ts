@@ -17,8 +17,8 @@ describe('official data.go.kr endpoint builders', () => {
     [buildResidentPopulationUrl, '/1741000/admmPpltnHhStus/selectAdmmPpltnHhStus'],
     [buildAgeSexPopulationUrl, '/1741000/admmSexdAgePpltn/selectAdmmSexdAgePpltn'],
     [buildOnePersonHouseholdsUrl, '/1741000/admmSexdAgeOneHh/selectAdmmSexdAgeOneHh'],
-    [buildBirthsUrl, '/1741000/admmBrthRegist/selectAdmmBrthRegist'],
-    [buildDeathsUrl, '/1741000/admmDthRegist/selectAdmmDthRegist'],
+    [buildBirthsUrl, '/1741000/admmSexdBrthReg/selectAdmmSexdBrthReg'],
+    [buildDeathsUrl, '/1741000/admmSexdAgeErsr/selectAdmmSexdAgeErsr'],
   ])('builds the official endpoint %s', (builder, expectedPath) => {
     const url = new URL(
       builder({

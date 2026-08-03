@@ -8,8 +8,13 @@ export const PUBLIC_DATA_ENDPOINTS = {
   residentPopulation: '/1741000/admmPpltnHhStus/selectAdmmPpltnHhStus',
   ageSexPopulation: '/1741000/admmSexdAgePpltn/selectAdmmSexdAgePpltn',
   onePersonHouseholds: '/1741000/admmSexdAgeOneHh/selectAdmmSexdAgeOneHh',
-  births: '/1741000/admmBrthRegist/selectAdmmBrthRegist',
-  deaths: '/1741000/admmDthRegist/selectAdmmDthRegist',
+  /*
+   * 출생·사망 경로는 카탈로그에 없는 이름이었다(`admmBrthRegist`·`admmDthRegist` →
+   * NO_OPENAPI_SERVICE_ERROR). 실제 이름은 아래 둘이고 이 키에 이미 승인돼 있다.
+   * 사망은 "사망**말소**자수"라 Ersr이다. docs/PUBLIC-DATA-API-SPEC.md 참고.
+   */
+  births: '/1741000/admmSexdBrthReg/selectAdmmSexdBrthReg',
+  deaths: '/1741000/admmSexdAgeErsr/selectAdmmSexdAgeErsr',
 } as const;
 
 export type PublicDataDataset = keyof typeof PUBLIC_DATA_ENDPOINTS;
