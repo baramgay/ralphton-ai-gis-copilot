@@ -28,7 +28,7 @@
 - 경남 행정동 단위 **의료·인구 접근성** 탐색 웹앱
 - **3패널:** 분석(질의·빠른분석) | 지도(Kakao 또는 DemoMap) | 결과(순위·해석·상세)
 - **키 없음:** 데모 스냅샷 + SVG DemoMap으로 전체 플로우 가능
-- **키 있음:** Kakao 지도/장소, Qwen 의도 파서, HIRA 시설 sync, 주민인구 live 병합, Supabase 캐시
+- **키 있음:** Kakao 지도/장소, DeepSeek 의도 파서(규칙이 놓친 질의 전용), HIRA 시설 sync, 주민인구 live 병합, Supabase 캐시
 
 ---
 
@@ -85,7 +85,7 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 ### 기능 영역별 “끝난 것”
 
 1. **지도:** Kakao JS (CSP `unsafe-eval`, clusterer 2단 로드), DemoMap 폴백  
-2. **NL:** 규칙 카탈로그 + Qwen JSON 폴백, place-index, 시·도 칩과 연동  
+2. **NL:** 규칙 카탈로그 우선 + DeepSeek JSON 폴백(규칙 미스에만 호출), place-index, 시·도 칩과 연동  
 3. **RAG:** BM25-lite + hash embed, optional remote re-rank + embed-cache  
 4. **실데이터 파이프:** `runLiveSync` → HIRA 시설 + 인구 ctpv 26/48 최신월 병합 + Supabase publish  
 5. **UX:** 3패널 리사이즈, 테마, 온보딩, 비교/드릴다운, 결과 검색·더보기, 평가자 가이드  
@@ -100,7 +100,7 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 - `DATA_GO_KR_SERVICE_KEY`, `HIRA_HOSP_SERVICE_KEY`
 - `DATA_SYNC_SECRET`
 - `KAKAO_REST_API_KEY`, `NEXT_PUBLIC_KAKAO_MAP_KEY`
-- `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_PRIMARY_MODEL`, `QWEN_JSON_FALLBACK_MODEL`
+- `DEEPSEEK_API_KEY` (필수), `DEEPSEEK_BASE_URL`(생략 시 `https://api.deepseek.com/v1`), `DEEPSEEK_PRIMARY_MODEL`(기본 `deepseek-v4-flash`), `DEEPSEEK_JSON_FALLBACK_MODEL`(기본 `deepseek-v4-pro`)
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Vercel production에 맞춰야 하는 것
@@ -115,7 +115,7 @@ scripts/              boundaries fetch/validate, seed, smoke, sync-live
 ### 선택 플래그
 
 - `LIVE_POPULATION_DISABLED=1` — 인구 live 끄기  
-- `RAG_REMOTE_EMBED=1` / `QWEN_EMBED_MODEL` — parse/RAG remote embed  
+- `RAG_REMOTE_EMBED=1` / `EMBED_MODEL` + `EMBED_API_KEY` + `EMBED_BASE_URL` — parse/RAG remote embed (DeepSeek에는 임베딩 엔드포인트가 없어 채팅과 자격증명을 나눴다)  
 - `BOUNDARY_VERSION` — 기본 `20260701`  
 
 ---

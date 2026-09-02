@@ -100,10 +100,10 @@ export async function POST(request: Request) {
   }
 
   const result = await parseIntentWithFallbacks(safety.query, {
-    apiKey: process.env.QWEN_API_KEY,
-    baseUrl: process.env.QWEN_BASE_URL,
-    primaryModel: process.env.QWEN_PRIMARY_MODEL,
-    fallbackModel: process.env.QWEN_JSON_FALLBACK_MODEL,
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    baseUrl: process.env.DEEPSEEK_BASE_URL,
+    primaryModel: process.env.DEEPSEEK_PRIMARY_MODEL,
+    fallbackModel: process.env.DEEPSEEK_JSON_FALLBACK_MODEL,
   });
 
   return NextResponse.json(result);

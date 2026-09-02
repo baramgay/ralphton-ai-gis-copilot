@@ -137,7 +137,7 @@ describe("CopilotApp", () => {
               capabilities: {
                 kakaoMapsJs: false,
                 kakaoRest: false,
-                qwen: false,
+                ai: false,
                 publicData: false,
                 supabase: false,
                 dataSync: false,
@@ -1141,5 +1141,89 @@ describe("CopilotApp", () => {
     } finally {
       window.history.replaceState(null, "", "/");
     }
+  }, 20_000);
+  test("규칙이 놓친 질문을 AI가 지표로 지목하면 그 레이어로 전환한다", async () => {
+    /*
+     * 규칙이 못 잡는 표현("아이 키우기 좋은 곳")은 지금까지 "바로 분석하기 어렵습니다"로
+     * 끝났다. 서버가 지표를 지목해 주면 그 지표 이름을 질문에 붙여 민간 리졸버를 한 번 더
+     * 돌린다 — 지역·방향·단위 판정은 이미 그 안에 있다.
+     *
+     * 리졸버 단위 테스트로는 이 자리를 못 본다. 화면까지 닿는지를 본다.
+     */
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    const inner = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ai/parse")) {
+        return new Response(
+          JSON.stringify({
+            mode: "live",
+            intent: null,
+            parser: "ai",
+            notice: "카드소비 · 카드매출 지표를 묻는 질문으로 읽었습니다.",
+            metricHint: {
+              layerId: "nh-consumption",
+              metricKey: "card_sales",
+              metricLabel: "카드매출",
+              layerLabel: "카드소비",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return inner(input, init);
+    }) as typeof global.fetch;
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "아이 키우기 좋은 곳" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    await waitFor(() => {
+      expect(document.body.textContent).toMatch(/질문을 지표로 옮겨 읽었습니다/);
+    });
+    expect(document.body.textContent).toMatch(/카드소비 · 카드매출 레이어로 전환했습니다/);
+  }, 20_000);
+
+  test("AI가 지목한 지표를 리졸버가 못 잡으면 평소 안내로 내려간다", async () => {
+    // 지목만 믿고 화면을 바꾸면, 리졸버가 다른 지표를 골랐을 때 안내와 결과가 어긋난다.
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    const inner = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ai/parse")) {
+        return new Response(
+          JSON.stringify({
+            mode: "live",
+            intent: null,
+            parser: "ai",
+            notice: "해석하지 못했습니다.",
+            metricHint: {
+              layerId: "nh-consumption",
+              metricKey: "card_sales",
+              // 리졸버가 알아보지 못하는 이름 — 질문에 붙여도 매칭되지 않는다.
+              metricLabel: "존재하지않는지표이름",
+              layerLabel: "카드소비",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return inner(input, init);
+    }) as typeof global.fetch;
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "아이 키우기 좋은 곳" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+
+    await waitFor(() => {
+      expect(document.body.textContent).not.toMatch(/질문을 지표로 옮겨 읽었습니다/);
+    });
+    expect(document.body.textContent).not.toMatch(/레이어로 전환했습니다/);
   }, 20_000);
 });

@@ -26,7 +26,7 @@ npm run dev
 - **지도:** Kakao Maps SDK 선택 연동 · 키 없는 SVG `DemoMap` 자동 대체
 - **분석:** 의료 취약, 고령 수요, 인구 증가 압력, 최근접 거리, 반경 접근성, 지역 비교 등 Tool Registry
 - **UI:** 8개 빠른 분석, 순위·상세·13개월 추세, 구·동 비교, 한 줄 결론, 다크/시스템/고대비
-- **NL:** 규칙 파서 + 선택적 Qwen JSON 파서, 하이브리드 RAG, 행정동 지명 사전(place-index)
+- **NL:** 규칙 파서 우선 + 규칙이 놓친 표현만 DeepSeek JSON 파서, 하이브리드 RAG(카탈로그 생성 코퍼스), 행정동 지명 사전(place-index)
 - **실데이터:** HIRA 병원정보 v2(시도 380000), 주민인구 live 병합, Supabase 공개 스냅샷, cron sync
 - **평가자 가이드:** 이용 탭에 3분 시나리오·체크리스트·산식 요약
 
@@ -40,7 +40,8 @@ npm run dev
 | `KAKAO_REST_API_KEY` | 카카오 로컬 REST |
 | `DATA_GO_KR_SERVICE_KEY` | 공공데이터(인구 등) |
 | `HIRA_HOSP_SERVICE_KEY` | HIRA 병원 API(없으면 DATA_GO 키 재사용) |
-| `QWEN_*` | 자연어 파서·임베딩 |
+| `DEEPSEEK_*` | 자연어 파서 (키만 필수 · 주소 생략 시 기본 제공자) |
+| `EMBED_*` | RAG 원격 임베딩 (선택 · 채팅 제공자와 별개) |
 | `DATA_SYNC_SECRET` / `CRON_SECRET` | 동기화·cron |
 | `CRON_ALERT_WEBHOOK` | cron 실패 알림 |
 | `LIVE_POPULATION_DISABLED=1` | 인구 live 끄기 |

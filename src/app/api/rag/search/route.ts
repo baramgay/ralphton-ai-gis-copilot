@@ -41,11 +41,11 @@ export async function POST(request: Request) {
   const limit = parsed.data.limit ?? 4;
   const wantRemote = parsed.data.useRemoteEmbed !== false;
   const embedDeps =
-    wantRemote && process.env.QWEN_API_KEY && process.env.QWEN_BASE_URL
+    wantRemote && process.env.EMBED_API_KEY && process.env.EMBED_BASE_URL
       ? {
-          apiKey: process.env.QWEN_API_KEY,
-          baseUrl: process.env.QWEN_BASE_URL,
-          model: process.env.QWEN_EMBED_MODEL,
+          apiKey: process.env.EMBED_API_KEY,
+          baseUrl: process.env.EMBED_BASE_URL,
+          model: process.env.EMBED_MODEL,
         }
       : undefined;
 

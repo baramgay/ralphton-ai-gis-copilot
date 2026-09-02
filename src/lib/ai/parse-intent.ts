@@ -1,5 +1,12 @@
 /** Server-only orchestration; imported by the AI Route Handler and server-side tests only. */
-import { createQwenCompletion, type QwenClientDeps } from "./qwen";
+import {
+  createChatCompletion,
+  DEFAULT_FALLBACK_MODEL,
+  DEFAULT_PRIMARY_MODEL,
+  LlmError,
+  type LlmClientDeps,
+  type LlmFailureCode,
+} from "./llm";
 import { AnalysisIntentSchema, type AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { buildAiToolGuide } from "@/lib/analysis/query-catalog";
 import {
@@ -8,17 +15,35 @@ import {
   resolveQueryWithRules,
   type QueryEnrichment,
 } from "@/lib/analysis/query-rules";
-import { augmentQueryWithRag, buildRagPromptSection } from "@/lib/rag/augment";
+import { recordAiFailure, recordAiSuccess } from "./last-outcome";
+import { augmentQueryWithRag } from "@/lib/rag/augment";
+import {
+  catalogMetricsFromChunkIds,
+  findCatalogMetric,
+} from "@/lib/rag/catalog-chunks";
+import { formatRagContext, type RagHit } from "@/lib/rag/retrieve";
 import { augmentQueryWithRagRemote } from "@/lib/rag/augment-remote";
 
-export interface ParseIntentDeps extends QwenClientDeps {
+export interface ParseIntentDeps extends LlmClientDeps {
   primaryModel?: string;
   fallbackModel?: string;
   /**
    * Optional remote embed re-rank for RAG (server only).
-   * Default: env RAG_REMOTE_EMBED=1 or QWEN_EMBED_MODEL set.
+   * Default: env RAG_REMOTE_EMBED=1 or EMBED_MODEL set.
    */
   useRemoteRagEmbed?: boolean;
+}
+
+/**
+ * 모델이 지목한 민간데이터 지표. `AnalysisIntent`(공공 tool 레지스트리)와는 다른 갈래라
+ * 스키마를 건드리지 않고 따로 싣는다. 이 값이 오면 클라이언트가 민간 리졸버를 그 지표로
+ * 한 번 더 돌린다 — 지금까지 "바로 분석하기 어렵습니다"로 끝나던 자리다.
+ */
+export interface MetricHint {
+  layerId: string;
+  metricKey: string;
+  metricLabel: string;
+  layerLabel: string;
 }
 
 export interface ParseIntentResult {
@@ -28,17 +53,58 @@ export interface ParseIntentResult {
   suggestions?: string[];
   enrichment?: QueryEnrichment;
   parser?: "ai" | "rules" | "hybrid";
+  metricHint?: MetricHint;
   rag?: {
     citations: Array<{ id: string; title: string }>;
     hitCount: number;
   };
+  /**
+   * 왜 이 경로로 답했는지. 예전에는 AI 호출 실패를 전부 조용히 삼켜, 운영에서 AI 파서가
+   * 한 번도 동작하지 않는데도 상태표는 "켜짐"이었다. 제공사·모델·키가 드러나지 않는
+   * 낱말만 담는다(응답 privacy 테스트가 이 규칙을 지킨다).
+   */
+  diagnostics?: {
+    aiAttempted: boolean;
+    aiUsed: boolean;
+    failures: LlmFailureCode[];
+  };
 }
 
-const DEFAULT_PRIMARY_MODEL = "qwen3.6-flash";
-const DEFAULT_FALLBACK_MODEL = "qwen3.7-plus";
+/**
+ * RAG 히트에서 고를 수 있는 민간 지표 후보를 만든다.
+ *
+ * 카탈로그 52개 지표를 매 요청에 다 실으면 프롬프트가 그만큼 커진다. 검색이
+ * 이미 좁혀 준 것만 싣고, 모델이 고른 값은 다시 카탈로그로 확인한다.
+ */
+function metricHintSection(hits: RagHit[]): string {
+  const candidates = catalogMetricsFromChunkIds(hits.map((hit) => hit.chunk.id));
+  if (candidates.length === 0) return "";
 
-function systemPrompt(query: string): string {
-  const ragSection = buildRagPromptSection(query);
+  const lines = candidates.map(
+    ({ layer, metric }) =>
+      `- layerId="${layer.id}" metricKey="${metric.key}" → ${layer.label}·${metric.label}(${layer.provider}, ${metric.unit || "무단위"})`,
+  );
+
+  return [
+    "",
+    "등록된 tool로 답할 수 없지만 아래 민간데이터 지표 중 하나를 묻는 질의라면,",
+    '{"tool":"privateMetric","layerId":"…","metricKey":"…"} 형태로만 답하세요:',
+    ...lines,
+    "",
+  ].join("\n");
+}
+
+function systemPrompt(query: string, hits: RagHit[]): string {
+  const context = formatRagContext(hits);
+  const ragSection = context
+    ? [
+        "",
+        `관련 지식(RAG, id=${hits.map((hit) => hit.chunk.id).join(", ")}):`,
+        context,
+        "위 지식을 우선 반영해 tool을 고르세요. 지식과 충돌하는 추정은 하지 마세요.",
+        metricHintSection(hits),
+      ].join("\n")
+    : "";
   return `당신은 경상남도 AI GIS Copilot의 자연어 의도 파서입니다.
 분석 범위: 경상남도 행정동. 구어체·반말·오탈자 질의도 허용된 tool JSON으로만 변환하세요.
 분석 범위 밖이면: {"tool":"unsupported","filters":{},"reason":"짧은 한국어 안내"}
@@ -82,24 +148,54 @@ type AiUnsupported = {
   reason?: string;
 };
 
-function isUnsupportedPayload(value: unknown): value is AiUnsupported {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "tool" in value &&
-    (value as { tool: unknown }).tool === "unsupported"
-  );
+function toolOf(value: unknown): string | null {
+  if (typeof value !== "object" || value === null || !("tool" in value)) return null;
+  const tool = (value as { tool: unknown }).tool;
+  return typeof tool === "string" ? tool : null;
 }
+
+function isUnsupportedPayload(value: unknown): value is AiUnsupported {
+  return toolOf(value) === "unsupported";
+}
+
+/**
+ * 모델이 고른 민간 지표. 카탈로그에 실제로 있는 쌍일 때만 통과시킨다 — 모델이 지어낸
+ * 이름을 그대로 화면에 흘리면, 없는 지표를 "전환했습니다"라고 말하게 된다.
+ */
+function readMetricHint(value: unknown): MetricHint | null {
+  if (toolOf(value) !== "privateMetric") return null;
+
+  const record = value as { layerId?: unknown; metricKey?: unknown };
+  const layerId = typeof record.layerId === "string" ? record.layerId.trim() : "";
+  const metricKey = typeof record.metricKey === "string" ? record.metricKey.trim() : "";
+  if (!layerId || !metricKey) return null;
+
+  const found = findCatalogMetric(layerId, metricKey);
+  if (!found) return null;
+
+  return {
+    layerId: found.layer.id,
+    metricKey: found.metric.key,
+    metricLabel: found.metric.label,
+    layerLabel: found.layer.label,
+  };
+}
+
+type AiParseOutcome =
+  | { kind: "intent"; intent: AnalysisIntent }
+  | { kind: "metricHint"; hint: MetricHint }
+  | { kind: "unsupported"; reason: string };
 
 async function callAiParser(
   query: string,
   deps: ParseIntentDeps,
   model: string,
-): Promise<AnalysisIntent | { unsupported: true; reason: string }> {
-  const raw = await createQwenCompletion(deps, {
+  hits: RagHit[],
+): Promise<AiParseOutcome> {
+  const raw = await createChatCompletion(deps, {
     model,
     messages: [
-      { role: "system", content: systemPrompt(query) },
+      { role: "system", content: systemPrompt(query, hits) },
       { role: "user", content: `사용자 질의: "${query}"` },
     ],
     temperature: 0.1,
@@ -108,9 +204,14 @@ async function callAiParser(
     timeoutMs: 12_000,
   });
 
+  const hint = readMetricHint(raw);
+  if (hint) {
+    return { kind: "metricHint", hint };
+  }
+
   if (isUnsupportedPayload(raw)) {
     return {
-      unsupported: true,
+      kind: "unsupported",
       reason:
         typeof raw.reason === "string" && raw.reason.trim()
           ? raw.reason.trim()
@@ -118,7 +219,7 @@ async function callAiParser(
     };
   }
 
-  return AnalysisIntentSchema.parse(raw);
+  return { kind: "intent", intent: AnalysisIntentSchema.parse(raw) };
 }
 
 function attachRagMeta(query: string, result: ParseIntentResult): ParseIntentResult {
@@ -137,16 +238,23 @@ async function attachRagMetaAsync(
   result: ParseIntentResult,
   deps: ParseIntentDeps,
 ): Promise<ParseIntentResult> {
+  /*
+   * 임베딩은 채팅 모델과 같은 제공자에 있으리라 가정하면 안 된다 — 현재 채팅 제공자
+   * (DeepSeek)에는 임베딩 엔드포인트가 아예 없다. 그래서 채팅 자격증명을 물려받지 않고
+   * 자기 환경변수를 갖는다. 없으면 오프라인 해시 임베딩으로 간다(품질만 낮고 정상 동작).
+   */
+  const embedBaseUrl = process.env.EMBED_BASE_URL?.trim();
+  const embedApiKey = process.env.EMBED_API_KEY?.trim();
   const wantRemote =
     deps.useRemoteRagEmbed === true ||
     process.env.RAG_REMOTE_EMBED?.trim() === "1" ||
-    Boolean(process.env.QWEN_EMBED_MODEL?.trim());
+    Boolean(process.env.EMBED_MODEL?.trim());
   const embedDeps =
-    wantRemote && deps.apiKey?.trim() && deps.baseUrl?.trim()
+    wantRemote && embedApiKey && embedBaseUrl
       ? {
-          apiKey: deps.apiKey,
-          baseUrl: deps.baseUrl,
-          model: process.env.QWEN_EMBED_MODEL,
+          apiKey: embedApiKey,
+          baseUrl: embedBaseUrl,
+          model: process.env.EMBED_MODEL,
           fetch: deps.fetch,
         }
       : undefined;
@@ -217,36 +325,72 @@ export async function parseIntentWithFallbacks(
       notice: resolved.notice,
       suggestions: resolved.kind === "unsupported" ? resolved.suggestions : [...QUERY_SUGGESTIONS],
       parser: "rules",
+      diagnostics: { aiAttempted: false, aiUsed: false, failures: [] },
     };
   }
 
-  const apiKey = deps.apiKey?.trim();
-  const baseUrl = deps.baseUrl?.trim();
-  const primaryModel = deps.primaryModel?.trim() || DEFAULT_PRIMARY_MODEL;
-  const fallbackModel = deps.fallbackModel?.trim() || DEFAULT_FALLBACK_MODEL;
   const ruleResult = fromRules(safety.query);
 
-  if (!apiKey || !baseUrl) {
-    return attachRagMetaAsync(safety.query, ruleResult, deps);
+  /*
+   * 규칙이 답을 낸 질의는 규칙이 답한다.
+   *
+   * 이 라우팅은 회귀 검증(라우팅 56·값 46·표면 22)으로 잠겨 있다. 값싼 모델의 한 번짜리
+   * 판단으로 그것을 뒤집으면, 뒤집힌 자리를 아무도 세지 않는다. 모델은 규칙이 놓친
+   * 표현에만 쓴다 — 지금 "바로 분석하기 어렵습니다"로 끝나던 바로 그 자리다.
+   * 부수 효과로 호출량이 규칙 미스에만 걸려 비용도 그만큼만 든다.
+   */
+  if (ruleResult.intent) {
+    return attachRagMetaAsync(
+      safety.query,
+      { ...ruleResult, diagnostics: { aiAttempted: false, aiUsed: false, failures: [] } },
+      deps,
+    );
   }
+
+  const apiKey = deps.apiKey?.trim();
+  const primaryModel = deps.primaryModel?.trim() || DEFAULT_PRIMARY_MODEL;
+  const fallbackModel = deps.fallbackModel?.trim() || DEFAULT_FALLBACK_MODEL;
+
+  if (!apiKey) {
+    return attachRagMetaAsync(
+      safety.query,
+      {
+        ...ruleResult,
+        diagnostics: {
+          aiAttempted: false,
+          aiUsed: false,
+          failures: ["credential_missing"],
+        },
+      },
+      deps,
+    );
+  }
+
+  const failures: LlmFailureCode[] = [];
+  const hits = augmentQueryWithRag(safety.query).hits;
 
   for (const model of [primaryModel, primaryModel, fallbackModel]) {
     try {
-      const parsed = await callAiParser(safety.query, deps, model);
+      const parsed = await callAiParser(safety.query, deps, model, hits);
+      const diagnostics = { aiAttempted: true, aiUsed: true, failures: [...failures] };
+      recordAiSuccess();
 
-      if ("unsupported" in parsed && parsed.unsupported) {
-        if (ruleResult.intent) {
-          return attachRagMetaAsync(
-            safety.query,
-            {
-              ...ruleResult,
-              mode: "live",
-              parser: "hybrid",
-              notice: ruleResult.notice,
-            },
-            deps,
-          );
-        }
+      if (parsed.kind === "metricHint") {
+        return attachRagMetaAsync(
+          safety.query,
+          {
+            intent: null,
+            mode: "live",
+            notice: `${parsed.hint.layerLabel} · ${parsed.hint.metricLabel} 지표를 묻는 질문으로 읽었습니다.`,
+            parser: "ai",
+            metricHint: parsed.hint,
+            diagnostics,
+          },
+          deps,
+        );
+      }
+
+      if (parsed.kind === "unsupported") {
         return attachRagMetaAsync(
           safety.query,
           {
@@ -255,50 +399,53 @@ export async function parseIntentWithFallbacks(
             notice: parsed.reason,
             suggestions: [...QUERY_SUGGESTIONS],
             parser: "ai",
+            diagnostics,
           },
           deps,
         );
       }
 
-      // Prefer AI intent when valid; keep rule enrichment for Kakao nearby cues.
       return attachRagMetaAsync(
         safety.query,
         {
-          intent: parsed as AnalysisIntent,
+          intent: parsed.intent,
           mode: "live",
           notice: "질문을 분석에 반영했습니다.",
           enrichment: ruleResult.enrichment,
           parser: ruleResult.enrichment ? "hybrid" : "ai",
+          diagnostics,
         },
         deps,
       );
-    } catch {
-      // retry / fallback model
-    }
-  }
+    } catch (error) {
+      const code: LlmFailureCode =
+        error instanceof LlmError ? error.code : "upstream_unreachable";
+      failures.push(code);
+      recordAiFailure(code);
 
-  if (ruleResult.intent) {
-    return attachRagMetaAsync(
-      safety.query,
-      {
-        ...ruleResult,
-        notice: ruleResult.notice ?? "질문을 분석에 반영했습니다.",
-        parser: "rules",
-      },
-      deps,
-    );
+      /*
+       * 실패를 조용히 삼키면 "AI가 켜져 있는데 한 번도 안 붙는" 상태를 아무도 못 본다.
+       * 서버 로그에는 사유를 남기고, 응답에는 제공사가 드러나지 않는 낱말만 싣는다.
+       */
+      if (process.env.NODE_ENV !== "test") {
+        console.warn(`[ai/parse] attempt failed: ${code}`);
+      }
+
+      // 자격증명·과금 거절은 다시 걸어도 같다. 사용자를 두 번 더 기다리게 하지 않는다.
+      if (code === "upstream_rejected") break;
+    }
   }
 
   return attachRagMetaAsync(
     safety.query,
     {
-      intent: null,
-      mode: "demo",
+      ...ruleResult,
       notice:
         ruleResult.notice ??
         "지금은 자동 해석에 실패했습니다. 빠른 분석 버튼이나 예시 질문으로 이어서 볼 수 있습니다.",
       suggestions: ruleResult.suggestions ?? [...QUERY_SUGGESTIONS],
       parser: "rules",
+      diagnostics: { aiAttempted: true, aiUsed: false, failures },
     },
     deps,
   );

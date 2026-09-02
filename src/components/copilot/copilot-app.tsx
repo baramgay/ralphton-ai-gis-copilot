@@ -101,7 +101,12 @@ import { buildTrendRanking } from "@/lib/layers/trend-view";
 import { trendCrossView } from "@/lib/layers/trend-cross";
 import { resolveTrendCrossQuery, type TrendCrossMatch } from "@/lib/layers/resolve-trend-cross-query";
 import { describeTrend } from "@/lib/layers/trend";
-import { detectPercentLimit, detectResultCount, resolveLayerQuery } from "@/lib/layers/resolve-layer-query";
+import {
+  detectPercentLimit,
+  detectResultCount,
+  resolveLayerQuery,
+  type LayerQueryMatch,
+} from "@/lib/layers/resolve-layer-query";
 import { layerCubeToAnalysisView } from "@/lib/layers/to-analysis-view";
 import { LayerCubeSchema, type AdminLevel, type LayerCube, type MetricDef } from "@/lib/layers/types";
 import {
@@ -728,10 +733,50 @@ function mapEngineLabel(kakaoMapKey: string, mapEngine: "kakao" | "demo" | "unkn
   return "지도: Kakao 연결 중";
 }
 
+type AiLastOutcome =
+  | { state: "unknown" }
+  | { state: "ok"; at: string }
+  | { state: "failed"; at: string; code: string };
+
+/**
+ * 왜 안 되는지를 사람이 읽는 말로. "미설정"만 띄우면 설정은 다 돼 있는데 접속 주소가
+ * 허용 목록 밖이라 매번 실패하던 상태를 구분할 수 없다(운영에서 실제로 그랬다).
+ */
+function aiIssueLabel(code: string | null | undefined): string | null {
+  switch (code) {
+    case "credential_missing":
+      return "이용 자격이 등록되지 않았습니다.";
+    case "endpoint_invalid":
+    case "endpoint_not_allowed":
+      return "허용되지 않은 접속 주소가 설정돼 있습니다.";
+    case "upstream_rejected":
+      return "제공처가 요청을 거절했습니다 (자격·잔액 확인 필요).";
+    case "upstream_timeout":
+      return "응답이 시간 안에 오지 않았습니다.";
+    case "upstream_unreachable":
+      return "제공처에 접속하지 못했습니다.";
+    case "upstream_status":
+      return "제공처가 오류를 돌려주었습니다.";
+    case "response_not_json":
+      return "받은 응답을 이해하지 못했습니다.";
+    default:
+      return null;
+  }
+}
+
+function aiOutcomeLabel(outcome: AiLastOutcome | null): string {
+  if (!outcome || outcome.state === "unknown") {
+    return "마지막 해석 시도: 기록 없음 (규칙만으로 답한 질의는 시도하지 않습니다)";
+  }
+  const at = new Date(outcome.at).toLocaleString("ko-KR");
+  if (outcome.state === "ok") return `마지막 해석 시도: 성공 · ${at}`;
+  return `마지막 해석 시도: 실패 · ${aiIssueLabel(outcome.code) ?? "사유 미상"} · ${at}`;
+}
+
 type CapabilityFlags = {
   kakaoMapsJs: boolean;
   kakaoRest: boolean;
-  qwen: boolean;
+  ai: boolean;
   publicData: boolean;
   supabase: boolean;
   dataSync: boolean;
@@ -843,6 +888,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   );
   const [snapshotMode, setSnapshotMode] = useState<"auto" | "demo">("auto");
   const [capabilities, setCapabilities] = useState<CapabilityFlags | null>(null);
+  const [aiIssue, setAiIssue] = useState<string | null>(null);
+  const [aiLastOutcome, setAiLastOutcome] = useState<AiLastOutcome | null>(null);
   const [markerScope, setMarkerScope] = useState<"priority" | "selected">("priority");
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
   const [showOnboard, setShowOnboard] = useState(false);
@@ -1222,6 +1269,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       if (controller.signal.aborted) return;
       if (health && typeof health === "object" && "capabilities" in health) {
         setCapabilities((health as { capabilities: CapabilityFlags }).capabilities);
+        setAiIssue((health as { aiIssue?: string | null }).aiIssue ?? null);
+        setAiLastOutcome((health as { aiLastOutcome?: AiLastOutcome }).aiLastOutcome ?? null);
         if ("publishedLive" in health) {
           setPublishedLive((health as { publishedLive: PublishedLiveInfo }).publishedLive ?? null);
         }
@@ -2871,23 +2920,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       // 읍면동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
       dongNames: dongNamesForQuery,
     });
-    if (layerMatch) {
-      setActiveLayerId(layerMatch.layerId as LayerId);
-      setActiveMetricKey(layerMatch.metricKey);
-      setLayerDirection(layerMatch.direction);
-      setLayerRegionFilters(layerMatch.regionFilters);
+    /*
+     * 민간 레이어 전환을 실제로 적용한다. 규칙이 바로 잡은 질의와, 규칙이 놓쳐 AI가
+     * 지표를 지목해 준 질의가 같은 자리를 쓴다 — 두 벌로 두면 한쪽만 고쳐진다.
+     */
+    const applyLayerMatch = (match: LayerQueryMatch, prefix = "") => {
+      setActiveLayerId(match.layerId as LayerId);
+      setActiveMetricKey(match.metricKey);
+      setLayerDirection(match.direction);
+      setLayerRegionFilters(match.regionFilters);
       setAnsweredLastQuery(true);
-      if (layerMatch.adminLevel !== adminLevel) setAdminLevel(layerMatch.adminLevel);
+      if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       adminLevelSourceRef.current = "query";
       setActiveTab("control");
       setParseStage("done");
       setQueryNotice(
-        `${layerMatch.layerLabel} · ${layerMatch.metricLabel} 레이어로 전환했습니다 (출처: ${layerMatch.provider} 민간데이터, ${layerMatch.regionFilters.length ? `${layerMatch.regionFilters.join("·")} 안 ` : ""}${layerMatch.geometry === "grid" ? "500m 격자" : layerMatch.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${layerMatch.direction === "asc" ? " · 낮은 순" : ""}).`,
+        `${prefix}${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${match.provider} 민간데이터, ${match.regionFilters.length ? `${match.regionFilters.join("·")} 안 ` : ""}${match.geometry === "grid" ? "500m 격자" : match.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${match.direction === "asc" ? " · 낮은 순" : ""}).`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
       rememberQuery(trimmed);
       window.setTimeout(() => setParseStage("idle"), 1200);
+    };
+
+    if (layerMatch) {
+      applyLayerMatch(layerMatch);
       return;
     }
 
@@ -2907,7 +2964,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         notice?: string;
         suggestions?: string[];
         enrichment?: { kakaoPlacesQuery?: string; kakaoCategory?: "HP8" | "PM9" };
+        metricHint?: { layerId: string; metricKey: string; metricLabel: string };
       };
+
+      /*
+       * 규칙이 지표 낱말을 못 알아본 질의를 AI가 지표로 지목해 준 경우. 질의에 그 지표의
+       * 정식 이름을 붙여 민간 리졸버를 한 번 더 돌린다 — 지역·방향·단위·개수 판정은
+       * 이미 그 안에 있으므로 다시 만들지 않는다. 지목이 카탈로그에 없는 지표면
+       * 서버가 이미 걸러냈고, 여기서도 리졸버가 못 잡으면 평소 안내로 내려간다.
+       */
+      if (!data.intent?.tool && data.metricHint) {
+        const hinted = resolveLayerQuery(
+          `${trimmed} ${data.metricHint.metricLabel}`,
+          PRIVATE_NL_LAYERS,
+          { adminLevelFallback: fallbackAdminLevel, dongNames: dongNamesForQuery },
+        );
+        if (hinted && hinted.layerId === data.metricHint.layerId) {
+          applyLayerMatch(hinted, "질문을 지표로 옮겨 읽었습니다 — ");
+          return;
+        }
+      }
+
       if (!response.ok || !data.intent?.tool) {
         setParseStage("idle");
         setQueryNotice(
@@ -4059,7 +4136,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         [
                           ["Kakao 지도", capabilities.kakaoMapsJs],
                           ["Kakao 장소검색", capabilities.kakaoRest],
-                          ["AI 질문 해석", capabilities.qwen],
+                          ["AI 질문 해석", capabilities.ai],
                           ["공공데이터", capabilities.publicData],
                           ["인구 live 병합", Boolean(capabilities.populationLive)],
                           ["RAG 원격 임베딩", Boolean(capabilities.ragRemoteEmbed)],
@@ -4076,6 +4153,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         </li>
                       ))}
                     </ul>
+                    <div className="ui-chip space-y-1 text-slate-600" data-testid="ai-status">
+                      {capabilities.ai ? null : (
+                        <p>{aiIssueLabel(aiIssue) ?? "AI 질문 해석이 꺼져 있습니다."}</p>
+                      )}
+                      <p>{aiOutcomeLabel(aiLastOutcome)}</p>
+                    </div>
                     {publishedLive?.available ? (
                       <div className="rounded-lg bg-emerald-50 px-3 py-2 ui-body text-emerald-900">
                         <p className="font-bold">게시된 실데이터</p>

@@ -14,11 +14,13 @@ const expectedKeys = [
   "NEXT_PUBLIC_KAKAO_MAP_KEY",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
-  "QWEN_API_KEY",
-  "QWEN_BASE_URL",
-  "QWEN_EMBED_MODEL",
-  "QWEN_JSON_FALLBACK_MODEL",
-  "QWEN_PRIMARY_MODEL",
+  "DEEPSEEK_API_KEY",
+  "DEEPSEEK_BASE_URL",
+  "DEEPSEEK_JSON_FALLBACK_MODEL",
+  "DEEPSEEK_PRIMARY_MODEL",
+  "EMBED_API_KEY",
+  "EMBED_BASE_URL",
+  "EMBED_MODEL",
   "RAG_REMOTE_EMBED",
   "SUPABASE_SERVICE_ROLE_KEY",
 ];
@@ -37,7 +39,7 @@ describe("environment example", () => {
       });
 
     const exampleKeys = entries.map(([key]) => key);
-    const allowedPublicDefaults = new Set(["qwen3.6-flash", "qwen3.7-plus"]);
+    const allowedPublicDefaults = new Set(["deepseek-v4-flash", "deepseek-v4-pro"]);
     const secretLikeValueFound = entries.some(
       ([, value]) => value.length > 0 && !allowedPublicDefaults.has(value),
     );
@@ -45,8 +47,8 @@ describe("environment example", () => {
     expect(exampleKeys.sort()).toEqual(expectedKeys.sort());
     expect(secretLikeValueFound).toBe(false);
     expect(Object.fromEntries(entries)).toMatchObject({
-      QWEN_PRIMARY_MODEL: "qwen3.6-flash",
-      QWEN_JSON_FALLBACK_MODEL: "qwen3.7-plus",
+      DEEPSEEK_PRIMARY_MODEL: "deepseek-v4-flash",
+      DEEPSEEK_JSON_FALLBACK_MODEL: "deepseek-v4-pro",
     });
   });
 });

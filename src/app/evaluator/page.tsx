@@ -85,7 +85,7 @@ export default function EvaluatorPrintPage() {
         <p className="mt-1.5 text-sm leading-relaxed text-slate-800">{METHOD_SUMMARY}</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-700">
           <li>시연 합성 데이터와 HIRA·인구 실데이터 구분이 헤더·출처 카드에 표시됩니다.</li>
-          <li>키 없이도 빠른 분석 8종·지도·순위가 동작합니다 (Qwen 파서는 키 필요).</li>
+          <li>키 없이도 빠른 분석 8종·지도·순위·규칙 기반 자연어 질의가 동작합니다 (AI 파서만 키 필요).</li>
           <li>
             운영: <code className="rounded bg-white px-1">/api/health</code> ·{" "}
             <code className="rounded bg-white px-1">/api/data/sync</code> · cron 동기화.
@@ -98,7 +98,7 @@ export default function EvaluatorPrintPage() {
           <p className="font-bold">핵심 기능</p>
           <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-slate-700">
             <li>의료 취약 순위 · 구/시 비교 · 동 드릴다운</li>
-            <li>자연어 질의 (규칙 + 선택적 Qwen)</li>
+            <li>자연어 질의 (규칙 우선 + 규칙이 놓친 표현만 AI)</li>
             <li>Kakao 지도 색상·마커 연동</li>
             <li>CSV · 공유 링크 · 다크 모드</li>
           </ul>

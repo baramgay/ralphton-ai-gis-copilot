@@ -1,11 +1,14 @@
 /**
- * Optional remote embeddings via DashScope-compatible API.
+ * Optional remote embeddings via an OpenAI-compatible /embeddings endpoint.
  * Falls back silently; hybrid retrieve always has hash-embed offline path.
+ *
+ * 채팅 제공자와 같은 곳이라고 가정하지 않는다 — 현재 채팅 제공자(DeepSeek)에는
+ * 임베딩 엔드포인트가 없다. 자격증명은 EMBED_* 환경변수에서 따로 온다.
  */
 
-import type { QwenClientDeps } from "@/lib/ai/qwen";
+import type { LlmClientDeps } from "@/lib/ai/llm";
 
-export type EmbeddingClientDeps = QwenClientDeps & {
+export type EmbeddingClientDeps = LlmClientDeps & {
   model?: string;
 };
 

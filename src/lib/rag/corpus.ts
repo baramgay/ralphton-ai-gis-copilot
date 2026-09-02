@@ -1,7 +1,12 @@
 /**
- * Curated knowledge corpus for offline RAG.
- * Each chunk is short, factual, and tied to tools/domains used by the copilot.
+ * Knowledge corpus for offline RAG.
+ *
+ * 두 갈래로 이뤄진다. 손으로 쓴 도구 지식(아래 CURATED_RAG_CORPUS)과, 레이어
+ * 카탈로그에서 생성한 지표 지식(`catalog-chunks.ts`). 손으로만 유지하던 동안 주기능인
+ * 민간데이터 13개 레이어가 코퍼스에 하나도 없었다 — 생성분이 그 자리를 메우고,
+ * 레이어가 늘면 코퍼스도 같이 자란다.
  */
+import { buildCatalogRagChunks } from "./catalog-chunks";
 
 export type RagChunk = {
   id: string;
@@ -11,7 +16,7 @@ export type RagChunk = {
   keywords: string[];
 };
 
-export const RAG_CORPUS: RagChunk[] = [
+export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "tool-scarcity",
     title: "의료 취약지수",
@@ -145,3 +150,20 @@ export const RAG_CORPUS: RagChunk[] = [
     keywords: ["CSV", "내보내기", "공유", "링크"],
   },
 ];
+
+/**
+ * 검색이 실제로 도는 코퍼스. 손으로 쓴 도구 지식이 앞, 카탈로그 생성분이 뒤다.
+ * 같은 id가 둘 있으면 앞의 것을 남긴다(손으로 쓴 쪽이 더 구체적이다).
+ */
+export const RAG_CORPUS: RagChunk[] = (() => {
+  const seen = new Set<string>();
+  const merged: RagChunk[] = [];
+
+  for (const chunk of [...CURATED_RAG_CORPUS, ...buildCatalogRagChunks()]) {
+    if (seen.has(chunk.id)) continue;
+    seen.add(chunk.id);
+    merged.push(chunk);
+  }
+
+  return merged;
+})();
