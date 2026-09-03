@@ -1,8 +1,17 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { chromium } from "@playwright/test";
 
 const URL = "https://ralphton-ai-gis-copilot.vercel.app";
-const OUT = "C:/Users/lhkau/AppData/Local/Temp/claude/C--Users-lhkau/a4db1943-d239-439b-aeef-4514c5ff10b6/scratchpad/prod-sweep.json";
+/*
+ * 산출물 경로는 한 사람의 임시 세션 폴더에 박혀 있었다. 그 폴더가 사라지자 스크립트가
+ * 결과를 쓰다 죽었다 — 안전망이 자기가 만든 파일 자리 때문에 먼저 넘어졌다.
+ * OUT_DIR로 덮어쓸 수 있게 두고, 없으면 OS 임시 폴더에 만든다.
+ */
+const OUT_DIR = process.env.OUT_DIR ?? path.join(os.tmpdir(), "ralphton-prod-checks");
+fs.mkdirSync(OUT_DIR, { recursive: true });
+const OUT = path.join(OUT_DIR, "prod-sweep.json");
 
 /**
  * 질의 → 결과에 반드시 들어 있어야 할 것.

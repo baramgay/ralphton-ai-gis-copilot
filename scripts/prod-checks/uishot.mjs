@@ -1,6 +1,11 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { chromium } from "@playwright/test";
 const URL = process.env.SHOT_URL ?? "https://ralphton-ai-gis-copilot.vercel.app";
-const OUT = "C:/Users/lhkau/AppData/Local/Temp/claude/C--Users-lhkau/a4db1943-d239-439b-aeef-4514c5ff10b6/scratchpad/ui";
+// 세션마다 사라지는 임시 폴더에 박아 두면 다음 사람이 못 돌린다. OUT_DIR로 덮어쓴다.
+const OUT = process.env.OUT_DIR ?? path.join(os.tmpdir(), "ralphton-prod-checks", "ui");
+fs.mkdirSync(OUT, { recursive: true });
 const TAG = process.env.SHOT_TAG ?? "before";
 const browser = await chromium.launch();
 
