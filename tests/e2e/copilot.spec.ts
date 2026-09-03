@@ -38,9 +38,12 @@ test.describe("AI GIS Copilot core journey", () => {
   test("loads demo shell and runs quick analyses", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     await openSheet(page, "결과");
     await expect(page.getByTestId("interpretation-card")).toBeVisible();
     await expect(page.getByTestId("result-panel")).toBeVisible();
@@ -87,9 +90,12 @@ test.describe("AI GIS Copilot core journey", () => {
    */
   test("레이어 이름이 세로로 쪼개지지 않는다", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
     await openSheet(page, "조작");
 
@@ -119,9 +125,12 @@ test.describe("AI GIS Copilot core journey", () => {
    */
   test("분석을 바꾸면 선택도 그 답을 따라간다", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
 
     // 먼저 한 분석을 돌려 선택이 생기게 한 뒤, 다른 분석으로 바꾼다.
@@ -145,9 +154,12 @@ test.describe("AI GIS Copilot core journey", () => {
 
   test("runs natural language query path", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     // 질의창은 어느 패널에도 속하지 않는다. 패널을 열지 않아도 닿아야 한다.
     const input = page.getByLabel("분석 질의");
     await input.fill("창원 의료 취약");

@@ -1227,3 +1227,47 @@ describe("CopilotApp", () => {
     expect(document.body.textContent).not.toMatch(/레이어로 전환했습니다/);
   }, 20_000);
 });
+
+describe("로딩 화면의 상단 바", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/");
+    window.localStorage.setItem("ralphton-onboard-v1", "1");
+    /*
+     * 스냅샷·경계가 영영 오지 않는 상태를 만든다. 느린 회선에서 사용자가 실제로 보는
+     * 화면이고, 예전에는 이 화면에 제품 이름조차 없었다.
+     */
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+  });
+
+  test("데이터가 오기 전에도 제품 이름이 접근성 트리에 있다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" />);
+
+    expect(screen.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    expect(screen.getByTestId("topbar-loading-meta")).toHaveTextContent("준비하는 중");
+    expect(screen.getByTestId("copilot-boot")).toHaveAttribute("aria-busy", "true");
+  });
+
+  test("모르는 값을 그럴듯하게 적지 않는다 — 기준월도 데이터 모드도 없다", () => {
+    render(<CopilotApp boundaryVersion="20260701" />);
+
+    /*
+     * 스냅샷이 없는데 "시연 데이터"·"실데이터" 딱지를 붙이면 오지 않은 것을 온 것처럼
+     * 읽게 된다. 기준월도 마찬가지다.
+     */
+    const topbar = screen.getByRole("banner");
+    expect(topbar.textContent).not.toMatch(/시연|실데이터|\d{4}-\d{2}|읍면동/);
+  });
+
+  test("눌러도 열 패널이 없는 버튼은 내보내지 않는다", () => {
+    render(<CopilotApp boundaryVersion="20260701" />);
+
+    expect(screen.queryByRole("button", { name: "이용" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "데이터" })).toBeNull();
+  });
+
+  test("본 셸은 아직 없다 — h1이 준비 신호가 아님을 못 박는다", () => {
+    render(<CopilotApp boundaryVersion="20260701" />);
+
+    expect(screen.queryByTestId("copilot-shell")).toBeNull();
+  });
+});

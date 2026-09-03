@@ -65,6 +65,7 @@ import { FACILITY_TYPE_COLORS } from "@/lib/gis/facility-style";
 import { InterpretationCard } from "./interpretation-card";
 import type { LiveMapPlace } from "./kakao-map";
 import { AdminLevelToggle } from "./admin-level-toggle";
+import { AppTopbar } from "./app-topbar";
 import { LayerSwitcher, type LayerOption } from "./layer-switcher";
 import { MapCanvas } from "./map-canvas";
 import { PanelResizer } from "./panel-resizer";
@@ -3146,17 +3147,29 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }
 
   if (!snapshot || !boundary || !analysis) {
+    /*
+     * 로딩 화면에도 상단 바를 둔다.
+     *
+     * 이 화면이 뜨는 동안(실측 1.4초) 예전에는 회색 상자 하나뿐이었다 — 어느 도구에
+     * 들어왔는지도 알 수 없었다. 상단 바는 스냅샷 없이도 그릴 수 있으므로 기다릴 이유가
+     * 없다. 다만 h1이 여기서도 보이게 되었으므로 **h1은 더 이상 "앱이 준비됐다"는
+     * 신호가 아니다** — e2e는 `data-testid="copilot-shell"`을 기다린다.
+     */
     return (
-      <main
-        className="grid min-h-screen place-items-center bg-[var(--surface-0,#e7edf3)] p-6"
-        aria-busy="true"
-      >
-        <div className="w-full max-w-sm rounded-3xl border border-slate-200/80 bg-[var(--surface-2,#fff)] p-6 shadow-lg">
-          <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-slate-200" />
-          <div className="mb-2 h-5 w-3/4 animate-pulse rounded-lg bg-slate-200" />
-          <p className="mt-5 text-center text-sm font-medium text-slate-600">경남 공간 데이터를 준비하는 중…</p>
-        </div>
-      </main>
+      <div className="copilot-boot">
+        <AppTopbar snapshot={null} />
+        <main
+          className="grid flex-1 place-items-center bg-[var(--surface-0,#e7edf3)] p-6"
+          aria-busy="true"
+          data-testid="copilot-boot"
+        >
+          <div className="w-full max-w-sm rounded-3xl border border-slate-200/80 bg-[var(--surface-2,#fff)] p-6 shadow-lg">
+            <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-slate-200" />
+            <div className="mb-2 h-5 w-3/4 animate-pulse rounded-lg bg-slate-200" />
+            <p className="mt-5 text-center text-sm font-medium text-slate-600">경남 공간 데이터를 준비하는 중…</p>
+          </div>
+        </main>
+      </div>
     );
   }
 
@@ -3202,7 +3215,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   };
 
   return (
-    <main className="copilot-shell" style={shellStyle} data-sheet={sheetMode}>
+    <main className="copilot-shell" style={shellStyle} data-sheet={sheetMode} data-testid="copilot-shell">
       <a href="#left-panel" className="skip-link">
         분석 조작 패널로 건너뛰기
       </a>
@@ -3212,55 +3225,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         그 패널이 기본으로 접히면서 h1이 `aria-hidden` 아래로 들어가 접근성 트리에서
         사라졌다 — 스크린리더에게는 제목 없는 페이지가 됐고, e2e 14건이 전부
         "heading not found"로 떨어졌다. 어느 패널에도 두지 않는다.
+
+        로딩 화면도 같은 컴포넌트를 쓴다(app-topbar.tsx). 따로 적으면 갈라진다.
       */}
-      <header className="copilot-topbar">
-        <img
-          src="/brand-mark.svg"
-          alt=""
-          width={28}
-          height={28}
-          className="size-7 shrink-0 rounded-lg shadow-sm ring-1 ring-slate-200/80"
-        />
-        <div className="min-w-0">
-          <h1 className="ui-body-lg truncate font-black text-slate-950">경남 AI GIS</h1>
-        </div>
-        <p className="copilot-topbar-meta ui-caption truncate text-slate-500">
-          {dataModeLabel(snapshot.mode, snapshot.sourceNotes)} · {snapshot.referenceMonth} ·{" "}
-          {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동
-        </p>
-        {/*
-          이용법·데이터 출처는 접힌 조작 패널 안에만 있어서, 처음 온 사람이 출처를 보려면
-          "조작"을 먼저 눌러야 했다. 공공기관 자료로 쓰는 도구에서 출처는 한 번에 닿아야
-          한다. 눌러 두 단계를 한 번에 처리한다(패널 열기 + 해당 탭 선택).
-        */}
-        <nav className="ml-auto flex items-center gap-1" aria-label="도움말·데이터">
-          {(
-            [
-              ["help", "이용"],
-              ["data", "데이터"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className="copilot-topbar-link"
-              onClick={() => {
-                setActiveTab(id);
-                if (isNarrowNow()) setSheetMode("left");
-                else if (layout.leftCollapsed) toggleLeft();
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-        <span
-          className={`ui-status ${snapshot.mode === "live" ? "ui-status-live" : "ui-status-demo"}`}
-          title={dataModeTitle(snapshot.mode, snapshot.sourceNotes)}
-        >
-          {dataModeLabel(snapshot.mode, snapshot.sourceNotes)}
-        </span>
-      </header>
+      <AppTopbar
+        snapshot={snapshot}
+        onOpenTab={(id) => {
+          setActiveTab(id);
+          if (isNarrowNow()) setSheetMode("left");
+          else if (layout.leftCollapsed) toggleLeft();
+        }}
+      />
 
       {/* LEFT: controls only */}
       <aside

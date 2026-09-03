@@ -39,9 +39,12 @@ test.describe("mobile sheet", () => {
 
   test("shows mobile chrome and can open result sheet", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
 
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "조작" })).toBeVisible();
@@ -62,9 +65,12 @@ test.describe("mobile sheet", () => {
    */
   test("질의창은 결과 시트를 열어도 계속 닿는다", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click();
 
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
@@ -88,9 +94,12 @@ test.describe("mobile sheet", () => {
 
   test("온보딩 카드가 시트 토글을 덮지 않는다", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     // 첫 방문자에게 뜨는 카드가 조작·결과 버튼 위에 겹쳐 있었다.
     await expect(page.getByTestId("onboard-card")).toBeVisible();
 
@@ -100,9 +109,12 @@ test.describe("mobile sheet", () => {
 
   test("시트를 연 뒤에도 반대편 시트로 넘어갈 수 있다", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible({
-      timeout: 60_000,
-    });
+    /*
+     * h1은 준비 신호가 아니다 — 로딩 화면에도 상단 바가 있으므로 데이터가 오기 전에
+     * 보인다. 본 셸이 그려졌는지로 기다린다.
+     */
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click();
 
     // 조작을 연 상태에서 결과 버튼이 시트에 가려 눌리지 않아 한쪽에 갇히곤 했다.

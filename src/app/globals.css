@@ -761,6 +761,19 @@ input:hover {
   background: var(--surface-0, #e7edf3);
 }
 
+/*
+ * 로딩 화면의 뼈대. 본 화면(.copilot-shell)은 그리드지만 여기는 패널이 없으므로
+ * 상단 바 + 남은 높이 두 칸이면 된다. .copilot-topbar의 `grid-column`은 그리드가
+ * 아닌 부모에서 무시되고, 상단 바 자신의 flex 배치는 그대로 동작한다.
+ */
+.copilot-boot {
+  display: flex;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: clip;
+  background: var(--surface-0, #e7edf3);
+}
+
 .copilot-topbar {
   z-index: 60;
   display: flex;
