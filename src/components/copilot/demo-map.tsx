@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { buildScale, CHOROPLETH_COLORS } from "@/lib/gis/choropleth-scale";
+import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
+import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import type {
   BoundaryCollection,
@@ -52,11 +53,19 @@ export function DemoMap({
   onSelectRegion,
   onSelectFacility,
 }: DemoMapProps) {
+  /*
+   * 색띠는 테마를 따른다. 밝은 화면의 색띠를 어두운 지도에 그대로 쓰면 **낮은 단계가
+   * 가장 밝아** 값이 낮은 곳이 제일 도드라진다(거꾸로 된 지도).
+   */
+  const appliedTheme = useAppliedTheme();
+  const choroplethTheme = appliedTheme === "light" ? "light" : "dark";
+  const ramp = choroplethRamp(choroplethTheme);
+
   const [hovered, setHovered] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
 
   // 분위수 경계는 지도에 그릴 값 전체로 한 번만 계산한다.
-  const scale = useMemo(() => buildScale(scores), [scores]);
+  const scale = useMemo(() => buildScale(scores, choroplethTheme), [scores, choroplethTheme]);
 
   const projection = useMemo(() => {
     const positions = boundary.features.flatMap(collectPositions);
@@ -261,7 +270,7 @@ export function DemoMap({
           <span>{legendLabel}</span><span>높음</span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full">
-          {CHOROPLETH_COLORS.map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
+          {ramp.map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
         </div>
         <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
           <span>5분위(같은 수의 동)</span><span>높음</span>

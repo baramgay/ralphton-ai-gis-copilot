@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { buildScale, CHOROPLETH_COLORS } from "@/lib/gis/choropleth-scale";
+import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
+import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
 
@@ -140,6 +141,14 @@ export function KakaoMap({
   onError,
   onReady,
 }: KakaoMapProps) {
+  /*
+   * 색띠는 테마를 따른다. 밝은 화면의 색띠를 어두운 지도에 그대로 쓰면 **낮은 단계가
+   * 가장 밝아** 값이 낮은 곳이 제일 도드라진다(거꾸로 된 지도).
+   */
+  const appliedTheme = useAppliedTheme();
+  const choroplethTheme = appliedTheme === "light" ? "light" : "dark";
+  const ramp = choroplethRamp(choroplethTheme);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const overlaysRef = useRef<KakaoOverlay[]>([]);
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
@@ -265,7 +274,7 @@ export function KakaoMap({
     const toPath = (ring: Position[]) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng));
     const regionByCode = new Map(regions.map((region) => [region.adm_cd2, region]));
     // 분위수 경계는 이번에 그릴 값 전체로 한 번만 계산한다.
-    const scale = buildScale(scores);
+    const scale = buildScale(scores, choroplethTheme);
 
     const showTooltip = (code: string, lat: number, lng: number) => {
       if (typeof maps.CustomOverlay !== "function") return;
@@ -539,7 +548,7 @@ export function KakaoMap({
           <span>높음</span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full">
-          {CHOROPLETH_COLORS.map((color) => (
+          {ramp.map((color) => (
             <span key={color} className="flex-1" style={{ backgroundColor: color }} />
           ))}
         </div>

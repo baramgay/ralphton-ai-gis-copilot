@@ -10,8 +10,34 @@
  * 절대값 비교로 오해하지 않는다.
  */
 export const CHOROPLETH_COLORS = ["#eff6ff", "#dbeafe", "#93c5fd", "#3b82f6", "#1d4ed8"] as const;
+
+/**
+ * 어두운 지도용 색띠.
+ *
+ * 밝은 화면의 색띠를 그대로 쓰면 낮은 단계(#eff6ff)가 거의 흰색이라 어두운 바닥 위에서
+ * **가장 눈에 띄는 색**이 된다 — 값이 낮은 곳이 제일 도드라지는 거꾸로 된 지도가 된다.
+ * 어두운 쪽에서는 낮은 단계를 바닥에 가깝게 눌러 두고 높은 단계만 밝힌다.
+ */
+export const CHOROPLETH_COLORS_DARK = ["#123648", "#106074", "#0e93a8", "#22d3ee", "#a5f3fc"] as const;
+
 /** 값이 없는 지역. 0에 가까운 색과 구분되어야 "없음"과 "낮음"이 헷갈리지 않는다. */
 export const NO_DATA_COLOR = "#e8eef5";
+
+/**
+ * 어두운 쪽의 「자료 없음」. 색띠의 어느 단계와도 닮지 않은 **무채색**이라야 한다 —
+ * 낮은 단계와 비슷하면 자료가 없는 곳이 "값이 낮은 곳"으로 읽힌다.
+ */
+export const NO_DATA_COLOR_DARK = "#2b3648";
+
+export type ChoroplethTheme = "light" | "dark";
+
+export function choroplethRamp(theme: ChoroplethTheme): readonly string[] {
+  return theme === "dark" ? CHOROPLETH_COLORS_DARK : CHOROPLETH_COLORS;
+}
+
+export function noDataColor(theme: ChoroplethTheme): string {
+  return theme === "dark" ? NO_DATA_COLOR_DARK : NO_DATA_COLOR;
+}
 
 /**
  * 분위수 경계. 값이 오름차순으로 몇 번째 구간에 드는지 판정하는 데 쓴다.
@@ -39,27 +65,31 @@ export function quantileBreaks(values: readonly number[], classes = CHOROPLETH_C
 export function colorForValue(
   value: number | undefined | null,
   breaks: readonly number[],
+  theme: ChoroplethTheme = "light",
 ): string {
-  if (value == null || !Number.isFinite(value)) return NO_DATA_COLOR;
+  const colors = choroplethRamp(theme);
+  if (value == null || !Number.isFinite(value)) return noDataColor(theme);
 
   if (breaks.length === 0) {
     const index = Math.min(
-      CHOROPLETH_COLORS.length - 1,
-      Math.max(0, Math.floor(value / (100 / CHOROPLETH_COLORS.length))),
+      colors.length - 1,
+      Math.max(0, Math.floor(value / (100 / colors.length))),
     );
-    return CHOROPLETH_COLORS[index];
+    return colors[index];
   }
 
   let index = 0;
   while (index < breaks.length && value > breaks[index]) index += 1;
-  return CHOROPLETH_COLORS[Math.min(index, CHOROPLETH_COLORS.length - 1)];
+  return colors[Math.min(index, colors.length - 1)];
 }
 
 /** 지도에 그릴 값 전체로 경계를 한 번만 계산해 쓰기 위한 헬퍼. */
-export function buildScale(scores: ReadonlyMap<string, number>) {
+export function buildScale(scores: ReadonlyMap<string, number>, theme: ChoroplethTheme = "light") {
   const breaks = quantileBreaks([...scores.values()]);
   return {
     breaks,
-    colorOf: (code: string) => colorForValue(scores.get(code), breaks),
+    colors: choroplethRamp(theme),
+    noData: noDataColor(theme),
+    colorOf: (code: string) => colorForValue(scores.get(code), breaks, theme),
   };
 }

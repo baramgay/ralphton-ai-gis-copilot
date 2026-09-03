@@ -233,7 +233,20 @@ const NEAR_MISS_METRICS: Array<{ asked: string[]; label: string; have: string }>
  */
 const PUBLIC_FIRST_CUES = ["1인가구", "1인 가구", "일인가구", "단독가구", "단독세대", "독거"];
 
+/**
+ * 「독거」는 1인가구의 동의어로 위 목록에 넣은 말이다. 그때는 독거노인을 따로 답할 지표가
+ * 없었다. 지금은 KOSIS 「독거노인가구 비율」(65세 이상 1인가구 ÷ 전체 일반가구)이 있고,
+ * 그쪽이 더 맞는 답이다 — 공공 1인가구 지표는 **전 연령**이라 "독거노인"을 물은 사람에게
+ * 다른 것을 답하게 된다(배포본 실측: "독거노인 비율 높은 시군"이 고령인구 비율로 갔다).
+ *
+ * 지표가 생겼으면 가로막던 것을 푼다. 반대로 「1인가구」쪽 질의는 그대로 공공이 먼저다 —
+ * 되돌리면 큐브의 "가구" 트리거가 다시 가로챈다("1인가구 많고 소득 낮은 동"은 지금도
+ * 이 가드가 없으면 평균소득 레이어로 간다).
+ */
+const PUBLIC_FIRST_EXCEPTIONS = ["독거노인", "홀몸노인", "혼자 사는 노인"];
+
 export function prefersPublicTool(text: string): boolean {
+  if (PUBLIC_FIRST_EXCEPTIONS.some((cue) => text.includes(cue))) return false;
   return PUBLIC_FIRST_CUES.some((cue) => text.includes(cue));
 }
 

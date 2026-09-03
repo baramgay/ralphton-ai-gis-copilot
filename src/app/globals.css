@@ -66,30 +66,66 @@ html[data-density="compact"] .quick-tile {
 }
 
 /* ─── Dark theme ─── */
+/*
+ * 다크 「데이터룸」 팔레트.
+ *
+ * 기본 테마이므로 대부분의 사용자가 보는 화면이다(theme.ts DEFAULT_THEME).
+ * 바탕은 남색 계열 한 톤으로 눌러 두고, **색은 자료에만 쓴다** — 강조 청록(cyan)은
+ * 지금 보고 있는 것, 앰버는 주의해야 할 것에만. 화면 장식에 색을 쓰면 단계구분 색과
+ * 경쟁해서 정작 자료가 안 보인다.
+ */
 html[data-theme="dark"] {
   color-scheme: dark;
-  --background: #0b1220;
+  --background: #080f1c;
   --foreground: #e2e8f0;
-  --surface-0: #0b1220;
-  --surface-1: rgb(15 23 42 / 96%);
-  --surface-2: #1e293b;
-  --surface-3: #0f172a;
-  --surface-map: #0f172a;
-  --border-1: rgb(51 65 85 / 85%);
-  --border-2: #334155;
-  --border-soft: #1e293b;
+  --surface-0: #080f1c;
+  --surface-1: rgb(13 21 36 / 97%);
+  --surface-2: #101a2c;
+  --surface-3: #0b1322;
+  --surface-map: #0a1120;
+  --border-1: rgb(38 54 80 / 90%);
+  --border-2: #26364f;
+  --border-soft: #182339;
   --text-1: #f1f5f9;
-  --text-2: #cbd5e1;
-  --text-3: #94a3b8;
+  --text-2: #c7d2e0;
+  --text-3: #8fa3bd;
   --text-4: #64748b;
-  --accent: #60a5fa;
-  --accent-soft: rgb(30 58 138 / 40%);
-  --shadow-panel: 8px 0 28px rgb(0 0 0 / 40%);
-  --input-bg: #0f172a;
-  --input-border: #334155;
-  --rank-value: #93c5fd;
-  --score-track: #1e293b;
-  --elevated: #1e293b;
+
+  /* 지금 보고 있는 것 */
+  --accent: #22d3ee;
+  --accent-soft: rgb(34 211 238 / 14%);
+  --accent-line: rgb(34 211 238 / 45%);
+
+  /* 주의해야 할 것 — 결측·경고·한계 고지 */
+  --accent-warm: #fbbf24;
+  --accent-warm-soft: rgb(251 191 36 / 14%);
+
+  --shadow-panel: 8px 0 32px rgb(0 0 0 / 55%);
+  --input-bg: #0b1322;
+  --input-border: #26364f;
+  --rank-value: #67e8f9;
+  --score-track: #16233a;
+  --elevated: #101a2c;
+}
+
+/*
+ * 어두운 바탕에서는 얇은 회색 테두리가 사라져 패널 경계가 뭉개진다. 위쪽에 아주 옅은
+ * 빛줄기를 하나 넣어 면이 서로 겹쳐 있다는 것만 알린다(그라디언트 장식이 아니라 경계선).
+ */
+html[data-theme="dark"] .copilot-topbar {
+  box-shadow: inset 0 -1px 0 var(--border-1), 0 1px 0 rgb(255 255 255 / 4%);
+}
+
+/* 강조는 자료에만. 선택된 것·활성 탭만 청록으로 물든다. */
+html[data-theme="dark"] .ui-status-live {
+  color: #67e8f9;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+html[data-theme="dark"] .ui-status-demo {
+  color: #fcd34d;
+  background: var(--accent-warm-soft);
+  border-color: rgb(251 191 36 / 40%);
 }
 
 html[data-theme="dark"] body,
@@ -1931,4 +1967,75 @@ a {
   .rank-row {
     break-inside: avoid;
   }
+}
+
+/*
+ * 어두운 지도 타일.
+ *
+ * 카카오 지도에는 다크 타일이 없다. 그래서 타일 이미지에만 필터를 건다 — 반전 뒤
+ * 색상환을 180도 돌리면 글씨·도로는 밝게, 바탕은 어둡게 남고 초록/파랑이 원래 자리로
+ * 돌아온다(그냥 반전만 하면 바다가 주황이 된다).
+ *
+ * ⚠️ 컨테이너 전체에 걸면 안 된다. 시설 핀·클러스터·카카오 로고까지 함께 뒤집혀
+ * 병원 핀이 보색으로 나온다. 타일은 `mts.daumcdn.net`에서만 오므로 그것만 겨눈다
+ * (실제 DOM에서 확인: 타일 20장은 mts, 핀 4장과 로고 1장은 다른 출처).
+ */
+html[data-theme="dark"] .copilot-map img[src*="mts.daumcdn.net"] {
+  filter: invert(1) hue-rotate(180deg) saturate(0.62) brightness(0.86) contrast(0.95);
+}
+
+/*
+ * 타일이 도착하기 전과 바다·경계 밖에 보이는 바닥색. Tailwind 클래스로 밝은 회색이
+ * 박혀 있어 어두운 화면에서 흰 판이 한 번 번쩍였다.
+ */
+html[data-theme="dark"] .copilot-map > div:first-child {
+  background: var(--surface-map) !important;
+}
+
+/* 지도 위에 떠 있는 카드들 — 범례·배지·독. 흰 판이 그대로 남아 있었다. */
+html[data-theme="dark"] .copilot-map .bg-white\/92,
+html[data-theme="dark"] .copilot-map .bg-white\/95,
+html[data-theme="dark"] .copilot-map .bg-white {
+  background: rgb(13 21 36 / 92%) !important;
+  border-color: var(--border-2) !important;
+  color: var(--text-2);
+}
+
+/*
+ * 지도 위에 떠 있는 것들의 다크 처리.
+ *
+ * Tailwind 클래스로 흰 배경이 직접 박혀 있어 어두운 화면에서 흰 판만 남고 글씨가
+ * 사라졌다(실측 스크린샷: 왼쪽 아래 「경상남도 전역」이 흰 글씨 위 흰 배경). 클래스
+ * 이름을 하나씩 덮는 대신, 지도 안의 떠 있는 카드를 통째로 잡는다.
+ */
+html[data-theme="dark"] .map-context-badge,
+html[data-theme="dark"] .map-float-dock > *,
+html[data-theme="dark"] .copilot-map [class*="bg-white"],
+html[data-theme="dark"] .copilot-map [class*="bg-slate-50"],
+html[data-theme="dark"] .copilot-map [class*="bg-slate-100"] {
+  background: rgb(13 21 36 / 93%) !important;
+  border-color: var(--border-2) !important;
+  color: var(--text-2) !important;
+}
+
+/*
+ * 카드 안의 글씨는 밝은 화면 기준(슬레이트 400~950)으로 적혀 있다. 어두운 배경에서는
+ * 진한 회색이 배경에 묻히고, 950은 거의 검정이라 아예 안 보인다. 밝은 쪽으로 돌린다.
+ */
+html[data-theme="dark"] .map-context-badge [class*="text-slate-9"],
+html[data-theme="dark"] .map-context-badge [class*="text-slate-8"],
+html[data-theme="dark"] .copilot-map [class*="text-slate-9"],
+html[data-theme="dark"] .copilot-map [class*="text-slate-8"],
+html[data-theme="dark"] .copilot-map [class*="text-slate-7"] {
+  color: var(--text-1) !important;
+}
+html[data-theme="dark"] .copilot-map [class*="text-slate-6"],
+html[data-theme="dark"] .copilot-map [class*="text-slate-5"],
+html[data-theme="dark"] .copilot-map [class*="text-slate-4"] {
+  color: var(--text-3) !important;
+}
+
+/* 지도 바닥(타일 도착 전·경계 밖). Tailwind로 밝은 회색이 박혀 있다. */
+html[data-theme="dark"] .copilot-map [class*="bg-[#dfe8ef]"] {
+  background: var(--surface-map) !important;
 }
