@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 // @ts-expect-error Native ESM scripts intentionally have no TypeScript declaration file.
-import { buildBoundaryMetadata, discoverLatestVersion, extractGyeongnam, validateBoundaryCollection } from "../../scripts/lib/boundary-core.mjs";
+import { COORDINATE_PRECISION, buildBoundaryMetadata, discoverLatestVersion, extractGyeongnam, roundCoordinatePrecision, validateBoundaryCollection } from "../../scripts/lib/boundary-core.mjs";
 
 type Position = [number, number];
 
@@ -379,5 +379,89 @@ describe("generated boundary artifact", () => {
     expect(
       collection.features.some((feature) => feature.properties.adm_cd2.startsWith("26")),
     ).toBe(false);
+  });
+});
+
+describe("roundCoordinatePrecision", () => {
+  const collection = {
+    type: "FeatureCollection",
+    name: "fixture",
+    features: [
+      {
+        type: "Feature",
+        properties: { adm_cd2: "4812125000" },
+        geometry: {
+          type: "MultiPolygon",
+          coordinates: [[[[128.24737365405181, 35.12846902841577], [128.24669430367634, 35.12725522697182], [128.24737365405181, 35.12846902841577]]]],
+        },
+      },
+      {
+        type: "Feature",
+        properties: { adm_cd2: "4812131000" },
+        geometry: {
+          type: "Polygon",
+          coordinates: [[[128.1234567890123, 35.9876543210987], [128.1000000000001, 35.5000000000009], [128.1234567890123, 35.9876543210987]]],
+        },
+      },
+    ],
+  };
+
+  test("좌표를 소수 6자리로 줄인다", () => {
+    /*
+     * 기대값에 COORDINATE_PRECISION을 쓰면 상수를 12로 바꿔도 검사가 통과한다 —
+     * 자기 자신을 재는 셈이다(결함 주입으로 확인). 자릿수는 숫자로 못 박고, 상수가
+     * 그 자릿수를 가리키는지는 따로 본다.
+     */
+    expect(COORDINATE_PRECISION).toBe(6);
+
+    const rounded = roundCoordinatePrecision(collection) as typeof collection;
+
+    const decimals = (value: number) => String(value).split(".")[1]?.length ?? 0;
+    const flat: number[] = [];
+    const walk = (node: unknown): void => {
+      if (typeof (node as number[])[0] === "number") {
+        flat.push(...(node as number[]));
+        return;
+      }
+      for (const child of node as unknown[]) walk(child);
+    };
+    for (const feature of rounded.features) walk(feature.geometry.coordinates);
+
+    expect(flat.length).toBeGreaterThan(0);
+    expect(Math.max(...flat.map(decimals))).toBeLessThanOrEqual(6);
+  });
+
+  test("점 개수와 중첩 깊이는 그대로 둔다 — 링이 무너지면 면이 사라진다", () => {
+    const rounded = roundCoordinatePrecision(collection) as typeof collection;
+    const shape = (node: unknown): string =>
+      typeof (node as number[])[0] === "number"
+        ? "p"
+        : `[${(node as unknown[]).map(shape).join(",")}]`;
+
+    for (const [index, feature] of rounded.features.entries()) {
+      expect(shape(feature.geometry.coordinates)).toBe(
+        shape(collection.features[index].geometry.coordinates),
+      );
+    }
+  });
+
+  test("속성과 컬렉션 메타는 건드리지 않는다", () => {
+    const rounded = roundCoordinatePrecision(collection) as typeof collection;
+    expect(rounded.name).toBe("fixture");
+    expect(rounded.features.map((f) => f.properties.adm_cd2)).toEqual(["4812125000", "4812131000"]);
+    expect(rounded.features.map((f) => f.geometry.type)).toEqual(["MultiPolygon", "Polygon"]);
+  });
+
+  test("배포되는 경계 파일이 실제로 줄여져 있다", async () => {
+    const raw = await readFile(
+      path.join(process.cwd(), "public", "data", "administrative-dong-20260701.geojson"),
+      "utf8",
+    );
+
+    /*
+     * 파일을 파싱하면 자릿수 정보가 사라진다(0.1 + 0.2 처럼 되돌아오는 값이 있다).
+     * 원문에서 소수 7자리 이상인 좌표가 남아 있는지 직접 센다.
+     */
+    expect(raw.match(/-?\d+\.\d{7,}/g)).toBeNull();
   });
 });

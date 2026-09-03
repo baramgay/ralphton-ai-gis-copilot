@@ -78,6 +78,41 @@ export function discoverLatestVersion(entries) {
   return latestVersion;
 }
 
+/**
+ * 좌표에 남길 소수 자릿수. 6자리는 이 위도에서 약 11cm다.
+ *
+ * 원본은 14자리까지 싣고 있었다 — 나노미터 단위다. 행정동 경계를 그리는 데 쓸 수 없는
+ * 정밀도인데 파일 크기는 그만큼 실제로 늘어난다(원본 3.6MB / br 760KB → 6자리 2.1MB /
+ * br 328KB). 원본은 `data/source/`에 그대로 두고, 브라우저가 받는 파생본만 줄인다.
+ */
+export const COORDINATE_PRECISION = 6;
+
+/**
+ * 좌표를 소수 `precision`자리로 줄인 FeatureCollection을 돌려준다.
+ *
+ * 좌표 배열의 중첩 깊이는 Point·LineString·Polygon·MultiPolygon마다 다르므로 깊이를
+ * 가정하지 않고 숫자 쌍을 만날 때까지 내려간다.
+ */
+export function roundCoordinatePrecision(featureCollection, precision = COORDINATE_PRECISION) {
+  const round = (value) => Number(value.toFixed(precision));
+
+  const walk = (node) => {
+    if (typeof node[0] === "number") return [round(node[0]), round(node[1])];
+    return node.map(walk);
+  };
+
+  return {
+    ...featureCollection,
+    features: featureCollection.features.map((feature) => ({
+      ...feature,
+      geometry: {
+        ...feature.geometry,
+        coordinates: walk(feature.geometry.coordinates),
+      },
+    })),
+  };
+}
+
 /** Gyeongnam administrative dongs (adm_cd2 prefix "48"). */
 export function extractGyeongnam(featureCollection) {
   if (

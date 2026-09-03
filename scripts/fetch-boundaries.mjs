@@ -7,6 +7,7 @@ import {
   buildBoundaryMetadata,
   discoverLatestVersion,
   extractGyeongnam,
+  roundCoordinatePrecision,
   validateBoundaryCollection,
 } from "./lib/boundary-core.mjs";
 
@@ -137,8 +138,14 @@ async function main() {
   const regionCollection = extractGyeongnam(sourceCollection);
   const summary = validateBoundaryCollection(regionCollection);
 
+  /*
+   * 검증은 원본 좌표로 하고, 브라우저에 내보내는 파생본만 정밀도를 줄인다. 원본은
+   * `data/source/`에 그대로 남으므로 되돌릴 것이 있으면 거기서 다시 만든다.
+   */
+  const publicCollection = roundCoordinatePrecision(regionCollection);
+
   // A newline-free JSON byte stream is stable across Git checkouts on every OS.
-  const publicBytes = new TextEncoder().encode(JSON.stringify(regionCollection));
+  const publicBytes = new TextEncoder().encode(JSON.stringify(publicCollection));
   const metadata = buildBoundaryMetadata(publicBytes, {
     version,
     sourceUrl: sourceEntry.download_url,
