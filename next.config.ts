@@ -93,6 +93,20 @@ const dataCacheHeaders = [
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
+  /*
+   * 스타일시트를 HTML에 실어 보낸다.
+   *
+   * 첫 픽셀을 막는 것은 이제 자바스크립트가 아니라 CSS다(실측: TTFB 50ms → HTML 148ms →
+   * CSS 152~260ms → 첫 픽셀 312ms). 앱 셸은 이미 SSR HTML에 들어 있는데, 그것을 칠할
+   * 스타일을 받으러 한 번 더 다녀오느라 100ms 넘게 흰 화면이었다.
+   *
+   * 대가는 있다. 스타일시트는 파일명에 해시가 들어가 영구 캐시되지만, HTML은 매번 새로
+   * 받는다(`max-age=0, must-revalidate`). 즉 재방문자는 15KB(br)를 다시 받는다. 이 도구는
+   * 링크로 처음 열어 보는 사람이 대부분이라 왕복 한 번을 없애는 쪽이 낫다고 판단했다.
+   */
+  experimental: {
+    inlineCss: true,
+  },
   async headers() {
     return [
       {
