@@ -47,3 +47,13 @@ export function dataModeTitle(mode: string, sourceNotes: readonly string[]): str
     ? "데이터: 실데이터"
     : "데이터: 시설만 실데이터 · 인구·세대는 기준 스냅샷(합성값)";
 }
+
+/**
+ * 제공기관을 출처 문구로. 「SKT 민간데이터」와 「KOSIS 국가통계」는 성격이 다르므로
+ * 한 낱말로 뭉뚱그리면 안 된다 — 공공기관 보고서에 그대로 인용되는 문장이다.
+ */
+export function providerSourceLabel(provider: string): string {
+  if (provider === "KOSIS") return "KOSIS 국가통계";
+  if (provider === "공공") return "공공데이터";
+  return `${provider} 민간데이터`;
+}

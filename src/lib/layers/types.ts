@@ -27,7 +27,7 @@ export type MetricDef = z.infer<typeof MetricDefSchema>;
 export const LayerDescriptorSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
-  provider: z.enum(["공공", "SKT", "NH", "KCB"]),
+  provider: z.enum(["공공", "SKT", "NH", "KCB", "KOSIS"]),
   kind: LayerKindSchema,
   coverage: z.literal("gyeongnam"),
   adminLevels: z.array(AdminLevelSchema).min(1),

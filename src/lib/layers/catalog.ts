@@ -1,5 +1,7 @@
 import type { LayerDescriptor } from "@/lib/layers/types";
 
+import { KOSIS_LAYERS } from "./kosis-catalog";
+
 export const POPULATION_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "population",
   label: "인구",
@@ -249,10 +251,26 @@ export const CUBE_LAYERS = [
   KCB_MIGRATION_LAYER,
   KCB_COMMUTE_LAYER,
   KCB_GRID_LAYER,
+  ...KOSIS_LAYERS,
 ] as const;
 
-/** 자연어로 직접 전환 가능한 민간 제공기관 레이어(공공 인구 제외). */
-export const PRIVATE_LAYERS = CUBE_LAYERS.filter((layer) => layer.provider !== "공공");
+/**
+ * 민간 제공기관(SKT·NH·KCB) 레이어. 「민간데이터 종합」 패널이 이 집합을 쓴다 —
+ * KOSIS는 국가통계라 여기 들어오면 그 패널의 제목이 거짓말이 된다.
+ */
+export const PRIVATE_LAYERS = CUBE_LAYERS.filter(
+  (layer) => layer.provider !== "공공" && layer.provider !== "KOSIS",
+);
+
+/**
+ * 자연어로 직접 전환 가능한 레이어 전부.
+ *
+ * 예전에는 이 자리에 `PRIVATE_LAYERS`가 그대로 쓰였다. 그때는 자연어로 갈 수 있는 것이
+ * 민간 레이어뿐이라 두 뜻이 우연히 같았을 뿐이다. KOSIS가 들어오면서 갈라진다 —
+ * 「화재 많은 시군」은 자연어로 닿아야 하지만 민간데이터는 아니다.
+ * 공공 인구(population)는 도구 레지스트리 쪽 경로라 여기서 뺀다.
+ */
+export const NL_LAYERS = CUBE_LAYERS.filter((layer) => layer.provider !== "공공");
 
 /**
  * 교차분석 후보. 큐브 레이어에 의료취약지수를 더한다.

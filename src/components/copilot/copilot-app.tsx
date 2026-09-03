@@ -16,7 +16,7 @@ import {
   rankedToCsv,
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
-import { dataModeLabel, dataModeTitle, populationIsLive } from "@/lib/analysis/data-mode";
+import { dataModeLabel, dataModeTitle, populationIsLive, providerSourceLabel } from "@/lib/analysis/data-mode";
 import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
 import { buildRegionProfile } from "@/lib/layers/region-profile";
 import { buildMarkdownReport } from "@/lib/analysis/export-report";
@@ -74,6 +74,7 @@ import { TrendChart } from "./trend-chart";
 import type { AnalysisSnapshot, BoundaryCollection, Facility, RegionSeries } from "./types";
 import {
   CUBE_LAYERS,
+  NL_LAYERS,
   PRIVATE_LAYERS,
   KCB_COMMUTE_LAYER,
   KCB_CREDIT_LAYER,
@@ -151,21 +152,11 @@ type RankedRegion = {
   metrics: MetricDescriptor[];
 };
 
-type LayerId =
-  | "kcb-grid-500m"
-  | "population"
-  | "skt-living"
-  | "skt-mobility"
-  | "skt-daynight"
-  | "nh-consumption"
-  | "nh-demographics"
-  | "nh-hourly"
-  | "nh-industry"
-  | "nh-storetype"
-  | "kcb-credit"
-  | "kcb-migration"
-  | "kcb-commute"
-  | "medical";
+/*
+ * 레이어 id는 카탈로그에서 뽑는다. 손으로 적은 합집합은 레이어를 붙일 때마다 어긋나고,
+ * 어긋나면 타입이 아니라 화면이 조용히 빈다 — 지표 목록에서 이미 겪은 함정이다.
+ */
+type LayerId = (typeof CROSS_CANDIDATE_LAYERS)[number]["id"];
 
 type CubeLayerId = Exclude<LayerId, "medical">;
 type RemoteCubeLayerId = Exclude<CubeLayerId, "population">;
@@ -240,42 +231,21 @@ const CUBE_LAYER_METRICS: Record<string, MetricDef[]> = Object.fromEntries(
   CROSS_CANDIDATE_LAYERS.map((layer) => [layer.id, [...layer.metrics]]),
 );
 
-const LAYER_PROVIDERS: Record<LayerId, string> = {
-  population: POPULATION_LAYER.provider,
-  "skt-living": SKT_LIVING_LAYER.provider,
-  "skt-mobility": SKT_MOBILITY_LAYER.provider,
-  "skt-daynight": SKT_DAYNIGHT_LAYER.provider,
-  "nh-consumption": NH_CONSUMPTION_LAYER.provider,
-  "nh-demographics": NH_DEMOGRAPHICS_LAYER.provider,
-  "nh-hourly": NH_HOURLY_LAYER.provider,
-  "nh-industry": NH_INDUSTRY_LAYER.provider,
-  "nh-storetype": NH_STORETYPE_LAYER.provider,
-  "kcb-credit": KCB_CREDIT_LAYER.provider,
-  "kcb-migration": KCB_MIGRATION_LAYER.provider,
-  "kcb-commute": KCB_COMMUTE_LAYER.provider,
-  "kcb-grid-500m": KCB_GRID_LAYER.provider,
-  medical: MEDICAL_LAYER.provider,
-};
+const LAYER_PROVIDERS: Record<string, string> = Object.fromEntries(
+  CROSS_CANDIDATE_LAYERS.map((layer) => [layer.id, layer.provider]),
+);
 
 /**
  * Remote choropleth cubes fetched from static JSON. Adding a row here (plus a catalog
  * LayerDescriptor + CUBE_LAYER_METRICS entry) is all a new private layer needs — the
  * fetch, active-cube lookup, and loading state are all driven off this list.
  */
-const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: string }> = [
-  { id: "skt-living", url: "/data/layers/skt-living.json", label: SKT_LIVING_LAYER.label },
-  { id: "skt-mobility", url: "/data/layers/skt-mobility.json", label: SKT_MOBILITY_LAYER.label },
-  { id: "skt-daynight", url: "/data/layers/skt-daynight.json", label: SKT_DAYNIGHT_LAYER.label },
-  { id: "nh-consumption", url: "/data/layers/nh-consumption.json", label: NH_CONSUMPTION_LAYER.label },
-  { id: "nh-demographics", url: "/data/layers/nh-demographics.json", label: NH_DEMOGRAPHICS_LAYER.label },
-  { id: "nh-hourly", url: "/data/layers/nh-hourly.json", label: NH_HOURLY_LAYER.label },
-  { id: "nh-industry", url: "/data/layers/nh-industry.json", label: NH_INDUSTRY_LAYER.label },
-  { id: "nh-storetype", url: "/data/layers/nh-storetype.json", label: NH_STORETYPE_LAYER.label },
-  { id: "kcb-credit", url: "/data/layers/kcb-credit.json", label: KCB_CREDIT_LAYER.label },
-  { id: "kcb-migration", url: "/data/layers/kcb-migration.json", label: KCB_MIGRATION_LAYER.label },
-  { id: "kcb-commute", url: "/data/layers/kcb-commute.json", label: KCB_COMMUTE_LAYER.label },
-  { id: "kcb-grid-500m", url: "/data/layers/kcb-grid-500m.json", label: KCB_GRID_LAYER.label },
-];
+const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: string }> =
+  CUBE_LAYERS.filter((layer) => layer.id !== "population").map((layer) => ({
+    id: layer.id as RemoteCubeLayerId,
+    url: `/data/layers/${layer.id}.json`,
+    label: layer.label,
+  }));
 
 /**
  * Private-provider layers (SKT/NH/KCB) that natural language may switch to directly.
@@ -283,7 +253,7 @@ const REMOTE_CUBE_LAYERS: Array<{ id: RemoteCubeLayerId; url: string; label: str
  * here — this is what lets "생활인구 많은 동"/"카드매출 높은 곳"/"평균소득 높은 동" reach the
  * private layers instead of being swallowed by the public 인구 ranking.
  */
-const PRIVATE_NL_LAYERS = PRIVATE_LAYERS;
+const PRIVATE_NL_LAYERS = NL_LAYERS;
 
 /**
  * One-click 교차분석 presets. Each `query` goes through the same resolver the NL path
@@ -1559,7 +1529,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       adminLevelSourceRef.current = "query";
       setQueryNotice(
-        `${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${match.provider} 민간데이터).`,
+        `${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${providerSourceLabel(match.provider)}).`,
       );
       setQueryNoticeTone("success");
     }
@@ -1652,7 +1622,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (!region) return null;
     const cubes: Record<string, LayerCube | null> = { population: populationCube };
     for (const layer of REMOTE_CUBE_LAYERS) cubes[layer.id] = remoteCubes[layer.id] ?? null;
-    return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_NL_LAYERS, cubes, trendMonths);
+    /*
+     * 이 패널의 제목은 「민간데이터 종합」이다. KOSIS(국가통계)까지 넣으면 제목이
+     * 거짓말이 되고, KOSIS 지표는 시군구 값이라 읍면동 프로파일에 그대로 얹으면
+     * 「이 동의 값」으로 읽힌다. 민간 레이어만 쓴다.
+     */
+    return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_LAYERS, cubes, trendMonths);
   }, [populationCube, remoteCubes, selectedRegionCode, snapshot, trendMonths]);
 
   /*
@@ -2936,7 +2911,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveTab("control");
       setParseStage("done");
       setQueryNotice(
-        `${prefix}${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${match.provider} 민간데이터, ${match.regionFilters.length ? `${match.regionFilters.join("·")} 안 ` : ""}${match.geometry === "grid" ? "500m 격자" : match.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${match.direction === "asc" ? " · 낮은 순" : ""}).`,
+        `${prefix}${match.layerLabel} · ${match.metricLabel} 레이어로 전환했습니다 (출처: ${providerSourceLabel(match.provider)}, ${match.regionFilters.length ? `${match.regionFilters.join("·")} 안 ` : ""}${match.geometry === "grid" ? "500m 격자" : match.adminLevel === "sgg" ? "시군구" : "행정동"} 단위${match.direction === "asc" ? " · 낮은 순" : ""}).`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
