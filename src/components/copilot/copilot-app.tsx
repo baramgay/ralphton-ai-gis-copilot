@@ -17,9 +17,10 @@ import {
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
 import { dataModeLabel, dataModeTitle, populationIsLive, providerSourceLabel } from "@/lib/analysis/data-mode";
+import { buildA4HtmlReport } from "@/lib/analysis/export-a4";
 import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
 import { buildRegionProfile } from "@/lib/layers/region-profile";
-import { buildMarkdownReport } from "@/lib/analysis/export-report";
+import { buildMarkdownReport, type ReportInput } from "@/lib/analysis/export-report";
 import { buildSlideHtml } from "@/lib/analysis/export-slide";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
@@ -2091,9 +2092,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 화면의 분석을 보고서용 개조식 마크다운으로 저장하고 클립보드에도 넣는다.
    * CSV는 원자료 첨부용이라 본문에 붙이기 어려워, 요약·표·산식·한계를 갖춘 문단을 만든다.
    */
-  const exportCurrentReport = useCallback(async () => {
-    if (!snapshot || !analysis || !exportProvenance) return;
-    const markdown = buildMarkdownReport({
+  /**
+   * 내보내기 네 갈래(마크다운·한글·A4·슬라이드)가 쓰는 보고서 재료를 한 자리에서 만든다.
+   *
+   * 갈래마다 따로 적고 있었다. 「답하지 못했습니다」경고나 모수(totalCount)처럼 **답의
+   * 정직성을 지키는 항목**이 한 갈래에만 들어가면, 그 갈래로 내보낸 사람만 단서를 못 본다.
+   * 하나로 모아 그럴 수 없게 한다.
+   */
+  const buildReportInput = useCallback((): ReportInput | null => {
+    if (!snapshot || !analysis || !exportProvenance) return null;
+    return {
       title: analysis.title,
       summary: oneLineConclusion ?? analysis.summary,
       referenceMonth: exportProvenance.referenceMonth,
@@ -2114,7 +2122,40 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       })),
       totalCount: exportTotal,
       exportedAt: new Date().toLocaleString("ko-KR"),
-    });
+    };
+  }, [
+    analysis,
+    answeredLastQuery,
+    exportProvenance,
+    exportRanked,
+    exportTotal,
+    oneLineConclusion,
+    snapshot,
+  ]);
+
+  /**
+   * A4로 인쇄되는 HTML 보고서.
+   *
+   * 한글 붙여넣기용과 목적이 다르다 — 이쪽은 열어서 그대로 인쇄하거나 PDF로 저장하는
+   * 완성본이다. 화면은 어두운 테마지만 인쇄본은 늘 흰 바탕이다(어두운 색을 그대로
+   * 인쇄하면 토너를 붓거나 흰 글씨가 흰 종이에 찍힌다).
+   */
+  const exportCurrentA4 = useCallback(() => {
+    const reportInput = buildReportInput();
+    if (!reportInput || !exportProvenance) return;
+    downloadTextFile(
+      `ralphton-a4-${exportProvenance.referenceMonth}.html`,
+      buildA4HtmlReport(reportInput),
+      "text/html;charset=utf-8",
+    );
+    showToast("A4 보고서 저장 — 열어서 인쇄·PDF 저장");
+  }, [buildReportInput, exportProvenance, showToast]);
+
+  const exportCurrentReport = useCallback(async () => {
+    if (!snapshot || !analysis || !exportProvenance) return;
+    const reportInput = buildReportInput();
+    if (!reportInput) return;
+    const markdown = buildMarkdownReport(reportInput);
 
     downloadTextFile(
       `ralphton-report-${exportProvenance.referenceMonth}.md`,
@@ -2145,28 +2186,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const exportCurrentHwp = useCallback(async () => {
     if (!snapshot || !analysis || !exportProvenance) return;
-    const reportInput = {
-      title: analysis.title,
-      summary: oneLineConclusion ?? analysis.summary,
-      referenceMonth: exportProvenance.referenceMonth,
-      source: exportProvenance.source,
-      mode: snapshot.mode,
-      formulaNotes: answeredLastQuery
-        ? analysis.formulaNotes
-        : [
-            "⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다.",
-            ...analysis.formulaNotes,
-          ],
-      rows: exportRanked.map((row, index) => ({
-        rank: index + 1,
-        code: row.code,
-        name: row.name,
-        valueLabel: row.valueLabel,
-        note: row.note,
-      })),
-      totalCount: exportTotal,
-      exportedAt: new Date().toLocaleString("ko-KR"),
-    };
+    const reportInput = buildReportInput();
+    if (!reportInput) return;
     const html = buildHwpHtmlReport(reportInput);
     downloadTextFile(
       `ralphton-report-${exportProvenance.referenceMonth}.doc`,
@@ -4642,6 +4663,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               onClick={() => void exportCurrentHwp()}
             >
               한글
+            </button>
+            <button
+              type="button"
+              data-testid="export-a4"
+              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
+              onClick={exportCurrentA4}
+              title="A4로 인쇄되거나 PDF로 저장되는 보고서 파일"
+            >
+              A4
             </button>
             <button
               type="button"
