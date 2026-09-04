@@ -31,6 +31,23 @@ function loadDemoSnapshot(): Promise<DemoSnapshot> {
   return demoSnapshotPromise;
 }
 
+/*
+ * s-maxage가 없으면 Vercel CDN은 60초마다 만료시키고, 그 순간 들어온 방문자가
+ * 함수 콜드스타트를 그대로 기다린다(prod에서 11.5초 관측). CDN은 5분간 신선하게 주고,
+ * 그 뒤에는 낡은 응답을 즉시 주면서 뒤에서 갱신하게 한다. 스냅샷은 월 단위로 바뀌므로
+ * 이 정도 지연은 감수할 만하다.
+ *
+ * ⚠️ `max-age`는 **`s-maxage`보다 커야 한다.**
+ *
+ * Vercel은 클라이언트에게 `s-maxage`·`stale-while-revalidate`를 지우고 `max-age`만
+ * 남겨 보내면서, CDN에 머문 시간을 `Age`에 실어 준다. `max-age=60`이면 CDN에 60초만
+ * 있어도 브라우저에는 **도착하는 순간 이미 만료된 응답**이 된다(실측: `Age: 67`).
+ * 그러면 `<link rel="preload">`로 미리 받아 둔 것을 곧이어 부르는 `fetch()`가 쓰지
+ * 못하고 313KB를 **한 번 더** 내려받는다 — 미리 받는 이유가 사라진다.
+ * 경계 파일이 멀쩡했던 것은 `immutable`이라 늘 신선해서였다.
+ */
+export const SNAPSHOT_CACHE_CONTROL = 'public, max-age=600, s-maxage=300, stale-while-revalidate=3600';
+
 function snapshotResponse(
   snapshot: { mode?: string; referenceMonth?: string; facilities?: unknown[]; regions?: unknown[] },
   source: 'supabase-cache' | 'demo' | 'demo-fallback',
@@ -38,11 +55,7 @@ function snapshotResponse(
 ) {
   return NextResponse.json(snapshot, {
     headers: {
-      // s-maxage가 없으면 Vercel CDN은 60초마다 만료시키고, 그 순간 들어온 방문자가
-      // 함수 콜드스타트를 그대로 기다린다(prod에서 11.5초 관측). CDN은 5분간 신선하게 주고,
-      // 그 뒤에는 낡은 응답을 즉시 주면서 뒤에서 갱신하게 한다. 스냅샷은 월 단위로 바뀌므로
-      // 이 정도 지연은 감수할 만하다.
-      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600',
+      'Cache-Control': SNAPSHOT_CACHE_CONTROL,
       'X-Data-Source': source,
       'X-Snapshot-Mode': String(snapshot.mode ?? ''),
       'X-Reference-Month': String(snapshot.referenceMonth ?? ''),
