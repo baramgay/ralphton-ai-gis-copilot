@@ -24,6 +24,48 @@ export type RetrieveOptions = {
   vectorWeight?: number;
 };
 
+/**
+ * 질의 쪽 동의어 확장.
+ *
+ * 사람은 지표 이름으로 묻지 않는다 — 「어르신」이라 하고 코퍼스에는 「노인」이 있다.
+ * 카탈로그 트리거를 건드리지 않고 **질의만** 넓히는 이유는, 트리거가 자연어 라우팅의
+ * 정본이라 손대면 8라운드에 걸쳐 회귀로 잠근 판정이 함께 흔들리기 때문이다. 검색은
+ * 틀려도 후보가 하나 더 붙을 뿐이지만 라우팅이 틀리면 다른 답을 자신 있게 낸다.
+ *
+ * 원문을 지우지 않고 **덧붙인다.** 「어르신」이 실제로 실린 문서가 있을 수도 있다.
+ */
+const QUERY_SYNONYMS: Array<[RegExp, string]> = [
+  [/어르신|노인분|고령자/, "노인 고령"],
+  [/지자체|기초단체|시군/, "시군구"],
+  [/애기|아기|영유아|유아/, "보육 어린이집"],
+  [/불이 |화재/, "화재 소방"],
+  [/빚|대출/, "대출 부채"],
+  [/장사|상권|매출/, "카드매출 소비"],
+  [/집값|주택가격/, "주택 매매"],
+  [/빈 집|빈집|공가/, "빈집 미거주"],
+  [/재정|살림/, "재정자립도 재정자주도"],
+  [/차량|자동차|차를/, "자동차 등록"],
+  [/쓰레기|폐기물/, "생활폐기물 배출"],
+  [/학원|사교육/, "사설학원 교육"],
+  /*
+   * 「의사·병원·진료」는 넓히지 않는다.
+   *
+   * 넓혔더니 「병원이 부족한 동 어디야」가 공공 의료취약지수 도구(tool-scarcity)를 3위
+   * 밖으로 밀어냈다 — 그 질의의 정답이 바로 그 도구다. 코퍼스에 이미 그 낱말들이 실려
+   * 있어 넓힐 이유도 없었다. 되던 것을 막는 것이 원래 결함보다 나쁘다.
+   */
+  [/일자리|직장|출퇴근|통근/, "통근 일자리"],
+  [/취약|부족|모자란|열악/, "취약 부족"],
+];
+
+export function expandSynonyms(query: string): string {
+  const extras: string[] = [];
+  for (const [pattern, addition] of QUERY_SYNONYMS) {
+    if (pattern.test(query)) extras.push(addition);
+  }
+  return extras.length > 0 ? `${query} ${extras.join(" ")}` : query;
+}
+
 /** Precompute document frequencies once per corpus instance. */
 function buildIdf(corpus: RagChunk[]): Map<string, number> {
   const df = new Map<string, number>();
@@ -89,7 +131,7 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
   const limit = options.limit ?? 4;
   const corpus = options.corpus ?? RAG_CORPUS;
   const idf = corpus === RAG_CORPUS ? DEFAULT_IDF : buildIdf(corpus);
-  const queryTokens = tokenize(options.query);
+  const queryTokens = tokenize(expandSynonyms(options.query));
   const boostTags = new Set(options.boostTags ?? []);
   const queryLower = options.query.toLowerCase();
   const lw = options.lexicalWeight ?? 0.55;
@@ -145,12 +187,26 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
   const vecNorm = normalizeScores(raw.map((row) => row.vector));
 
   const hits: RagHit[] = raw.map((row, index) => {
-    const score = lw * lexNorm[index] + vw * vecNorm[index];
+    /*
+     * 지표 청크가 레이어 청크보다 앞선다.
+     *
+     * 레이어 청크는 그 레이어의 지표 이름을 **전부** 싣고 있어서 어느 질의에나 조금씩
+     * 걸린다. 그 넓이가 좁고 정확한 지표 청크를 이기면, 모델이 받는 첫 문서가 「안전
+     * 레이어에는 지표가 4종 있다」가 되어 정작 어느 지표인지 못 고른다(실측: 「교통사고가
+     * 잦은 시군」·「의사가 모자란 시군」이 둘 다 레이어 청크를 1위로 받았다).
+     *
+     * 레이어 청크를 지우지 않는 이유는 "이 레이어에 무엇이 있나"를 묻는 질의에는
+     * 그쪽이 맞는 답이기 때문이다. 순서만 뒤로 민다.
+     */
+    const isLayerChunk = row.chunk.tags.includes("layer");
+    const specificity = isLayerChunk ? 0.65 : 1;
+    /* 0.8로는 「교통사고가 잦은 시군」에서 레이어가 여전히 이겼다(기전 검사가 잡았다). */
+    const score = (lw * lexNorm[index] + vw * vecNorm[index]) * specificity;
     // Preserve absolute signal: zero both → drop
     const dead = row.lexical <= 0 && row.vector < 0.08;
     return {
       chunk: row.chunk,
-      score: dead ? 0 : score + row.lexical * 0.02,
+      score: dead ? 0 : score + row.lexical * 0.02 * specificity,
       reasons: row.reasons,
       lexicalScore: row.lexical,
       vectorScore: row.vector,

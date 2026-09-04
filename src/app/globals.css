@@ -2039,3 +2039,55 @@ html[data-theme="dark"] .copilot-map [class*="text-slate-4"] {
 html[data-theme="dark"] .copilot-map [class*="bg-[#dfe8ef]"] {
   background: var(--surface-map) !important;
 }
+
+/*
+ * 질의창과 안내 배너의 다크 처리.
+ *
+ * 지도 위에 떠 있는 것이라 밝은 화면 기준으로 흰 판·파스텔 배경이 박혀 있었다. 어두운
+ * 지도 위에서 이 둘만 하얗게 떠 배포본 스크린샷에서 화면을 갈라 놓았다. 주기능이
+ * 들어가는 자리이므로 색이 튀면 안 된다 — 바탕에 앉히고 테두리로만 구분한다.
+ */
+html[data-theme="dark"] .query-hero-input {
+  border-color: var(--border-2);
+  background: rgb(11 19 34 / 94%);
+  color: var(--text-1);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 45%);
+}
+html[data-theme="dark"] .query-hero-input::placeholder {
+  color: var(--text-4);
+}
+html[data-theme="dark"] .query-hero-input:focus {
+  border-color: var(--accent);
+}
+
+/*
+ * 배너 색은 **뜻**을 나른다. 파스텔을 그냥 어둡게 누르면 성공과 경고가 같아 보이므로,
+ * 색조는 지키고 채도만 낮춘다(성공=청록, 경고=앰버, 오류=붉음, 중립=바탕).
+ */
+html[data-theme="dark"] .query-hero-notice.is-neutral {
+  background: rgb(16 26 44 / 95%);
+  color: var(--text-2);
+}
+html[data-theme="dark"] .query-hero-notice.is-success {
+  background: rgb(8 51 68 / 95%);
+  color: #7dd3fc;
+}
+html[data-theme="dark"] .query-hero-notice.is-error {
+  background: rgb(69 10 10 / 95%);
+  color: #fca5a5;
+}
+html[data-theme="dark"] .query-hero-notice.is-warn {
+  background: rgb(69 45 6 / 95%);
+  color: #fcd34d;
+}
+
+/* 예시 칩도 흰 판이었다. */
+html[data-theme="dark"] .query-hero-chip {
+  border-color: var(--border-2);
+  background: rgb(16 26 44 / 92%);
+  color: var(--text-2);
+}
+html[data-theme="dark"] .query-hero-chip:hover {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
