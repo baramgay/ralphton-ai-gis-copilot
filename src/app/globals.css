@@ -57,6 +57,14 @@ html[data-density="compact"] .quick-tile {
   --text-4: #94a3b8;
   --accent: #2563eb;
   --accent-soft: #eff6ff;
+  /*
+   * 밝은 쪽 기본값이 없으면 이 셋을 쓰는 규칙은 라이트 테마에서 **조용히 무시된다** —
+   * 빌드도 초록이고 콘솔도 조용한데 테두리·배경만 사라진다. 어두운 쪽에만 있던 것을
+   * 여기로 끌어올린다.
+   */
+  --accent-line: rgb(37 99 235 / 35%);
+  --accent-warm: #b45309;
+  --accent-warm-soft: rgb(180 83 9 / 8%);
   --shadow-panel: 8px 0 24px rgb(15 23 42 / 5%);
   --input-bg: #ffffff;
   --input-border: #e2e8f0;
@@ -2090,4 +2098,177 @@ html[data-theme="dark"] .query-hero-chip {
 html[data-theme="dark"] .query-hero-chip:hover {
   border-color: var(--accent-line);
   color: var(--accent);
+}
+
+
+/*
+ * 아래쪽 떠 있는 버튼 줄은 화면 절반만 쓰고 있었다.
+ *
+ * `left: 50%` + `translateX(-50%)`로 가운데를 잡으면 요소가 쓸 수 있는 폭이 **화면의
+ * 절반**으로 줄어든다(393px 화면에서 196.5px). 버튼이 둘일 때는 마침 들어맞아 아무도
+ * 몰랐는데, 셋이 되자 줄이 접히면서 바가 위로 47px 자라 첫 방문 안내 카드 밑으로
+ * 들어갔다 — 카드를 닫기 전에는 「조작」이 눌리지 않았다(Pixel 5 실측).
+ *
+ * 가운데 정렬은 이미 `items-center`가 하고 있다. 좁은 화면에서는 폭을 화면 전체로
+ * 돌려주기만 하면 된다.
+ */
+@media (width <= 767px) {
+  .map-float-dock {
+    left: 0 !important;
+    right: 0;
+    /*
+     * `translate`이지 `transform`이 아니다. Tailwind v4의 `-translate-x-1/2`는 별도
+     * CSS 속성 `translate`에 값을 넣으므로 `transform: none`으로는 지워지지 않는다 —
+     * 그렇게 껐더니 바가 화면 절반만큼 왼쪽으로 나가 조작·결과가 화면 밖으로 사라졌다
+     * (실측 x = -196.5). 껐다고 믿은 것이 실은 켜져 있었다.
+     */
+    translate: none !important;
+  }
+}
+
+/* ─── 지점 분석 카드 ─── */
+/*
+ * 지도 위에 뜨는 카드는 토큰으로만 칠한다. 흰색을 직접 박으면 어두운 화면에서 흰 판만
+ * 남아 글씨가 사라진다(실측). 그 사고를 한 번 겪고 나서 `.copilot-map [class*="bg-white"]`
+ * 같은 덮개 규칙이 생겼는데, 처음부터 토큰을 쓰면 덮개가 필요 없다.
+ */
+.probe-card {
+  position: absolute;
+  z-index: 12;
+  top: 4.5rem;
+  right: 1rem;
+  width: min(19rem, calc(100% - 2rem));
+  max-height: min(26rem, calc(100% - 12rem));
+  overflow-y: auto;
+  border: 1px solid var(--border-1);
+  border-left: 3px solid var(--accent-warm);
+  border-radius: 1rem;
+  background: var(--surface-1);
+  color: var(--text-2);
+  padding: 0.8rem 0.9rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(12px);
+}
+
+.probe-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.probe-close {
+  flex-shrink: 0;
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-3);
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.probe-close:hover {
+  color: var(--text-1);
+  border-color: var(--accent-line);
+}
+
+.probe-radius {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.6rem 0;
+}
+.probe-radius button {
+  flex: 1;
+  border-radius: 0.55rem;
+  padding: 0.3rem 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border-2);
+}
+.probe-radius-on {
+  background: var(--accent-warm-soft);
+  border-color: var(--accent-warm) !important;
+  color: var(--accent-warm);
+}
+.probe-radius-off {
+  background: transparent;
+  color: var(--text-3);
+}
+
+.probe-section {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.probe-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.3rem 0;
+}
+.probe-chip {
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-2);
+  background: var(--surface-3);
+}
+
+.probe-regions {
+  margin-top: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.probe-regions li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--text-2);
+}
+.probe-region-distance {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+
+.probe-notes {
+  margin-top: 0.55rem;
+}
+
+.probe-hint {
+  position: absolute;
+  z-index: 12;
+  top: 4.5rem;
+  right: 1rem;
+  max-width: min(19rem, calc(100% - 2rem));
+  border: 1px solid var(--accent-warm);
+  border-radius: 0.9rem;
+  background: var(--surface-1);
+  color: var(--text-2);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+}
+
+@media (width <= 767px) {
+  .probe-card,
+  .probe-hint {
+    top: auto;
+    bottom: 6.5rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+    max-height: 45vh;
+  }
 }

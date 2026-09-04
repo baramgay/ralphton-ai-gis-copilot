@@ -29,7 +29,7 @@ function toRadians(degrees: number): number {
   return ((degrees % 360) * Math.PI) / 180;
 }
 
-function distanceInKilometers(origin: GeoPoint, destination: GeoPoint): number {
+export function distanceInKilometers(origin: GeoPoint, destination: GeoPoint): number {
   const dLat = toRadians(destination.lat - origin.lat);
   const dLon = toRadians(destination.lng - origin.lng);
   const lat1 = toRadians(origin.lat);

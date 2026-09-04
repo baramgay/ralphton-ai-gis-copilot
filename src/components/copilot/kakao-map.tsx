@@ -49,6 +49,18 @@ type KakaoMapProps = {
   followSelection?: boolean;
   /** 반경 원을 그릴지. 2km 반경은 의료 접근성 분석에서만 뜻이 있다. */
   showRadius?: boolean;
+  /**
+   * 지점 찍기 모드.
+   *
+   * 켜져 있는 동안 지도 클릭은 **면 선택이 아니라 지점 찍기**다. 둘을 함께 살려 두면
+   * 클릭 한 번에 지역이 바뀌고 지점도 찍혀, 무엇을 보고 있는지 알 수 없게 된다.
+   */
+  probeMode?: boolean;
+  /** 찍은 지점. 없으면 아무것도 그리지 않는다. */
+  probePoint?: { lat: number; lng: number } | null;
+  /** 찍은 지점의 반경(km). */
+  probeRadiusKm?: number;
+  onProbePoint?: (point: { lat: number; lng: number }) => void;
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
@@ -134,6 +146,10 @@ export function KakaoMap({
   showFacilities,
   followSelection = true,
   showRadius = true,
+  probeMode = false,
+  probePoint = null,
+  probeRadiusKm = 2,
+  onProbePoint,
   legendLabel = "상대 분석값",
   onSelectRegion,
   onSelectFacility,
@@ -173,9 +189,18 @@ export function KakaoMap({
    */
   const onErrorRef = useRef(onError);
   const onReadyRef = useRef(onReady);
+  /*
+   * 지점 찍기는 지도 클릭 하나에 붙는데, 그 리스너를 모드가 바뀔 때마다 떼었다 붙이면
+   * Kakao SDK에 removeListener가 필요해진다. 리스너는 한 번만 달고 최신 상태를 ref로
+   * 읽는다.
+   */
+  const probeModeRef = useRef(probeMode);
+  const onProbePointRef = useRef(onProbePoint);
   useEffect(() => {
     onErrorRef.current = onError;
     onReadyRef.current = onReady;
+    probeModeRef.current = probeMode;
+    onProbePointRef.current = onProbePoint;
   });
 
   useEffect(() => {
@@ -241,6 +266,25 @@ export function KakaoMap({
       if (retryTimer) window.clearTimeout(retryTimer);
     };
   }, [appKey]);
+
+  /*
+   * 지도 빈 곳 클릭 → 지점 찍기. 리스너는 지도가 생길 때 한 번만 단다.
+   *
+   * 면(폴리곤) 위를 클릭해도 Kakao는 지도 click을 함께 올린다. 그래서 면 쪽 핸들러에서
+   * 모드가 켜져 있으면 지역 선택을 하지 않도록 막아 둔다 — 안 그러면 지점을 찍을 때마다
+   * 지역 선택이 같이 바뀐다.
+   */
+  useEffect(() => {
+    if (!context) return;
+    const { maps, map } = context;
+    maps.event.addListener(map, "click", (...args: unknown[]) => {
+      if (!probeModeRef.current) return;
+      const event = args[0] as { latLng?: { getLat(): number; getLng(): number } } | undefined;
+      const latLng = event?.latLng;
+      if (!latLng) return;
+      onProbePointRef.current?.({ lat: latLng.getLat(), lng: latLng.getLng() });
+    });
+  }, [context]);
 
   useEffect(() => {
     if (!context || !containerRef.current) return;
@@ -318,7 +362,12 @@ export function KakaoMap({
           fillOpacity: isDimmed ? 0.28 : isSelected ? 0.82 : 0.72,
         });
         polygon.setMap(map);
-        maps.event.addListener(polygon, "click", () => onSelectRegion(code));
+        maps.event.addListener(polygon, "click", () => {
+          // 지점 찍기 중에는 면을 눌러도 지역이 바뀌지 않는다. 클릭 하나가 두 가지를 하면
+          // 무엇을 보고 있는지 알 수 없다.
+          if (probeModeRef.current) return;
+          onSelectRegion(code);
+        });
         maps.event.addListener(polygon, "mouseover", () => {
           if (region) {
             showTooltip(
@@ -487,6 +536,36 @@ export function KakaoMap({
       liveMarkersRef.current.push(marker);
     }
 
+    /*
+     * 찍은 지점은 **앰버**로 그린다. 분석 반경(파랑)과 색이 같으면 화면에 원이 둘일 때
+     * 어느 것이 내가 찍은 것인지 알 수 없다.
+     */
+    if (probePoint) {
+      const center = new maps.LatLng(probePoint.lat, probePoint.lng);
+      const circle = new maps.Circle({
+        center,
+        radius: probeRadiusKm * 1000,
+        strokeWeight: 2,
+        strokeColor: "#f59e0b",
+        strokeOpacity: 0.95,
+        strokeStyle: "shortdash",
+        fillColor: "#fbbf24",
+        fillOpacity: 0.12,
+      });
+      circle.setMap(map);
+      overlaysRef.current.push(circle);
+      if (typeof maps.CustomOverlay === "function") {
+        const pin = document.createElement("div");
+        pin.setAttribute("data-testid", "probe-pin");
+        pin.style.cssText =
+          "width:14px;height:14px;border-radius:50%;background:#f59e0b;" +
+          "border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45);";
+        const overlay = new maps.CustomOverlay({ content: pin, position: center, zIndex: 12 });
+        overlay.setMap(map);
+        overlaysRef.current.push(overlay);
+      }
+    }
+
     map.relayout?.();
 
     return () => {
@@ -517,6 +596,8 @@ export function KakaoMap({
     showFacilities,
     followSelection,
     showRadius,
+    probePoint,
+    probeRadiusKm,
   ]);
 
   return (
@@ -529,6 +610,10 @@ export function KakaoMap({
       <div
         ref={containerRef}
         className="absolute inset-0 size-full"
+        // 십자선은 "지금 누르면 지점이 찍힌다"는 유일한 신호다. 모드 버튼만 눌린 채
+        // 커서가 그대로면 사용자는 지도를 눌러 보고서야 모드를 안다.
+        style={probeMode ? { cursor: "crosshair" } : undefined}
+        data-probe-mode={probeMode ? "on" : "off"}
         aria-label="Kakao 경남 행정동 분석 지도"
       />
       <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">

@@ -63,12 +63,14 @@ import {
 } from "@/lib/analysis/share-state";
 import { executeAnalysisIntent } from "@/lib/analysis/tool-registry";
 import { FACILITY_TYPE_COLORS } from "@/lib/gis/facility-style";
+import { probeRadius } from "@/lib/gis/point-probe";
 import { InterpretationCard } from "./interpretation-card";
 import type { LiveMapPlace } from "./kakao-map";
 import { AdminLevelToggle } from "./admin-level-toggle";
 import { AppTopbar } from "./app-topbar";
 import { LayerSwitcher, type LayerOption } from "./layer-switcher";
 import { MapCanvas } from "./map-canvas";
+import { PointProbeCard } from "./point-probe-card";
 import { PanelResizer } from "./panel-resizer";
 import { QueryHero } from "./query-hero";
 import { TrendChart } from "./trend-chart";
@@ -846,6 +848,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const [followSelection, setFollowSelection] = useState(false);
   const [radiusKm, setRadiusKm] = useState<1 | 2 | 3>(2);
+  /*
+   * 지점 분석. 지금까지 반경은 행정동 대표지점에만 걸렸는데, 현장에서 묻는 말은
+   * "이 동 중심에서"가 아니라 "여기서"다 — 후보 부지, 사고 지점, 민원이 들어온 골목.
+   * 분석 반경(radiusKm)과 따로 둔다. 하나를 돌리면 다른 하나가 조용히 바뀐다.
+   */
+  const [probeMode, setProbeMode] = useState(false);
+  const [probePoint, setProbePoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [probeRadiusKm, setProbeRadiusKm] = useState(2);
   const [query, setQuery] = useState("");
   const [queryNotice, setQueryNotice] = useState<string | null>(null);
   const [queryNoticeTone, setQueryNoticeTone] = useState<"neutral" | "error" | "success">("neutral");
@@ -1697,6 +1707,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const selectedFacilities = typedMapFacilities.filter(
     (facility) => facility.adm_cd2 === selectedRegionCode,
   );
+
+  /*
+   * 지점 둘레 읽기.
+   *
+   * 시설은 화면에 그려진 것(`mapFacilities`)이 아니라 **스냅샷 전체**로 센다. 화면 목록은
+   * 유형 필터·표시 상한(600곳)이 걸려 있어서, 그것으로 세면 "반경 2km 안 3곳"이 실은
+   * "그려진 것 중 3곳"이 된다. 지도에 안 그려졌다고 병원이 없는 것은 아니다.
+   */
+  const probeFacilities = snapshot?.facilities;
+  const probe = useMemo(() => {
+    if (!probePoint || !boundary || !probeFacilities) return null;
+    return probeRadius({
+      point: probePoint,
+      radiusKm: probeRadiusKm,
+      boundary,
+      facilities: probeFacilities,
+    });
+  }, [boundary, probeFacilities, probePoint, probeRadiusKm]);
 
   /*
    * 값 조건은 **지표 단위가 맞을 때만** 건다. 사람이 쓴 단위와 지표의 단위가 다른데
@@ -4312,6 +4340,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
            * 순위에도 늘 겹쳐 그려서, 뜻 없는 파란 원이 지도를 덮고 있었다.
            */
           showRadius={activeLayerId === "medical" && !customAnalysis}
+          probeMode={probeMode}
+          probePoint={probePoint}
+          probeRadiusKm={probeRadiusKm}
+          onProbePoint={setProbePoint}
           legendLabel={analysis.legendLabel}
           onSelectRegion={selectRegion}
           onSelectFacility={selectFacility}
@@ -4366,6 +4398,22 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ) : null}
         </div>
 
+        {probe ? (
+          <PointProbeCard
+            probe={probe}
+            radiusKm={probeRadiusKm}
+            onRadiusChange={setProbeRadiusKm}
+            onClose={() => {
+              setProbePoint(null);
+              setProbeMode(false);
+            }}
+          />
+        ) : probeMode ? (
+          <div className="probe-hint" data-testid="probe-hint">
+            지도를 클릭하면 그 지점 반경 {probeRadiusKm}km를 읽습니다.
+          </div>
+        ) : null}
+
         <div className="map-float-dock absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 max-md:bottom-20">
           {/*
             레이아웃 프리셋 5개(지도 넓게·분석 넓게·결과 넓게·균형·레이아웃)가 지도의 알짜
@@ -4394,6 +4442,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             >
               결과
             </button>
+            {/*
+              DemoMap은 클릭 좌표를 주지 못한다. 버튼을 그려 두고 눌러도 아무 일이 없으면
+              사용자는 자기가 잘못 누른 줄 안다 — 못 하는 자리에서는 버튼을 감춘다.
+            */}
+            {mapEngine === "kakao" ? (
+              <button
+                type="button"
+                className="mobile-panel-btn !m-0 !shadow-none"
+                data-testid="probe-toggle"
+                aria-pressed={probeMode}
+                onClick={() => {
+                  setProbeMode((on) => {
+                    // 모드를 끄면 찍힌 지점도 지운다. 원만 남으면 무엇의 반경인지 모른다.
+                    if (on) setProbePoint(null);
+                    return !on;
+                  });
+                }}
+              >
+                지점 분석
+              </button>
+            ) : null}
           </div>
         </div>
 

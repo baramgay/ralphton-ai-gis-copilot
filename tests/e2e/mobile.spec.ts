@@ -107,6 +107,35 @@ test.describe("mobile sheet", () => {
     expect(await isReachable(page, "결과")).toBe(true);
   });
 
+  test("떠 있는 버튼 줄이 접히지 않는다", async ({ page }) => {
+    /*
+     * 이 줄은 화면 절반만 쓰고 있었다(`left:50%`+`translate`). 버튼이 둘일 때는 마침
+     * 들어맞아 아무도 몰랐는데, 셋이 되자 줄이 접히면서 바가 위로 47px 자라 첫 방문
+     * 안내 카드 밑으로 들어갔다 — 카드를 닫기 전에는 「조작」이 눌리지 않았다.
+     *
+     * 버튼 하나하나가 닿는지만 보면 다음에 넷째가 붙을 때 같은 일이 또 난다. **한 줄인지**를
+     * 직접 잰다.
+     */
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+
+    const rows = await page.evaluate(() => {
+      const bar = document.querySelector(".map-float-bar");
+      const tops = new Set<number>();
+      for (const button of bar?.querySelectorAll("button") ?? []) {
+        tops.add(Math.round(button.getBoundingClientRect().top));
+      }
+      return { rows: tops.size, count: bar?.querySelectorAll("button").length ?? 0 };
+    });
+    expect(rows.count).toBeGreaterThanOrEqual(2);
+    expect(rows.rows).toBe(1);
+
+    // 줄 안의 버튼은 모두 눌려야 한다. 화면 밖으로 나가도 접히지는 않기 때문이다.
+    for (const label of ["조작", "결과"]) {
+      expect(await isReachable(page, label)).toBe(true);
+    }
+  });
+
   test("시트를 연 뒤에도 반대편 시트로 넘어갈 수 있다", async ({ page }) => {
     await page.goto("/");
     /*

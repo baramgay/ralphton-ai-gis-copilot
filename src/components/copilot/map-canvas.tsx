@@ -22,6 +22,11 @@ type MapCanvasProps = {
   followSelection?: boolean;
   /** 반경 원 표시 여부. 의료 접근성 분석에서만 뜻이 있다. */
   showRadius?: boolean;
+  /** 지점 찍기 모드. Kakao 지도에서만 뜻이 있다(DemoMap은 좌표 클릭을 받지 못한다). */
+  probeMode?: boolean;
+  probePoint?: { lat: number; lng: number } | null;
+  probeRadiusKm?: number;
+  onProbePoint?: (point: { lat: number; lng: number }) => void;
   legendLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
@@ -41,6 +46,10 @@ export function MapCanvas(props: MapCanvasProps) {
     onSelectLivePlace,
     followSelection,
     showRadius,
+    probeMode,
+    probePoint,
+    probeRadiusKm,
+    onProbePoint,
     ...mapProps
   } = props;
 
@@ -81,6 +90,10 @@ export function MapCanvas(props: MapCanvasProps) {
         onSelectLivePlace={onSelectLivePlace}
         followSelection={followSelection}
         showRadius={showRadius}
+        probeMode={probeMode}
+        probePoint={probePoint}
+        probeRadiusKm={probeRadiusKm}
+        onProbePoint={onProbePoint}
         onError={handleError}
         onReady={handleReady}
       />
