@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { correlationView, outlierView } from "@/lib/layers/stats-view";
+import { cityOf, correlationView, outlierView } from "@/lib/layers/stats-view";
 import type { LayerCube, MetricDef } from "@/lib/layers/types";
 
 const metric = (key: string, label: string, unit = "%"): MetricDef => ({
@@ -18,11 +18,11 @@ const metric = (key: string, label: string, unit = "%"): MetricDef => ({
  * 코드를 그대로 이름에 넣으면 다섯 구가 서로 다른 시로 보여 접기 검사가 헛돈다.
  */
 const SGG_NAMES: Record<string, string> = {
-  "48121": "창원시 의창구",
-  "48123": "창원시 성산구",
-  "48125": "창원시 마산합포구",
-  "48127": "창원시 마산회원구",
-  "48129": "창원시 진해구",
+  "48121": "창원시의창구",
+  "48123": "창원시성산구",
+  "48125": "창원시마산합포구",
+  "48127": "창원시마산회원구",
+  "48129": "창원시진해구",
   "48170": "진주시",
   "48220": "통영시",
   "48240": "사천시",
@@ -221,5 +221,23 @@ describe("같은 값을 나눠 가진 구는 한 줄로 접는다", () => {
   test("결과 개수의 단위를 스스로 말한다 — 화면이 추측하면 「행정동」이라 적는다", () => {
     expect(correlationView(match("sgg"), refA, refB).unitWord).toBe("시군구");
     expect(correlationView(match("dong"), refA, refB).unitWord).toBe("읍면동");
+  });
+});
+
+describe("cityOf", () => {
+  /*
+   * ⚠️ 실제 이름에는 띄어쓰기가 없다 — 「창원시의창구」다. 공백으로 잘라 첫 마디를 쓰면
+   * 다섯 구가 서로 다른 시가 되어 접기가 통째로 헛돈다(배포본에서 실제로 그랬다).
+   */
+  test.each([
+    ["창원시의창구", "창원시"],
+    ["창원시마산합포구", "창원시"],
+    ["창원시 진해구", "창원시"],
+    ["경상남도 창원시성산구", "창원시"],
+    ["진주시", "진주시"],
+    ["의령군", "의령군"],
+    ["경상남도 하동군", "하동군"],
+  ])("%s → %s", (name, city) => {
+    expect(cityOf(name)).toBe(city);
   });
 });

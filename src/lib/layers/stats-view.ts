@@ -66,12 +66,26 @@ const UNIT_WORD: Record<CorrelationUnit, string> = { dong: "읍면동", sgg: "�
  * 계수 계산은 건드리지 않는다. 거기서는 이미 22개 시군구로 셌고, 이것은 **보여 주는
  * 자리**만의 문제다.
  */
+/**
+ * 자치구를 떼고 시 이름만 남긴다.
+ *
+ * ⚠️ 실제 이름에는 **띄어쓰기가 없다** — 「창원시의창구」·「창원시마산합포구」다. 공백으로
+ * 잘라 첫 마디를 쓰면 다섯 구가 서로 다른 시가 되어 접기가 통째로 헛돈다(배포본에서
+ * 실제로 그랬다: 접기를 넣었는데도 22줄이 그대로 남았다). 「…시 + …구」 꼴을 직접 본다.
+ */
+export function cityOf(name: string): string {
+  const bare = name.replace(/^경상남도\s*/, "").trim();
+  const withDistrict = bare.match(/^(.+?시)\s*[가-힣]+구$/);
+  if (withDistrict) return withDistrict[1];
+  return bare.split(/\s+/)[0] ?? bare;
+}
+
 function collapseSharedCityRows(rows: readonly StatsRow[]): StatsRow[] {
   const seen = new Map<string, StatsRow>();
   const out: StatsRow[] = [];
 
   for (const row of rows) {
-    const city = row.name.replace(/^경상남도\s*/, "").split(/\s+/)[0] ?? row.name;
+    const city = cityOf(row.name);
     // 같은 시의 구들이 값까지 같을 때만 접는다. 값이 다르면 서로 다른 지역이다.
     const key = `${city}|${row.detail}`;
     const already = seen.get(key);
