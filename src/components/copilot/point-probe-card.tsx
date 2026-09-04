@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type { RadiusProbe } from "@/lib/gis/point-probe";
 
 /**
@@ -24,18 +26,38 @@ type Props = {
 
 export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Props) {
   const total = probe.byType.reduce((sum, entry) => sum + entry.count, 0);
+  /*
+   * 좁은 화면에서 이 카드는 세로 314px을 차지한다 — 727px 기기에서 지도에 남는 자리가
+   * 173px(24%)뿐이었다(배포본 실측). 한 곳을 찍고 나면 **다른 곳을 찍을 자리가 없다.**
+   * 이 도구의 쓰임새가 "여기, 그리고 저기"인데 그 두 번째를 못 한다.
+   *
+   * 그래서 접을 수 있게 한다. 접으면 한 줄만 남아 지도가 61%까지 돌아오고, 접은 채로
+   * 여기저기 눌러 가며 동 이름과 시설 수만 훑을 수 있다. 접힘은 카드가 살아 있는 동안
+   * 유지되므로 찍을 때마다 다시 접지 않아도 된다.
+   */
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <section className="probe-card" data-testid="probe-card" aria-label="지점 분석 결과">
+    <section
+      className={collapsed ? "probe-card is-collapsed" : "probe-card"}
+      data-testid="probe-card"
+      data-collapsed={collapsed ? "yes" : "no"}
+      aria-label="지점 분석 결과"
+    >
       <header className="probe-card-head">
         <div className="min-w-0">
-          <p className="ui-caption font-bold text-amber-600">지점 분석</p>
+          <p className="ui-caption font-bold text-amber-600">
+            지점 분석
+            {collapsed ? ` · 반경 ${radiusKm}km 시설 ${total}곳` : ""}
+          </p>
           <p className="truncate ui-body font-bold text-slate-900" data-testid="probe-region">
             {probe.containing ? probe.containing.name.replace("경상남도 ", "") : "경상남도 경계 밖"}
           </p>
-          <p className="ui-caption text-slate-500">
-            {probe.point.lat.toFixed(5)}, {probe.point.lng.toFixed(5)}
-          </p>
+          {collapsed ? null : (
+            <p className="ui-caption text-slate-500">
+              {probe.point.lat.toFixed(5)}, {probe.point.lng.toFixed(5)}
+            </p>
+          )}
           {/*
             "어느 동인가"에 대한 단서는 접힌 각주에 두면 안 된다. 카드 얼굴에 적힌 동
             이름 바로 밑에 있어야 그 이름을 읽는 사람이 같이 본다.
@@ -46,11 +68,25 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
             </p>
           ) : null}
         </div>
-        <button type="button" className="probe-close" onClick={onClose} aria-label="지점 분석 닫기">
-          ✕
-        </button>
+        <div className="probe-head-actions">
+          <button
+            type="button"
+            className="probe-close"
+            data-testid="probe-collapse"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "지점 분석 펼치기" : "지점 분석 접기"}
+            onClick={() => setCollapsed((value) => !value)}
+          >
+            {collapsed ? "▴" : "▾"}
+          </button>
+          <button type="button" className="probe-close" onClick={onClose} aria-label="지점 분석 닫기">
+            ✕
+          </button>
+        </div>
       </header>
 
+      {collapsed ? null : (
+      <>
       <div className="probe-radius" role="group" aria-label="반경 선택">
         {[1, 2, 3].map((value) => (
           <button
@@ -128,6 +164,8 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
           ))}
         </div>
       </details>
+      </>
+      )}
     </section>
   );
 }

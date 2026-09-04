@@ -2150,6 +2150,19 @@ html[data-theme="dark"] .query-hero-chip:hover {
   backdrop-filter: blur(12px);
 }
 
+/* 접으면 한 줄만 남는다. 지도를 다시 누를 자리를 돌려주는 것이 목적이다. */
+.probe-card.is-collapsed {
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 0.6rem;
+}
+
+.probe-head-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
 .probe-card-head {
   display: flex;
   align-items: flex-start;
