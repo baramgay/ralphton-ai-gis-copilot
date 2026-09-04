@@ -2399,6 +2399,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         legendLabel: view.title,
         compositeRanking: true,
         isFacilityResult: false,
+        // 없으면 화면이 활성 레이어 기준으로 단위를 추측해 시군구 결과를 「행정동」이라 적는다.
+        unitWord: view.unitWord,
       });
       setActiveTab("control");
       if (stats.adminLevel !== adminLevel) setAdminLevel(stats.adminLevel);

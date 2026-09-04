@@ -13,6 +13,8 @@ export type StatsRow = {
   name: string;
   score: number;
   detail: string;
+  /** 같은 값을 나눠 가져 한 줄로 접힌 지역 수(창원 5개 구 등). */
+  sharedCount?: number;
 };
 
 export type StatsView = {
@@ -23,6 +25,8 @@ export type StatsView = {
   notes: string[];
   /** 지도 채색용 0~100 점수. 없으면 지도는 그대로 둔다. */
   scores: Map<string, number> | null;
+  /** 결과 개수 옆에 붙는 단위. 없으면 화면이 활성 레이어 기준으로 잘못 추측한다. */
+  unitWord: string;
 };
 
 type CubeRef = { cube: LayerCube; metric: MetricDef; metrics: MetricDef[] };
@@ -50,6 +54,44 @@ function formatValue(value: number, unit: string): string {
 }
 
 const UNIT_WORD: Record<CorrelationUnit, string> = { dong: "읍면동", sgg: "시군구" };
+
+/**
+ * 시군구 목록에서 **같은 값을 나눠 가진 구들을 시 한 줄로 접는다.**
+ *
+ * KOSIS는 창원시를 한 행으로 준다. 그 값이 5개 구에 그대로 복제되므로, 접지 않으면
+ * 「재정자립도 30.6% · 빈집 6.6%」인 창원 5개 구가 **1~5위를 통째로 차지한다**(배포본
+ * 실측). 값은 참이지만 읽는 사람에게는 다섯 지역이 상위권을 휩쓴 것으로 보인다 —
+ * 실은 한 도시다. 게다가 이름이 잘려("창원…") 서로 구분되지도 않았다.
+ *
+ * 계수 계산은 건드리지 않는다. 거기서는 이미 22개 시군구로 셌고, 이것은 **보여 주는
+ * 자리**만의 문제다.
+ */
+function collapseSharedCityRows(rows: readonly StatsRow[]): StatsRow[] {
+  const seen = new Map<string, StatsRow>();
+  const out: StatsRow[] = [];
+
+  for (const row of rows) {
+    const city = row.name.replace(/^경상남도\s*/, "").split(/\s+/)[0] ?? row.name;
+    // 같은 시의 구들이 값까지 같을 때만 접는다. 값이 다르면 서로 다른 지역이다.
+    const key = `${city}|${row.detail}`;
+    const already = seen.get(key);
+    if (already) {
+      already.name = city;
+      already.sharedCount = (already.sharedCount ?? 1) + 1;
+      continue;
+    }
+    const copy = { ...row };
+    seen.set(key, copy);
+    out.push(copy);
+  }
+
+  for (const row of out) {
+    if ((row.sharedCount ?? 1) > 1) {
+      row.detail = `${row.detail} · ${row.sharedCount}개 구 공통값(구별 자료 없음)`;
+    }
+  }
+  return out;
+}
 
 /**
  * 두 지표의 관계.
@@ -84,6 +126,7 @@ export function correlationView(
       detail: `${match.a.metricLabel} ${formatValue(sample.a as number, a.metric.unit)} · ${match.b.metricLabel} ${formatValue(sample.b as number, b.metric.unit)}`,
     }))
     .sort((x, y) => y.score - x.score);
+  const displayRows = match.unit === "sgg" ? collapseSharedCityRows(rows) : rows;
 
   const notes: string[] = [];
   const unitWord = UNIT_WORD[match.unit];
@@ -95,7 +138,8 @@ export function correlationView(
         result.n < 3
           ? `짝이 모두 있는 ${unitWord}가 ${result.n}곳뿐이라 관계를 말할 수 없습니다.`
           : "한쪽 값이 모든 지역에서 같아 관계를 말할 수 없습니다.",
-      rows,
+      rows: displayRows,
+      unitWord,
       notes: [`표본 ${result.n}개 ${unitWord} · 값이 없어 뺀 곳 ${result.dropped}곳`],
       scores: null,
     };
@@ -124,7 +168,8 @@ export function correlationView(
   return {
     title: `${match.a.metricLabel} × ${match.b.metricLabel} 관계`,
     summary: `${result.n}개 ${unitWord}에서 ${describeCorrelation(result.spearman)}입니다 (스피어만 ρ ${result.spearman.toFixed(2)}).`,
-    rows,
+    rows: displayRows,
+    unitWord,
     notes,
     scores: null,
   };
@@ -160,6 +205,7 @@ export function outlierView(match: OutlierQueryMatch, ref: CubeRef): StatsView {
           ? `${unitWord} 절반 이상이 같은 값이라 튀는 곳을 가릴 수 없습니다(자료가 없는 것이 아닙니다).`
           : `기준을 넘게 튀는 ${unitWord}가 없습니다(자료가 없는 것이 아닙니다).`,
       rows: [],
+      unitWord,
       notes,
       scores: null,
     };
@@ -171,12 +217,16 @@ export function outlierView(match: OutlierQueryMatch, ref: CubeRef): StatsView {
   return {
     title: `${match.ref.metricLabel} 이상치`,
     summary: `${result.rows.length}개 ${unitWord}가 크게 벗어납니다 (위로 ${high}곳 · 아래로 ${low}곳).`,
-    rows: result.rows.map((row) => ({
-      code: row.code,
-      name: row.name,
-      score: row.value,
-      detail: `${formatValue(row.value, ref.metric.unit)} · 중앙값에서 ${Math.abs(row.score).toFixed(1)}배(${row.side === "high" ? "위" : "아래"})`,
-    })),
+    rows: (() => {
+      const mapped = result.rows.map((row) => ({
+        code: row.code,
+        name: row.name,
+        score: row.value,
+        detail: `${formatValue(row.value, ref.metric.unit)} · 중앙값에서 ${Math.abs(row.score).toFixed(1)}배(${row.side === "high" ? "위" : "아래"})`,
+      }));
+      return match.unit === "sgg" ? collapseSharedCityRows(mapped) : mapped;
+    })(),
+    unitWord,
     notes,
     scores: null,
   };

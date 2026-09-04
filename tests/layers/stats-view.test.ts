@@ -13,6 +13,24 @@ const metric = (key: string, label: string, unit = "%"): MetricDef => ({
   triggers: [label],
 });
 
+/*
+ * 실제 지역명 규칙을 그대로 쓴다. 창원은 「창원시 의창구」처럼 **시 + 구** 두 마디라,
+ * 코드를 그대로 이름에 넣으면 다섯 구가 서로 다른 시로 보여 접기 검사가 헛돈다.
+ */
+const SGG_NAMES: Record<string, string> = {
+  "48121": "창원시 의창구",
+  "48123": "창원시 성산구",
+  "48125": "창원시 마산합포구",
+  "48127": "창원시 마산회원구",
+  "48129": "창원시 진해구",
+  "48170": "진주시",
+  "48220": "통영시",
+  "48240": "사천시",
+  "48250": "김해시",
+  "48270": "밀양시",
+  "48310": "거제시",
+};
+
 /** 시군구 하나에 읍면동 여럿을 달아 준다. 시군구 지표의 복제 표본을 재현하려면 필요하다. */
 function cube(layerId: string, key: string, bySgg: Record<string, number>, dongsPerSgg = 5): LayerCube {
   const cells = [];
@@ -20,7 +38,7 @@ function cube(layerId: string, key: string, bySgg: Record<string, number>, dongs
     for (let i = 0; i < dongsPerSgg; i += 1) {
       cells.push({
         code: `${sgg}${String(i).padStart(5, "0")}`,
-        name: `경상남도 ${sgg}시 ${i}동`,
+        name: `경상남도 ${SGG_NAMES[sgg] ?? `${sgg}시`} ${i}동`,
         point: { lat: 35 + i / 100, lng: 128 + i / 100 },
         areaKm2: 1,
         series: { [key]: [value] },
@@ -31,6 +49,8 @@ function cube(layerId: string, key: string, bySgg: Record<string, number>, dongs
 }
 
 const A = { "48170": 10, "48220": 20, "48240": 30, "48250": 40, "48270": 50, "48310": 60 };
+/* 창원 5개 구는 KOSIS가 시 한 행만 주므로 값이 그대로 복제된다. */
+const CHANGWON = { "48121": 90, "48123": 90, "48125": 90, "48127": 90, "48129": 90 };
 const B = { "48170": 11, "48220": 19, "48240": 32, "48250": 38, "48270": 51, "48310": 59 };
 
 const refA = (() => {
@@ -150,5 +170,56 @@ describe("outlierView", () => {
       return { cube: cube("layer-a", "a", A), metric: m, metrics: [m] };
     })();
     expect(outlierView(outlierMatch, ref).notes.join(" ")).toContain("중앙값절대편차(MAD)");
+  });
+});
+
+describe("같은 값을 나눠 가진 구는 한 줄로 접는다", () => {
+  /*
+   * KOSIS는 창원시를 한 행으로 준다. 그 값이 5개 구에 복제되므로, 접지 않으면 값이 같은
+   * 다섯 줄이 상위권을 통째로 차지한다(배포본 실측: 1~5위가 전부 창원). 값은 참이지만
+   * 읽는 사람에게는 다섯 지역이 휩쓴 것으로 보인다 — 실은 한 도시다.
+   */
+  const withChangwon = (key: string, extra: Record<string, number>) => {
+    const m = metric(key, key === "a" ? "지표A" : "지표B");
+    return { cube: cube(`layer-${key}`, key, { ...extra, ...CHANGWON }), metric: m, metrics: [m] };
+  };
+
+  test("시군구 단위에서 창원 5개 구가 한 줄이 된다", () => {
+    const view = correlationView(match("sgg"), withChangwon("a", A), withChangwon("b", B));
+    const changwon = view.rows.filter((row) => row.name.includes("창원"));
+
+    expect(changwon).toHaveLength(1);
+    expect(changwon[0].sharedCount).toBe(5);
+    expect(changwon[0].detail).toContain("5개 구 공통값");
+  });
+
+  test("접어도 계수는 22개가 아니라 원래 표본으로 낸다", () => {
+    // 계수 계산과 보여 주는 자리는 다르다. 접기는 화면만 건드린다.
+    const view = correlationView(match("sgg"), withChangwon("a", A), withChangwon("b", B));
+    expect(view.notes.join(" ")).toContain("표본 11개 시군구");
+  });
+
+  test("값이 다르면 접지 않는다 — 서로 다른 지역이다", () => {
+    const differing = { "48121": 90, "48123": 91, "48125": 92, "48127": 93, "48129": 94 };
+    const a = (() => {
+      const m = metric("a", "지표A");
+      return { cube: cube("layer-a", "a", { ...A, ...differing }), metric: m, metrics: [m] };
+    })();
+    const b = (() => {
+      const m = metric("b", "지표B");
+      return { cube: cube("layer-b", "b", { ...B, ...differing }), metric: m, metrics: [m] };
+    })();
+    const view = correlationView(match("sgg"), a, b);
+    expect(view.rows.filter((row) => row.name.includes("창원"))).toHaveLength(5);
+  });
+
+  test("읍면동 단위에서는 접지 않는다", () => {
+    const view = correlationView(match("dong"), withChangwon("a", A), withChangwon("b", B));
+    expect(view.rows.every((row) => (row.sharedCount ?? 1) === 1)).toBe(true);
+  });
+
+  test("결과 개수의 단위를 스스로 말한다 — 화면이 추측하면 「행정동」이라 적는다", () => {
+    expect(correlationView(match("sgg"), refA, refB).unitWord).toBe("시군구");
+    expect(correlationView(match("dong"), refA, refB).unitWord).toBe("읍면동");
   });
 });
