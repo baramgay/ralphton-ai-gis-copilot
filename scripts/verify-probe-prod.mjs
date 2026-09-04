@@ -36,8 +36,19 @@ for (const [label, opts, touch] of [
   await page.goto(URL, { waitUntil: "domcontentloaded" });
   await page.getByTestId("copilot-shell").waitFor({ timeout: 60_000 });
 
-  const onboard = page.locator('[data-testid="onboard-card"] button');
-  if (await onboard.count()) await onboard.last().click();
+  /*
+   * 첫 방문 안내 카드는 지도 한가운데를 덮는다. 세는 순간 아직 안 그려져 있으면
+   * 그냥 지나쳐서, 뒤에 이어지는 지도 클릭이 카드에 먹힌다 — 실측으로 그렇게 한 번
+   * 실패했다. 보일 때까지 기다렸다가 닫고, **사라졌는지 확인**한다.
+   */
+  const onboardCard = page.getByTestId("onboard-card");
+  try {
+    await onboardCard.waitFor({ timeout: 8_000 });
+    await page.locator('[data-testid="onboard-card"] button').last().click();
+    await onboardCard.waitFor({ state: "detached", timeout: 5_000 });
+  } catch {
+    // 안내를 이미 본 프로필이면 카드가 없다. 그건 정상이다.
+  }
 
   // 떠 있는 버튼 줄이 접히면 첫 방문 안내 카드 밑으로 들어가 「조작」이 안 눌린다.
   const bar = await page.evaluate(() => {
@@ -68,7 +79,19 @@ for (const [label, opts, touch] of [
   const tap = (x, y) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
 
   await tap(cx, cy);
-  await page.getByTestId("probe-card").waitFor({ timeout: 15_000 });
+  try {
+    await page.getByTestId("probe-card").waitFor({ timeout: 15_000 });
+  } catch {
+    // 왜 안 먹혔는지까지 말해야 다음 사람이 고칠 수 있다.
+    const blocker = await page.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      return el ? `${el.tagName}.${(el.className || "").toString().slice(0, 60)}` : "(없음)";
+    }, [cx, cy]);
+    check(false, "지도를 눌러 지점이 찍힌다", `누른 자리 위에 있는 것: ${blocker}`);
+    console.log("JS 에러:", errors.slice(0, 3).join(" | "));
+    await context.close();
+    continue;
+  }
   await page.waitForTimeout(250);
 
   const first = await page.evaluate(() => ({
