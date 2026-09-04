@@ -230,6 +230,36 @@ describe("걸치는 행정동", () => {
   });
 });
 
+describe("경계에 붙은 지점은 답이 갈릴 수 있다고 말한다", () => {
+  /*
+   * 배포본에서 실제로 겪은 일이다. (34.8375, 128.4222)에서 이 도구는 「봉평동」,
+   * 카카오 좌표→행정구역 변환은 「중앙동」이라 답했다. 알고리즘이 틀린 것이 아니라
+   * 경계선이 서로 다르다 — 그 지점은 봉평동 경계에서 34m, 중앙동 경계에서 76m다.
+   * 어느 쪽이 옳다고 말할 수 없으므로, 말할 수 없다는 것을 말해야 한다.
+   */
+  const TONGYEONG_EDGE = { lat: 34.8375, lng: 128.4222 };
+
+  test("경계에서 100m 안이면 그 사실을 적는다", () => {
+    const probe = probeRadius({ point: TONGYEONG_EDGE, radiusKm: 1, boundary, facilities: [] });
+    expect(probe.containing?.name).toContain("봉평동");
+    expect(probe.boundaryEdgeKm).not.toBeNull();
+    expect(probe.boundaryEdgeKm as number).toBeLessThan(0.1);
+    expect(probe.notes.some((note) => note.includes("이웃 동으로 나올 수 있습니다"))).toBe(true);
+  });
+
+  test("동 한복판에서는 그런 말을 하지 않는다", () => {
+    // 늘 붙이면 경고가 배경 소음이 되어 정작 붙어 있을 때 눈에 안 띈다.
+    const probe = probeRadius({ point: JINJU_HALL, radiusKm: 1, boundary, facilities: [] });
+    expect(probe.boundaryEdgeKm as number).toBeGreaterThan(0.1);
+    expect(probe.notes.some((note) => note.includes("이웃 동으로 나올 수 있습니다"))).toBe(false);
+  });
+
+  test("경남 밖이면 경계 거리를 지어내지 않는다", () => {
+    const probe = probeRadius({ point: BUSAN_HALL, radiusKm: 1, boundary, facilities: [] });
+    expect(probe.boundaryEdgeKm).toBeNull();
+  });
+});
+
 describe("합계를 지어내지 않는다", () => {
   test("반경 안 인구·소비 합계를 내지 않는다고 적는다", () => {
     /*

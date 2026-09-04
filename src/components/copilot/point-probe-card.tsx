@@ -36,6 +36,15 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
           <p className="ui-caption text-slate-500">
             {probe.point.lat.toFixed(5)}, {probe.point.lng.toFixed(5)}
           </p>
+          {/*
+            "어느 동인가"에 대한 단서는 접힌 각주에 두면 안 된다. 카드 얼굴에 적힌 동
+            이름 바로 밑에 있어야 그 이름을 읽는 사람이 같이 본다.
+          */}
+          {probe.boundaryEdgeKm != null && probe.boundaryEdgeKm <= 0.1 ? (
+            <p className="probe-edge-warn" data-testid="probe-edge-warn">
+              경계에서 {Math.round(probe.boundaryEdgeKm * 1000)}m · 이웃 동으로 볼 수도 있음
+            </p>
+          ) : null}
         </div>
         <button type="button" className="probe-close" onClick={onClose} aria-label="지점 분석 닫기">
           ✕

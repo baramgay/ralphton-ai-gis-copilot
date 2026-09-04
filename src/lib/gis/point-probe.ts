@@ -193,12 +193,27 @@ export type RadiusProbe = {
   nearest: ProbeFacility | null;
   /** 원에 걸치는 행정동. 지점이 속한 동이 맨 앞. */
   regions: ProbeRegion[];
+  /**
+   * 지점에서 **속한 동의 경계까지** 거리. 경남 밖이면 null.
+   *
+   * 경계에 붙은 지점은 지도 서비스마다 다른 동으로 나온다. 그 사실을 말해 주려면
+   * 얼마나 가까운지를 알아야 한다.
+   */
+  boundaryEdgeKm: number | null;
   notes: string[];
 };
 
 type FacilityLike = { id: string; name: string; type: string; lat: number; lng: number };
 
 const MAX_LISTED = 60;
+
+/**
+ * 이만큼 경계에 붙어 있으면 답이 갈릴 수 있다고 말한다.
+ *
+ * 100m는 임의로 고른 값이 아니다. 거제 작업에서 좌표 오차가 ±25m였고, 통영 실측에서
+ * 서로 다른 두 출처가 76m 안에서 갈렸다. 그 둘을 다 덮는 자리다.
+ */
+const BOUNDARY_DOUBT_KM = 0.1;
 
 export function probeRadius(input: {
   point: ProbePoint;
@@ -237,9 +252,12 @@ export function probeRadius(input: {
   const containing = findContainingRegion(point, boundary);
 
   const regions: ProbeRegion[] = [];
+  let boundaryEdgeKm: number | null = null;
   for (const feature of boundary.features) {
     const contains = feature.properties.adm_cd2 === containing?.code;
     if (contains) {
+      // 속한 동은 목록에서 거리 0(=지점 포함)이지만, 경계까지 얼마나 가까운지는 따로 잰다.
+      boundaryEdgeKm = featureDistanceKm(point, feature, Number.POSITIVE_INFINITY);
       regions.push({ code: feature.properties.adm_cd2, name: feature.properties.adm_nm, contains, distanceKm: 0 });
       continue;
     }
@@ -253,6 +271,19 @@ export function probeRadius(input: {
   const notes: string[] = [];
   if (containing === null) {
     notes.push("찍으신 지점이 경상남도 경계 밖입니다. 시설 거리는 그대로 계산되지만 행정동은 나오지 않습니다.");
+  }
+  /*
+   * 경계에 붙은 지점은 지도 서비스마다 다른 동으로 나온다.
+   *
+   * 통영 앞바다 쪽 한 지점(34.8375, 128.4222)에서 이 도구는 「봉평동」, 카카오는 「중앙동」이라
+   * 답했다. 알고리즘이 틀린 것이 아니라 **경계선이 서로 다르다** — 그 지점은 봉평동 경계에서
+   * 34m, 중앙동 경계에서 76m 떨어져 있어 세 동이 100m 안에서 만난다. 어느 쪽이 옳다고
+   * 말할 수 없는 자리이므로, 말할 수 없다는 것을 말한다.
+   */
+  if (boundaryEdgeKm !== null && boundaryEdgeKm <= BOUNDARY_DOUBT_KM) {
+    notes.push(
+      `행정동 경계에서 ${Math.round(boundaryEdgeKm * 1000)}m 떨어진 지점입니다. 이만큼 붙어 있으면 다른 지도 서비스에서는 이웃 동으로 나올 수 있습니다(경계 자료가 서로 다릅니다).`,
+    );
   }
   notes.push(
     `반경 ${radiusKm}km · 시설 ${within.length.toLocaleString("ko-KR")}곳${within.length > MAX_LISTED ? ` (가까운 ${MAX_LISTED}곳만 표시)` : ""}`,
@@ -270,6 +301,7 @@ export function probeRadius(input: {
     byType,
     nearest,
     regions,
+    boundaryEdgeKm,
     notes,
   };
 }

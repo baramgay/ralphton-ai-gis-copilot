@@ -2174,6 +2174,13 @@ html[data-theme="dark"] .query-hero-chip:hover {
   border-color: var(--accent-line);
 }
 
+.probe-edge-warn {
+  margin-top: 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--accent-warm);
+}
+
 .probe-radius {
   display: flex;
   gap: 0.3rem;
