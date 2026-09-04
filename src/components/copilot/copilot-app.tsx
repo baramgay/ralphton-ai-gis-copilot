@@ -96,6 +96,8 @@ import { medicalCubeFromSnapshot, populationCubeFromSnapshot } from "@/lib/layer
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
 import { buildCrossInterpretation } from "@/lib/layers/cross-interpretation";
 import { resolveCrossQuery, type CrossQueryMatch } from "@/lib/layers/resolve-cross-query";
+import { asksCausation, resolveStatsQuery, type StatsQueryMatch } from "@/lib/layers/resolve-stats-query";
+import { correlationView, outlierView, type StatsView } from "@/lib/layers/stats-view";
 import { resolveMultiQuery, type MultiQueryMatch } from "@/lib/layers/resolve-multi-query";
 import { multiLayerView, type MultiLayerResult } from "@/lib/layers/multi-analysis";
 import { resolveTrendQuery, type TrendQueryMatch } from "@/lib/layers/resolve-trend-query";
@@ -1326,6 +1328,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     | { kind: "cross"; match: CrossQueryMatch }
     | { kind: "multi"; match: MultiQueryMatch }
     | { kind: "trendCross"; match: TrendCrossMatch }
+    /* 상관 답에는 "원인을 물었는가"가 실려야 해서 원문을 함께 들고 간다. */
+    | { kind: "stats"; match: StatsQueryMatch; query: string }
     | null
   >(null);
 
@@ -2319,6 +2323,80 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * one-click 교차분석 presets so both render identically. Returns false when a required
    * cube hasn't loaded yet.
    */
+  /**
+   * 통계 질의(상관·이상치)를 실행한다.
+   *
+   * 순위표가 아니라 **관계와 예외**를 답하는 자리다. 큐브가 아직 없으면 false를 돌려
+   * 호출부가 받아 온 뒤 다시 부르게 한다 — 조용히 다른 답으로 흘리지 않는다.
+   */
+  const runStats = useCallback(
+    (stats: StatsQueryMatch, query: string): boolean => {
+      const cubeFor = (id: string) =>
+        id === "population" ? populationCube : id === "medical" ? medicalCube : remoteCubes[id] ?? null;
+      const refFor = (layerId: string, metricKey: string) => {
+        const cube = cubeFor(layerId);
+        const metrics = CUBE_LAYER_METRICS[layerId];
+        const metric = metrics?.find((candidate) => candidate.key === metricKey);
+        return cube && metric && metrics ? { cube, metric, metrics } : null;
+      };
+
+      let view: StatsView;
+      if (stats.kind === "correlation") {
+        const a = refFor(stats.a.layerId, stats.a.metricKey);
+        const b = refFor(stats.b.layerId, stats.b.metricKey);
+        if (!a || !b) return false;
+        view = correlationView(stats, a, b, { asksCausation: asksCausation(query) });
+      } else {
+        const ref = refFor(stats.ref.layerId, stats.ref.metricKey);
+        if (!ref) return false;
+        view = outlierView(stats, ref);
+      }
+
+      /*
+       * 결과는 기존 결과 패널을 그대로 쓴다. 지도는 건드리지 않는다 — 상관은 지역별
+       * 값이 아니라 지표 사이의 값이라 칠할 것이 없고, 억지로 칠하면 "이 색이 상관"으로
+       * 읽힌다.
+       */
+      setCustomAnalysis({
+        id: "cross",
+        title: view.title,
+        summary: view.summary,
+        ranked: view.rows.slice(0, 30).map((row) => {
+          const name = row.name.replace(/^경상남도\s*/, "");
+          return {
+            code: row.code,
+            name,
+            district: name.split(/\s+/)[0] ?? "지역",
+            mapScore: 0,
+            valueLabel: row.detail,
+            note: "",
+            metrics: [],
+          };
+        }),
+        filteredFacilities: [],
+        formulaNotes: view.notes,
+        legendLabel: view.title,
+        compositeRanking: true,
+        isFacilityResult: false,
+      });
+      setActiveTab("control");
+      if (stats.adminLevel !== adminLevel) setAdminLevel(stats.adminLevel);
+      adminLevelSourceRef.current = "query";
+      setLastIntent(null);
+      setParseStage("done");
+      setQueryNotice(
+        stats.kind === "correlation"
+          ? `상관분석 · ${stats.a.metricLabel} × ${stats.b.metricLabel} (${stats.unit === "sgg" ? "시군구" : "읍면동"} 단위)`
+          : `이상치 · ${stats.ref.metricLabel} (${stats.unit === "sgg" ? "시군구" : "읍면동"} 단위)`,
+      );
+      setQueryNoticeTone("success");
+      setQuerySuggestions([]);
+      window.setTimeout(() => setParseStage("idle"), 1200);
+      return true;
+    },
+    [adminLevel, medicalCube, populationCube, remoteCubes],
+  );
+
   const runCross = useCallback(
     (cross: CrossQueryMatch): boolean => {
       const cubeFor = (id: string) =>
@@ -2687,12 +2765,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ? runTrendCross(pendingCubeQuery.match)
           : pendingCubeQuery.kind === "multi"
             ? runMulti(pendingCubeQuery.match)
-            : runCross(pendingCubeQuery.match);
+            : pendingCubeQuery.kind === "stats"
+              ? runStats(pendingCubeQuery.match, pendingCubeQuery.query)
+              : runCross(pendingCubeQuery.match);
     if (!ok) return; // 아직 다 안 왔다. 다음 큐브 도착 때 다시 본다.
     setPendingCubeQuery(null);
     setQueryNotice(null);
     setParseStage("done");
-  }, [pendingCubeQuery, runTrend, runCross, runTrendCross, runMulti]);
+  }, [pendingCubeQuery, runTrend, runCross, runTrendCross, runMulti, runStats]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const runQueryText = async (raw: string) => {
@@ -2867,6 +2947,30 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       );
       setParseStage("analyze");
       setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
+      setQueryNoticeTone("neutral");
+      return;
+    }
+
+    /*
+     * 통계 질의는 교차분석보다 **먼저** 갈라야 한다. 재료(지표 둘)가 같아서 교차가
+     * 먼저 잡으면 "둘이 같이 움직이나"를 물은 사람이 "둘 다 높은 곳" 순위표를 받는다.
+     */
+    const stats = publicFirst
+      ? null
+      : resolveStatsQuery(trimmed, crossLayers, {
+          adminLevelFallback: fallbackAdminLevel,
+          dongNames: dongNamesForQuery,
+        });
+    if (stats) {
+      rememberQuery(trimmed);
+      if (runStats(stats, trimmed)) { setAnsweredLastQuery(true); return; }
+
+      requestCubesAndRetry(
+        stats.kind === "correlation" ? [stats.a.layerId, stats.b.layerId] : [stats.ref.layerId],
+        { kind: "stats", match: stats, query: trimmed },
+      );
+      setParseStage("analyze");
+      setQueryNotice("레이어를 불러오는 중입니다.");
       setQueryNoticeTone("neutral");
       return;
     }
