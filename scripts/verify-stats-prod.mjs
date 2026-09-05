@@ -38,6 +38,22 @@ async function ask(query) {
   await input.fill(query);
   await page.getByRole("button", { name: "질의 실행" }).click();
   await page.getByTestId("result-panel").waitFor({ timeout: 30_000 });
+  /*
+   * 큐브가 아직 없으면 화면은 「레이어를 불러오는 중입니다」를 띄우고 **이전 결과를
+   * 그대로 둔다**. 고정 1.2초로 재면 첫 질의에서 옛 화면을 새 답으로 읽는다 — 실제로
+   * 첫 질의만 5건 실패로 나왔고 두 번째 질의는 통과했다. 알림이 「중입니다」에서
+   * 벗어날 때까지 기다린다.
+   */
+  await page
+    .waitForFunction(
+      () => {
+        const notice = document.querySelector('[data-testid="query-notice"]');
+        return !notice || !/중입니다/.test(notice.textContent ?? "");
+      },
+      null,
+      { timeout: 30_000 },
+    )
+    .catch(() => {});
   await page.waitForTimeout(1_200);
   return {
     // 결과 패널 전체 글자. 「(0점)」은 해석문에, 「표본 n개」는 산식 각주에 있다.
