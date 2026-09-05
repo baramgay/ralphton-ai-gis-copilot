@@ -130,6 +130,9 @@ describe("복제된 자치구는 한 관측으로 센다", () => {
     expect(view.notes.join(" ")).toContain("기준 시점이 다릅니다");
     expect(view.notes.join(" ")).toContain("2024-12");
     expect(view.notes.join(" ")).toContain("2025-12");
+    // 「재정자립도은」이 그대로 보고서에 실린다. 받침에 맞는 조사를 쓴다.
+    expect(view.notes.join(" ")).toContain("재정자립도는");
+    expect(view.notes.join(" ")).not.toContain("재정자립도은");
   });
 
   /*

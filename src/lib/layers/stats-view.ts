@@ -4,6 +4,7 @@ import {
   findOutliers,
   type CorrelationUnit,
 } from "@/lib/analysis/statistics";
+import { topicOf } from "@/lib/analysis/korean-particle";
 import { aggregateToSgg } from "@/lib/layers/aggregate";
 import {
   collapseReplicatedDistricts,
@@ -96,7 +97,7 @@ function monthNotes(used: readonly (string | null)[], label: string, unitWord: s
   const newest = months[months.length - 1];
   const laggards = used.filter((month) => month != null && month !== newest).length;
   return [
-    `${label}은 ${unitWord}마다 최신 시점이 다릅니다 — ${laggards}곳이 ${oldest} 값이고 나머지는 ${newest} 값입니다. 서로 다른 시점을 한 줄에 놓고 봅니다.`,
+    `${topicOf(label)} ${unitWord}마다 최신 시점이 다릅니다 — ${laggards}곳이 ${oldest} 값이고 나머지는 ${newest} 값입니다. 서로 다른 시점을 한 줄에 놓고 봅니다.`,
   ];
 }
 
@@ -207,7 +208,7 @@ export function correlationView(
     notes.push(
       monthsA[0] === monthsB[0]
         ? `두 지표 모두 ${monthsA[0]} 값입니다.`
-        : `기준 시점이 다릅니다 — ${match.a.metricLabel}은 ${monthsA[0]}, ${match.b.metricLabel}은 ${monthsB[0]} 값입니다. 두 지표의 최신 자료가 같은 달이 아니라 그렇습니다.`,
+        : `기준 시점이 다릅니다 — ${topicOf(match.a.metricLabel)} ${monthsA[0]}, ${topicOf(match.b.metricLabel)} ${monthsB[0]} 값입니다. 두 지표의 최신 자료가 같은 달이 아니라 그렇습니다.`,
     );
   }
   notes.push(
