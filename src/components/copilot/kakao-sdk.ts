@@ -90,6 +90,15 @@ export type KakaoMapsNamespace = {
       eventName: string,
       handler: ((...args: unknown[]) => void) | (() => void),
     ): void;
+    /*
+     * 옵셔널로 둔다. 대부분의 리스너는 한 번만 달고 최신 상태를 ref 로 읽어 떼어 낼
+     * 일이 없지만, 지도 이동 중 유리를 물리는 리스너는 지도 인스턴스가 바뀌면 떼야 한다.
+     */
+    removeListener?(
+      target: object,
+      eventName: string,
+      handler: ((...args: unknown[]) => void) | (() => void),
+    ): void;
   };
   readyState?: number;
 };

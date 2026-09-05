@@ -286,6 +286,34 @@ export function KakaoMap({
     });
   }, [context]);
 
+  /*
+   * 지도가 움직이는 동안에는 지도 위 유리가 물러선다(globals.css `.is-map-moving`).
+   *
+   * 흐림은 배경이 바뀔 때마다 다시 계산된다. 실측에서 저사양 경로의 프레임이 32fps
+   * (p95 49.9ms)까지 내려갔고, 팬 중 흐림을 끄자 59fps 를 지켰다
+   * (docs/design/MEASURED.md 표 4). 움직이는 배경 위 흐림은 어차피 읽히지도 않는다.
+   *
+   * 끝을 idle 로 잡는 이유: dragend 는 관성 이동이 남아 있는 시점이라 거기서 흐림을
+   * 되돌리면 아직 움직이는 화면에서 다시 무거워진다.
+   */
+  useEffect(() => {
+    if (!context) return;
+    const { maps, map } = context;
+    const shell = document.querySelector(".copilot-shell");
+    if (!shell) return;
+    const start = () => shell.classList.add("is-map-moving");
+    const stop = () => shell.classList.remove("is-map-moving");
+    maps.event.addListener(map, "dragstart", start);
+    maps.event.addListener(map, "zoom_start", start);
+    maps.event.addListener(map, "idle", stop);
+    return () => {
+      maps.event.removeListener?.(map, "dragstart", start);
+      maps.event.removeListener?.(map, "zoom_start", start);
+      maps.event.removeListener?.(map, "idle", stop);
+      stop();
+    };
+  }, [context]);
+
   useEffect(() => {
     if (!context || !containerRef.current) return;
     const { map } = context;
