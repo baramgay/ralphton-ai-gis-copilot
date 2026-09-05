@@ -37,7 +37,7 @@ export function AppTopbar({
         className="size-7 shrink-0 rounded-lg shadow-sm ring-1 ring-slate-200/80"
       />
       <div className="min-w-0">
-        <h1 className="ui-body-lg truncate font-black text-slate-950">경남 AI GIS</h1>
+        <h1 className="ui-body-lg truncate font-black text-slate-950">누리맵</h1>
       </div>
       {snapshot ? (
         <p className="copilot-topbar-meta ui-caption truncate text-slate-500">

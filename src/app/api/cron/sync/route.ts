@@ -57,7 +57,7 @@ export async function GET(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            text: `[랄프톤] 시설 sync cron 실패 · ${attemptedAt}\n${result.notes.join(" ")}`,
+            text: `[누리맵] 시설 sync cron 실패 · ${attemptedAt}\n${result.notes.join(" ")}`,
             status: result.status,
             attemptedAt,
             notes: result.notes,

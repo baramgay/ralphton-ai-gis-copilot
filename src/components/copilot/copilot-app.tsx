@@ -35,6 +35,7 @@ import {
 } from "@/lib/analysis/evaluator-guide";
 import { becauseItIs, topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
+import { GLOSSARY, GLOSSARY_GROUPS } from "@/lib/analysis/glossary";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import {
   baseUnit,
@@ -573,13 +574,22 @@ const QUICK_ANALYSES: Array<{
   symbol: string;
   tone: string;
 }> = [
-  { id: "scarcity", label: "의료 취약", subtitle: "어디가 부족한가", symbol: "+", tone: "bg-rose-50 text-rose-600" },
-  { id: "elderly", label: "고령 × 의료", subtitle: "노인 수요 대비", symbol: "◎", tone: "bg-violet-50 text-violet-600" },
-  { id: "growth", label: "인구 증가", subtitle: "최근 1년 변화", symbol: "↗", tone: "bg-emerald-50 text-emerald-600" },
-  { id: "nearest", label: "최근접 거리", subtitle: "가장 가까운 병원", symbol: "⌖", tone: "bg-sky-50 text-sky-600" },
-  { id: "radius", label: "주변 접근", subtitle: "반경 안 기관 수", symbol: "◉", tone: "bg-blue-50 text-blue-600" },
-  { id: "compare", label: "구 비교", subtitle: "두 지역 선택", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
-  { id: "facilities", label: "의료기관", subtitle: "병원·의원 목록", symbol: "◆", tone: "bg-cyan-50 text-cyan-700" },
+  /*
+   * 이름은 **무엇을 재는지** 말해야 한다. 「의료 취약」은 그 자체로는 뜻이 서지 않아
+   * 「어디가 부족한가」라는 부제를 붙여도 무엇을 어떻게 잰 값인지 알 수 없었다 —
+   * 실제로 「의료취약지역이 뭐냐」는 물음을 받았다. 산식이 부제에 들어가야 한다.
+   *
+   * 이 여덟 개는 공공 스냅샷(인구·의료기관)으로 도는 것들이다. 민간 특화 데이터
+   * (SKT·NH·KCB)는 질의창과 레이어에서 다루므로, 여기서 의료가 다수라고 해서 이 도구가
+   * 의료 도구인 것은 아니다. 이름이 그 오해를 만들지 않게 적는다.
+   */
+  { id: "scarcity", label: "의료 접근성", subtitle: "공급·거리·고령수요 합성", symbol: "+", tone: "bg-rose-50 text-rose-600" },
+  { id: "elderly", label: "고령 대비 의료", subtitle: "고령비율 높은 순", symbol: "◎", tone: "bg-violet-50 text-violet-600" },
+  { id: "growth", label: "인구 증가", subtitle: "최근 1년 변화율", symbol: "↗", tone: "bg-emerald-50 text-emerald-600" },
+  { id: "nearest", label: "최근접 의료기관", subtitle: "대표점 직선거리", symbol: "⌖", tone: "bg-sky-50 text-sky-600" },
+  { id: "radius", label: "반경 내 의료기관", subtitle: "1~3km 안 기관 수", symbol: "◉", tone: "bg-blue-50 text-blue-600" },
+  { id: "compare", label: "지역 비교", subtitle: "두 곳 나란히", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
+  { id: "facilities", label: "의료기관 목록", subtitle: "병원·의원·약국", symbol: "◆", tone: "bg-cyan-50 text-cyan-700" },
   { id: "reset", label: "초기화", subtitle: "처음부터", symbol: "↺", tone: "bg-slate-100 text-slate-600" },
 ];
 
@@ -4056,7 +4066,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <span className="kbd">[</span>
                     <span className="kbd">]</span> 좌·우 패널 접기
                   </li>
-                  <li>구 비교 결과 → 「동 순위 보기」로 한 단계 더</li>
+                  <li>지역 비교 결과 → 「동 순위 보기」로 한 단계 더</li>
                 </ul>
                 <details className="mt-3">
                   <summary className="ui-chip cursor-pointer font-bold text-slate-500">더 많은 단축키</summary>
@@ -4075,6 +4085,37 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </li>
                   </ul>
                 </details>
+              </div>
+
+              {/*
+                용어집을 화면에 둔다. 「의료취약지수 78점」이 무엇인지 물어볼 데가 없으면
+                그 값은 보고서에 그대로 옮겨지고, 옮긴 사람이 설명하지 못한다. 뜻만 적지 않고
+                **틀리기 쉬운 자리**를 함께 적는다 — 생활인구를 주민등록인구로 읽는 것처럼,
+                뜻을 알고도 잘못 읽는 자리가 따로 있다.
+              */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5" data-testid="glossary">
+                <p className="ui-body font-bold text-slate-900">용어</p>
+                <p className="ui-caption mt-1 text-slate-500">
+                  이 도구가 쓰는 말의 뜻과, 틀리기 쉬운 자리
+                </p>
+                {GLOSSARY_GROUPS.map((group) => (
+                  <details key={group} className="mt-2.5 rounded-lg border border-slate-100 bg-slate-50/60">
+                    <summary className="cursor-pointer px-3 py-2 ui-chip font-bold text-slate-700">
+                      {group}
+                    </summary>
+                    <ul className="space-y-2.5 border-t border-slate-100 px-3 py-2.5">
+                      {GLOSSARY.filter((entry) => entry.group === group).map((entry) => (
+                        <li key={entry.term}>
+                          <p className="ui-body font-bold text-slate-900">{entry.term}</p>
+                          <p className="ui-body text-slate-600">{entry.meaning}</p>
+                          {entry.caution ? (
+                            <p className="ui-caption mt-0.5 text-amber-700">⚠ {entry.caution}</p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
               </div>
 
               <div className="rounded-xl bg-slate-900 p-3.5 text-white">

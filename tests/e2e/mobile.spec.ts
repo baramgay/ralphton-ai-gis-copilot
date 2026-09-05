@@ -44,7 +44,7 @@ test.describe("mobile sheet", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
 
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "조작" })).toBeVisible();
@@ -70,7 +70,7 @@ test.describe("mobile sheet", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click();
 
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
@@ -99,7 +99,7 @@ test.describe("mobile sheet", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     // 첫 방문자에게 뜨는 카드가 조작·결과 버튼 위에 겹쳐 있었다.
     await expect(page.getByTestId("onboard-card")).toBeVisible();
 
@@ -143,7 +143,7 @@ test.describe("mobile sheet", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click();
 
     // 조작을 연 상태에서 결과 버튼이 시트에 가려 눌리지 않아 한쪽에 갇히곤 했다.

@@ -105,7 +105,7 @@ function systemPrompt(query: string, hits: RagHit[]): string {
         metricHintSection(hits),
       ].join("\n")
     : "";
-  return `당신은 경상남도 AI GIS Copilot의 자연어 의도 파서입니다.
+  return `당신은 누리맵(경남 공간데이터 분석)의 자연어 의도 파서입니다.
 분석 범위: 경상남도 행정동. 구어체·반말·오탈자 질의도 허용된 tool JSON으로만 변환하세요.
 분석 범위 밖이면: {"tool":"unsupported","filters":{},"reason":"짧은 한국어 안내"}
 

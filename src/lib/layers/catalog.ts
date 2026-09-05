@@ -225,7 +225,7 @@ export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["HIRA 병원정보서비스 (경남 sido 380000)"],
   metrics: [
-    { key: "vulnerability", label: "의료취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약지수", "의료 취약", "의료취약", "의료 사각", "취약지", "병원 부족", "병원부족", "의료 부족", "의료 공급", "병원 없", "의원 부족"] },
+    { key: "vulnerability", label: "의료 접근성 취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약지수", "의료 취약", "의료취약", "의료 사각", "취약지", "병원 부족", "병원부족", "의료 부족", "의료 공급", "병원 없", "의원 부족"] },
   ],
 };
 

@@ -43,7 +43,7 @@ export default function LoginPage() {
         onSubmit={submit}
         className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-lg"
       >
-        <h1 className="text-lg font-bold text-slate-950">경남 AI GIS Copilot</h1>
+        <h1 className="text-lg font-bold text-slate-950">누리맵</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
           민간데이터가 포함되어 접근이 제한된 서비스입니다. 배포된 접근 비밀번호를 입력해 주세요.
         </p>

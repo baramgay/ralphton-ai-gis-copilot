@@ -492,7 +492,7 @@ export function rankHospitalScarcity(intent: AnalysisIntent, snapshot: AnalysisS
   );
 
   return result({
-    title: "의료 취약 지역",
+    title: "의료 접근성 취약 지역",
     summary: `${rankedRegions.length}개 행정동을 의료 공급·고령 수요·거리·2km 접근성으로 비교했습니다.`,
     rankedRegions,
     selectedRegion: rankedRegions[0] ?? null,

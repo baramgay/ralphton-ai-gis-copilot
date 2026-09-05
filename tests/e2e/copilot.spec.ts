@@ -43,7 +43,7 @@ test.describe("AI GIS Copilot core journey", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await openSheet(page, "결과");
     await expect(page.getByTestId("interpretation-card")).toBeVisible();
     await expect(page.getByTestId("result-panel")).toBeVisible();
@@ -95,7 +95,7 @@ test.describe("AI GIS Copilot core journey", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
     await openSheet(page, "조작");
 
@@ -130,7 +130,7 @@ test.describe("AI GIS Copilot core journey", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
 
     // 먼저 한 분석을 돌려 선택이 생기게 한 뒤, 다른 분석으로 바꾼다.
@@ -159,7 +159,7 @@ test.describe("AI GIS Copilot core journey", () => {
      * 보인다. 본 셸이 그려졌는지로 기다린다.
      */
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     // 질의창은 어느 패널에도 속하지 않는다. 패널을 열지 않아도 닿아야 한다.
     const input = page.getByLabel("분석 질의");
     await input.fill("창원 의료 취약");

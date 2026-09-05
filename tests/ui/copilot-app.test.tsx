@@ -455,13 +455,13 @@ describe("CopilotApp", () => {
       expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
       openControls();
       for (const label of [
-        "의료 취약",
-        "고령 × 의료",
+        "의료 접근성",
+        "고령 대비 의료",
         "인구 증가",
-        "최근접 거리",
-        "주변 접근",
-        "구 비교",
-        "의료기관",
+        "최근접 의료기관",
+        "반경 내 의료기관",
+        "지역 비교",
+        "의료기관 목록",
         "초기화",
       ]) {
         expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
@@ -497,7 +497,7 @@ describe("CopilotApp", () => {
     await screen.findByText("DemoMap");
     openControls();
 
-    fireEvent.click(screen.getByRole("button", { name: "주변 접근" }));
+    fireEvent.click(screen.getByRole("button", { name: "반경 내 의료기관" }));
 
     expect(screen.getByRole("heading", { name: "2km 의료기관 접근성" })).toBeInTheDocument();
     expect(screen.getByText("2km 내 의료기관")).toBeInTheDocument();
@@ -517,7 +517,7 @@ describe("CopilotApp", () => {
       within(screen.getByTestId("result-panel")).getByRole("button", { name: /중앙약국/ }),
     ).toBeInTheDocument();
     // Facility search should not use scarcity ranking title
-    expect(screen.queryByRole("heading", { name: /의료 취약/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /의료 접근성/ })).not.toBeInTheDocument();
   });
 
   test("supports mobile panel toggles for left and right sheets", async () => {
@@ -557,7 +557,7 @@ describe("CopilotApp", () => {
     await screen.findByText("DemoMap");
     openControls();
 
-    fireEvent.click(screen.getByRole("button", { name: "구 비교" }));
+    fireEvent.click(screen.getByRole("button", { name: "지역 비교" }));
     expect(await screen.findByTestId("compare-picker")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 B")).toBeInTheDocument();
@@ -608,7 +608,7 @@ describe("CopilotApp", () => {
   test("facility list shows sort controls", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap", {}, { timeout: 10_000 });
-    fireEvent.click(screen.getByRole("button", { name: "의료기관" }));
+    fireEvent.click(screen.getByRole("button", { name: "의료기관 목록" }));
     expect(await screen.findByTestId("facility-sort-name")).toBeInTheDocument();
     expect(screen.getByTestId("facility-sort-type")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("facility-sort-type"));
@@ -620,7 +620,7 @@ describe("CopilotApp", () => {
     await screen.findByText("DemoMap");
 
     // Medical is the default layer: quick analysis grid is present.
-    expect(screen.getByRole("button", { name: "의료 취약" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "의료 접근성" })).toBeInTheDocument();
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
 
     const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
@@ -628,7 +628,7 @@ describe("CopilotApp", () => {
 
     // Cube layer active: medical-only quick analysis grid and radius picker are gone.
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "의료 취약" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "의료 접근성" })).not.toBeInTheDocument();
     });
     expect(screen.queryByText("2. 빠른 분석")).not.toBeInTheDocument();
     expect(screen.queryByText("3. 접근 반경")).not.toBeInTheDocument();
@@ -645,7 +645,7 @@ describe("CopilotApp", () => {
   test("공공 도구 질의는 그 질의의 산식을 방법론에 보여 준다", async () => {
     /*
      * 공공 도구 결과는 activeLayerId가 "medical"인 채로 렌더돼, 방법론 칸이 무엇을 물어도
-     * 의료취약지수 공식만 보여 주고 있었다(prod 실측). "세대수 많은 동"을 물었는데 화면
+     * 의료 접근성 취약지수 공식만 보여 주고 있었다(prod 실측). "세대수 많은 동"을 물었는데 화면
      * 아래에 "공급 부족 35% + 고령 수요 25% …"가 붙어 나왔다.
      */
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -983,7 +983,7 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(within(screen.getByTestId("result-panel")).queryAllByText(/교차분석/)).toHaveLength(0);
     });
-    // 의료 레이어의 기본 분석(의료취약지수)이 돌아왔는지 방법론으로 확인
+    // 의료 레이어의 기본 분석(의료 접근성 취약지수)이 돌아왔는지 방법론으로 확인
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
   }, 30_000);
 
@@ -1007,7 +1007,7 @@ describe("CopilotApp", () => {
       },
       { timeout: 15_000 },
     );
-    expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/의료취약지수/);
+    expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/의료 접근성 취약지수/);
     expect(screen.queryByText(/분석을 실행하는 중/)).toBeNull();
   }, 30_000);
 
@@ -1242,7 +1242,7 @@ describe("로딩 화면의 상단 바", () => {
   test("데이터가 오기 전에도 제품 이름이 접근성 트리에 있다", async () => {
     render(<CopilotApp boundaryVersion="20260701" />);
 
-    expect(screen.getByRole("heading", { name: /경남 AI GIS/i })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     expect(screen.getByTestId("topbar-loading-meta")).toHaveTextContent("준비하는 중");
     expect(screen.getByTestId("copilot-boot")).toHaveAttribute("aria-busy", "true");
   });

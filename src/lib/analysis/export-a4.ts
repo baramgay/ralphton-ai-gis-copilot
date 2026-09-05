@@ -201,7 +201,7 @@ ${notes}
   </ul>
 
   <footer class="doc-foot">
-    경남 AI GIS 코파일럿 · ${escapeHtml(exportedAt)} 작성 · 인용 시 기준월과 자료 한계를 함께 표기
+    누리맵(경남 공간데이터 분석) · ${escapeHtml(exportedAt)} 작성 · 인용 시 기준월과 자료 한계를 함께 표기
   </footer>
 </div>
 </body>

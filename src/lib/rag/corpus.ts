@@ -19,10 +19,15 @@ export type RagChunk = {
 export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "tool-scarcity",
-    title: "의료 취약지수",
-    body: "의료 취약지수는 공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%로 합성합니다. 점수가 높을수록 상대적으로 취약합니다. tool=rankHospitalScarcity.",
+    title: "의료 접근성 취약지수",
+    body: "의료 접근성 취약지수는 인구 대비 의료기관 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 안 시설 없음 15%로 합성합니다. 점수가 높을수록 병원에 닿기 어렵다는 뜻입니다. tool=rankHospitalScarcity.",
     tags: ["rankHospitalScarcity", "medical", "access"],
-    keywords: ["취약", "부족", "공백", "의료취약", "병원 부족"],
+    /*
+     * 「부족하다」와 「가기 힘들다」는 다른 어휘 계열이다. 이 청크가 설명하는 산식에 이미
+     * 최근접 거리와 2km 무시설이 들어 있으므로, 접근·거리의 말도 이 문서의 말이다.
+     * 질의 쪽만 넓히고 문서 쪽을 두면 같은 뜻의 두 표현이 서로 다른 청크로 갈린다.
+     */
+    keywords: ["취약", "부족", "공백", "의료취약", "병원 부족", "접근성", "가기 힘든", "최근접 거리", "의료 사각"],
   },
   {
     id: "tool-elderly-medical",

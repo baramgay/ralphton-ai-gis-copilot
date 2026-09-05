@@ -7,11 +7,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "경상남도 AI GIS 코파일럿",
-    template: "%s · 경남 AI GIS",
+    default: "누리맵 — 경남 공간데이터 분석",
+    template: "%s · 누리맵",
   },
-  description: "경상남도 행정동 의료·인구 접근성 분석 AI GIS 코파일럿",
-  applicationName: "경남 AI GIS",
+  description: "경상남도 305개 읍면동 공간데이터 분석 코파일럿 — 이동통신·카드소비·신용(SKT·NH·KCB)과 공공데이터를 자연어로",
+  applicationName: "누리맵",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -21,9 +21,9 @@ export const metadata: Metadata = {
     shortcut: ["/favicon.svg"],
   },
   openGraph: {
-    title: "경상남도 AI GIS 코파일럿",
+    title: "누리맵 — 경남 공간데이터 분석",
     description:
-      "경상남도 305개 행정동 의료·인구 접근성 · HIRA 병원 · 자연어 분석",
+      "경상남도 305개 읍면동 · SKT 생활인구 · NH 카드소비 · KCB 신용 · KOSIS 지표 · 자연어 공간분석",
     type: "website",
     locale: "ko_KR",
   },
