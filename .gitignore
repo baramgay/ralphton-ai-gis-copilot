@@ -38,3 +38,6 @@ next-env.d.ts
 
 .vercel
 .prod-*.mjs
+
+# 감사용 임시 프로브 — 레포에 남기지 않는다
+scripts/_audit_*
