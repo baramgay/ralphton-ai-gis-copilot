@@ -47,8 +47,14 @@ export function InterpretationCard({ interpretation }: InterpretationCardProps) 
           </ul>
         </div>
 
-        <details className="ui-details !border-slate-100 !bg-slate-50/80">
-          <summary className="!text-[length:var(--fs-chip)] !text-slate-600">해석 한계 · 주의</summary>
+        {/*
+          예전에는 `!bg-slate-50/80`·`!text-violet-800` 처럼 Tailwind 의 `!` 유틸리티로
+          칠했다. `!important` 끼리 부딪히면 **레이어 안쪽이 이긴다** — 테마 규칙은
+          레이어 밖이라, 다크에서 이 카드만 흰 바탕(1.97:1)으로 남았다(실측).
+          토큰으로 칠하면 네 테마를 따라간다.
+        */}
+        <details className="ui-details ui-details-muted">
+          <summary className="ui-details-summary">해석 한계 · 주의</summary>
           <ul className="ui-details-body !pt-0 space-y-1.5 ui-chip text-slate-500">
             {interpretation.caveats.map((item) => (
               <li key={item}>· {item}</li>
@@ -57,8 +63,8 @@ export function InterpretationCard({ interpretation }: InterpretationCardProps) 
         </details>
 
         {interpretation.ragCitations && interpretation.ragCitations.length > 0 ? (
-          <details className="ui-details !border-violet-100 !bg-violet-50/50" data-testid="rag-citations">
-            <summary className="!text-[length:var(--fs-chip)] !text-violet-800">근거 지식</summary>
+          <details className="ui-details ui-details-accent" data-testid="rag-citations">
+            <summary className="ui-details-summary">근거 지식</summary>
             <ul className="ui-details-body !pt-0 space-y-1 ui-chip text-violet-900/85">
               {interpretation.ragCitations.map((cite) => (
                 <li key={cite.id}>

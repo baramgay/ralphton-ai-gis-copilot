@@ -644,7 +644,12 @@ export function KakaoMap({
         data-probe-mode={probeMode ? "on" : "off"}
         aria-label="Kakao 경남 행정동 분석 지도"
       />
-      <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
+      {/*
+        지도 위에 뜨는 것은 유리 토큰으로 칠한다. 예전에는 `bg-white/90` + `text-slate-700`
+        이었는데, 고대비 테마는 글자만 흰색으로 뒤집고 `bg-white/90` 은 열거에 없어 그대로
+        흰색이었다 — 흰 바탕에 흰 글자, 1.02:1(실측). 토큰은 테마를 따라간다.
+      */}
+      <div className="map-chip map-chip-topleft">
         Kakao Maps
         {context?.clustererReady ? " · 클러스터" : ""}
       </div>
@@ -655,8 +660,8 @@ export function KakaoMap({
           </p>
         </div>
       ) : null}
-      <div className="absolute bottom-5 right-4 w-48 rounded-2xl border border-white/80 bg-white/92 p-3 shadow-xl">
-        <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+      <div className="map-legend">
+        <div className="map-legend-head">
           <span className="truncate">{legendLabel}</span>
           <span>높음</span>
         </div>
@@ -665,7 +670,7 @@ export function KakaoMap({
             <span key={color} className="flex-1" style={{ backgroundColor: color }} />
           ))}
         </div>
-        <p className="mt-2 text-[9px] leading-4 text-slate-400">
+        <p className="map-legend-note">
           5분위 채색(구간별 동 수 비슷) · 호버 시 이름·점수 · 시설 핀 색은 유형별
         </p>
       </div>

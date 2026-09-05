@@ -53,8 +53,14 @@ html[data-density="compact"] .quick-tile {
   --border-soft: #f1f5f9;
   --text-1: #0f172a;
   --text-2: #334155;
-  --text-3: #64748b;
-  --text-4: #94a3b8;
+  /*
+   * 보조 글자색. #64748b 는 순백 위에서는 4.76:1 이지만 이 화면의 보조 글자는
+   * 순백이 아니라 유리(245,247,250)와 옅은 파랑(239,246,255) 위에 앉는다 —
+   * 거기서 4.45·4.37 로 떨어졌다(실측). 가장 밝은 바탕이 아니라 **실제로 앉는
+   * 바탕**을 기준으로 잡는다.
+   */
+  --text-3: #556275;
+  --text-4: #6b7a90;
   --accent: #2563eb;
   --accent-soft: #eff6ff;
   /*
@@ -438,6 +444,42 @@ html[data-theme="dark"] .bg-slate-50 {
   background-color: #0f172a !important;
 }
 
+/*
+ * ── 열거의 구멍을 먼저 막는다 ──────────────────────────────────────────
+ *
+ * 아래 규칙들은 색 유틸리티를 **하나씩 열거해** 덮는다. 그래서 소스가 새 클래스를
+ * 쓰기 시작하면 그 자리만 조용히 라이트 색으로 남는다 — 빌드도 lint 도 tsc 도 초록이다.
+ * 실측으로 `text-rose-600`(다크 3.85:1) · `text-violet-800`(1.95:1) · 유리 위
+ * `text-slate-400`(고대비 1.02:1)이 그렇게 새어 나갔다.
+ *
+ * 그래서 계열마다 **모든 단계를 한 번에** 잡는 규칙을 먼저 둔다. 아래의 개별 규칙은
+ * 뒤에 오므로 지정한 자리에서는 그대로 이긴다. 새 단계를 쓰기 시작해도 최소한
+ * 읽히는 색으로 떨어진다.
+ */
+html[data-theme="dark"] [class*="text-rose-"] { color: #fda4af !important; }
+html[data-theme="dark"] [class*="text-red-"] { color: #fca5a5 !important; }
+html[data-theme="dark"] [class*="text-violet-"] { color: #c4b5fd !important; }
+html[data-theme="dark"] [class*="text-indigo-"] { color: #a5b4fc !important; }
+html[data-theme="dark"] [class*="text-emerald-"],
+html[data-theme="dark"] [class*="text-green-"],
+html[data-theme="dark"] [class*="text-teal-"] { color: #6ee7b7 !important; }
+html[data-theme="dark"] [class*="text-amber-"],
+html[data-theme="dark"] [class*="text-yellow-"],
+html[data-theme="dark"] [class*="text-orange-"] { color: #fcd34d !important; }
+html[data-theme="dark"] [class*="text-blue-"],
+html[data-theme="dark"] [class*="text-sky-"] { color: #93c5fd !important; }
+html[data-theme="dark"] [class*="text-cyan-"] { color: #67e8f9 !important; }
+html[data-theme="dark"] [class*="text-slate-"],
+html[data-theme="dark"] [class*="text-gray-"],
+html[data-theme="dark"] [class*="text-zinc-"] { color: #cbd5e1 !important; }
+
+/* 옅은 바탕도 마찬가지다. 50·100 단계는 어느 계열이든 다크에서 그대로 두면 눈이 아프다. */
+html[data-theme="dark"] [class*="bg-rose-5"],
+html[data-theme="dark"] [class*="bg-red-5"] { background-color: rgb(127 29 29 / 35%) !important; }
+html[data-theme="dark"] [class*="bg-sky-5"] { background-color: rgb(12 74 110 / 40%) !important; }
+html[data-theme="dark"] [class*="bg-slate-5"],
+html[data-theme="dark"] [class*="bg-gray-5"] { background-color: #1e293b !important; }
+
 html[data-theme="dark"] .bg-slate-100 {
   background-color: #1e293b !important;
 }
@@ -699,15 +741,42 @@ html[data-theme="contrast"] select {
   outline-color: #fff;
 }
 
-html[data-theme="contrast"] .map-float-btn.is-active,
-html[data-theme="contrast"] .rank-row.is-selected,
-html[data-theme="contrast"] .bg-slate-900 {
-  background: #fff !important;
+html[data-theme="contrast"] .copilot-shell .map-float-btn.is-active,
+html[data-theme="contrast"] .copilot-shell .map-float-btn.is-active *,
+html[data-theme="contrast"] .copilot-shell .rank-row.is-selected,
+html[data-theme="contrast"] .copilot-shell .rank-row.is-selected *,
+html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"] * {
+  background-color: #fff !important;
   color: #000 !important;
 }
 
 html[data-theme="contrast"] .score-bar > span {
   background: #fff;
+}
+
+/*
+ * 고대비도 같은 이유로 열거하지 않는다. 뒤집힌 자리(선택된 행·활성 버튼·짙은 칩)만
+ * 빼고 전부 흰 글자로 만든다. 뒤집힌 자리는 바로 아래 규칙이 다시 검은 글자로 돌린다.
+ */
+html[data-theme="contrast"] .copilot-shell [class*="text-"],
+html[data-theme="contrast"] .copilot-shell [class*="text-"] * {
+  color: #fff !important;
+}
+
+/* 옅은 바탕은 전부 검정으로. `bg-white/90` 같은 투명도 변형까지 잡는다. */
+html[data-theme="contrast"] .copilot-shell [class*="bg-white"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-slate-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-slate-1"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-blue-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-emerald-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-amber-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-rose-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-violet-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-cyan-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-indigo-5"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-sky-5"] {
+  background-color: #000 !important;
 }
 
 html[data-theme="contrast"] .text-slate-950,
@@ -900,14 +969,15 @@ input:hover {
   font-size: var(--fs-chip);
   font-weight: 700;
   line-height: var(--lh-tight);
-  color: #475569;
+  /* 색을 못박아 두면 테마를 따라가지 못한다 — 다크에서 2.41:1 이었다(실측). */
+  color: var(--text-2);
   white-space: nowrap;
   transition: border-color 140ms ease, color 140ms ease;
 }
 
 .copilot-topbar-link:hover {
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  border-color: var(--accent-line);
+  color: var(--text-1);
 }
 
 /* 좁은 화면에서는 기준월 문구를 접는다. 제품명과 데이터 상태가 먼저다. */
@@ -1011,13 +1081,15 @@ input:hover {
   place-items: center;
   width: 1.65rem;
   height: 3rem;
-  border: 1px solid rgb(203 213 225 / 90%);
+  /* 지도 위에 뜨는 것은 유리 토큰으로. 흰색을 못박으면 다크·고대비에서 흰 바탕에
+     흰 글자가 된다 — 글자만 토큰을 따라가고 바탕은 안 따라가기 때문이다(실측). */
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
-  background: rgb(255 255 255 / 96%);
+  background: var(--glass-bg-strong);
   font-size: 0.85rem;
   font-weight: 800;
   line-height: 1;
-  color: #334155;
+  color: var(--glass-text);
   box-shadow: 0 8px 20px rgb(15 23 42 / 14%);
   backdrop-filter: blur(10px);
   transform: translateY(-50%);
@@ -1029,8 +1101,8 @@ input:hover {
 }
 
 .panel-edge-toggle:hover {
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  border-color: var(--accent-line);
+  color: var(--accent);
   box-shadow: 0 10px 24px rgb(37 99 235 / 18%);
 }
 
@@ -1253,7 +1325,7 @@ input:hover {
 
 .query-hero-notice.is-neutral {
   background: rgb(248 250 252 / 96%);
-  color: #475569;
+  color: var(--text-2);
 }
 
 .query-hero-notice.is-success {
@@ -1371,6 +1443,88 @@ input:hover {
   -webkit-backdrop-filter: var(--glass-blur-sm);
   backdrop-filter: var(--glass-blur-sm);
   pointer-events: none;
+}
+
+/*
+ * 지도 위 칩과 범례. Tailwind 흰색 유틸리티(`bg-white/90`·`bg-white/92`)로 칠했더니
+ * 테마 열거에서 빠져 고대비에서 **흰 바탕에 흰 글자**가 됐다(1.02:1, 실측).
+ * 유리 토큰은 네 테마를 따라간다 — 새 화면에서 쓸 때도 다시 열거할 것이 없다.
+ */
+/*
+ * 해석 카드 안의 접이식 묶음. 색은 토큰으로만 준다 — Tailwind 의 `!` 유틸리티는
+ * 레이어 안쪽 `!important` 라 레이어 밖의 테마 규칙을 이겨 버린다.
+ */
+.ui-details-muted {
+  border-color: var(--border-2) !important;
+  background: var(--surface-2) !important;
+}
+
+.ui-details-accent {
+  border-color: var(--accent-line) !important;
+  background: var(--accent-soft) !important;
+}
+
+.ui-details-summary {
+  font-size: var(--fs-chip);
+  color: var(--text-2);
+}
+
+.map-chip {
+  position: absolute;
+  z-index: 10;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-bg-strong);
+  color: var(--glass-text);
+  padding: 0.375rem 0.75rem;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+  pointer-events: none;
+}
+
+.map-chip-topleft {
+  left: 1rem;
+  top: 1rem;
+}
+
+.map-legend {
+  position: absolute;
+  z-index: 10;
+  right: 1rem;
+  bottom: 1.25rem;
+  width: 12rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  background: var(--glass-bg-strong);
+  color: var(--glass-text);
+  padding: 0.75rem;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+}
+
+.map-legend-narrow {
+  width: 11rem;
+}
+
+.map-legend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.map-legend-note {
+  margin-top: 0.5rem;
+  font-size: var(--fs-caption);
+  line-height: 1.45;
+  color: var(--text-2);
 }
 
 .map-float-bar {
@@ -1500,7 +1654,7 @@ input:hover {
   height: 4px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: var(--border-2);
 }
 
 .score-bar > span {
@@ -1518,7 +1672,7 @@ input:hover {
 }
 
 .rank-row:hover {
-  background: #f8fafc;
+  background: var(--surface-1);
 }
 
 .rank-row.is-selected {
@@ -1529,13 +1683,13 @@ input:hover {
 .rank-row .rank-name {
   font-size: var(--fs-body-lg);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-1);
   line-height: var(--lh-tight);
 }
 
 .rank-row .rank-note {
   font-size: var(--fs-chip);
-  color: #64748b;
+  color: var(--text-3);
   line-height: var(--lh-tight);
 }
 
@@ -1553,7 +1707,7 @@ input:hover {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--text-3);
 }
 
 /*
@@ -1569,7 +1723,7 @@ input:hover {
   gap: 0.25rem;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
-  background: #f8fafc;
+  background: var(--surface-1);
   padding: 0.25rem;
 }
 
@@ -1595,19 +1749,19 @@ input:hover {
 
 .layer-switcher-item[aria-pressed="true"] {
   border-color: #93c5fd;
-  background: #fff;
+  background: var(--surface-2);
   box-shadow: 0 1px 2px rgb(15 23 42 / 8%);
 }
 
 .layer-switcher-label {
   font-size: var(--fs-body);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-1);
 }
 
 .layer-switcher-provider {
   font-size: var(--fs-chip);
-  color: #64748b;
+  color: var(--text-3);
 }
 
 .admin-level-toggle {
@@ -1621,8 +1775,8 @@ input:hover {
   padding: 0.375rem 0.75rem;
   font-size: var(--fs-chip);
   font-weight: 700;
-  color: #64748b;
-  background: #fff;
+  color: var(--text-3);
+  background: var(--surface-2);
 }
 
 .admin-level-toggle button[aria-pressed="true"] {
@@ -1636,7 +1790,7 @@ input:hover {
   line-height: var(--lh-tight);
   font-weight: 600;
   letter-spacing: var(--ls-caption);
-  color: #64748b;
+  color: var(--text-3);
 }
 
 .ui-chip {
@@ -1670,18 +1824,18 @@ input:hover {
 }
 
 .ui-soft {
-  color: #64748b;
+  color: var(--text-3);
 }
 
 .ui-muted {
-  color: #94a3b8;
+  color: var(--text-4);
 }
 
 /* Secondary settings — de-emphasize power-user controls */
 .ui-details {
   border: 1px solid #e2e8f0;
   border-radius: 0.85rem;
-  background: #fff;
+  background: var(--surface-2);
   overflow: hidden;
 }
 
@@ -1691,7 +1845,7 @@ input:hover {
   padding: 0.65rem 0.8rem;
   font-size: var(--fs-body);
   font-weight: 700;
-  color: #334155;
+  color: var(--text-2);
   user-select: none;
 }
 
@@ -1702,7 +1856,7 @@ input:hover {
 .ui-details > summary::after {
   float: right;
   content: "▾";
-  color: #94a3b8;
+  color: var(--text-4);
   font-weight: 600;
 }
 
@@ -1711,7 +1865,7 @@ input:hover {
 }
 
 .ui-details > summary:hover {
-  background: #f8fafc;
+  background: var(--surface-1);
 }
 
 .ui-details-body {
@@ -1755,21 +1909,21 @@ input:hover {
 .ui-stat-card {
   border: 1px solid #e2e8f0;
   border-radius: 0.85rem;
-  background: #fff;
+  background: var(--surface-2);
   padding: 0.7rem 0.75rem;
 }
 
 .ui-stat-card .label {
   font-size: var(--fs-caption);
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--text-4);
 }
 
 .ui-stat-card .value {
   margin-top: 0.25rem;
   font-size: var(--fs-body-lg);
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-1);
   letter-spacing: -0.01em;
   word-break: break-all;
 }
@@ -1789,7 +1943,7 @@ input:hover {
 .empty-state {
   border: 1px dashed #cbd5e1;
   border-radius: 1rem;
-  background: #f8fafc;
+  background: var(--surface-1);
   padding: 1rem;
   text-align: center;
 }
@@ -1798,12 +1952,12 @@ input:hover {
   display: inline-block;
   border: 1px solid #e2e8f0;
   border-radius: 0.3rem;
-  background: #f1f5f9;
+  background: var(--surface-3);
   padding: 0.1rem 0.35rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: #475569;
+  color: var(--text-2);
 }
 
 
@@ -1854,7 +2008,7 @@ input:hover {
   font-size: var(--fs-body);
   font-weight: 700;
   line-height: var(--lh-body);
-  color: #0f172a;
+  color: var(--text-1);
 }
 
 .result-conclusion-label {
@@ -1880,11 +2034,11 @@ input:hover {
   white-space: nowrap;
   border: 1px solid #e2e8f0;
   border-radius: 999px;
-  background: #f8fafc;
+  background: var(--surface-1);
   padding: 0.35rem 0.5rem;
   font-size: var(--fs-chip);
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-3);
 }
 
 .sheet-snap-btn.is-active {
@@ -1900,13 +2054,13 @@ input:hover {
 .mobile-panel-btn {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgb(255 255 255 / 80%);
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
-  background: rgb(255 255 255 / 92%);
+  background: var(--glass-bg-strong);
   padding: 0.55rem 0.95rem;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--glass-text);
   box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
   backdrop-filter: blur(12px);
 }
@@ -2127,7 +2281,7 @@ a {
 
 @media (prefers-reduced-transparency: reduce) {
   .copilot-panel {
-    background: #f8fafc;
+    background: var(--surface-1);
     backdrop-filter: none;
   }
 }

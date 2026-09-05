@@ -265,14 +265,14 @@ export function DemoMap({
         </button>
       </div>
 
-      <div className="absolute bottom-5 right-4 w-44 rounded-2xl border border-white/80 bg-white/90 p-3 shadow-xl backdrop-blur-xl">
-        <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-600">
+      <div className="map-legend map-legend-narrow">
+        <div className="map-legend-head">
           <span>{legendLabel}</span><span>높음</span>
         </div>
         <div className="flex h-2 overflow-hidden rounded-full">
           {ramp.map((color) => <span key={color} className="flex-1" style={{ backgroundColor: color }} />)}
         </div>
-        <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
+        <div className="map-legend-note flex justify-between">
           <span>5분위(같은 수의 동)</span><span>높음</span>
         </div>
       </div>

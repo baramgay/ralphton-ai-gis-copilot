@@ -5118,7 +5118,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           className={`grid size-7 shrink-0 place-items-center rounded-full ui-chip font-black ${
                             (analysis.ranked.findIndex((item) => item.code === row.code) < 3
                               ? "bg-slate-900 text-white"
-                              : "bg-slate-100 text-slate-500")
+                              : "bg-slate-100 text-slate-600")
                           }`}
                           title={`표시 ${index + 1} · 전체 순위 ${analysis.ranked.findIndex((item) => item.code === row.code) + 1}`}
                         >

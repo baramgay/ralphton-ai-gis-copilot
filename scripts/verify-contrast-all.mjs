@@ -12,6 +12,11 @@
  * 바탕이 투명하면 부모로 거슬러 올라가고, 유리(반투명)면 그 아래 색과 합성한다 —
  * 반투명 위에서는 유틸리티 이름만 봐서는 무슨 색 위에 있는지 알 수 없다.
  *
+ * 색은 정규식으로 읽지 않고 **캔버스에 한 픽셀 찍어서** 읽는다. Tailwind v4 를 쓰면
+ * `getComputedStyle` 이 `lab()`·`oklab()` 로도 돌려주는데(배포본에서 950개 중 37개,
+ * 실측), 숫자만 뽑아 RGB 로 읽으면 엉뚱한 값이 나와 **미달을 통과로 셌다**. 캔버스는
+ * 브라우저가 실제로 칠할 색을 그대로 준다 — 표기법이 무엇이든.
+ *
  * 실행: node scripts/verify-contrast-all.mjs [URL] (종료 코드로 판정)
  */
 import { chromium } from "@playwright/test";
@@ -34,7 +39,19 @@ const VIEWPORTS = [
 
 /* 페이지 안에서 도는 채점기. 바탕은 합성해서 찾는다. */
 const SCORE = `(() => {
-  const parse = (s) => (s.match(/[\d.]+/g) || []).map(Number);
+  /* 어떤 CSS 색 표기든 브라우저가 칠하는 RGBA 로 바꾼다. */
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.globalCompositeOperation = "copy";
+  const parse = (value) => {
+    if (!value) return [];
+    ctx.fillStyle = "#000";
+    ctx.fillStyle = value;
+    ctx.fillRect(0, 0, 1, 1);
+    const d = ctx.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2], d[3] / 255];
+  };
   const lum = ([r, g, b]) => {
     const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
@@ -45,18 +62,33 @@ const SCORE = `(() => {
   const painted = (node) => {
     const stack = [];
     for (let cur = node; cur; cur = cur.parentElement) {
-      const p = parse(getComputedStyle(cur).backgroundColor);
+      const cs = getComputedStyle(cur);
+      /* 바탕이 그림이면 색으로 잴 수 없다 — 지도 군집 배지는 PNG 스프라이트다.
+         모르는 것을 통과로도 미달로도 세지 않고 따로 센다. */
+      if (cs.backgroundImage && cs.backgroundImage !== "none") return null;
+      const p = parse(cs.backgroundColor);
       if (!p.length) continue;
-      const a = p.length < 4 ? 1 : p[3];
+      const a = p[3];
       if (a <= 0.001) continue;
       stack.push([p.slice(0, 3), a]);
       if (a >= 0.999) break;
     }
+    /*
+     * 맨 아래 색은 흰색이 아니라 **문서가 실제로 칠한 바탕**이다. 흰색으로 두면
+     * 다크 테마에서 반투명 층을 흰 바탕 위에 합성해 회색이 나오고, 멀쩡한 글자가
+     * 미달로 잡힌다(실측 rgb(130,134,149) — 화면 어디에도 없는 색이었다).
+     */
     let base = [255, 255, 255];
+    for (const root of [document.body, document.documentElement]) {
+      const p = parse(getComputedStyle(root).backgroundColor);
+      if (p.length && p[3] >= 0.999) { base = p.slice(0, 3); break; }
+    }
     for (let i = stack.length - 1; i >= 0; i--) base = over(stack[i][0], base, stack[i][1]);
     return base;
   };
   const seen = [];
+  let unmeasurable = 0;
+  let disabled = 0;
   for (const node of document.querySelectorAll("body *")) {
     if (node.children.length) continue;
     const text = (node.textContent || "").trim();
@@ -67,22 +99,31 @@ const SCORE = `(() => {
     if (r.width < 1 || r.height < 1) continue;
     if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
     if (node.closest("[aria-hidden='true']")) continue;
+    /* 비활성 컨트롤은 WCAG 1.4.3 예외다. 세지 않되 몇 개인지는 밝힌다. */
+    if (node.closest("button:disabled, input:disabled, select:disabled, [aria-disabled='true']")) {
+      disabled += 1;
+      continue;
+    }
     const fgp = parse(cs.color);
-    const alpha = fgp.length < 4 ? 1 : fgp[3];
+    if (!fgp.length) continue;
+    const alpha = fgp[3];
     if (alpha < 0.15) continue;
     const bg = painted(node);
+    if (!bg) { unmeasurable += 1; continue; }
     const fg = alpha >= 0.999 ? fgp.slice(0, 3) : over(fgp.slice(0, 3), bg, alpha);
     const size = parseFloat(cs.fontSize);
     const weight = Number(cs.fontWeight);
     /* WCAG 「큰 글자」 = 18.66px 이상, 또는 14px 이상이면서 굵기 700 이상. */
     const need = size >= 18.66 || (size >= 14 && weight >= 700) ? 3 : 4.5;
-    seen.push({ value: ratio(fg, bg), need, text: text.slice(0, 26), cls: String(node.className || ""), tag: node.tagName, size, weight });
+    seen.push({ value: ratio(fg, bg), need, text: text.slice(0, 26), cls: String(node.className || ""), tag: node.tagName, size, weight, fg: fg.map(Math.round).join(","), bg: bg.map(Math.round).join(",") });
   }
-  return seen;
+  return { seen, unmeasurable, disabled };
 })()`;
 
 const failures = [];
 let counted = 0;
+let skipped = 0;
+let offDuty = 0;
 const browser = await chromium.launch();
 
 for (const [vpName, viewport] of VIEWPORTS) {
@@ -118,17 +159,20 @@ for (const [vpName, viewport] of VIEWPORTS) {
         await summaries.nth(i).click({ timeout: 2_000 }).catch(() => {});
       await page.waitForTimeout(400);
 
-      const rows = await page.evaluate(SCORE);
+      const { seen: rows, unmeasurable, disabled } = await page.evaluate(SCORE);
+      offDuty += disabled;
       counted += rows.length;
+      skipped += unmeasurable;
       const bad = rows.filter((row) => row.value < row.need - 0.005);
       for (const row of bad)
         failures.push(
           `${vpName}/${themeName}/${tabLabel} · 「${row.text}」 ${row.value.toFixed(2)}:1 ` +
-            `(필요 ${row.need}) · ${row.tag}.${row.cls || "(클래스 없음)"} ${row.size}px/${row.weight}`,
+            `(필요 ${row.need}) · 글자 rgb(${row.fg}) 바탕 rgb(${row.bg}) · ${row.tag}.${row.cls || "(클래스 없음)"} ${row.size}px/${row.weight}`,
         );
       console.log(
         `  ${bad.length === 0 ? "OK " : "!! "} ${vpName}/${themeName}/${tabLabel}: ` +
-          `${rows.length}개 중 ${bad.length}개 미달`,
+          `${rows.length}개 중 ${bad.length}개 미달` +
+          (unmeasurable ? ` (바탕이 그림이라 못 잰 것 ${unmeasurable}개)` : ""),
       );
     }
   }
