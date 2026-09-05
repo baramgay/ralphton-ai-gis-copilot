@@ -216,9 +216,6 @@ html[data-theme="dark"] .copilot-map {
   background: var(--surface-map);
 }
 
-html[data-theme="dark"] .copilot-scroll {
-  scrollbar-color: #475569 transparent;
-}
 
 html[data-theme="dark"] .section-label,
 html[data-theme="dark"] .ui-caption,
@@ -1796,7 +1793,27 @@ input:hover {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  /*
+   * 손잡이 색은 테마를 따라간다.
+   *
+   * 여기 있던 값(라이트 #cbd5e1 · 다크 #475569)은 각 패널 바탕과 대비가 1.4:1 · 2.4:1
+   * 이었다. 스크롤은 되는데 **손잡이가 안 보여서** 안 되는 줄 알게 된다 — 실제로
+   * 「휠이 없어서 스크롤이 안 되는 것 같다」는 말을 들었다. 비인접 UI 요소의 하한은
+   * 3:1 이다. --text-3 은 네 테마 모두에서 그 위다(라이트 4.9 · 다크 6.7 · 고대비 18).
+   */
+  scrollbar-color: var(--text-3) transparent;
+}
+
+/*
+ * 결과 패널의 머리글은 제목·결론·지역 프로필(펼침)·내보내기를 담아 내용에 따라 자란다.
+ * 자라는 것을 막지 않으면 목록이 설 자리를 잃는다 — 머리글이 패널의 절반을 넘어가면
+ * 순위가 몇 줄만 남는다. 넘칠 때만 머리글 안에서 스크롤한다.
+ */
+.copilot-panel-right > header {
+  max-height: 60%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-3) transparent;
 }
 
 .copilot-map {
