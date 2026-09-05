@@ -95,15 +95,31 @@ for (const [name, attr] of THEMES) {
         read(root, t),
       ]),
     );
+    /*
+     * 첫 요소만 보면 안 된다. 칩은 종류마다(추천·최근·지우기) 색이 다르고, 배포본에서
+     * 실제로 첫 칩만 통과하고 「최근」이 3.29:1 로 깨져 있었다. 가장 나쁜 것을 고른다.
+     */
     const pick = (sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return null;
-      const cs = getComputedStyle(el);
+      const els = [...document.querySelectorAll(sel)];
+      if (!els.length) return null;
+      const lum = (css) => {
+        const n = css.match(/[\d.]+/g)?.map(Number) ?? [0, 0, 0];
+        return 0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2];
+      };
+      const dark = document.documentElement.getAttribute("data-theme") === "dark";
+      // 다크는 글자가 밝을수록 안전하므로 가장 어두운 글자가, 라이트는 그 반대가 최악이다.
+      const worst = els.reduce((a, b) => {
+        const la = lum(getComputedStyle(a).color);
+        const lb = lum(getComputedStyle(b).color);
+        return (dark ? lb < la : lb > la) ? b : a;
+      });
+      const cs = getComputedStyle(worst);
       return {
         bg: cs.backgroundColor,
         color: cs.color,
         weight: cs.fontWeight,
         filter: cs.backdropFilter || cs.webkitBackdropFilter || "none",
+        cls: worst.className,
       };
     };
     return {
@@ -162,7 +178,7 @@ for (const [name, attr] of THEMES) {
       contrast(fg.rgb, composite(tint, [255, 255, 255])),
       contrast(fg.rgb, composite(tint, [0, 0, 0])),
     );
-    check(worst >= 4.5, `${label}: 최악 타일에서도 AA`, `${worst.toFixed(2)}:1`);
+    check(worst >= 4.5, `${label}: 최악 타일에서도 AA`, `${worst.toFixed(2)}:1 (${part.cls || ""})`);
   }
 }
 

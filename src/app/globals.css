@@ -1310,23 +1310,31 @@ input:hover {
   color: var(--text-1);
 }
 
+/*
+ * 칩 종류는 **색이 아니라 테두리**로 가른다.
+ *
+ * 유리 위에서는 --text-3 이하와 색 글자가 최악의 타일에서 깨진다. 여기 있던
+ * #64748b(최근)·#94a3b8(지우기)·#1d4ed8(추천)이 실제로 3.29:1까지 내려갔다
+ * (배포본 실측, scripts/verify-glass.mjs). 글자는 --text-2 로 올리고, 무엇이 다른지는
+ * 선이 나른다 — 색은 자료에만 쓴다는 규칙과도 맞다.
+ */
 .query-hero-chip.is-suggestion {
-  border-color: #93c5fd;
-  background: rgb(239 246 255 / 96%);
-  color: #1d4ed8;
+  border-color: var(--accent-line);
+  color: var(--text-1);
+  font-weight: 700;
 }
 
 .query-hero-chip.is-recent {
-  color: #64748b;
+  color: var(--text-2);
 }
 
 .query-hero-chip.is-clear {
-  color: #94a3b8;
+  color: var(--text-2);
 }
 
 .query-hero-chip.is-clear:hover {
-  border-color: #fda4af;
-  color: #be123c;
+  border-color: var(--accent-warm);
+  color: var(--text-1);
 }
 
 /* 무엇을 보고 있는지 알려 주는 배지. 히어로가 상단 가운데를 쓰므로 왼쪽 아래에 둔다. */
