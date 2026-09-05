@@ -58,7 +58,8 @@ check(!/구 비교/.test(shell), "옛 이름(구 비교)이 남아 있지 않다
  */
 const useTab = page.getByRole("tab", { name: "이용" });
 if ((await useTab.count()) === 0 || !(await useTab.first().isVisible())) {
-  await page.getByRole("button", { name: "조작" }).click();
+  // 「조작」이라는 이름을 가진 버튼이 둘이다(모바일 시트 버튼 · 데스크톱 가장자리 토글).
+  await page.getByRole("button", { name: "조작 패널 열기" }).click();
 }
 await useTab.first().click();
 const glossary = page.getByTestId("glossary");
