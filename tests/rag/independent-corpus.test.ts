@@ -74,27 +74,40 @@ function ranksOf(entry: Case): boolean[] {
 
 describe("외부 질의 30개 — 검색 품질 바닥선", () => {
   /*
-   * 2026-09-04 실측: top-1 19/30 · top-5 27/30. 바닥선은 그 값 그대로 둔다. 여유를 두면
-   * 그만큼 조용히 나빠질 수 있고, 이 검사가 지키려는 것이 바로 그 조용한 하락이다.
+   * 처음 잰 값은 top-1 19/30 · top-5 27/30이었다. 거기서 드러난 두 어휘 구멍(「가기 힘든」
+   * 계열, 「한 반에」 계열)을 넓혀 21/29가 됐고, 바닥선은 **고친 뒤의 값**으로 올린다.
+   * 여유를 두면 그만큼 조용히 나빠질 수 있고, 이 검사가 지키려는 것이 그 조용한 하락이다.
    */
-  test("top-1 적중이 19건 아래로 내려가지 않는다", () => {
+  test("top-1 적중이 21건 아래로 내려가지 않는다", () => {
     const hits = CASES.filter((entry) => ranksOf(entry)[0] === true).length;
-    expect(hits).toBeGreaterThanOrEqual(19);
+    expect(hits).toBeGreaterThanOrEqual(21);
   });
 
-  test("top-5 적중이 27건 아래로 내려가지 않는다", () => {
+  test("top-5 적중이 29건 아래로 내려가지 않는다", () => {
     const hits = CASES.filter((entry) => ranksOf(entry).some(Boolean)).length;
-    expect(hits).toBeGreaterThanOrEqual(27);
+    expect(hits).toBeGreaterThanOrEqual(29);
   });
 
   /*
-   * 「병원 가기 힘든 읍면」이 5위 밖이라는 것은 이미 아는 결함이다(의료취약 도구가
-   * hira-hospitals·tool-facilities에 밀린다). 고쳐진 것을 모르고 지나치지 않도록,
-   * 아직 못 고쳤다는 사실 자체를 검사로 남긴다 — 통과하기 시작하면 이 검사가 붉어지고,
-   * 그때 바닥선을 올린다.
+   * 「부족하다」와 「가기 힘들다」는 다른 어휘 계열이다. 전자만 실려 있어서 후자가
+   * 5위 밖으로 밀렸다 — 한 표현을 끼워 넣는 대신 거리·접근의 말맛을 계열로 넓혔고,
+   * 이 검사가 그 계열이 살아 있는지 지킨다.
    */
-  test("아직 못 고친 것: 「병원 가기 힘든 읍면」은 여전히 5위 밖이다", () => {
-    const scarcity = CASES.find((entry) => entry.no === 8)!;
-    expect(ranksOf(scarcity).some(Boolean)).toBe(false);
+  test.each([
+    [8, "병원 가기 힘든 읍면 어디야"],
+    [14, "한 반에 학생이 너무 많은 지역"],
+  ])("#%s 은 이제 5위 안에 든다", (no) => {
+    const entry = CASES.find((item) => item.no === no)!;
+    expect(ranksOf(entry).some(Boolean)).toBe(true);
+  });
+
+  /*
+   * 남은 하나(#18 「사람이 계속 들어오는 동네」)는 **우리 기대가 틀렸을 수 있는 건**이다.
+   * 1위로 오는 skt-mobility 유입인구도 그 물음의 답으로 방어된다. 기대를 우리 편한 대로
+   * 고치지 않기 위해 그대로 두고, 사실만 적어 둔다.
+   */
+  test("#18은 여전히 기대 레이어가 5위 밖이다 — 기대 쪽을 의심하고 있다", () => {
+    const entry = CASES.find((item) => item.no === 18)!;
+    expect(ranksOf(entry).some(Boolean)).toBe(false);
   });
 });
