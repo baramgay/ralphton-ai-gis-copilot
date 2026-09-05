@@ -434,7 +434,7 @@ function accessRecords(intent: AnalysisIntent, snapshot: AnalysisSnapshot): { re
 function accessMetrics(record: AccessRecord, referenceMonth: string): MetricDescriptor[] {
   return [
     metric(
-      "의료취약지수",
+      "의료 접근성 취약지수",
       record.vulnerabilityScore,
       "점",
       "공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%",

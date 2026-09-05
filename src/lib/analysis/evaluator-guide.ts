@@ -30,7 +30,7 @@ export const EVALUATOR_CRITERIA: EvaluatorCriterion[] = [
     id: "method",
     title: "방법론 투명성",
     weight: "높음",
-    lookFor: "의료취약지수 가중치·직선거리·자연증가 한계가 설명되는지",
+    lookFor: "의료 접근성 취약지수 가중치·직선거리·자연증가 한계가 설명되는지",
     howToVerify: "결과 「산식 · 해석 기준」 · 한눈에 보기 한계 섹션",
   },
   {
@@ -45,7 +45,7 @@ export const EVALUATOR_CRITERIA: EvaluatorCriterion[] = [
     title: "지도·결과 연동",
     weight: "높음",
     lookFor: "순위·지도 색·선택 동이 동기화되고 비교·드릴다운이 되는지",
-    howToVerify: "순위 클릭 · 구 비교 · 동 순위 보기 · j/k 이동",
+    howToVerify: "순위 클릭 · 지역 비교 · 동 순위 보기 · j/k 이동",
   },
   {
     id: "ops",
@@ -67,4 +67,4 @@ export const EVALUATOR_SCRIPT = [
 ] as const;
 
 export const METHOD_SUMMARY =
-  "의료취약지수 = 공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%. 거리=행정동 대표점 직선거리. 자연증가=출생−사망(전입·전출 제외).";
+  "의료 접근성 취약지수 = 공급 부족 35% + 고령 수요 25% + 최근접 거리 25% + 2km 무시설 15%. 거리=행정동 대표점 직선거리. 자연증가=출생−사망(전입·전출 제외).";

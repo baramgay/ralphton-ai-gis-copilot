@@ -1981,7 +1981,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setLastIntent({ tool: "compareRegions", filters: { compare: [...comparePair] } });
     const next = executeQuickAnalysis(snapshot, "compare", radiusKm, comparePair);
     if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
-    showToast("구 비교로 돌아감");
+    showToast("지역 비교로 돌아감");
   }, [comparePair, radiusKm, showToast, snapshot]);
 
   const applyComparePair = useCallback(
@@ -4655,7 +4655,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-bold text-amber-900"
                 onClick={exitDrill}
               >
-                구 비교로
+                지역 비교로
               </button>
               {drillTrail.map((token) => (
                 <span key={token} className="text-slate-500">
