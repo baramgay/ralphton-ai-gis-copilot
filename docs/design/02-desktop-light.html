@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<!--
+  누리맵 시안 02 — 데스크톱 1440×900 · 라이트 · 순위 결과 있는 상태
+  정본: src/app/globals.css 토큰 / src/components/copilot/copilot-app.tsx 클래스·문구
+  규칙: 토큰 이름·클래스 이름은 바꾸지 않고, 값을 바꾸거나 새 토큰(--glass-*, --ls-*, --touch-min)만 추가.
+  폰트: 자체 호스팅 Pretendard(배포본). 시안에서는 설치된 Pretendard가 없으면 시스템 한글체로 폴백.
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>누리맵 시안 02 — 데스크톱 라이트</title>
+<style>
+/* ─── §4 기존 토큰 (이름 유지, 라이트 기본값 — 다크에만 있던 값이 라이트에서 죽는 함정 방지) ─── */
+:root {
+  color-scheme: light;
+  --background: #f4f7fb;  --foreground: #0f172a;
+  --panel-left: 300px;    --panel-right: 360px;
+  --ui-space: 0.75rem;    --ui-radius: 0.9rem;   --ui-chip: 0.625rem;
+  --fs-caption: 0.6875rem; --fs-chip: 0.75rem; --fs-body: 0.8125rem;
+  --fs-body-lg: 0.875rem;  --fs-title: 0.9375rem; --fs-display: 1.0625rem;
+  --lh-tight: 1.35; --lh-body: 1.55;
+  --surface-0: #e7edf3; --surface-1: rgb(248 250 252 / 98%); --surface-2: #ffffff;
+  --surface-3: #f1f5f9; --surface-map: #dbe4ee;
+  --border-1: rgb(203 213 225 / 80%); --border-2: #e2e8f0; --border-soft: #f1f5f9;
+  --text-1: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
+  --accent: #2563eb; --accent-soft: #eff6ff; --accent-line: rgb(37 99 235 / 35%);
+  --accent-warm: #b45309; --accent-warm-soft: rgb(180 83 9 / 8%);
+  --shadow-panel: 8px 0 24px rgb(15 23 42 / 5%);
+  --input-bg: #ffffff; --input-border: #e2e8f0;
+  --rank-value: #1d4ed8; --score-track: #e2e8f0; --elevated: #ffffff;
+
+  /* ─── 새 토큰: Liquid Glass (지도 위 부유층 전용) ───
+     규칙: 유리 불투명도는 72% 이상. 그 아래로 내려가면 최악의 타일(위성 밝은 곳)에서
+     복합 바탕이 중간 회색이 되어 어느 글자색도 AA를 못 넘는다(MEASURED.md 표2). */
+  --glass-bg: rgb(255 255 255 / 72%);
+  --glass-bg-strong: rgb(255 255 255 / 85%);   /* 글자를 직접 품는 유리(질의창·지점 카드) */
+  --glass-border: rgb(255 255 255 / 60%);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 75%), inset 0 -1px 0 rgb(15 23 42 / 6%);
+  --glass-shadow: 0 12px 32px rgb(15 23 42 / 16%), 0 2px 6px rgb(15 23 42 / 8%);
+  --glass-blur: blur(24px) saturate(170%);      /* 큰 면: 상단바·시트·지점 카드 */
+  --glass-blur-sm: blur(14px) saturate(150%);   /* 작은 면: 버튼 줄·칩 */
+  --glass-text: var(--text-1);                  /* 유리 위 글자: vibrancy — 평면 회색 금지 */
+
+  /* ─── 새 토큰: 자간 (Pretendard에 SF 자간 감각 이식 — 크기별, 단일값 금지) ─── */
+  --ls-display: -0.015em;  /* 17px: 크게 갈수록 조인다. 한글은 SF보다 어깨가 넓어 -30% 보정 */
+  --ls-title: -0.01em;
+  --ls-body: 0;
+  --ls-caption: 0.01em;    /* 11px: 작게 갈수록 벌린다 */
+
+  /* ─── 새 토큰: 모션 (MOTION.md 정본) ─── */
+  --dur-press: 100ms;                  /* pointer-down 즉시 반응 */
+  --dur-ui: 140ms;                     /* 색·테두리 상태 변화 (기존값 유지) */
+  --dur-sheet: 240ms;                  /* 시트·패널 개폐 */
+  --dur-materialize: 220ms;            /* 유리 등장: blur+scale+opacity 동시 */
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);  /* 감속 스프링 근사(오버슈트 없음) */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ─── 새 토큰: 터치 타깃 (Apple HIG 44pt) ─── */
+  --touch-min: 44px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #080f1c; --foreground: #e2e8f0;
+  --surface-0: #080f1c; --surface-1: rgb(13 21 36 / 97%); --surface-2: #101a2c;
+  --surface-3: #0b1322; --surface-map: #0a1120;
+  --border-1: rgb(38 54 80 / 90%); --border-2: #26364f; --border-soft: #182339;
+  --text-1: #f1f5f9; --text-2: #c7d2e0; --text-3: #8fa3bd; --text-4: #64748b;
+  --accent: #22d3ee; --accent-soft: rgb(34 211 238 / 14%); --accent-line: rgb(34 211 238 / 45%);
+  --accent-warm: #fbbf24; --accent-warm-soft: rgb(251 191 36 / 14%);
+  --shadow-panel: 8px 0 32px rgb(0 0 0 / 55%);
+  --input-bg: #0b1322; --input-border: #26364f;
+  --rank-value: #67e8f9; --score-track: #16233a; --elevated: #101a2c;
+
+  /* 다크 유리: 어두운 틴트 + 위쪽 스페큘러. 밝은 타일 위에서도 복합 바탕이 어둡게 남는다 */
+  --glass-bg: rgb(13 21 36 / 72%);
+  --glass-bg-strong: rgb(10 17 30 / 85%);
+  --glass-border: rgb(148 163 184 / 30%);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 13%), inset 0 -1px 0 rgb(0 0 0 / 35%);
+  --glass-shadow: 0 14px 36px rgb(0 0 0 / 50%), 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+/* ─── 뼈대 (globals.css와 같은 그리드) ─── */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body {
+  background: var(--background); color: var(--foreground);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-size: var(--fs-body); line-height: var(--lh-body);
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+.copilot-shell {
+  --topbar-h: 3rem;
+  position: relative; display: grid;
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+  grid-template-columns: var(--panel-left) minmax(0, 1fr) var(--panel-right);
+  width: 100%; height: 100dvh; overflow: clip;
+  background: var(--surface-0);
+}
+
+/* ─── 상단바: 얇은 유리. 지도와 패널을 잇는 층이라 가장 가벼운 재질 ─── */
+.copilot-topbar {
+  z-index: 60; grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 0.625rem;
+  height: var(--topbar-h); padding: 0 0.875rem;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  border-bottom: 1px solid var(--border-1);
+  box-shadow: inset 0 -1px 0 var(--border-1), inset 0 1px 0 rgb(255 255 255 / 4%);
+}
+.brand-mark {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #22d3ee, #2563eb);
+  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px;
+}
+.copilot-topbar h1 {
+  margin: 0; font-size: var(--fs-body-lg); font-weight: 800;
+  letter-spacing: var(--ls-title); color: var(--text-1);
+}
+.copilot-topbar-meta { margin: 0; font-size: var(--fs-caption); letter-spacing: var(--ls-caption); color: var(--text-3); }
+.copilot-topbar nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.copilot-topbar-link {
+  border: 1px solid transparent; border-radius: 999px; padding: 0.3rem 0.6rem;
+  font-size: var(--fs-chip); font-weight: 700; color: var(--text-3);
+  transition: border-color var(--dur-ui) ease, color var(--dur-ui) ease;
+}
+.copilot-topbar-link:hover { border-color: var(--accent-line); color: var(--accent); }
+.ui-status {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border-radius: 999px; padding: 0.2rem 0.55rem;
+  font-size: var(--fs-chip); font-weight: 700; white-space: nowrap;
+}
+.ui-status::before { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 999px; background: currentColor; opacity: 0.85; }
+.ui-status-live { color: #047857; background: #ecfdf5; border: 1px solid rgb(4 120 87 / 25%); }
+
+/* ─── 패널: 불투명 면. 숫자를 읽는 자리 — 뒤가 비치면 읽기가 나빠진다 ─── */
+.copilot-panel {
+  z-index: 20; display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  overflow: hidden; background: var(--surface-1); color: var(--foreground);
+  font-size: var(--fs-body); line-height: var(--lh-body);
+}
+.copilot-panel-left { border-right: 1px solid var(--border-1); box-shadow: var(--shadow-panel); }
+.copilot-panel-right { border-left: 1px solid var(--border-1); box-shadow: -8px 0 24px rgb(15 23 42 / 5%); }
+.copilot-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+.panel-tabs { padding: 0.75rem 0.75rem 0; }
+.panel-tabs-inner { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 12px; background: var(--surface-3); padding: 4px; }
+.panel-tab {
+  border-radius: 9px; padding: 0.5rem; font-size: var(--fs-body); font-weight: 600;
+  color: var(--text-3); transition: background-color var(--dur-ui) ease, color var(--dur-ui) ease;
+}
+.panel-tab[aria-selected="true"] { background: var(--surface-2); color: var(--text-1); font-weight: 700; box-shadow: 0 1px 2px rgb(15 23 42 / 8%); }
+
+.section-label {
+  margin: 0 0 0.5rem; font-size: var(--fs-caption); font-weight: 800;
+  letter-spacing: 0.06em; color: var(--text-3);
+}
+.ui-caption { font-size: var(--fs-caption); line-height: var(--lh-tight); font-weight: 600; letter-spacing: var(--ls-caption); color: var(--text-3); }
+.ui-chip { font-size: var(--fs-chip); line-height: var(--lh-tight); font-weight: 600; }
+.ui-title { font-size: var(--fs-title); line-height: var(--lh-tight); font-weight: 800; letter-spacing: var(--ls-title); color: var(--text-1); margin: 0; }
+.ui-display { font-size: var(--fs-display); line-height: var(--lh-tight); font-weight: 800; letter-spacing: var(--ls-display); color: var(--text-1); margin: 0; }
+
+/* 빠른 분석 타일 — 색은 아이콘 바탕에만, 면은 눌러 둔다 */
+.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.quick-tile {
+  min-height: 64px; border: 1px solid var(--border-2); border-radius: var(--ui-radius);
+  background: var(--surface-2); padding: 0.625rem; text-align: left;
+  transition: transform var(--dur-press) ease-out, border-color var(--dur-ui) ease, background-color var(--dur-ui) ease;
+}
+.quick-tile:hover { border-color: var(--accent-line); }
+.quick-tile:active { transform: scale(0.97); }  /* 눌림은 pointer-down에, 100ms */
+.quick-tile.is-active { border-color: var(--accent-line); background: var(--accent-soft); }
+.quick-symbol {
+  display: inline-grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 7px; font-size: 13px; font-weight: 800;
+}
+.quick-name { display: block; margin-top: 6px; font-size: var(--fs-body); font-weight: 700; color: var(--text-1); }
+.quick-sub { display: block; margin-top: 2px; font-size: var(--fs-caption); letter-spacing: var(--ls-caption); color: var(--text-3); }
+
+/* 레이어 스위처 */
+.layer-switcher {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  border: 1px solid var(--border-2); border-radius: 14px;
+  background: #f8fafc; padding: 4px;
+}
+.layer-switcher-item {
+  display: inline-flex; flex: 0 0 auto; align-items: baseline; gap: 5px;
+  border: 1px solid transparent; border-radius: 999px; padding: 0.4rem 0.625rem;
+  white-space: nowrap; transition: border-color var(--dur-ui) ease, background-color var(--dur-ui) ease;
+}
+.layer-switcher-item[aria-pressed="true"] { background: #fff; border-color: #93c5fd; box-shadow: 0 1px 2px rgb(15 23 42 / 8%); }
+.layer-switcher-label { font-size: var(--fs-body); font-weight: 700; color: var(--text-1); }
+.layer-switcher-provider { font-size: var(--fs-chip); color: var(--text-3); }
+
+/* ─── 지도 ─── */
+.copilot-map { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--surface-map); }
+.copilot-map svg.fake-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ─── 질의 히어로: 유리. 어느 패널에도 속하지 않고 항상 닿는다 ─── */
+.query-hero {
+  position: absolute; z-index: 50; top: 1rem; left: 50%;
+  width: min(38rem, calc(100% - 2rem)); transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.query-hero-form { position: relative; }
+.query-hero-input {
+  width: 100%; height: 3.25rem;
+  border: 1px solid var(--glass-border); border-radius: 1rem;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  padding: 0 3.5rem 0 1.125rem;
+  font-size: var(--fs-body-lg); font-weight: 500; color: var(--glass-text);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  outline: none; transition: border-color var(--dur-ui) ease, box-shadow var(--dur-ui) ease;
+}
+.query-hero-input::placeholder { color: var(--text-4); }
+.query-hero-input:focus { border-color: #60a5fa; box-shadow: var(--glass-edge), var(--glass-shadow), 0 0 0 4px rgb(59 130 246 / 22%); }
+.query-hero-submit {
+  position: absolute; top: 0.5rem; right: 0.5rem;
+  display: grid; place-items: center; width: 2.25rem; height: 2.25rem;
+  border-radius: 0.75rem; background: #1d4ed8; color: #fff;
+  font-size: var(--fs-body); font-weight: 700;
+  transition: background-color var(--dur-ui) ease, transform var(--dur-press) ease-out;
+}
+.query-hero-submit:hover { background: #1e40af; }
+.query-hero-submit:active { transform: scale(0.94); }
+.query-hero-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.query-hero-chip {
+  flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 1px solid var(--glass-border); border-radius: 999px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  padding: 0.35rem 0.75rem; font-size: var(--fs-chip); font-weight: 600; color: var(--text-2);
+  box-shadow: var(--glass-edge), 0 6px 18px rgb(15 23 42 / 8%);
+  transition: color var(--dur-ui) ease, border-color var(--dur-ui) ease;
+}
+.query-hero-chip:hover { border-color: var(--accent-line); color: var(--accent); }
+
+/* 지점 카드가 열리면 선택 칩은 물러선다 — 카드가 활성 결과이고 칩은 is-optional 이다.
+   두 층이 같이 뜨면 칩이 카드 머리글(이름·좌표·닫기)을 덮어 카드를 닫을 수 없다. */
+.copilot-map:has(.probe-card:not([data-collapsed="yes"])) .query-hero-chips.is-optional { display: none; }
+
+/* ─── 지도 위 부유 컨트롤: Liquid Glass ─── */
+.map-float-dock { position: absolute; z-index: 10; bottom: 1rem; left: 50%; transform: translateX(-50%); }
+.map-float-bar {
+  display: flex; align-items: center; gap: 0.4rem;
+  border: 1px solid var(--glass-border); border-radius: 999px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  padding: 0.3rem 0.4rem;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+/* 44px 터치 타깃 — 지금 버튼이 이보다 작다(의뢰서 §8) */
+.map-float-btn {
+  min-height: var(--touch-min); min-width: var(--touch-min);
+  flex: 0 0 auto; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 0 0.9rem; font-size: var(--fs-body); font-weight: 600; color: var(--text-2);
+  transition: background-color var(--dur-ui) ease, color var(--dur-ui) ease, transform var(--dur-press) ease-out;
+}
+.map-float-btn:hover { background: #eff6ff; color: #1d4ed8; }
+.map-float-btn:active { transform: scale(0.96); }
+.map-float-btn.is-active { background: #0f172a; color: #fff; border-color: transparent; }
+
+.map-context-badge {
+  position: absolute; z-index: 10; bottom: 1rem; left: 1rem;
+  max-width: min(18rem, calc(100% - 2rem));
+  border: 1px solid var(--glass-border); border-radius: 1rem;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  padding: 0.6rem 0.9rem; box-shadow: var(--glass-edge), var(--glass-shadow);
+  pointer-events: none;
+}
+.map-context-badge .badge-title { margin: 0; font-size: var(--fs-caption); font-weight: 800; letter-spacing: var(--ls-caption); color: var(--text-1); }
+.map-context-badge .badge-region { margin: 2px 0 0; font-size: var(--fs-body); font-weight: 700; color: var(--text-1); }
+
+/* ─── 지점 분석 카드: 유리 + 앰버 왼쪽 선 (토큰만으로 칠한다) ─── */
+.probe-card {
+  position: absolute; z-index: 12; top: 4.5rem; right: 1rem;
+  width: min(19rem, calc(100% - 2rem));
+  max-height: min(26rem, calc(100% - 12rem)); overflow-y: auto;
+  border: 1px solid var(--glass-border); border-left: 3px solid var(--accent-warm);
+  border-radius: 1rem;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  color: var(--text-2); padding: 0.8rem 0.9rem;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+.probe-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.probe-head-actions { display: flex; flex-shrink: 0; gap: 0.25rem; }
+.probe-close {
+  flex-shrink: 0; width: 1.75rem; height: 1.75rem; border-radius: 999px;
+  border: 1px solid var(--border-2); color: var(--text-3); font-size: 0.7rem; line-height: 1;
+  display: grid; place-items: center;
+}
+.probe-close:hover { color: var(--text-1); border-color: var(--accent-line); }
+.probe-edge-warn { margin-top: 0.2rem; font-size: 0.65rem; font-weight: 700; color: var(--text-1); text-decoration: underline; text-decoration-color: var(--accent-warm); text-underline-offset: 2px; }
+.probe-radius { display: flex; gap: 0.3rem; margin: 0.6rem 0; }
+.probe-radius button {
+  flex: 1; min-height: 36px; border-radius: 0.55rem; padding: 0.3rem 0;
+  font-size: 0.7rem; font-weight: 700; border: 1px solid var(--border-2);
+}
+.probe-radius-on { background: var(--accent-warm-soft); border-color: var(--accent-warm) !important; color: var(--accent-warm); }
+.probe-radius-off { background: transparent; color: var(--text-3); }
+.probe-section { border-top: 1px solid var(--border-soft); padding-top: 0.55rem; margin-top: 0.55rem; }
+.probe-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.3rem 0; }
+.probe-chip {
+  border: 1px solid var(--border-2); border-radius: 999px; padding: 0.1rem 0.45rem;
+  font-size: 0.65rem; font-weight: 700; color: var(--text-2); background: var(--surface-3);
+}
+.probe-regions { margin: 0.3rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.15rem; }
+.probe-regions li { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; font-size: 0.7rem; color: var(--text-2); }
+.probe-region-distance { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--text-2); }
+
+/* ─── 우측 결과 패널 ─── */
+.result-header { border-bottom: 1px solid var(--border-1); padding: 1rem 1rem 0.875rem; }
+.result-summary { margin: 6px 0 0; font-size: var(--fs-body); color: var(--text-2); }
+.result-conclusion {
+  margin-top: 0.625rem; border: 1px solid #bfdbfe; border-radius: 0.75rem;
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  padding: 0.65rem 0.75rem; font-size: var(--fs-body); font-weight: 700;
+  line-height: var(--lh-body); color: var(--text-1);
+}
+.result-conclusion-label {
+  display: block; margin-bottom: 0.2rem; font-size: var(--fs-caption); font-weight: 800;
+  letter-spacing: 0.04em; color: #2563eb;
+}
+.result-meta { margin-top: 8px; font-size: var(--fs-chip); color: var(--text-3); }
+.export-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.export-btn {
+  border: 1px solid var(--border-2); border-radius: 999px; background: var(--surface-2);
+  padding: 0.25rem 0.625rem; font-size: var(--fs-chip); font-weight: 700; color: var(--text-2);
+  transition: border-color var(--dur-ui) ease, color var(--dur-ui) ease;
+}
+.export-btn:hover { border-color: var(--accent-line); color: var(--accent); }
+
+.rank-card { margin: 0.75rem; border: 1px solid var(--border-2); border-radius: 1rem; background: var(--surface-2); overflow: hidden; }
+.rank-card-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0.75rem 0.875rem 0.5rem; }
+.rank-row { padding: 0.75rem 0.875rem; border-top: 1px solid var(--border-soft); transition: background-color var(--dur-ui) ease; }
+.rank-row:hover { background: #f8fafc; }
+.rank-row.is-selected { background: rgb(239 246 255 / 85%); box-shadow: inset 3px 0 0 #2563eb; }
+.rank-row-btn { display: flex; width: 100%; align-items: center; gap: 10px; text-align: left; padding: 0; }
+.rank-badge {
+  display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 999px; font-size: var(--fs-chip); font-weight: 800;
+  background: var(--surface-3); color: var(--text-3);
+}
+.rank-badge.top { background: var(--text-1); color: var(--surface-0); }
+.rank-name { display: block; font-size: var(--fs-body-lg); font-weight: 700; color: var(--text-1); line-height: var(--lh-tight); }
+.rank-note { display: block; margin-top: 2px; font-size: var(--fs-chip); color: var(--text-3); line-height: var(--lh-tight); }
+.rank-value { margin-left: auto; font-size: var(--fs-body-lg); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--rank-value); }
+.score-bar { display: block; height: 4px; margin: 6px 0 0 38px; overflow: hidden; border-radius: 999px; background: var(--score-track); }
+.score-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #93c5fd, #1d4ed8); }
+
+.formula-notes { border-top: 1px solid var(--border-soft); padding: 0.625rem 0.875rem; }
+.formula-notes summary { font-size: var(--fs-chip); font-weight: 700; color: var(--text-3); cursor: pointer; list-style: none; }
+.formula-notes ul { margin: 8px 0 0; padding-left: 1rem; font-size: var(--fs-chip); color: var(--text-3); line-height: var(--lh-body); }
+
+.interpret-card { margin: 0 0.75rem 0.75rem; border: 1px solid var(--border-2); border-radius: 1rem; background: var(--surface-2); padding: 1rem; }
+.interpret-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.interpret-points { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-body); color: var(--text-2); }
+.interpret-points li::before { content: "·"; color: var(--accent); font-weight: 800; margin-right: 6px; }
+.next-card { margin-top: 10px; border: 1px solid #a7f3d0; border-radius: 0.75rem; background: rgb(236 253 245 / 70%); padding: 0.625rem 0.75rem; font-size: var(--fs-chip); color: #047857; }
+
+.ui-details { border: 1px solid var(--border-2); border-radius: 0.85rem; background: var(--surface-2); overflow: hidden; margin: 0 0.75rem 0.75rem; }
+.ui-details > summary { cursor: pointer; list-style: none; padding: 0.65rem 0.8rem; font-size: var(--fs-body); font-weight: 700; color: var(--text-2); }
+.ui-details > summary::after { float: right; content: "▾"; color: var(--text-4); }
+</style>
+</head>
+<body>
+<main class="copilot-shell" data-sheet="none" data-testid="copilot-shell">
+
+  <!-- 상단바: 얇은 유리 -->
+  <header class="copilot-topbar">
+    <span class="brand-mark">◆</span>
+    <h1>누리맵</h1>
+    <p class="copilot-topbar-meta">실데이터 · 2025-12 · 305개 읍면동</p>
+    <nav aria-label="도움말·데이터">
+      <button type="button" class="copilot-topbar-link">이용</button>
+      <button type="button" class="copilot-topbar-link">데이터</button>
+    </nav>
+    <span class="ui-status ui-status-live" title="데이터: 실데이터">실데이터</span>
+  </header>
+
+  <!-- 좌 패널: 불투명 -->
+  <aside id="left-panel" class="copilot-panel copilot-panel-left" aria-label="분석 조작 패널">
+    <nav class="panel-tabs" aria-label="왼쪽 패널 탭">
+      <div class="panel-tabs-inner" role="tablist">
+        <button role="tab" class="panel-tab" aria-selected="true">분석</button>
+        <button role="tab" class="panel-tab" aria-selected="false">이용</button>
+        <button role="tab" class="panel-tab" aria-selected="false">데이터</button>
+      </div>
+    </nav>
+    <div class="copilot-scroll" style="padding: 0.75rem 0.75rem 1.5rem;">
+
+      <h2 class="section-label">빠른 분석</h2>
+      <p class="ui-caption" style="margin:-4px 0 8px;">클릭 한 번으로 바로 결과 확인</p>
+      <div class="quick-grid">
+        <button type="button" class="quick-tile is-active" data-testid="quick-scarcity" aria-pressed="true">
+          <span class="quick-symbol" style="background:#fff1f2;color:#e11d48;">+</span>
+          <span class="quick-name">의료 접근성</span>
+          <span class="quick-sub">공급·거리·고령수요 합성</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-elderly" aria-pressed="false">
+          <span class="quick-symbol" style="background:#f5f3ff;color:#7c3aed;">◎</span>
+          <span class="quick-name">고령 대비 의료</span>
+          <span class="quick-sub">고령비율 높은 순</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-growth" aria-pressed="false">
+          <span class="quick-symbol" style="background:#ecfdf5;color:#059669;">↗</span>
+          <span class="quick-name">인구 증가</span>
+          <span class="quick-sub">최근 1년 변화율</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-nearest" aria-pressed="false">
+          <span class="quick-symbol" style="background:#f0f9ff;color:#0284c7;">⌖</span>
+          <span class="quick-name">최근접 의료기관</span>
+          <span class="quick-sub">대표점 직선거리</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-radius" aria-pressed="false">
+          <span class="quick-symbol" style="background:#eff6ff;color:#2563eb;">◉</span>
+          <span class="quick-name">반경 내 의료기관</span>
+          <span class="quick-sub">1~3km 안 기관 수</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-compare" aria-pressed="false">
+          <span class="quick-symbol" style="background:#fffbeb;color:#b45309;">⇄</span>
+          <span class="quick-name">지역 비교</span>
+          <span class="quick-sub">두 곳 나란히</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-facilities" aria-pressed="false">
+          <span class="quick-symbol" style="background:#ecfeff;color:#0e7490;">◆</span>
+          <span class="quick-name">의료기관 목록</span>
+          <span class="quick-sub">병원·의원·약국</span>
+        </button>
+        <button type="button" class="quick-tile" data-testid="quick-reset" aria-pressed="false">
+          <span class="quick-symbol" style="background:#f1f5f9;color:#475569;">↺</span>
+          <span class="quick-name">초기화</span>
+          <span class="quick-sub">처음부터</span>
+        </button>
+      </div>
+
+      <h2 class="section-label" style="margin-top:1.25rem;">레이어 직접 고르기</h2>
+      <p class="ui-caption" style="margin:-4px 0 8px;">질문으로 안 될 때 손으로 고릅니다 · 15개</p>
+      <p class="ui-caption" style="margin:0 0 4px;font-weight:700;">공공</p>
+      <div class="layer-switcher" role="group" aria-label="레이어 선택">
+        <button type="button" class="layer-switcher-item" aria-pressed="true">
+          <span class="layer-switcher-label">의료기관</span><span class="layer-switcher-provider">공공</span>
+        </button>
+        <button type="button" class="layer-switcher-item" aria-pressed="false">
+          <span class="layer-switcher-label">주민등록 인구</span><span class="layer-switcher-provider">공공</span>
+        </button>
+      </div>
+      <p class="ui-caption" style="margin:8px 0 4px;font-weight:700;">SKT 민간데이터</p>
+      <div class="layer-switcher">
+        <button type="button" class="layer-switcher-item" aria-pressed="false">
+          <span class="layer-switcher-label">생활인구</span><span class="layer-switcher-provider">SKT</span>
+        </button>
+        <button type="button" class="layer-switcher-item" aria-pressed="false">
+          <span class="layer-switcher-label">주야간 인구</span><span class="layer-switcher-provider">SKT</span>
+        </button>
+      </div>
+      <p class="ui-caption" style="margin:8px 0 4px;font-weight:700;">NH 민간데이터</p>
+      <div class="layer-switcher">
+        <button type="button" class="layer-switcher-item" aria-pressed="false">
+          <span class="layer-switcher-label">카드소비</span><span class="layer-switcher-provider">NH</span>
+        </button>
+        <button type="button" class="layer-switcher-item" aria-pressed="false">
+          <span class="layer-switcher-label">시간대별 소비</span><span class="layer-switcher-provider">NH</span>
+        </button>
+      </div>
+
+      <p class="ui-caption" style="margin:1.5rem 0 0;text-align:center;color:var(--text-4);">결과는 오른쪽 패널 · 지도에서 동을 눌러 자세히 보기</p>
+    </div>
+  </aside>
+
+  <!-- 지도 -->
+  <section class="copilot-map" aria-label="지도 영역">
+    <!-- 실제로는 카카오맵 타일. 시안용 인라인 SVG (라이트 톤) -->
+    <svg class="fake-map" viewBox="0 0 780 852" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect width="780" height="852" fill="#e9edf2"/>
+      <!-- 바다(남해) -->
+      <path d="M0 560 Q200 520 400 560 T780 600 L780 852 L0 852 Z" fill="#aad3df"/>
+      <!-- 육지 -->
+      <path d="M40 80 L200 40 L380 60 L560 30 L720 90 L740 260 L700 420 L640 520 L560 560 L420 540 L300 580 L160 540 L60 420 L30 260 Z" fill="#f7f5f0"/>
+      <!-- 시군구 경계 -->
+      <g stroke="#d5dce4" stroke-width="1.5" fill="none">
+        <path d="M200 40 L220 220 L160 380"/><path d="M380 60 L360 240 L420 400"/>
+        <path d="M560 30 L540 200 L600 360"/><path d="M60 420 L300 380 L640 520"/>
+        <path d="M220 220 L540 200"/><path d="M160 380 L420 400"/>
+      </g>
+      <!-- 단계구분(파랑 계열 — 색은 자료에만) -->
+      <g>
+        <path d="M60 260 L220 220 L200 360 L80 400 Z" fill="rgb(37 99 235 / 28%)"/>
+        <path d="M220 220 L360 240 L340 380 L200 360 Z" fill="rgb(37 99 235 / 20%)"/>
+        <path d="M360 240 L540 200 L560 340 L420 400 Z" fill="rgb(37 99 235 / 8%)"/>
+        <path d="M80 400 L200 360 L300 380 L280 520 L120 500 Z" fill="rgb(37 99 235 / 38%)"/>
+        <path d="M300 380 L420 400 L440 540 L280 520 Z" fill="rgb(37 99 235 / 14%)"/>
+      </g>
+      <!-- 도로 (케이싱 아래, 흰 면 위) -->
+      <g stroke="#d9dfe7" stroke-width="5" fill="none" stroke-linecap="round">
+        <path d="M100 120 Q260 200 420 180 T700 300"/>
+        <path d="M180 500 Q320 420 520 440"/>
+      </g>
+      <g stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M100 120 Q260 200 420 180 T700 300"/>
+        <path d="M180 500 Q320 420 520 440"/>
+      </g>
+      <g stroke="#e2e8f0" stroke-width="1.5" fill="none">
+        <path d="M300 80 Q340 260 300 480"/><path d="M520 100 Q480 300 560 520"/>
+      </g>
+      <!-- 지명 -->
+      <g font-family="Pretendard, sans-serif" font-size="13" fill="#8496a9" font-weight="600">
+        <text x="120" y="300">함안군</text><text x="255" y="300">창원시</text>
+        <text x="460" y="270">김해시</text><text x="180" y="450">진주시</text>
+        <text x="350" y="470">사천시</text><text x="560" y="180">밀양시</text>
+      </g>
+      <!-- 시설 핀 -->
+      <g>
+        <circle cx="180" cy="330" r="5" fill="#fb7185"/><circle cx="260" cy="290" r="5" fill="#fb7185"/>
+        <circle cx="330" cy="420" r="5" fill="#38bdf8"/><circle cx="150" cy="430" r="5" fill="#fb7185"/>
+        <circle cx="470" cy="300" r="5" fill="#38bdf8"/>
+      </g>
+      <!-- 지점 분석 위치 -->
+      <circle cx="150" cy="330" r="34" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.8"/>
+      <circle cx="150" cy="330" r="6" fill="#f59e0b" stroke="#e9edf2" stroke-width="2"/>
+    </svg>
+
+    <!-- 질의 히어로 (유리) -->
+    <div class="query-hero" data-testid="query-hero">
+      <form class="query-hero-form">
+        <label for="analysis-query" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">분석 질의</label>
+        <input id="analysis-query" class="query-hero-input" maxlength="1000" autocomplete="off"
+               placeholder="무엇이 궁금하세요? 예: 생활인구 많은 동네" value="">
+        <button type="submit" class="query-hero-submit" aria-label="질의 실행">↑</button>
+      </form>
+      <div class="query-hero-chips is-optional" aria-label="추천 질문">
+        <button class="query-hero-chip">생활인구 많은 동네</button>
+        <button class="query-hero-chip">카드매출 높은 지역</button>
+        <button class="query-hero-chip">평균소득 높은 동</button>
+        <button class="query-hero-chip">유입인구 많은 지역</button>
+        <button class="query-hero-chip">야간 상권 발달한 동</button>
+        <button class="query-hero-chip">전입 많은 지역</button>
+      </div>
+    </div>
+
+    <!-- 지점 분석 카드 (유리, 펼침) -->
+    <section class="probe-card" data-testid="probe-card" data-collapsed="no" aria-label="지점 분석 결과">
+      <header class="probe-card-head">
+        <div style="min-width:0;">
+          <p class="ui-caption" style="margin:0;font-weight:800;color:var(--text-1);">지점 분석</p>
+          <p style="margin:2px 0 0;font-size:var(--fs-body);font-weight:700;color:var(--text-1);" data-testid="probe-region">함안군 가야읍</p>
+          <p class="ui-caption" style="margin:2px 0 0;color:var(--text-2);">35.2752, 128.4068</p>
+          <p class="probe-edge-warn" data-testid="probe-edge-warn">경계에서 85m · 이웃 동으로 볼 수도 있음</p>
+        </div>
+        <div class="probe-head-actions">
+          <button class="probe-close" data-testid="probe-collapse" aria-expanded="true" aria-label="지점 분석 접기">▾</button>
+          <button class="probe-close" aria-label="지점 분석 닫기">✕</button>
+        </div>
+      </header>
+      <div class="probe-radius" role="group" aria-label="반경 선택">
+        <button class="probe-radius-off" aria-pressed="false">1km</button>
+        <button class="probe-radius-on" aria-pressed="true">2km</button>
+        <button class="probe-radius-off" aria-pressed="false">3km</button>
+      </div>
+      <div class="probe-section">
+        <p class="ui-caption" style="margin:0;font-weight:700;color:var(--text-2);">반경 2km 안 의료시설</p>
+        <p style="margin:4px 0 0;font-size:var(--fs-body);font-weight:700;color:var(--text-1);" data-testid="probe-facility-total">12곳</p>
+        <div class="probe-chips">
+          <span class="probe-chip">의원 7</span><span class="probe-chip">병원 2</span><span class="probe-chip">약국 3</span>
+        </div>
+        <p class="ui-caption" style="margin:4px 0 0;color:var(--text-2);">최근접 가야의원 · 210m</p>
+      </div>
+      <div class="probe-section">
+        <p class="ui-caption" style="margin:0;font-weight:700;color:var(--text-2);">걸치는 행정동 5곳</p>
+        <ul class="probe-regions" data-testid="probe-regions">
+          <li><span>함안군 가야읍</span><span class="probe-region-distance">지점 포함</span></li>
+          <li><span>함안군 함안면</span><span class="probe-region-distance">1.2km</span></li>
+          <li><span>창원시 마산합포구 진전면</span><span class="probe-region-distance">1.8km</span></li>
+          <li><span>함안군 칠원읍</span><span class="probe-region-distance">1.9km</span></li>
+          <li><span>함안군 군북면</span><span class="probe-region-distance">2.0km</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 컨텍스트 배지 (유리) -->
+    <div class="map-context-badge">
+      <p class="badge-title">의료 접근성 취약 지역</p>
+      <p class="badge-region">경상남도 전역</p>
+    </div>
+
+    <!-- 떠 있는 버튼 줄 (유리, 44px) -->
+    <div class="map-float-dock">
+      <div class="map-float-bar">
+        <button class="map-float-btn" aria-pressed="false">조작</button>
+        <button class="map-float-btn" aria-pressed="false">결과</button>
+        <button class="map-float-btn is-active" data-testid="probe-toggle" aria-pressed="true">지점 분석</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 우 패널: 불투명 -->
+  <aside class="copilot-panel copilot-panel-right" aria-label="분석 결과 패널" data-testid="result-panel">
+    <header class="result-header">
+      <p class="section-label" style="margin:0 0 2px;color:var(--accent);">결과</p>
+      <h2 class="ui-display">의료 접근성 취약 지역</h2>
+      <p class="result-summary ui-body">305개 행정동을 의료 공급·고령 수요·거리·2km 접근성으로 비교했습니다.</p>
+      <div class="result-conclusion" data-testid="one-line-conclusion">
+        <span class="result-conclusion-label">한 줄 결론</span>
+        <p style="margin:0;" role="status">의료 접근성 취약지수 기준 상위 3곳은 산청군 시천면 · 하동군 악양면 · 함양군 서하면입니다.</p>
+      </div>
+      <p class="result-meta" data-testid="result-meta">305개 행정동 · 실데이터 · 기준월 2025-12</p>
+      <div class="export-row" role="group" aria-label="보내기">
+        <button class="export-btn">CSV</button><button class="export-btn">보고서</button>
+        <button class="export-btn">한글</button>
+        <button class="export-btn" title="A4로 인쇄되거나 PDF로 저장되는 보고서 파일">A4</button>
+        <button class="export-btn">슬라이드</button><button class="export-btn">공유</button>
+      </div>
+    </header>
+
+    <div class="copilot-scroll">
+      <section class="rank-card">
+        <div class="rank-card-head">
+          <span class="ui-chip" style="font-weight:700;color:var(--text-1);">상위 순위 · 지도와 연동</span>
+          <span class="ui-caption">24/305</span>
+        </div>
+        <div>
+          <div class="rank-row is-selected">
+            <button class="rank-row-btn" aria-label="1위 산청군 시천면, 100점">
+              <span class="rank-badge top">1</span>
+              <span style="min-width:0;flex:1;">
+                <span class="rank-name">산청군 시천면</span>
+                <span class="rank-note">인구 1만 명당 의료기관 1.2개/1만 명 · 고령인구 비율 41.3%</span>
+              </span>
+              <span class="rank-value">100점</span>
+            </button>
+            <span class="score-bar" aria-hidden="true"><span style="width:100%"></span></span>
+          </div>
+          <div class="rank-row">
+            <button class="rank-row-btn" aria-label="2위 하동군 악양면, 92.7점">
+              <span class="rank-badge top">2</span>
+              <span style="min-width:0;flex:1;">
+                <span class="rank-name">하동군 악양면</span>
+                <span class="rank-note">최근접 의료기관 직선거리 6.8km · 2km 내 의료기관 0개</span>
+              </span>
+              <span class="rank-value">92.7점</span>
+            </button>
+            <span class="score-bar" aria-hidden="true"><span style="width:93%"></span></span>
+          </div>
+          <div class="rank-row">
+            <button class="rank-row-btn" aria-label="3위 함양군 서하면, 89.1점">
+              <span class="rank-badge top">3</span>
+              <span style="min-width:0;flex:1;">
+                <span class="rank-name">함양군 서하면</span>
+                <span class="rank-note">인구 1만 명당 의료기관 1.8개/1만 명 · 고령인구 비율 38.9%</span>
+              </span>
+              <span class="rank-value">89.1점</span>
+            </button>
+            <span class="score-bar" aria-hidden="true"><span style="width:89%"></span></span>
+          </div>
+          <div class="rank-row">
+            <button class="rank-row-btn" aria-label="4위 거창군 가북면, 85.4점">
+              <span class="rank-badge">4</span>
+              <span style="min-width:0;flex:1;">
+                <span class="rank-name">거창군 가북면</span>
+                <span class="rank-note">최근접 의료기관 직선거리 5.2km · 2km 내 의료기관 0개</span>
+              </span>
+              <span class="rank-value">85.4점</span>
+            </button>
+            <span class="score-bar" aria-hidden="true"><span style="width:85%"></span></span>
+          </div>
+          <div class="rank-row">
+            <button class="rank-row-btn" aria-label="5위 합천군 묘산면, 81.9점">
+              <span class="rank-badge">5</span>
+              <span style="min-width:0;flex:1;">
+                <span class="rank-name">합천군 묘산면</span>
+                <span class="rank-note">인구 1만 명당 의료기관 2.1개/1만 명 · 고령인구 비율 36.2%</span>
+              </span>
+              <span class="rank-value">81.9점</span>
+            </button>
+            <span class="score-bar" aria-hidden="true"><span style="width:82%"></span></span>
+          </div>
+        </div>
+        <details class="formula-notes">
+          <summary>산식 · 해석 기준</summary>
+          <ul>
+            <li>인구 1만 명당 의료기관 부족 35% + 고령화 수요 25% + 최근접 거리 25% + 2km 무시설 15%</li>
+            <li>연속 지표는 경남 행정동 전체의 5·95백분위 winsorized min-max로 0~100 정규화합니다.</li>
+            <li>약국은 명시적으로 요청한 경우에만 의료기관 집합에 포함합니다.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section class="interpret-card" data-testid="interpretation-card" aria-labelledby="interpretation-title">
+        <p class="section-label" style="margin:0 0 2px;color:var(--accent);">한눈에 보기</p>
+        <div class="interpret-head">
+          <h2 id="interpretation-title" class="ui-title">취약 상위권은 서부 경남 산간에 모여 있습니다</h2>
+        </div>
+        <ul class="interpret-points">
+          <li>의료 접근성 취약지수 기준 상위 3곳은 산청군 시천면 · 하동군 악양면 · 함양군 서하면입니다.</li>
+          <li>상위 지역: 1위 산청군 시천면(100점) · 2위 하동군 악양면(92.7점) · 3위 함양군 서하면(89.1점).</li>
+          <li>거리는 행정동 대표점 기준 직선거리라 실제 이동 시간이 아닙니다.</li>
+        </ul>
+        <div class="next-card">다음에 해볼 수 있는 것 — 「고령 대비 의료」로 수요 측만 따로 볼 수 있습니다.</div>
+      </section>
+    </div>
+  </aside>
+</main>
+</body>
+</html>

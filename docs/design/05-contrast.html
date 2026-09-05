@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<!--
+  누리맵 시안 05 — 고대비 테마: 유리를 어떻게 포기하는가
+  답: 「유리를 엷게」가 아니라 「재질을 버린다」.
+    1. backdrop-filter 전부 제거 — 흐림 뒤 평균색 위의 대비는 계산할 수 없으니 아예 없앤다.
+    2. 유리 토큰이 불투명 값으로 붕괴한다(--glass-bg:#000, --glass-edge:none, --glass-shadow:none).
+       컴포넌트가 var(--glass-*)를 쓰는 한 테마 교체만으로 전환이 끝난다 — 선택자를 새로 딸 필요가 없다.
+    3. 깊이 신호(그림자·스페큘러·알파)를 잃으므로 분리 신호를 테두리로 옮긴다: 모든 경계 1px→2px 순백.
+    4. 선택·활성은 반전(흰 면 + 검정 글자) 하나로만 말한다. 색은 자료(지도 채색)에만 남긴다.
+    5. 포커스 링은 3px 순백 + 2px 오프셋 — 어느 면 위에서도 보인다.
+  왼쪽 열은 판정용 주석이고 오른쪽이 실제 셸입니다.
+-->
+<html lang="ko" data-theme="contrast">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>누리맵 시안 05 — 고대비</title>
+<style>
+:root {
+  color-scheme: dark;
+  --background: #000; --foreground: #fff;
+  --panel-left: 300px; --panel-right: 360px;
+  --fs-caption: 0.6875rem; --fs-chip: 0.75rem; --fs-body: 0.8125rem;
+  --fs-body-lg: 0.875rem; --fs-title: 0.9375rem; --fs-display: 1.0625rem;
+  --lh-tight: 1.35; --lh-body: 1.55;
+  --surface-0: #000; --surface-1: #000; --surface-2: #0a0a0a; --surface-3: #000; --surface-map: #111;
+  --border-1: #fff; --border-2: #fff; --border-soft: #fff;
+  --text-1: #fff; --text-2: #fff; --text-3: #eee; --text-4: #ddd;
+  --accent: #fff; --accent-soft: #fff; --accent-line: #fff;
+  --accent-warm: #fff; --accent-warm-soft: #1a1a1a;
+  --rank-value: #fff; --score-track: #333;
+
+  /* 유리 토큰의 고대비 붕괴값 — 이 다섯 줄이 「유리 포기」의 전부다 */
+  --glass-bg: #000;
+  --glass-bg-strong: #000;
+  --glass-border: #fff;
+  --glass-edge: none;
+  --glass-shadow: none;
+  --glass-blur: none;
+  --glass-blur-sm: none;
+
+  --ls-display: -0.015em; --ls-title: -0.01em; --ls-caption: 0.01em;
+  --dur-press: 100ms; --dur-ui: 140ms; --dur-sheet: 240ms;
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --touch-min: 44px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body {
+  background: #000; color: #fff;
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-size: var(--fs-body); line-height: var(--lh-body);
+  display: grid; grid-template-columns: 350px minmax(0, 1fr);
+}
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* ─── 주석 열 (제품 UI 아님) ─── */
+.notes { border-right: 2px solid #fff; padding: 20px; overflow-y: auto; }
+.notes h1 { font-size: 1.1rem; margin: 0 0 4px; }
+.notes h2 { font-size: 0.85rem; margin: 18px 0 6px; border-top: 1px solid #666; padding-top: 12px; }
+.notes p, .notes li { font-size: 0.78rem; color: #ddd; line-height: 1.6; }
+.notes ul { margin: 6px 0; padding-left: 1.1rem; }
+.notes code { background: #1a1a1a; border: 1px solid #444; border-radius: 4px; padding: 0 4px; font-size: 0.72rem; }
+.notes .verdict { border: 2px solid #fff; border-radius: 8px; padding: 10px 12px; font-weight: 700; }
+
+/* ─── 셸 ─── */
+.copilot-shell {
+  --topbar-h: 3rem;
+  position: relative; display: grid;
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+  grid-template-columns: var(--panel-left) minmax(0, 1fr) var(--panel-right);
+  width: 100%; height: 100dvh; overflow: clip; background: #000;
+}
+
+/* 상단바: 유리 → 검정 면 + 2px 흰 밑선 */
+.copilot-topbar {
+  z-index: 60; grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 0.625rem;
+  height: var(--topbar-h); padding: 0 0.875rem;
+  background: #000; border-bottom: 2px solid #fff;
+}
+.brand-mark { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; border: 2px solid #fff; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; background: #000; }
+.copilot-topbar h1 { margin: 0; font-size: var(--fs-body-lg); font-weight: 800; color: #fff; }
+.copilot-topbar-meta { margin: 0; font-size: var(--fs-caption); color: #eee; }
+.copilot-topbar nav { margin-left: auto; display: flex; gap: 4px; }
+.copilot-topbar-link { border: 2px solid transparent; border-radius: 999px; padding: 0.3rem 0.6rem; font-size: var(--fs-chip); font-weight: 700; color: #fff; }
+.copilot-topbar-link:hover { border-color: #fff; }
+.ui-status { display: inline-flex; align-items: center; gap: 0.35rem; border: 2px solid #fff; border-radius: 999px; padding: 0.2rem 0.55rem; font-size: var(--fs-chip); font-weight: 700; white-space: nowrap; background: #000; color: #fff; }
+.ui-status::before { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 999px; background: currentColor; }
+
+/* 패널: 원래 불투명이라 바뀔 것은 테두리 굵기뿐 */
+.copilot-panel { z-index: 20; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: #000; color: #fff; font-size: var(--fs-body); }
+.copilot-panel-left { border-right: 2px solid #fff; }
+.copilot-panel-right { border-left: 2px solid #fff; }
+.copilot-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #fff transparent; }
+
+.panel-tabs { padding: 0.75rem 0.75rem 0; }
+.panel-tabs-inner { display: grid; grid-template-columns: repeat(3, 1fr); border: 2px solid #fff; border-radius: 12px; padding: 4px; }
+.panel-tab { border-radius: 8px; padding: 0.5rem; font-size: var(--fs-body); font-weight: 600; color: #fff; }
+.panel-tab[aria-selected="true"] { background: #fff; color: #000; font-weight: 800; }
+
+.section-label { margin: 0 0 0.5rem; font-size: var(--fs-caption); font-weight: 800; letter-spacing: 0.06em; color: #fff; }
+.ui-caption { font-size: var(--fs-caption); line-height: var(--lh-tight); font-weight: 600; color: #eee; }
+.ui-display { font-size: var(--fs-display); line-height: var(--lh-tight); font-weight: 800; letter-spacing: var(--ls-display); color: #fff; margin: 0; }
+.ui-title { font-size: var(--fs-title); font-weight: 800; color: #fff; margin: 0; }
+
+.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.quick-tile { min-height: 64px; border: 2px solid #fff; border-radius: 0.9rem; background: #000; padding: 0.625rem; text-align: left; }
+.quick-tile.is-active { background: #fff; }
+.quick-tile.is-active .quick-name, .quick-tile.is-active .quick-sub { color: #000; }
+.quick-symbol { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; border: 2px solid currentColor; font-size: 13px; font-weight: 800; color: #fff; }
+.quick-tile.is-active .quick-symbol { color: #000; }
+.quick-name { display: block; margin-top: 6px; font-size: var(--fs-body); font-weight: 700; color: #fff; }
+.quick-sub { display: block; margin-top: 2px; font-size: var(--fs-caption); color: #eee; }
+
+/* 지도: 단계구분 알파는 색 대비를 못 지키므로, 채도를 빼고 백선·해칭으로 바꾼다 */
+.copilot-map { position: relative; min-width: 0; height: 100%; overflow: hidden; background: #111; }
+
+/* 질의 히어로: 유리 → 검정 면 + 2px 백선 */
+.query-hero { position: absolute; z-index: 50; top: 1rem; left: 50%; width: min(38rem, calc(100% - 2rem)); transform: translateX(-50%); display: flex; flex-direction: column; gap: 0.5rem; }
+.query-hero-form { position: relative; }
+.query-hero-input {
+  width: 100%; height: 3.25rem;
+  border: 2px solid #fff; border-radius: 1rem;
+  background: #000; /* --glass-bg-strong의 붕괴값 */
+  padding: 0 3.5rem 0 1.125rem; font-size: var(--fs-body-lg); font-weight: 500; color: #fff;
+  outline: none;
+}
+.query-hero-input::placeholder { color: #bbb; }
+.query-hero-submit { position: absolute; top: 0.5rem; right: 0.5rem; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; background: #fff; color: #000; font-weight: 800; }
+.query-hero-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.query-hero-chip {
+  flex: 0 0 auto; white-space: nowrap;
+  border: 2px solid #fff; border-radius: 999px; background: #000;
+  padding: 0.35rem 0.75rem; font-size: var(--fs-chip); font-weight: 600; color: #fff;
+}
+
+.map-float-dock { position: absolute; z-index: 10; bottom: 1rem; left: 50%; transform: translateX(-50%); }
+.map-float-bar {
+  display: flex; align-items: center; gap: 0.4rem;
+  border: 2px solid #fff; border-radius: 999px; background: #000; padding: 0.3rem 0.4rem;
+}
+.map-float-btn {
+  min-height: var(--touch-min); min-width: var(--touch-min);
+  flex: 0 0 auto; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid transparent; border-radius: 999px; padding: 0 0.9rem;
+  font-size: var(--fs-body); font-weight: 600; color: #fff;
+}
+.map-float-btn.is-active { background: #fff; color: #000; font-weight: 800; }
+
+/* 지점 카드가 열리면 선택 칩은 물러선다 — 카드가 활성 결과이고 칩은 is-optional 이다.
+   두 층이 같이 뜨면 칩이 카드 머리글(이름·좌표·닫기)을 덮어 카드를 닫을 수 없다. */
+.copilot-map:has(.probe-card:not([data-collapsed="yes"])) .query-hero-chips.is-optional { display: none; }
+
+.probe-card {
+  position: absolute; z-index: 12; top: 4.5rem; right: 1rem;
+  width: min(19rem, calc(100% - 2rem));
+  border: 2px solid #fff; border-left: 6px solid #fff; /* 앰버 선도 색을 빼고 굵기로 */
+  border-radius: 1rem; background: #000; color: #fff; padding: 0.8rem 0.9rem;
+}
+.probe-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.probe-head-actions { display: flex; gap: 0.25rem; }
+.probe-close { width: 1.75rem; height: 1.75rem; border-radius: 999px; border: 2px solid #fff; color: #fff; font-size: 0.7rem; display: grid; place-items: center; }
+.probe-edge-warn { margin-top: 0.2rem; font-size: 0.65rem; font-weight: 700; color: #fff; text-decoration: underline; }
+.probe-radius { display: flex; gap: 0.3rem; margin: 0.6rem 0; }
+.probe-radius button { flex: 1; min-height: 36px; border-radius: 0.55rem; font-size: 0.7rem; font-weight: 700; border: 2px solid #fff; color: #fff; background: #000; }
+.probe-radius-on { background: #fff !important; color: #000 !important; }
+
+.result-header { border-bottom: 2px solid #fff; padding: 1rem 1rem 0.875rem; }
+.result-summary { margin: 6px 0 0; color: #fff; }
+.result-conclusion { margin-top: 0.625rem; border: 2px solid #fff; border-radius: 0.75rem; background: #000; padding: 0.65rem 0.75rem; font-weight: 700; color: #fff; }
+.result-conclusion-label { display: block; margin-bottom: 0.2rem; font-size: var(--fs-caption); font-weight: 800; letter-spacing: 0.04em; color: #fff; }
+.result-meta { margin-top: 8px; font-size: var(--fs-chip); color: #eee; }
+.export-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.export-btn { border: 2px solid #fff; border-radius: 999px; background: #000; padding: 0.25rem 0.625rem; font-size: var(--fs-chip); font-weight: 700; color: #fff; }
+
+.rank-card { margin: 0.75rem; border: 2px solid #fff; border-radius: 1rem; background: #000; overflow: hidden; }
+.rank-card-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0.75rem 0.875rem 0.5rem; }
+.rank-row { padding: 0.75rem 0.875rem; border-top: 1px solid #fff; }
+.rank-row.is-selected { background: #fff; }
+.rank-row.is-selected .rank-name, .rank-row.is-selected .rank-note, .rank-row.is-selected .rank-value { color: #000; }
+.rank-row.is-selected .rank-badge.top { background: #000; color: #fff; }
+.rank-row-btn { display: flex; width: 100%; align-items: center; gap: 10px; text-align: left; padding: 0; }
+.rank-badge { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 999px; border: 2px solid #fff; font-size: var(--fs-chip); font-weight: 800; color: #fff; }
+.rank-badge.top { background: #fff; color: #000; border-color: #fff; }
+.rank-name { display: block; font-size: var(--fs-body-lg); font-weight: 700; color: #fff; }
+.rank-note { display: block; margin-top: 2px; font-size: var(--fs-chip); color: #eee; }
+.rank-value { margin-left: auto; font-size: var(--fs-body-lg); font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
+.score-bar { display: block; height: 6px; margin: 6px 0 0 38px; border: 1px solid #fff; border-radius: 999px; background: #000; overflow: hidden; }
+.score-bar > span { display: block; height: 100%; background: #fff; }
+</style>
+</head>
+<body>
+
+<!-- 판정용 주석 -->
+<aside class="notes">
+  <h1>시안 05 — 고대비에서 유리를 포기하는 법</h1>
+  <p>오른쪽은 <code>html[data-theme="contrast"]</code>의 같은 셸입니다. 왼쪽은 판정 근거입니다.</p>
+
+  <div class="verdict">유리를 엷게 하는 것이 아니라, 재질 자체를 버립니다.</div>
+
+  <h2>1. 무엇이 사라지는가</h2>
+  <ul>
+    <li><code>backdrop-filter</code> 전부 — 흐림 뒤 평균색 위의 대비는 보증 불가</li>
+    <li>스페큘러 엣지(<code>--glass-edge</code>) — 밝기 차 13%짜리 1px 선은 구분 신호가 못 됨</li>
+    <li>모든 그림자 — 깊이 신호를 전부 잃는 대신 테두리로 옮김</li>
+    <li>반투명 전부 — <code>--glass-bg</code>가 <code>#000</code>으로 붕괴</li>
+  </ul>
+
+  <h2>2. 무엇으로 대체하는가</h2>
+  <ul>
+    <li>모든 경계 1px → <b>2px 순백</b> (패널 경계·카드·칩·입력창)</li>
+    <li>선택·활성 = <b>반전</b>(흰 면 + 검정 글자) 하나로만. 색 강조는 자료(지도)에만 남김</li>
+    <li>지점 카드의 앰버 왼쪽 선 → <b>6px 흰 선</b> (색이 아니라 굵기가 의미를 나름)</li>
+    <li>점수 막대: 채움 대비가 아니라 <b>흰 테두리 트랙 + 흰 채움</b> — 길이가 곧 값</li>
+    <li>포커스 링 3px 순백 + 오프셋 2px</li>
+  </ul>
+
+  <h2>3. 왜 화면이 무너지지 않는가</h2>
+  <p>컴포넌트가 색을 직접 박지 않고 <code>var(--glass-*)</code>·<code>var(--text-*)</code>·<code>var(--border-*)</code>만
+  쓰도록 유지하면, 고대비 전환은 토큰 값 교체로 끝납니다. 이 파일의 셸은 01번과 같은
+  마크업에 붕괴 토큰만 얹은 것입니다. 위계는 굵기(600→800)와 크기 계단이 담당합니다.</p>
+
+  <h2>4. 지도의 단계구분은</h2>
+  <p>알파 청록 채우기는 배경 타일 위에서 대비를 계산할 수 없으므로, 고대비에서는
+  <b>백색 등치선(경계 강조) + 해칭 패턴</b>으로 바꿉니다. 색으로 값을 말하지 않습니다.
+  이 파일의 지도는 단순화해 백선과 해칭 두 단계만 보여 줍니다.</p>
+
+  <h2>5. 검증 방법</h2>
+  <p>모든 텍스트 쌍이 순수 <code>#fff</code>/<code>#000</code> 조합(21:1)이거나 <code>#eee</code>(18.1:1),
+  <code>#ddd</code>(15.5:1)입니다. 반투명이 없으므로 계산이 곧 실측입니다.
+  수치는 MEASURED.md 표 3에 있습니다.</p>
+</aside>
+
+<!-- 실제 셸: 01과 같은 마크업, 붕괴 토큰만 다름 -->
+<main class="copilot-shell" data-sheet="none">
+  <header class="copilot-topbar">
+    <span class="brand-mark">◆</span>
+    <h1>누리맵</h1>
+    <p class="copilot-topbar-meta">실데이터 · 2025-12 · 305개 읍면동</p>
+    <nav aria-label="도움말·데이터">
+      <button type="button" class="copilot-topbar-link">이용</button>
+      <button type="button" class="copilot-topbar-link">데이터</button>
+    </nav>
+    <span class="ui-status">실데이터</span>
+  </header>
+
+  <aside id="left-panel" class="copilot-panel copilot-panel-left" aria-label="분석 조작 패널">
+    <nav class="panel-tabs" aria-label="왼쪽 패널 탭">
+      <div class="panel-tabs-inner" role="tablist">
+        <button role="tab" class="panel-tab" aria-selected="true">분석</button>
+        <button role="tab" class="panel-tab" aria-selected="false">이용</button>
+        <button role="tab" class="panel-tab" aria-selected="false">데이터</button>
+      </div>
+    </nav>
+    <div class="copilot-scroll" style="padding: 0.75rem 0.75rem 1.5rem;">
+      <h2 class="section-label">빠른 분석</h2>
+      <p class="ui-caption" style="margin:-4px 0 8px;">클릭 한 번으로 바로 결과 확인</p>
+      <div class="quick-grid">
+        <button type="button" class="quick-tile is-active" aria-pressed="true">
+          <span class="quick-symbol">+</span>
+          <span class="quick-name">의료 접근성</span>
+          <span class="quick-sub">공급·거리·고령수요 합성</span>
+        </button>
+        <button type="button" class="quick-tile" aria-pressed="false">
+          <span class="quick-symbol">◎</span>
+          <span class="quick-name">고령 대비 의료</span>
+          <span class="quick-sub">고령비율 높은 순</span>
+        </button>
+        <button type="button" class="quick-tile" aria-pressed="false">
+          <span class="quick-symbol">↗</span>
+          <span class="quick-name">인구 증가</span>
+          <span class="quick-sub">최근 1년 변화율</span>
+        </button>
+        <button type="button" class="quick-tile" aria-pressed="false">
+          <span class="quick-symbol">⇄</span>
+          <span class="quick-name">지역 비교</span>
+          <span class="quick-sub">두 곳 나란히</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="copilot-map" aria-label="지도 영역">
+    <svg style="position:absolute;inset:0;width:100%;height:100%;" viewBox="0 0 600 852" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect width="600" height="852" fill="#111"/>
+      <defs>
+        <pattern id="hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="8" stroke="#fff" stroke-width="2"/>
+        </pattern>
+        <pattern id="hatch-wide" width="14" height="14" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="0" y2="14" stroke="#999" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+      <path d="M30 60 L160 30 L300 50 L460 20 L570 70 L580 220 L540 360 L480 450 L340 470 L240 500 L120 460 L40 350 L20 200 Z"
+            fill="none" stroke="#fff" stroke-width="2.5"/>
+      <!-- 고대비 단계구분: 색 대신 해칭 밀도 -->
+      <path d="M40 200 L170 170 L155 300 L60 330 Z" fill="url(#hatch-wide)" stroke="#fff" stroke-width="1.5"/>
+      <path d="M60 330 L155 300 L235 320 L220 440 L95 425 Z" fill="url(#hatch)" stroke="#fff" stroke-width="1.5"/>
+      <g stroke="#666" stroke-width="1" fill="none">
+        <path d="M170 170 L300 190 L285 320 L235 320"/><path d="M300 50 L285 320"/>
+      </g>
+      <g font-family="Pretendard, sans-serif" font-size="12" fill="#fff" font-weight="600">
+        <text x="80" y="245">함안군</text><text x="205" y="245">창원시</text><text x="130" y="380">진주시</text>
+      </g>
+      <circle cx="115" cy="260" r="28" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="5 4"/>
+      <circle cx="115" cy="260" r="6" fill="#fff" stroke="#000" stroke-width="2"/>
+    </svg>
+
+    <div class="query-hero" data-testid="query-hero">
+      <form class="query-hero-form">
+        <input class="query-hero-input" placeholder="무엇이 궁금하세요? 예: 생활인구 많은 동네" aria-label="분석 질의">
+        <button type="submit" class="query-hero-submit" aria-label="질의 실행">↑</button>
+      </form>
+      <div class="query-hero-chips is-optional" aria-label="추천 질문">
+        <button class="query-hero-chip">생활인구 많은 동네</button>
+        <button class="query-hero-chip">카드매출 높은 지역</button>
+        <button class="query-hero-chip">평균소득 높은 동</button>
+        <button class="query-hero-chip">전입 많은 지역</button>
+      </div>
+    </div>
+
+    <section class="probe-card" data-testid="probe-card" data-collapsed="no" aria-label="지점 분석 결과">
+      <header class="probe-card-head">
+        <div style="min-width:0;">
+          <p class="ui-caption" style="margin:0;font-weight:700;color:#fff;">지점 분석</p>
+          <p style="margin:2px 0 0;font-size:var(--fs-body);font-weight:700;color:#fff;" data-testid="probe-region">함안군 가야읍</p>
+          <p class="probe-edge-warn" data-testid="probe-edge-warn">경계에서 85m · 이웃 동으로 볼 수도 있음</p>
+        </div>
+        <div class="probe-head-actions">
+          <button class="probe-close" data-testid="probe-collapse" aria-expanded="true" aria-label="지점 분석 접기">▾</button>
+          <button class="probe-close" aria-label="지점 분석 닫기">✕</button>
+        </div>
+      </header>
+      <div class="probe-radius" role="group" aria-label="반경 선택">
+        <button class="probe-radius-off" aria-pressed="false">1km</button>
+        <button class="probe-radius-on" aria-pressed="true">2km</button>
+        <button class="probe-radius-off" aria-pressed="false">3km</button>
+      </div>
+    </section>
+
+    <div class="map-float-dock">
+      <div class="map-float-bar">
+        <button class="map-float-btn" aria-pressed="false">조작</button>
+        <button class="map-float-btn" aria-pressed="false">결과</button>
+        <button class="map-float-btn is-active" data-testid="probe-toggle" aria-pressed="true">지점 분석</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="copilot-panel copilot-panel-right" aria-label="분석 결과 패널" data-testid="result-panel">
+    <header class="result-header">
+      <p class="section-label" style="margin:0 0 2px;">결과</p>
+      <h2 class="ui-display">의료 접근성 취약 지역</h2>
+      <p class="result-summary">305개 행정동을 의료 공급·고령 수요·거리·2km 접근성으로 비교했습니다.</p>
+      <div class="result-conclusion" data-testid="one-line-conclusion">
+        <span class="result-conclusion-label">한 줄 결론</span>
+        <p style="margin:0;" role="status">의료 접근성 취약지수 기준 상위 3곳은 산청군 시천면 · 하동군 악양면 · 함양군 서하면입니다.</p>
+      </div>
+      <p class="result-meta" data-testid="result-meta">305개 행정동 · 실데이터 · 기준월 2025-12</p>
+      <div class="export-row" role="group" aria-label="보내기">
+        <button class="export-btn">CSV</button><button class="export-btn">보고서</button>
+        <button class="export-btn">한글</button><button class="export-btn">A4</button>
+        <button class="export-btn">슬라이드</button><button class="export-btn">공유</button>
+      </div>
+    </header>
+    <div class="copilot-scroll">
+      <section class="rank-card">
+        <div class="rank-card-head">
+          <span style="font-size:var(--fs-chip);font-weight:700;">상위 순위 · 지도와 연동</span>
+          <span class="ui-caption">24/305</span>
+        </div>
+        <div class="rank-row is-selected">
+          <button class="rank-row-btn" aria-label="1위 산청군 시천면, 100점">
+            <span class="rank-badge top">1</span>
+            <span style="min-width:0;flex:1;">
+              <span class="rank-name">산청군 시천면</span>
+              <span class="rank-note">인구 1만 명당 의료기관 1.2개/1만 명 · 고령인구 비율 41.3%</span>
+            </span>
+            <span class="rank-value">100점</span>
+          </button>
+          <span class="score-bar" aria-hidden="true"><span style="width:100%"></span></span>
+        </div>
+        <div class="rank-row">
+          <button class="rank-row-btn" aria-label="2위 하동군 악양면, 92.7점">
+            <span class="rank-badge top">2</span>
+            <span style="min-width:0;flex:1;">
+              <span class="rank-name">하동군 악양면</span>
+              <span class="rank-note">최근접 의료기관 직선거리 6.8km · 2km 내 의료기관 0개</span>
+            </span>
+            <span class="rank-value">92.7점</span>
+          </button>
+          <span class="score-bar" aria-hidden="true"><span style="width:93%"></span></span>
+        </div>
+        <div class="rank-row">
+          <button class="rank-row-btn" aria-label="3위 함양군 서하면, 89.1점">
+            <span class="rank-badge top">3</span>
+            <span style="min-width:0;flex:1;">
+              <span class="rank-name">함양군 서하면</span>
+              <span class="rank-note">인구 1만 명당 의료기관 1.8개/1만 명 · 고령인구 비율 38.9%</span>
+            </span>
+            <span class="rank-value">89.1점</span>
+          </button>
+          <span class="score-bar" aria-hidden="true"><span style="width:89%"></span></span>
+        </div>
+      </section>
+    </div>
+  </aside>
+</main>
+
+</body>
+</html>

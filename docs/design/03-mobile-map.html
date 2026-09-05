@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<!--
+  누리맵 시안 03 — 모바일 393×727 · 다크 · 지도 + 부유 컨트롤 + 지점 분석 카드(펼침/접힘)
+  왼쪽 프레임: 카드 펼침 / 오른쪽 프레임: 카드 접힘.
+  지난 결함 재현 방지: 카드 max-height 45vh — 지도에 두 번째 지점을 찍을 자리가 남아야 한다.
+  좁은 화면 규칙은 globals.css @media (width <= 767px)를 따르되, 시안에서는 .device 스코프로 적는다.
+-->
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>누리맵 시안 03 — 모바일 지도</title>
+<style>
+:root {
+  color-scheme: dark;
+  --background: #080f1c; --foreground: #e2e8f0;
+  --ui-radius: 0.9rem; --ui-chip: 0.625rem;
+  --fs-caption: 0.6875rem; --fs-chip: 0.75rem; --fs-body: 0.8125rem;
+  --fs-body-lg: 0.875rem; --fs-title: 0.9375rem; --fs-display: 1.0625rem;
+  --lh-tight: 1.35; --lh-body: 1.55;
+  --surface-0: #080f1c; --surface-1: rgb(13 21 36 / 97%); --surface-2: #101a2c;
+  --surface-3: #0b1322; --surface-map: #0a1120;
+  --border-1: rgb(38 54 80 / 90%); --border-2: #26364f; --border-soft: #182339;
+  --text-1: #f1f5f9; --text-2: #c7d2e0; --text-3: #8fa3bd; --text-4: #64748b;
+  --accent: #22d3ee; --accent-soft: rgb(34 211 238 / 14%); --accent-line: rgb(34 211 238 / 45%);
+  --accent-warm: #fbbf24; --accent-warm-soft: rgb(251 191 36 / 14%);
+
+  /* 새 토큰 — Liquid Glass (01과 같은 정본) */
+  --glass-bg: rgb(13 21 36 / 72%);
+  --glass-bg-strong: rgb(10 17 30 / 85%);
+  --glass-border: rgb(148 163 184 / 30%);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 13%), inset 0 -1px 0 rgb(0 0 0 / 35%);
+  --glass-shadow: 0 14px 36px rgb(0 0 0 / 50%), 0 2px 8px rgb(0 0 0 / 35%);
+  --glass-blur: blur(24px) saturate(170%);
+  --glass-blur-sm: blur(14px) saturate(150%);
+  --ls-display: -0.015em; --ls-title: -0.01em; --ls-body: 0; --ls-caption: 0.01em;
+  --dur-press: 100ms; --dur-ui: 140ms; --dur-sheet: 240ms;
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --touch-min: 44px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; padding: 32px 24px;
+  background: #1b1f26; color: var(--foreground);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  display: flex; gap: 40px; align-items: flex-start; justify-content: center; flex-wrap: wrap;
+}
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+.frame-label { color: #9aa3b2; font-size: 12px; text-align: center; margin-top: 10px; font-weight: 600; }
+
+/* ─── 393×727 기기 프레임 ─── */
+.device {
+  width: 393px; height: 727px; border-radius: 28px; overflow: hidden;
+  border: 1px solid #3a4150; box-shadow: 0 30px 80px rgb(0 0 0 / 55%);
+  position: relative; background: var(--surface-0); flex: 0 0 auto;
+}
+/* 프레임 안은 globals.css @media (width <= 767px) 규칙과 같다 */
+.copilot-shell { --topbar-h: 2.75rem; position: relative; display: block; width: 100%; height: 100%; overflow: clip; background: var(--surface-0); }
+
+.copilot-topbar {
+  z-index: 60; display: flex; align-items: center; gap: 0.625rem;
+  height: var(--topbar-h); padding: 0 0.875rem;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  border-bottom: 1px solid var(--border-1);
+}
+.brand-mark { width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0; background: linear-gradient(135deg,#22d3ee,#2563eb); display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 11px; }
+.copilot-topbar h1 { margin: 0; font-size: var(--fs-body-lg); font-weight: 800; letter-spacing: var(--ls-title); color: var(--text-1); }
+.copilot-topbar nav { margin-left: auto; display: flex; gap: 2px; }
+.copilot-topbar-link { border-radius: 999px; padding: 0.3rem 0.5rem; font-size: var(--fs-chip); font-weight: 700; color: var(--text-3); }
+.ui-status { display: inline-flex; align-items: center; gap: 0.3rem; border-radius: 999px; padding: 0.2rem 0.5rem; font-size: var(--fs-chip); font-weight: 700; white-space: nowrap; }
+.ui-status::before { content: ""; width: 0.4rem; height: 0.4rem; border-radius: 999px; background: currentColor; }
+.ui-status-live { color: #67e8f9; background: var(--accent-soft); border: 1px solid var(--accent-line); }
+/* 560px 이하: 기준월 문구는 접는다 (globals.css 규칙 그대로) */
+.copilot-topbar-meta { display: none; }
+
+.copilot-map { position: absolute; inset: var(--topbar-h) 0 0; overflow: hidden; background: var(--surface-map); }
+.copilot-map svg.fake-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* 질의 히어로 — 좁은 화면에서도 지도 위 같은 자리 */
+.query-hero { position: absolute; z-index: 50; top: 0.625rem; left: 50%; width: calc(100% - 1.25rem); transform: translateX(-50%); display: flex; flex-direction: column; gap: 0.375rem; }
+.query-hero-form { position: relative; }
+.query-hero-input {
+  width: 100%; height: 3rem; /* 44px 이상 — 주기능이 모바일에서 닿아야 한다 */
+  border: 1px solid var(--glass-border); border-radius: 1rem;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  padding: 0 3.25rem 0 1rem; font-size: var(--fs-body-lg); font-weight: 500; color: var(--text-1);
+  box-shadow: var(--glass-edge), var(--glass-shadow); outline: none;
+}
+.query-hero-input::placeholder { color: var(--text-4); }
+.query-hero-submit {
+  position: absolute; top: 0.375rem; right: 0.375rem; display: grid; place-items: center;
+  width: 2.25rem; height: 2.25rem; border-radius: 0.75rem; background: #0891b2; color: #fff; font-weight: 700;
+}
+/* 칩은 한 줄로 옆으로 굴린다 — 두 줄로 접혀 도크를 덮던 결함(부록 C-2) 방지 */
+.query-hero-chips { display: flex; flex-wrap: nowrap; gap: 0.375rem; overflow-x: auto; scrollbar-width: none; }
+.query-hero-chips::-webkit-scrollbar { display: none; }
+.query-hero-chip {
+  flex: 0 0 auto; white-space: nowrap;
+  border: 1px solid var(--glass-border); border-radius: 999px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  padding: 0.35rem 0.75rem; font-size: var(--fs-chip); font-weight: 600; color: var(--text-2);
+  box-shadow: var(--glass-edge), 0 6px 18px rgb(0 0 0 / 30%);
+}
+
+/* 떠 있는 버튼 줄 — 44px, translate가 아니라 left/right로 가운데 (부록 C-5 함정) */
+.map-float-dock { position: absolute; z-index: 10; bottom: 1.25rem; left: 0; right: 0; translate: none; display: flex; justify-content: center; }
+.map-float-bar {
+  display: flex; align-items: center; gap: 0.3rem;
+  border: 1px solid var(--glass-border); border-radius: 999px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm);
+  padding: 0.25rem 0.3rem; box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+.map-float-btn {
+  min-height: var(--touch-min); min-width: var(--touch-min);
+  flex: 0 0 auto; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 999px; padding: 0 0.85rem;
+  font-size: var(--fs-body); font-weight: 600; color: var(--text-2);
+  transition: background-color var(--dur-ui) ease, transform var(--dur-press) ease-out;
+}
+.map-float-btn:active { transform: scale(0.96); }
+.map-float-btn.is-active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+
+/* 지점 분석 카드 — 펼침: max-height 45vh. 이 아래로 지도가 24%만 남던 사고(부록 C-3) 재발 금지 */
+.probe-card {
+  position: absolute; z-index: 12; bottom: 5.5rem; right: 0.75rem; left: 0.75rem;
+  max-height: 45vh; overflow-y: auto;
+  border: 1px solid var(--glass-border); border-left: 3px solid var(--accent-warm);
+  border-radius: 1rem; background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  color: var(--text-2); padding: 0.8rem 0.9rem;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+}
+.probe-card.is-collapsed { max-height: none; overflow: visible; padding-bottom: 0.6rem; }
+.probe-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.probe-head-actions { display: flex; flex-shrink: 0; gap: 0.25rem; }
+.probe-close { width: 1.75rem; height: 1.75rem; border-radius: 999px; border: 1px solid var(--border-2); color: var(--text-3); font-size: 0.7rem; display: grid; place-items: center; }
+.probe-edge-warn { margin-top: 0.2rem; font-size: 0.65rem; font-weight: 700; color: var(--text-1); text-decoration: underline; text-decoration-color: var(--accent-warm); text-underline-offset: 2px; }
+.probe-radius { display: flex; gap: 0.3rem; margin: 0.6rem 0; }
+.probe-radius button { flex: 1; min-height: var(--touch-min); border-radius: 0.55rem; font-size: var(--fs-chip); font-weight: 700; border: 1px solid var(--border-2); }
+.probe-radius-on { background: var(--accent-warm-soft); border-color: var(--accent-warm) !important; color: var(--accent-warm); }
+.probe-radius-off { background: transparent; color: var(--text-3); }
+.probe-section { border-top: 1px solid var(--border-soft); padding-top: 0.55rem; margin-top: 0.55rem; }
+.probe-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.3rem 0; }
+.probe-chip { border: 1px solid var(--border-2); border-radius: 999px; padding: 0.1rem 0.45rem; font-size: 0.65rem; font-weight: 700; color: var(--text-2); background: var(--surface-3); }
+.probe-regions { margin: 0.3rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.15rem; }
+.probe-regions li { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; font-size: 0.7rem; color: var(--text-2); }
+.probe-region-distance { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.ui-caption { font-size: var(--fs-caption); line-height: var(--lh-tight); font-weight: 600; letter-spacing: var(--ls-caption); color: var(--text-3); margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- 프레임 A: 지점 카드 펼침 -->
+<div>
+  <div class="device">
+    <main class="copilot-shell" data-sheet="none">
+      <header class="copilot-topbar">
+        <span class="brand-mark">◆</span>
+        <h1>누리맵</h1>
+        <p class="copilot-topbar-meta">실데이터 · 2025-12 · 305개 읍면동</p>
+        <nav aria-label="도움말·데이터">
+          <button class="copilot-topbar-link">이용</button>
+          <button class="copilot-topbar-link">데이터</button>
+        </nav>
+        <span class="ui-status ui-status-live">실데이터</span>
+      </header>
+      <section class="copilot-map" aria-label="지도 영역">
+        <svg class="fake-map" viewBox="0 0 393 683" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect width="393" height="683" fill="#0a1120"/>
+          <path d="M0 460 Q120 440 240 470 T393 500 L393 683 L0 683 Z" fill="#0d1828"/>
+          <path d="M20 60 L140 30 L260 50 L370 100 L380 240 L340 380 L280 440 L180 460 L60 420 L10 300 Z" fill="#101a2c"/>
+          <g stroke="#1c2c46" stroke-width="1.5" fill="none">
+            <path d="M140 30 L150 180 L110 320"/><path d="M260 50 L250 200 L290 330"/>
+            <path d="M60 420 L200 340 L340 380"/><path d="M150 180 L250 200"/>
+          </g>
+          <g>
+            <path d="M20 220 L150 180 L140 310 L40 340 Z" fill="rgb(34 211 238 / 34%)"/>
+            <path d="M150 180 L250 200 L240 320 L140 310 Z" fill="rgb(34 211 238 / 18%)"/>
+            <path d="M40 340 L140 310 L200 340 L180 450 L60 420 Z" fill="rgb(34 211 238 / 45%)"/>
+          </g>
+          <g stroke="#26364f" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M40 100 Q160 160 300 140"/><path d="M100 420 Q200 360 320 380"/>
+          </g>
+          <g font-family="Pretendard, sans-serif" font-size="12" fill="#5b6f8f" font-weight="600">
+            <text x="70" y="250">함안군</text><text x="185" y="250">창원시</text><text x="100" y="390">진주시</text>
+          </g>
+          <circle cx="110" cy="270" r="5" fill="#fb7185"/><circle cx="170" cy="240" r="5" fill="#fb7185"/>
+          <circle cx="210" cy="350" r="5" fill="#38bdf8"/>
+          <circle cx="95" cy="270" r="30" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.8"/>
+          <circle cx="95" cy="270" r="6" fill="#fbbf24" stroke="#0a1120" stroke-width="2"/>
+        </svg>
+
+        <div class="query-hero" data-testid="query-hero">
+          <form class="query-hero-form">
+            <input class="query-hero-input" placeholder="무엇이 궁금하세요? 예: 생활인구 많은 동네" aria-label="분석 질의">
+            <button type="submit" class="query-hero-submit" aria-label="질의 실행">↑</button>
+          </form>
+          <div class="query-hero-chips is-optional" aria-label="추천 질문">
+            <button class="query-hero-chip">생활인구 많은 동네</button>
+            <button class="query-hero-chip">카드매출 높은 지역</button>
+            <button class="query-hero-chip">평균소득 높은 동</button>
+            <button class="query-hero-chip">유입인구 많은 지역</button>
+            <button class="query-hero-chip">야간 상권 발달한 동</button>
+            <button class="query-hero-chip">전입 많은 지역</button>
+          </div>
+        </div>
+
+        <!-- 펼침 상태. 높이 45vh(≈307px) 상한 — 아래 지도가 계속 눌린다 -->
+        <section class="probe-card" data-testid="probe-card" data-collapsed="no" aria-label="지점 분석 결과">
+          <header class="probe-card-head">
+            <div style="min-width:0;">
+              <p class="ui-caption" style="font-weight:800;color:var(--text-1);">지점 분석</p>
+              <p style="margin:2px 0 0;font-size:var(--fs-body);font-weight:700;color:var(--text-1);" data-testid="probe-region">함안군 가야읍</p>
+              <p class="probe-edge-warn" data-testid="probe-edge-warn">경계에서 85m · 이웃 동으로 볼 수도 있음</p>
+            </div>
+            <div class="probe-head-actions">
+              <button class="probe-close" data-testid="probe-collapse" aria-expanded="true" aria-label="지점 분석 접기">▾</button>
+              <button class="probe-close" aria-label="지점 분석 닫기">✕</button>
+            </div>
+          </header>
+          <div class="probe-radius" role="group" aria-label="반경 선택">
+            <button class="probe-radius-off" aria-pressed="false">1km</button>
+            <button class="probe-radius-on" aria-pressed="true">2km</button>
+            <button class="probe-radius-off" aria-pressed="false">3km</button>
+          </div>
+          <div class="probe-section">
+            <p class="ui-caption" style="font-weight:700;color:var(--text-2);">반경 2km 안 의료시설</p>
+            <p style="margin:4px 0 0;font-size:var(--fs-body);font-weight:700;color:var(--text-1);" data-testid="probe-facility-total">12곳</p>
+            <div class="probe-chips">
+              <span class="probe-chip">의원 7</span><span class="probe-chip">병원 2</span><span class="probe-chip">약국 3</span>
+            </div>
+          </div>
+          <div class="probe-section">
+            <p class="ui-caption" style="font-weight:700;color:var(--text-2);">걸치는 행정동 5곳</p>
+            <ul class="probe-regions" data-testid="probe-regions">
+              <li><span>함안군 가야읍</span><span class="probe-region-distance">지점 포함</span></li>
+              <li><span>함안군 함안면</span><span class="probe-region-distance">1.2km</span></li>
+              <li><span>창원시 마산합포구 진전면</span><span class="probe-region-distance">1.8km</span></li>
+            </ul>
+          </div>
+        </section>
+
+        <div class="map-float-dock">
+          <div class="map-float-bar">
+            <button class="map-float-btn" aria-pressed="false">조작</button>
+            <button class="map-float-btn" aria-pressed="false">결과</button>
+            <button class="map-float-btn is-active" data-testid="probe-toggle" aria-pressed="true">지점 분석</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <p class="frame-label">393×727 · 지점 카드 펼침 (max-height 45vh)</p>
+</div>
+
+<!-- 프레임 B: 지점 카드 접힘 — 한 줄만 남기고 지도를 돌려준다 -->
+<div>
+  <div class="device">
+    <main class="copilot-shell" data-sheet="none">
+      <header class="copilot-topbar">
+        <span class="brand-mark">◆</span>
+        <h1>누리맵</h1>
+        <nav aria-label="도움말·데이터">
+          <button class="copilot-topbar-link">이용</button>
+          <button class="copilot-topbar-link">데이터</button>
+        </nav>
+        <span class="ui-status ui-status-live">실데이터</span>
+      </header>
+      <section class="copilot-map" aria-label="지도 영역">
+        <svg class="fake-map" viewBox="0 0 393 683" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect width="393" height="683" fill="#0a1120"/>
+          <path d="M0 460 Q120 440 240 470 T393 500 L393 683 L0 683 Z" fill="#0d1828"/>
+          <path d="M20 60 L140 30 L260 50 L370 100 L380 240 L340 380 L280 440 L180 460 L60 420 L10 300 Z" fill="#101a2c"/>
+          <g stroke="#1c2c46" stroke-width="1.5" fill="none">
+            <path d="M140 30 L150 180 L110 320"/><path d="M260 50 L250 200 L290 330"/>
+            <path d="M60 420 L200 340 L340 380"/><path d="M150 180 L250 200"/>
+          </g>
+          <g>
+            <path d="M20 220 L150 180 L140 310 L40 340 Z" fill="rgb(34 211 238 / 34%)"/>
+            <path d="M150 180 L250 200 L240 320 L140 310 Z" fill="rgb(34 211 238 / 18%)"/>
+            <path d="M40 340 L140 310 L200 340 L180 450 L60 420 Z" fill="rgb(34 211 238 / 45%)"/>
+          </g>
+          <g stroke="#26364f" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M40 100 Q160 160 300 140"/><path d="M100 420 Q200 360 320 380"/>
+          </g>
+          <g font-family="Pretendard, sans-serif" font-size="12" fill="#5b6f8f" font-weight="600">
+            <text x="70" y="250">함안군</text><text x="185" y="250">창원시</text><text x="100" y="390">진주시</text>
+          </g>
+          <circle cx="110" cy="270" r="5" fill="#fb7185"/><circle cx="170" cy="240" r="5" fill="#fb7185"/>
+          <circle cx="95" cy="270" r="30" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.8"/>
+          <circle cx="95" cy="270" r="6" fill="#fbbf24" stroke="#0a1120" stroke-width="2"/>
+        </svg>
+
+        <div class="query-hero" data-testid="query-hero">
+          <form class="query-hero-form">
+            <input class="query-hero-input" placeholder="무엇이 궁금하세요? 예: 생활인구 많은 동네" aria-label="분석 질의">
+            <button type="submit" class="query-hero-submit" aria-label="질의 실행">↑</button>
+          </form>
+        </div>
+
+        <!-- 접힘 상태: 제목 한 줄에 요약을 싣는다 -->
+        <section class="probe-card is-collapsed" data-testid="probe-card" data-collapsed="yes" aria-label="지점 분석 결과">
+          <header class="probe-card-head">
+            <div style="min-width:0;">
+              <p class="ui-caption" style="font-weight:800;color:var(--text-1);">지점 분석 · 반경 2km 시설 12곳</p>
+              <p style="margin:2px 0 0;font-size:var(--fs-body);font-weight:700;color:var(--text-1);" data-testid="probe-region">함안군 가야읍</p>
+            </div>
+            <div class="probe-head-actions">
+              <button class="probe-close" data-testid="probe-collapse" aria-expanded="false" aria-label="지점 분석 펼치기">▴</button>
+              <button class="probe-close" aria-label="지점 분석 닫기">✕</button>
+            </div>
+          </header>
+        </section>
+
+        <div class="map-float-dock">
+          <div class="map-float-bar">
+            <button class="map-float-btn" aria-pressed="false">조작</button>
+            <button class="map-float-btn" aria-pressed="false">결과</button>
+            <button class="map-float-btn is-active" data-testid="probe-toggle" aria-pressed="true">지점 분석</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <p class="frame-label">393×727 · 지점 카드 접힘 — 지도 전체가 다시 눌린다</p>
+</div>
+
+</body>
+</html>

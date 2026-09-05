@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  FPS 실측 하네스 — 03-mobile-map.html의 유리 구성 그대로, 지도만 rAF로 계속 팬.
+  mode=glass   : 유리 항상 켜짐 (제안 전)
+  mode=moving  : 팬 중 흐림 해제 + 알파 85% 승격 (MOTION.md §5 제안)
+  mode=solid   : reduced-transparency 상당 (흐림 없음, 불투명)
+-->
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --glass-bg: rgb(13 21 36 / 72%);
+  --glass-bg-strong: rgb(10 17 30 / 85%);
+  --glass-border: rgb(148 163 184 / 30%);
+  --glass-edge: inset 0 1px 0 rgb(255 255 255 / 13%);
+  --glass-blur: blur(24px) saturate(170%);
+  --glass-blur-sm: blur(14px) saturate(150%);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; overflow: hidden; background: #0a1120;
+  font-family: "Pretendard", -apple-system, "Noto Sans KR", sans-serif; }
+.stage { position: relative; width: 100%; height: 100dvh; overflow: hidden; }
+/* 지도 층: CSS 텍스처(도로·격자·단계구분 흉내). 실제 카카오 타일 래스터와 비용이 같지는 않지만
+   「움직이는 복합 배경」이라는 부하 조건은 같다 */
+.map {
+  position: absolute; top: -400px; left: -400px; width: calc(100% + 800px); height: calc(100% + 800px);
+  background:
+    radial-gradient(circle at 20% 30%, rgb(34 211 238 / 30%) 0 60px, transparent 61px),
+    radial-gradient(circle at 60% 60%, rgb(34 211 238 / 18%) 0 90px, transparent 91px),
+    radial-gradient(circle at 80% 25%, rgb(251 113 133 / 25%) 0 40px, transparent 41px),
+    repeating-linear-gradient(0deg, transparent 0 46px, #26364f 47px 48px),
+    repeating-linear-gradient(90deg, transparent 0 46px, #26364f 47px 48px),
+    linear-gradient(135deg, #101a2c, #0a1120 60%, #0d1828);
+  will-change: transform;
+}
+.glass {
+  position: absolute;
+  border: 1px solid var(--glass-border); border-radius: 1rem;
+  background: var(--glass-bg);
+  color: #c7d2e0; font-size: 13px; font-weight: 600;
+  box-shadow: var(--glass-edge), 0 14px 36px rgb(0 0 0 / 50%);
+}
+body[data-mode="glass"] .glass { backdrop-filter: var(--glass-blur-sm); -webkit-backdrop-filter: var(--glass-blur-sm); }
+body[data-mode="glass"] .glass.strong { backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); }
+body[data-mode="moving"] .glass { background: var(--glass-bg-strong); }   /* 흐림 없음, 알파 승격 */
+body[data-mode="solid"] .glass { background: #0d1524; }                    /* 불투명 */
+.hero { top: 10px; left: 10px; right: 10px; height: 48px; padding: 14px 16px; }
+.chips { top: 66px; left: 10px; display: flex; gap: 6px; }
+.chip { position: static; border-radius: 999px; padding: 6px 12px; }
+.dock { bottom: 20px; left: 50%; transform: translateX(-50%); border-radius: 999px; padding: 6px 8px; display: flex; gap: 6px; }
+.btn { position: static; border-radius: 999px; min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; }
+.probe { bottom: 88px; left: 12px; right: 12px; height: 240px; padding: 14px; }
+</style>
+</head>
+<body data-mode="glass">
+<div class="stage">
+  <div class="map" id="map"></div>
+  <div class="glass strong hero">무엇이 궁금하세요? 예: 생활인구 많은 동네</div>
+  <div class="chips">
+    <div class="glass chip">생활인구 많은 동네</div>
+    <div class="glass chip">카드매출 높은 지역</div>
+    <div class="glass chip">평균소득 높은 동</div>
+  </div>
+  <div class="glass strong probe">지점 분석 — 함안군 가야읍 · 반경 2km 시설 12곳 · 걸치는 행정동 5곳</div>
+  <div class="glass dock">
+    <div class="glass btn">조작</div><div class="glass btn">결과</div><div class="glass btn">지점 분석</div>
+  </div>
+</div>
+<script>
+const mode = new URLSearchParams(location.search).get("mode") || "glass";
+document.body.dataset.mode = mode;
+const map = document.getElementById("map");
+const frames = [];
+window.__frames = frames;
+let t0 = performance.now(), last = t0;
+function tick(now) {
+  // 팬: 좌우 ±140px 사인 + 미세 줌(스케일) — 카카오 팬·줌 중 합성 부하 흉내
+  const t = (now - t0) / 1000;
+  const x = Math.sin(t * 1.6) * 140, y = Math.cos(t * 1.1) * 90;
+  map.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  frames.push(now - last);
+  last = now;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
