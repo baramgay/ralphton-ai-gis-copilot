@@ -66,6 +66,18 @@ for (const [label, opts, touch] of [
   check(bar.rows === 1, "떠 있는 버튼 줄이 한 줄", `${bar.rows}줄`);
   check(Object.values(bar.reach).every(Boolean), "버튼이 모두 눌린다", JSON.stringify(bar.reach));
 
+  /*
+   * 「지점 분석」 버튼은 경계가 도착한 뒤에야 나온다. 그전에는 Kakao 지도가 떠 있어도
+   * 지도 클릭이 올라오지 않아, 눌러도 아무 일이 없다(배포본 6/6 실패 → 면이 그려진 뒤
+   * 6/6 성공, 실측). 그래서 여기서도 **면이 그려졌는지**를 먼저 확인한다 — 이 기다림이
+   * 없으면 검사는 결함이 아니라 자기 성급함을 재게 된다.
+   */
+  await page.waitForFunction(
+    () => document.querySelectorAll("[data-map-engine] path").length > 100,
+    null,
+    { timeout: 60_000 },
+  );
+
   const toggle = page.getByTestId("probe-toggle");
   await toggle.waitFor({ timeout: 30_000 });
   await toggle.click();

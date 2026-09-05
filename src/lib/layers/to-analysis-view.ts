@@ -109,7 +109,7 @@ export function layerCubeToAnalysisView(
     scores.set(code, normalize(value));
   }
 
-  const levelLabel = adminLevel === "dong" ? "읍면동" : "시군구";
+  const levelLabel = adminLevel === "dong" ? "행정동" : "시군구";
 
   return {
     analysis: {

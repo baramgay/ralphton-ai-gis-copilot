@@ -452,7 +452,7 @@ describe("CopilotApp", () => {
     async () => {
       render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
 
-      expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
+      expect(await screen.findByTestId("demo-map-badge", {}, { timeout: 20_000 })).toBeInTheDocument();
       openControls();
       for (const label of [
         "의료 접근성",
@@ -482,7 +482,7 @@ describe("CopilotApp", () => {
 
   test("switches help and data information tabs accessibly", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     openControls();
 
     fireEvent.click(screen.getByRole("tab", { name: "이용" }));
@@ -497,7 +497,7 @@ describe("CopilotApp", () => {
 
   test("executes a distinct radius result and exposes its active metric", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     openControls();
 
     fireEvent.click(screen.getByRole("button", { name: "반경 내 의료기관" }));
@@ -508,7 +508,7 @@ describe("CopilotApp", () => {
 
   test("keeps an explicit pharmacy query synchronized with facility results", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "약국" },
@@ -544,7 +544,7 @@ describe("CopilotApp", () => {
     );
 
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     fireEvent.click(screen.getByRole("button", { name: "조작" }));
     expect(screen.getByLabelText("분석 조작 패널").className).toMatch(/sheet-open/);
@@ -557,7 +557,7 @@ describe("CopilotApp", () => {
 
   test("shows compare picker when gu compare is selected", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     openControls();
 
     fireEvent.click(screen.getByRole("button", { name: "지역 비교" }));
@@ -571,7 +571,7 @@ describe("CopilotApp", () => {
 
   test("theme controls are available in settings", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
 
     openControls();
     await fireEvent.click(screen.getByRole("tab", { name: "분석" }));
@@ -594,14 +594,14 @@ describe("CopilotApp", () => {
 
   test("copy conclusion button appears after analysis", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("copy-conclusion")).toBeInTheDocument();
   });
 
   test("help tab shows evaluator guide and method summary on results", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
     expect(await screen.findByTestId("method-summary")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "이용" }));
     expect(await screen.findByTestId("evaluator-guide")).toBeInTheDocument();
@@ -610,7 +610,7 @@ describe("CopilotApp", () => {
 
   test("facility list shows sort controls", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap", {}, { timeout: 10_000 });
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
     fireEvent.click(screen.getByRole("button", { name: "의료기관 목록" }));
     expect(await screen.findByTestId("facility-sort-name")).toBeInTheDocument();
     expect(screen.getByTestId("facility-sort-type")).toBeInTheDocument();
@@ -620,7 +620,7 @@ describe("CopilotApp", () => {
 
   test("hides medical quick analysis and sources methodology/month from the active layer when a cube layer is selected", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     // Medical is the default layer: quick analysis grid is present.
     expect(screen.getByRole("button", { name: "의료 접근성" })).toBeInTheDocument();
@@ -652,7 +652,7 @@ describe("CopilotApp", () => {
      * 아래에 "공급 부족 35% + 고령 수요 25% …"가 붙어 나왔다.
      */
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     // 공용 목은 늘 시설 검색을 돌려준다. 이 테스트는 **순위** 결과가 필요하므로 그것만 바꾼다.
     const inner = global.fetch;
@@ -685,7 +685,7 @@ describe("CopilotApp", () => {
 
   test("routes a 생활인구 natural-language query to the SKT private layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     // Default layer is 의료(공공). Submit a private-data NL query.
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -703,7 +703,7 @@ describe("CopilotApp", () => {
 
   test("routes a 유입인구 natural-language query to the SKT mobility layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "유입인구 많은 동" },
@@ -718,7 +718,7 @@ describe("CopilotApp", () => {
 
   test("routes a 카드매출 query to the NH consumption layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "카드매출 높은 동" },
     });
@@ -731,7 +731,7 @@ describe("CopilotApp", () => {
 
   test("routes a 평균소득 query to the KCB credit layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "평균소득 높은 지역" },
     });
@@ -744,7 +744,7 @@ describe("CopilotApp", () => {
 
   test("runs a 민간×민간 교차분석 for '생활인구 대비 카드매출'", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     // give the remote cubes (skt-living + nh-consumption) a tick to load
     await waitFor(() => expect(screen.getByTestId("result-panel")).toBeInTheDocument());
 
@@ -779,7 +779,7 @@ describe("CopilotApp", () => {
    */
   test("세 지표 질의가 다중조건으로 실행된다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     await waitFor(() => expect(screen.getByTestId("result-panel")).toBeInTheDocument());
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -801,7 +801,7 @@ describe("CopilotApp", () => {
 
   test("routes a 주야비 query to the SKT day/night layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "주야비 높은 동" },
     });
@@ -814,7 +814,7 @@ describe("CopilotApp", () => {
 
   test("CSV·보고서·한글·슬라이드 내보내기 버튼이 결과 패널에 노출된다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     expect(await screen.findByTestId("export-report")).toBeInTheDocument();
     expect(screen.getByTestId("export-csv")).toBeInTheDocument();
     expect(screen.getByTestId("export-hwp")).toBeInTheDocument();
@@ -823,7 +823,7 @@ describe("CopilotApp", () => {
 
   test("선택 지역의 민간데이터 종합 프로파일을 백분위와 함께 보여준다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
     // 여러 제공기관의 지표가 한 패널에 모인다
@@ -836,7 +836,7 @@ describe("CopilotApp", () => {
 
   test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     /*
      * 레이어: 큰 갈래는 민간·공공 둘이고 제공기관은 그 아래다. 제공기관을 최상위에 놓으면
@@ -861,7 +861,7 @@ describe("CopilotApp", () => {
 
   test("민간 레이어를 보다가 공공 질의를 하면 결과가 바뀐다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     // 먼저 민간 레이어로 전환
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -885,7 +885,7 @@ describe("CopilotApp", () => {
 
   test("프로파일에서 추세 기간을 바꿀 수 있다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
     // 기본은 전 기간
@@ -898,7 +898,7 @@ describe("CopilotApp", () => {
 
   test("원클릭 추세 프리셋이 자연어 없이 추세를 낸다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     await waitFor(() => expect(screen.getByTestId("trend-presets")).toBeInTheDocument());
 
     fireEvent.click(await screen.findByTestId("trend-sales-rising"));
@@ -928,7 +928,7 @@ describe("CopilotApp", () => {
     );
 
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "카드매출 늘어나는 동" },
@@ -948,7 +948,7 @@ describe("CopilotApp", () => {
 
   test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "카드매출 늘어나는 동" },
@@ -965,7 +965,7 @@ describe("CopilotApp", () => {
 
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
 
     fireEvent.click(await screen.findByTestId("cross-living-vs-sales"));
@@ -976,7 +976,7 @@ describe("CopilotApp", () => {
 
   test("selecting the 의료 layer clears a cross-analysis result instead of leaving it on screen", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
 
     fireEvent.click(screen.getByTestId("cross-living-vs-sales"));
@@ -1001,7 +1001,7 @@ describe("CopilotApp", () => {
     // 교차 후보에는 의료를 더했는데 지표 목록에서 빠뜨려 runCross가 조용히 false를
     // 돌렸고, 화면은 직전 분석을 그대로 두었다. prod에서야 드러났다.
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -1024,7 +1024,7 @@ describe("CopilotApp", () => {
     // 답을 못 찾아도 화면에는 직전 분석이 남는다(작업을 잃지 않게). 그런데 그러면
     // "부산 소득 높은 곳"에 경남 순위가 붙어 그 질문의 답처럼 읽힌다(prod 실측).
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     expect(screen.queryByTestId("stale-answer-notice")).toBeNull();
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -1049,11 +1049,30 @@ describe("CopilotApp", () => {
    * 답 못 한 말이 「최근 질문」 칩으로 돌아오면 다시 누를거리가 된다. 오타로 아무것도
    * 못 찾은 말까지 예시 옆에 나란히 서서, 실제로 자기 입력을 제품 오타로 읽는 일이 있었다.
    */
+  /*
+   * 담는 쪽을 고쳐도 **이미 담긴 것은 그 사람 브라우저에 남는다**. 오타로 친 말이
+   * 배포 뒤에도 칩으로 계속 떠서, 자기 입력을 제품이 쓴 문구로 읽는 일이 되풀이됐다.
+   */
+  test("옛 자리에 쌓인 최근 질문은 첫 실행에서 버린다", async () => {
+    window.localStorage.setItem(
+      "ralphton-recent-queries-v1",
+      JSON.stringify(["의려취약지역", "부산 소득 높은 곳"]),
+    );
+    window.localStorage.removeItem("ralphton-recent-queries-v2");
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 20_000 });
+
+    await waitFor(() =>
+      expect(window.localStorage.getItem("ralphton-recent-queries-v1")).toBeNull(),
+    );
+    expect(screen.queryByTestId("recent-queries")).toBeNull();
+  }, 30_000);
+
   test("답하지 못한 질의는 최근 질문에 남기지 않는다", async () => {
     // 같은 파일의 앞선 테스트가 남긴 기록을 지우고 시작한다(jsdom의 localStorage는 공유된다).
-    window.localStorage.removeItem("ralphton-recent-queries-v1");
+    window.localStorage.removeItem("ralphton-recent-queries-v2");
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
       target: { value: "부산 소득 높은 곳" },
@@ -1075,7 +1094,7 @@ describe("CopilotApp", () => {
 
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("one-line-conclusion").textContent).toMatch(/한 줄 결론/);
   });
@@ -1097,7 +1116,7 @@ describe("CopilotApp", () => {
     );
 
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    expect(await screen.findByText("DemoMap", {}, { timeout: 20_000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("demo-map-badge", {}, { timeout: 20_000 })).toBeInTheDocument();
     expect(screen.getByTestId("result-panel")).toBeInTheDocument();
   }, 30_000);
 
@@ -1114,7 +1133,7 @@ describe("CopilotApp", () => {
      * `.rank-note`가 **존재하는지**부터 본다.
      */
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     const inner = global.fetch;
     global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -1170,7 +1189,7 @@ describe("CopilotApp", () => {
     window.history.replaceState(null, "", `?tool=rankPopulation&q=${encodeURIComponent(shared)}`);
     try {
       render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-      await screen.findByText("DemoMap");
+      await screen.findByTestId("demo-map-badge");
       await waitFor(() => expect(parsed).toContain(shared));
       expect((screen.getByRole("textbox", { name: "분석 질의" }) as HTMLInputElement).value).toBe(
         shared,
@@ -1188,7 +1207,7 @@ describe("CopilotApp", () => {
      * 리졸버 단위 테스트로는 이 자리를 못 본다. 화면까지 닿는지를 본다.
      */
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     const inner = global.fetch;
     global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -1227,7 +1246,7 @@ describe("CopilotApp", () => {
   test("AI가 지목한 지표를 리졸버가 못 잡으면 평소 안내로 내려간다", async () => {
     // 지목만 믿고 화면을 바꾸면, 리졸버가 다른 지표를 골랐을 때 안내와 결과가 어긋난다.
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
-    await screen.findByText("DemoMap");
+    await screen.findByTestId("demo-map-badge");
 
     const inner = global.fetch;
     global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {

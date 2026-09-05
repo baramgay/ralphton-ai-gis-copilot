@@ -216,7 +216,7 @@ describe("MapCanvas SDK fallback", () => {
       />,
     );
 
-    expect(await screen.findByText("DemoMap", {}, { timeout: 3_000 })).toBeInTheDocument();
-    expect(screen.getByText(/Kakao 지도 연결 실패/)).toBeInTheDocument();
+    expect(await screen.findByTestId("demo-map-badge", {}, { timeout: 3_000 })).toBeInTheDocument();
+    expect(screen.getByText(/지도를 불러오지 못했습니다/)).toBeInTheDocument();
   });
 });

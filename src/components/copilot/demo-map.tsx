@@ -235,8 +235,8 @@ export function DemoMap({
         </g>
       </svg>
 
-      <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-xl">
-        DemoMap
+      <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-xl" data-testid="demo-map-badge">
+        임시 지도
       </div>
 
       {hoveredFeature ? (

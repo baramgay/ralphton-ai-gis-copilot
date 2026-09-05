@@ -290,10 +290,10 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
           .filter((note): note is string => note !== null),
         `HIRA 병원정보서비스(v2)로 경남 시설 ${facilities.length}곳을 갱신했습니다.`,
         populationLive
-          ? `인구·세대 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${populationUpdated || base.regions.length}개 읍면동).`
+          ? `인구·세대 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${populationUpdated || base.regions.length}개 행정동).`
           : "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
         vitalsLive
-          ? `출생·사망 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${vitalsUpdated || base.regions.length}개 읍면동).`
+          ? `출생·사망 ${base.months.length}개월 시계열을 행정안전부 주민등록 실데이터로 교체했습니다(${vitalsUpdated || base.regions.length}개 행정동).`
           : "출생·사망 시계열은 검증된 기준 스냅샷을 유지합니다.",
       ],
     });

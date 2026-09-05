@@ -13,7 +13,7 @@ export const POPULATION_LAYER: Omit<LayerDescriptor, "months"> = {
   metrics: [
     { key: "pop_total", label: "총인구", unit: "명", aggregation: "sum", formula: "월별 주민등록 인구", limitation: "외국인 제외", triggers: ["인구", "총인구", "인구수"] },
     { key: "households", label: "세대수", unit: "세대", aggregation: "sum", formula: "월별 세대 수", limitation: "", triggers: ["세대", "가구"] },
-    { key: "density", label: "인구밀도", unit: "명/㎢", aggregation: "weightedAvg", weightKey: "pop_total", formula: "인구/면적", limitation: "", triggers: ["밀도", "인구밀도"] },
+    { key: "density", label: "인구밀도", unit: "명/km²", aggregation: "weightedAvg", weightKey: "pop_total", formula: "인구/면적", limitation: "", triggers: ["밀도", "인구밀도"] },
     { key: "elderly_ratio", label: "고령비율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "고령인구/총인구×100", limitation: "", triggers: ["고령인구 비율", "고령 인구", "고령인구", "고령비율", "고령화율", "고령", "노인"] },
     { key: "natural_change", label: "자연증가", unit: "명", aggregation: "sum", formula: "출생−사망", limitation: "전입·전출 미포함", triggers: ["자연증가", "출생", "사망"] },
   ],
@@ -197,12 +197,12 @@ export const KCB_GRID_LAYER: Omit<LayerDescriptor, "months"> = {
   provider: "KCB",
   kind: "choropleth",
   coverage: "gyeongnam",
-  // 격자 코드는 "gx_gy"라 앞 5자리를 잘라도 시군구가 되지 않는다. 읍면동 단위만 쓴다.
+  // 격자 코드는 "gx_gy"라 앞 5자리를 잘라도 시군구가 되지 않는다. 행정동 단위만 쓴다.
   adminLevels: ["dong"],
   geometry: "grid",
   sourceNotes: [
     "KCB 100m 격자 통계(부울경) 중 경남만, 500m로 재집계",
-    "KCB가 (격자×5세연령구간) 인구 3명 미만은 제공하지 않아 농촌이 크게 누락된다. 격자 표본이 읍면동 인구의 90% 이상인 도시부(12개 시군구·95개 읍면동)만 싣는다",
+    "KCB가 (격자×5세연령구간) 인구 3명 미만은 제공하지 않아 농촌이 크게 누락된다. 격자 표본이 행정동 인구의 90% 이상인 도시부(12개 시군구·95개 행정동)만 싣는다",
     "성인 30명 미만 칸은 평균·비율을 내지 않는다(표본 부족·재식별 방지)",
   ],
   metrics: [

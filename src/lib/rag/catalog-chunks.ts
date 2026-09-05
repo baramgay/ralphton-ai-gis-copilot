@@ -24,7 +24,7 @@ function unitWord(layer: CatalogLayer): string {
 
 function scopeSentence(layer: CatalogLayer, metric: MetricDef): string {
   if (metric.scope === "sgg") {
-    return "원자료가 시군구까지만 제공하므로 시군구 단위로만 답한다(읍면동으로 줄 세우면 같은 값이 반복된다).";
+    return "원자료가 시군구까지만 제공하므로 시군구 단위로만 답한다(행정동으로 줄 세우면 같은 값이 반복된다).";
   }
   return `답하는 단위는 ${unitWord(layer)}이다.`;
 }

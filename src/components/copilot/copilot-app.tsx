@@ -135,7 +135,15 @@ import {
   usePanelLayout,
 } from "./use-panel-layout";
 
-const RECENT_QUERIES_KEY = "ralphton-recent-queries-v1";
+/*
+ * v1 에는 **답하지 못한 질의도 함께** 쌓였다. 그래서 사용자가 오타로 친 말이
+ * 「최근 질문」 칩으로 되돌아왔고, 자기 오타를 제품이 쓴 문구로 읽는 일이 있었다.
+ * 담는 쪽은 고쳤지만 **이미 담긴 것은 브라우저에 남는다** — 고친 코드를 배포해도
+ * 그 사람 화면에는 그대로 보인다. 그래서 자리를 옮기고 옛 자리를 지운다.
+ * 옮겨 담지 않는 이유: v1 의 내용 자체가 그 결함으로 만들어진 것이다.
+ */
+const RECENT_QUERIES_KEY = "ralphton-recent-queries-v2";
+const RECENT_QUERIES_LEGACY_KEY = "ralphton-recent-queries-v1";
 const DENSITY_KEY = "ralphton-density-v1";
 const ONBOARD_KEY = "ralphton-onboard-v1";
 
@@ -636,7 +644,7 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
         ? [result.selectedRegion]
         : [];
   /*
-   * 시군구로 합쳐진 행은 이름이 "경상남도 김해시"(2토큰)이고 읍면동은 3토큰이다.
+   * 시군구로 합쳐진 행은 이름이 "경상남도 김해시"(2토큰)이고 행정동은 3토큰이다.
    * 데이터 자체로 판별하면 호출부마다 단위를 들고 다니지 않아도 된다.
    */
   const isDistrictLevel =
@@ -717,16 +725,16 @@ const RESULT_PAGE_STEP = 24;
 function dataSourceLabel(source: string): string {
   if (source === "demo") return "출처: 로컬 데모";
   if (source === "demo-fallback") return "출처: 데모(폴백)";
-  if (source === "supabase-cache") return "출처: Supabase 캐시";
+  if (source === "supabase-cache") return "출처: 서버 캐시";
   if (source === "loading") return "출처: 로딩 중";
   return `출처: ${source}`;
 }
 
 function mapEngineLabel(kakaoMapKey: string, mapEngine: "kakao" | "demo" | "unknown"): string {
-  if (!kakaoMapKey) return "지도: DemoMap";
-  if (mapEngine === "demo") return "지도: DemoMap(폴백)";
-  if (mapEngine === "kakao") return "지도: Kakao";
-  return "지도: Kakao 연결 중";
+  if (!kakaoMapKey) return "임시 지도";
+  if (mapEngine === "demo") return "임시 지도(연결 실패)";
+  if (mapEngine === "kakao") return "카카오 지도";
+  return "카카오 지도 연결 중";
 }
 
 type AiLastOutcome =
@@ -970,7 +978,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 질의가 정한 단위를 다음 질의까지 물려주면, "전입보다 전출이 많은 곳"(전출이 시군구
    * 지표라 시군구가 된다) 다음에 "소득 대비 소비가 과한 지역"을 물었을 때도 시군구로
    * 답한다(prod 실측). 사용자가 토글로 고른 것만 이어받고, 질의가 바꾼 것은 그 질의에만
-   * 적용한다 — 적지 않았으면 읍면동이 기본이다.
+   * 적용한다 — 적지 않았으면 행정동이 기본이다.
    */
   const adminLevelSourceRef = useRef<"user" | "query">("user");
   const [remoteCubes, setRemoteCubes] = useState<Record<string, LayerCube | null>>({});
@@ -1041,6 +1049,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // 최근 질문·첫 방문 여부도 localStorage라 마운트 뒤에만 알 수 있다(위 테마와 같은 이유).
   useEffect(() => {
     try {
+      window.localStorage.removeItem(RECENT_QUERIES_LEGACY_KEY);
       const raw = window.localStorage.getItem(RECENT_QUERIES_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as string[];
@@ -1203,7 +1212,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
            * 된다고 봤는데, 그러면 질문에만 있던 조건이 조용히 사라진다 — 시군구 단위(adminLevel),
            * "상위 10%"(percentLimit), "400만원 이상"(valueThreshold)은 전부 질문을 파싱해야
            * 나오는 값이라 `tool` 하나에 담기지 않는다. "총인구 많은 시군구 상위 10%"를 공유하면
-           * 305개 읍면동 전체 순위로 열렸다(prod 실측). 조건이 빠진 채 답이 나오는 것이 최악이다.
+           * 305개 행정동 전체 순위로 열렸다(prod 실측). 조건이 빠진 채 답이 나오는 것이 최악이다.
            *
            * 조건을 URL 필드로 하나씩 늘리는 대신 질문을 다시 태운다 — 앞으로 새 조건이 생겨도
            * 링크 형식을 건드릴 일이 없다. `tool` 경로는 질문 없이 빠른 버튼만 눌러 공유한
@@ -1408,7 +1417,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [snapshot, activeQuick, radiusKm, customAnalysis, comparePair],
   );
 
-  /** 질의에서 읍면동을 찾을 때 쓰는 이름 목록(시도 접두어 제거). */
+  /** 질의에서 행정동을 찾을 때 쓰는 이름 목록(시도 접두어 제거). */
   const dongNamesForQuery = useMemo(
     () => (snapshot ? listDongLabels(snapshot.regions).map((name) => name.split(/\s+/).pop() ?? name) : []),
     [snapshot],
@@ -1424,7 +1433,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    *
    * 지도는 GeoJSON 폴리곤을 코드로 칠하는 경로 하나뿐이다. 격자도 같은 모양의 사각형
    * GeoJSON으로 만들어 두었으므로, 레이어가 격자일 때 경계만 바꿔 끼우면 채색·클릭·툴팁이
-   * 전부 그대로 따라온다. 읍면동 경계(3.7MB)와 달리 작아서(브로틀리 33KB) 필요할 때 받는다.
+   * 전부 그대로 따라온다. 행정동 경계(3.7MB)와 달리 작아서(브로틀리 33KB) 필요할 때 받는다.
    */
   const [gridBoundary, setGridBoundary] = useState<BoundaryCollection | null>(null);
   const gridBoundaryRequestedRef = useRef(false);
@@ -1470,14 +1479,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   /**
    * 선택한 지역이 지금 레이어에 없으면 그 레이어의 1위로 옮긴다.
    *
-   * 읍면동 레이어끼리는 코드가 같아 선택이 자연스럽게 이어지지만, 격자는 코드가 "gx_gy"라
-   * 겹치지 않는다. 그대로 두면 지도가 격자가 없는 옛 읍면동을 계속 비춘다 — 격자 레이어로
+   * 행정동 레이어끼리는 코드가 같아 선택이 자연스럽게 이어지지만, 격자는 코드가 "gx_gy"라
+   * 겹치지 않는다. 그대로 두면 지도가 격자가 없는 옛 행정동을 계속 비춘다 — 격자 레이어로
    * 바꿨는데 화면은 거창군 북상면 산속을 보여주고 있었다(prod 실측).
    */
   /*
    * 사용자가 직접 고르지 않았다면 선택은 늘 이번 분석의 1위를 가리킨다.
    *
-   * 이전에는 "순위에 없을 때만" 옮겼는데, 읍면동은 어느 지표에서나 순위에 들어 있으므로
+   * 이전에는 "순위에 없을 때만" 옮겼는데, 행정동은 어느 지표에서나 순위에 들어 있으므로
    * 한 번 선택된 지역이 분석을 바꿔도 계속 남았다. 그래서 "생활인구 1위는 양산시 물금읍"
    * 이라는 결론 옆에 `선택 278위`와 `거창군 북상면 민간데이터 종합`이 붙어 있었다
    * (prod 실측) — 답과 화면이 서로 다른 지역을 가리켰다.
@@ -1663,19 +1672,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     for (const layer of REMOTE_CUBE_LAYERS) cubes[layer.id] = remoteCubes[layer.id] ?? null;
     /*
      * 이 패널의 제목은 「민간데이터 종합」이다. KOSIS(국가통계)까지 넣으면 제목이
-     * 거짓말이 되고, KOSIS 지표는 시군구 값이라 읍면동 프로파일에 그대로 얹으면
+     * 거짓말이 되고, KOSIS 지표는 시군구 값이라 행정동 프로파일에 그대로 얹으면
      * 「이 동의 값」으로 읽힌다. 민간 레이어만 쓴다.
      */
     return buildRegionProfile(selectedRegionCode, region.adm_nm, PRIVATE_LAYERS, cubes, trendMonths);
   }, [populationCube, remoteCubes, selectedRegionCode, snapshot, trendMonths]);
 
   /*
-   * 시군구로 합친 결과의 코드는 `4817000000`이라 스냅샷 읍면동 목록에 없다. 그래서
-   * `regionProfile`이 null이 되고 패널이 **말없이 사라졌다** — 읍면동 결과에선 있던 칸이
+   * 시군구로 합친 결과의 코드는 `4817000000`이라 스냅샷 행정동 목록에 없다. 그래서
+   * `regionProfile`이 null이 되고 패널이 **말없이 사라졌다** — 행정동 결과에선 있던 칸이
    * 시군구 결과에선 없어진다(prod 실측, 4차 리포트는 "대응 뷰가 없어서"로 추측했으나
    * 실제로는 조회 실패다).
    *
-   * 민간 큐브가 읍면동 단위라 시군구 합산 프로파일은 따로 만들어야 한다. 그때까지는
+   * 민간 큐브가 행정동 단위라 시군구 합산 프로파일은 따로 만들어야 한다. 그때까지는
    * 사라진 이유를 밝힌다 — 말없이 없어지는 것이 이 프로젝트에서 가장 나쁜 실패다.
    */
   const profileMissingForDistrict = useMemo(() => {
@@ -1808,7 +1817,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   /*
    * 비율로 물었으면(상위 10%) 행 수에서 개수를 낸다. 질의 시점에는 전체가 몇 개인지
-   * 모른다 — 읍면동 305개인지 시군구 22개인지가 분석 결과에 달려 있다.
+   * 모른다 — 행정동 305개인지 시군구 22개인지가 분석 결과에 달려 있다.
    */
   const effectiveLimit =
     percentLimit !== null && filteredRanked.length > 0
@@ -2488,8 +2497,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setParseStage("done");
       setQueryNotice(
         stats.kind === "correlation"
-          ? `상관분석 · ${stats.a.metricLabel} × ${stats.b.metricLabel} (${stats.unit === "sgg" ? "시군구" : "읍면동"} 단위)`
-          : `이상치 · ${stats.ref.metricLabel} (${stats.unit === "sgg" ? "시군구" : "읍면동"} 단위)`,
+          ? `상관분석 · ${stats.a.metricLabel} × ${stats.b.metricLabel} (${stats.unit === "sgg" ? "시군구" : "행정동"} 단위)`
+          : `이상치 · ${stats.ref.metricLabel} (${stats.unit === "sgg" ? "시군구" : "행정동"} 단위)`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -2925,7 +2934,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (outOfScope) {
       setParseStage("idle");
       setQueryNotice(
-        `"${outOfScope}"은(는) 경남 지역 범위 밖입니다. 이 도구는 경남 305개 읍면동만 다룹니다.`,
+        `"${outOfScope}"은(는) 경남 지역 범위 밖입니다. 이 도구는 경남 305개 행정동만 다룹니다.`,
       );
       setQueryNoticeTone("error");
       setAnsweredLastQuery(false);
@@ -3029,7 +3038,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     /*
      * 격자를 물었으면 교차 후보도 격자로 좁힌다.
      *
-     * 격자 코드는 "gx_gy"라 읍면동 코드와 겹치는 지역이 하나도 없다. 섞어서 교차하면
+     * 격자 코드는 "gx_gy"라 행정동 코드와 겹치는 지역이 하나도 없다. 섞어서 교차하면
      * "0개 격자"가 나온다(prod 실측). "격자 소득 높고 소비도 많은 블록"에서 사용자가
      * 원한 것은 격자끼리 겹쳐 보는 것이다.
      */
@@ -3104,7 +3113,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // public 인구 ranking because "생활인구" contains "인구"). Synchronous, no network.
     const layerMatch = publicFirst ? null : resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
-      // 읍면동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
+      // 행정동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
       dongNames: dongNamesForQuery,
     });
     /*
@@ -4220,7 +4229,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ],
                   ["시설", `${snapshot.facilities.length.toLocaleString("ko-KR")}곳`],
                   ["지도", mapEngineLabel(kakaoMapKey, mapEngine)],
-                  ["병원 API", "HIRA v2"],
+                  ["의료기관 자료", "건강보험심사평가원"],
                   ["지도 시설 상한", `${MAP_FACILITY_CAP.toLocaleString("ko-KR")}곳`],
                 ].map(([label, value]) => (
                   <div key={label} className="ui-stat-card">
@@ -4626,10 +4635,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               결과
             </button>
             {/*
-              DemoMap은 클릭 좌표를 주지 못한다. 버튼을 그려 두고 눌러도 아무 일이 없으면
+              임시 지도(DemoMap)는 클릭 좌표를 주지 못한다. 버튼을 그려 두고 눌러도 아무 일이 없으면
               사용자는 자기가 잘못 누른 줄 안다 — 못 하는 자리에서는 버튼을 감춘다.
+
+              경계가 아직 안 왔을 때도 마찬가지다. Kakao 지도는 떠 있지만 면이 하나도 안
+              그려진 동안에는 지도 클릭이 올라오지 않는다 — 배포본에서 **6번 눌러 6번 다
+              아무 일도 없었고**, 면이 그려진 뒤에는 6번 다 찍혔다(실측). 엔진만 보고
+              내보내면 켜자마자 누른 사람에게는 이 기능이 고장 난 것으로 보인다.
             */}
-            {mapEngine === "kakao" ? (
+            {mapEngine === "kakao" && boundary ? (
               <button
                 type="button"
                 className="mobile-panel-btn !m-0 !shadow-none"
@@ -4794,7 +4808,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ) : null}
           {profileMissingForDistrict ? (
             <p className="ui-caption mt-2.5 text-slate-500" data-testid="region-profile-unavailable">
-              민간데이터 종합은 읍면동 단위로만 있습니다. 시군구로 합친 결과에서는 볼 수 없어, 읍면동을
+              민간데이터 종합은 행정동 단위로만 있습니다. 시군구로 합친 결과에서는 볼 수 없어, 행정동을
               고르면 나타납니다.
             </p>
           ) : null}

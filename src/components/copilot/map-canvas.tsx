@@ -105,22 +105,22 @@ export function MapCanvas(props: MapCanvasProps) {
       <DemoMap {...mapProps} />
       {kakaoMapKey ? (
         <div className="absolute left-4 top-14 z-20 max-w-sm rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg">
-          <p className="text-[11px] font-bold text-amber-900">Kakao 지도 연결 실패 · DemoMap 표시 중</p>
+          <p className="text-[11px] font-bold text-amber-900">지도를 불러오지 못했습니다 · 임시 지도로 표시 중</p>
           <p className="mt-1 text-[10px] leading-5 text-amber-800">
             {errorMessage ??
-              "앱 키·웹 도메인(localhost / vercel.app)·CSP를 확인하세요."}
+              "지도 서비스 연결에 문제가 있습니다. 잠시 뒤 다시 시도해 주세요."}
           </p>
           <button
             type="button"
             className="mt-2 rounded-lg bg-amber-900 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-amber-800 active:scale-[0.98]"
             onClick={retryKakao}
           >
-            Kakao 지도 다시 시도
+            지도 다시 불러오기
           </button>
         </div>
       ) : (
         <div className="absolute left-4 top-14 z-20 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 text-[10px] font-semibold text-slate-600 shadow">
-          NEXT_PUBLIC_KAKAO_MAP_KEY 없음 · DemoMap
+          지도 서비스가 연결되지 않아 임시 지도로 표시합니다
         </div>
       )}
     </div>

@@ -32,7 +32,7 @@ const SGG_NAMES: Record<string, string> = {
   "48310": "거제시",
 };
 
-/** 시군구 하나에 읍면동 여럿을 달아 준다. 시군구 지표의 복제 표본을 재현하려면 필요하다. */
+/** 시군구 하나에 행정동 여럿을 달아 준다. 시군구 지표의 복제 표본을 재현하려면 필요하다. */
 function cube(layerId: string, key: string, bySgg: Record<string, number>, dongsPerSgg = 5): LayerCube {
   const cells = [];
   for (const [sgg, value] of Object.entries(bySgg)) {
@@ -79,19 +79,19 @@ describe("correlationView", () => {
     expect(view.notes.join(" ")).toContain("표본 6개 시군구");
   });
 
-  test("읍면동 단위로 내면 같은 값이 복제되어 표본이 부푼다 — 그래서 단위를 밝힌다", () => {
+  test("행정동 단위로 내면 같은 값이 복제되어 표본이 부푼다 — 그래서 단위를 밝힌다", () => {
     /*
      * 이 검사는 "부풀어도 된다"가 아니라 **부푼다는 사실이 화면에 적힌다**를 못 박는다.
      * 시군구 지표는 리졸버가 sgg로 내려보내지만, 단위를 실어 나르지 않으면 30이라는
      * 표본 수만 남아 6개 시군을 30개 관측으로 읽게 된다.
      */
     const view = correlationView(match("dong"), refA, refB);
-    expect(view.notes.join(" ")).toContain("표본 30개 읍면동");
+    expect(view.notes.join(" ")).toContain("표본 30개 행정동");
   });
 
   test("시군구로 냈으면 왜 그랬는지 적는다", () => {
     const view = correlationView(match("sgg"), refA, refB);
-    expect(view.notes.join(" ")).toContain("읍면동으로 계산하면 같은 값이 반복 집계되어");
+    expect(view.notes.join(" ")).toContain("행정동으로 계산하면 같은 값이 반복 집계되어");
   });
 
   test("상관은 인과가 아니라는 것을 답이 스스로 말한다", () => {
@@ -220,14 +220,14 @@ describe("같은 값을 나눠 가진 구는 한 줄로 접는다", () => {
     expect(view.rows.filter((row) => row.name.includes("창원"))).toHaveLength(5);
   });
 
-  test("읍면동 단위에서는 접지 않는다", () => {
+  test("행정동 단위에서는 접지 않는다", () => {
     const view = correlationView(match("dong"), withChangwon("a", A), withChangwon("b", B));
     expect(view.rows.every((row) => (row.sharedCount ?? 1) === 1)).toBe(true);
   });
 
   test("결과 개수의 단위를 스스로 말한다 — 화면이 추측하면 「행정동」이라 적는다", () => {
     expect(correlationView(match("sgg"), refA, refB).unitWord).toBe("시군구");
-    expect(correlationView(match("dong"), refA, refB).unitWord).toBe("읍면동");
+    expect(correlationView(match("dong"), refA, refB).unitWord).toBe("행정동");
   });
 });
 

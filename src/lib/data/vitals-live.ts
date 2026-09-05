@@ -1,7 +1,7 @@
 /**
  * 기준 스냅샷 위에 행정안전부 주민등록 **출생·사망 시계열 전체**를 덮어쓴다.
  *
- * 인구(`population-live.ts`)와 같은 `1741000` 계열이고 요청 규격도 같다 — 읍면동 10자리
+ * 인구(`population-live.ts`)와 같은 `1741000` 계열이고 요청 규격도 같다 — 행정동 10자리
  * 코드, 한 번에 최대 4개월, 통·반 행. 다른 점은 하나뿐인데 그 하나가 중요하다:
  * **그 달 그 동에 아무도 태어나거나 죽지 않으면 행이 아예 없다.** 인구에서 쓴
  * "한 칸이라도 비면 버린다"를 그대로 옮기면 시골 면 대부분이 탈락한다.
@@ -69,7 +69,7 @@ export function sumVitalRowsByDongMonth(
 }
 
 /**
- * 경남 305개 읍면동의 출생·사망 **시계열 전체**를 실데이터로 채운다.
+ * 경남 305개 행정동의 출생·사망 **시계열 전체**를 실데이터로 채운다.
  *
  * **전부 아니면 전무로 간다** — 인구와 같은 이유다. 일부 지역만 실데이터가 되면 지역 간
  * 순위가 실측과 합성을 섞어 비교하게 되고, 그것은 조용히 틀린 답이다.
@@ -143,7 +143,7 @@ export async function fetchAndMergeVitals(
     regions,
     updatedCount: regions.length,
     notes: [
-      `출생·사망 live: 경남 ${regions.length}개 읍면동의 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
+      `출생·사망 live: 경남 ${regions.length}개 행정동의 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
       `요청 ${jobs.length}건(동 ${base.regions.length} × 구간 ${windows.length} × 데이터셋 2).`,
     ],
   };

@@ -72,7 +72,7 @@ function formatValue(value: number, unit: string): string {
   return `${value.toLocaleString("ko-KR", { maximumFractionDigits: digits })}${unit}`;
 }
 
-const UNIT_WORD: Record<CorrelationUnit, string> = { dong: "읍면동", sgg: "시군구" };
+const UNIT_WORD: Record<CorrelationUnit, string> = { dong: "행정동", sgg: "시군구" };
 
 /** 접힌 묶음이면 시 이름으로, 아니면 원래 이름 그대로. */
 function displayName(name: string, shared: number): string {
@@ -134,7 +134,7 @@ export function correlationView(
   });
 
   /*
-   * 자치구로 복제된 값은 한 관측이다. 읍면동 단위에서는 접지 않는다 — 같은 시의 두 동이
+   * 자치구로 복제된 값은 한 관측이다. 행정동 단위에서는 접지 않는다 — 같은 시의 두 동이
    * 우연히 같은 값을 가질 수 있고, 그 둘은 실제로 따로 측정된 서로 다른 관측이다.
    */
   const grouped =
@@ -193,7 +193,7 @@ export function correlationView(
   if (collapseNote) notes.push(collapseNote);
   if (match.unit === "sgg") {
     notes.push(
-      "두 지표 중 하나가 시군구까지만 제공되어 시군구 단위로 계산했습니다. 읍면동으로 계산하면 같은 값이 반복 집계되어 표본 수가 부풀려집니다.",
+      "두 지표 중 하나가 시군구까지만 제공되어 시군구 단위로 계산했습니다. 행정동으로 계산하면 같은 값이 반복 집계되어 표본 수가 부풀려집니다.",
     );
   }
 

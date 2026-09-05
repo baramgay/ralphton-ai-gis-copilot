@@ -42,7 +42,7 @@ export function AppTopbar({
       {snapshot ? (
         <p className="copilot-topbar-meta ui-caption truncate text-slate-500">
           {dataModeLabel(snapshot.mode, snapshot.sourceNotes)} · {snapshot.referenceMonth} ·{" "}
-          {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동
+          {snapshot.regions.length.toLocaleString("ko-KR")}개 행정동
         </p>
       ) : (
         <p

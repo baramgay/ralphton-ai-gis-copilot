@@ -1,6 +1,6 @@
 import type { AdminLevel } from "@/lib/layers/types";
 
-const LABELS: Record<AdminLevel, string> = { dong: "읍면동", sgg: "시군구" };
+const LABELS: Record<AdminLevel, string> = { dong: "행정동", sgg: "시군구" };
 
 export function AdminLevelToggle({
   value,
