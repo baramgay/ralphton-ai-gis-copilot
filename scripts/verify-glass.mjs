@@ -84,7 +84,12 @@ for (const [name, attr] of THEMES) {
     if (value) document.documentElement.setAttribute("data-theme", value);
     else document.documentElement.removeAttribute("data-theme");
   }, attr);
-  await page.waitForTimeout(120);
+  /*
+   * 색 전이가 끝나기를 기다린다. 칩·버튼에 transition: color 140ms 가 걸려 있어서
+   * 그보다 짧게 기다리면 **전이 도중의 색**을 재게 된다 — 배포본에서 같은 칩이
+   * 2.89 · 4.41 · 5.04 로 흔들렸고, 결함이 아니라 측정 시점이 문제였다.
+   */
+  await page.waitForTimeout(600);
 
   const probe = await page.evaluate(() => {
     const read = (el, prop) => getComputedStyle(el).getPropertyValue(prop).trim();
