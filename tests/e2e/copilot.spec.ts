@@ -63,10 +63,13 @@ test.describe("AI GIS Copilot core journey", () => {
     await openSheet(page, "조작");
     await page.getByRole("tab", { name: "이용" }).click();
     await expect(page.getByRole("tab", { name: "이용" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByText("이렇게 쓰세요")).toBeVisible();
+    await expect(page.getByTestId("usage-guide")).toBeVisible();
+    await expect(page.getByText("활용 가이드")).toBeVisible();
 
     await page.getByRole("tab", { name: "데이터" }).click();
     await expect(page.getByRole("tab", { name: "데이터" })).toHaveAttribute("aria-selected", "true");
+    // 「무엇을 썼는가」는 결과만큼 중요하다 — 목록이 화면에 실제로 있어야 한다.
+    await expect(page.getByTestId("data-inventory")).toBeVisible();
     await expect(page.getByTestId("data-mode-banner")).toBeVisible();
     await expect(page.getByTestId("data-mode-banner")).toContainText(/시연|실데이터/);
 

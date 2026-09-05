@@ -35,7 +35,9 @@ import {
 } from "@/lib/analysis/evaluator-guide";
 import { becauseItIs, topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
+import { DATA_INVENTORY, INVENTORY_TOTALS } from "@/lib/analysis/data-inventory";
 import { GLOSSARY, GLOSSARY_GROUPS } from "@/lib/analysis/glossary";
+import { USAGE_GUIDE } from "@/lib/analysis/usage-guide";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import {
   baseUnit,
@@ -3992,21 +3994,45 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </div>
           ) : activeTab === "help" ? (
             <div className="space-y-4">
-              <div>
-                <p className="ui-title text-slate-900">이렇게 쓰세요</p>
-                <ol className="mt-3 list-decimal space-y-2.5 pl-5 ui-body text-slate-700">
-                  <li>
-                    <span className="font-bold text-slate-900">질문</span> 또는{" "}
-                    <span className="font-bold text-slate-900">빠른 분석</span>을 실행합니다.
-                  </li>
-                  <li>
-                    <span className="font-bold text-slate-900">지도</span>에서 행정동·시설을 선택합니다.
-                  </li>
-                  <li>
-                    <span className="font-bold text-slate-900">오른쪽</span>에서 순위·해석·상세를 확인합니다.
-                  </li>
+              {/*
+                활용 가이드.
+
+                여기 있던 세 줄(질문 → 지도 → 오른쪽)은 화면의 생김새만 말하고 **무엇을 할 수
+                있는지**는 말하지 않았다. 그래서 대부분 빠른 분석만 누르고 지점 분석·교차·추세·
+                내보내기는 있는 줄도 모르는 채 남았다. 각 단계에 「무엇을·어떻게·틀리기 쉬운
+                자리」를 함께 적는다.
+              */}
+              <section
+                className="rounded-xl border border-slate-200 bg-white p-3.5"
+                data-testid="usage-guide"
+              >
+                <p className="ui-title text-slate-900">활용 가이드</p>
+                <p className="ui-caption mt-1 text-slate-500">
+                  무엇을 할 수 있고, 어디서 어떻게 하는지
+                </p>
+                <ol className="mt-2.5 space-y-2">
+                  {USAGE_GUIDE.map((step) => (
+                    <li key={step.order}>
+                      <details className="rounded-lg border border-slate-100 bg-slate-50/60">
+                        <summary className="cursor-pointer px-3 py-2 ui-body font-bold text-slate-800">
+                          <span className="text-slate-400">{step.order}.</span> {step.title}
+                        </summary>
+                        <div className="border-t border-slate-100 px-3 py-2.5">
+                          <p className="ui-body text-slate-700">{step.what}</p>
+                          <ul className="mt-1.5 list-disc space-y-1 pl-4 ui-body text-slate-600">
+                            {step.how.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                          {step.caution ? (
+                            <p className="ui-caption mt-1.5 text-amber-700">⚠ {step.caution}</p>
+                          ) : null}
+                        </div>
+                      </details>
+                    </li>
+                  ))}
                 </ol>
-              </div>
+              </section>
 
               <section
                 className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5"
@@ -4192,6 +4218,70 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                 ))}
               </div>
+
+              {/*
+                활용 데이터 목록.
+
+                손으로 적으면 카탈로그와 갈라진다 — 지표를 더하고 목록을 안 고치면 화면에는
+                있는데 목록에는 없는 지표가 생긴다. 그래서 정본에서 만든다
+                (@/lib/analysis/data-inventory). 산식과 한계를 지표마다 함께 적는 이유는,
+                이 값이 공공기관 보고서로 옮겨지기 때문이다.
+              */}
+              <section
+                className="rounded-xl border border-slate-200 bg-white p-3.5"
+                data-testid="data-inventory"
+              >
+                <p className="ui-title text-slate-900">활용 데이터</p>
+                <p className="ui-caption mt-1 text-slate-500">
+                  제공기관 {DATA_INVENTORY.length}곳 · 레이어 {INVENTORY_TOTALS.layers}개 · 지표{" "}
+                  {INVENTORY_TOTALS.metrics}개
+                </p>
+                {DATA_INVENTORY.map((group) => (
+                  <details
+                    key={group.provider}
+                    className="mt-2.5 rounded-lg border border-slate-100 bg-slate-50/60"
+                  >
+                    <summary className="cursor-pointer px-3 py-2 ui-body font-bold text-slate-800">
+                      {group.provider}{" "}
+                      <span className="ui-caption font-semibold text-slate-500">
+                        레이어 {group.layers.length} · 지표 {group.metricCount}
+                      </span>
+                    </summary>
+                    <div className="border-t border-slate-100 px-3 py-2.5">
+                      <p className="ui-caption text-slate-600">{group.note}</p>
+                      {group.layers.map((layer) => (
+                        <div key={layer.id} className="mt-2.5">
+                          <p className="ui-body font-bold text-slate-900">
+                            {layer.label}{" "}
+                            <span className="ui-caption font-semibold text-slate-500">
+                              {layer.unitLabel}
+                            </span>
+                          </p>
+                          <ul className="mt-1 space-y-1">
+                            {layer.metrics.map((metric) => (
+                              <li key={metric.label} className="ui-caption text-slate-600">
+                                <span className="font-bold text-slate-800">{metric.label}</span>
+                                {metric.unit ? ` (${metric.unit})` : ""} · {metric.formula}
+                                {metric.sggOnly ? (
+                                  <span className="ml-1 font-bold text-amber-700">시군구만</span>
+                                ) : null}
+                                {metric.limitation ? (
+                                  <span className="block text-amber-700">⚠ {metric.limitation}</span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                          {layer.sourceNotes.map((note) => (
+                            <p key={note} className="ui-caption mt-0.5 text-slate-500">
+                              출처 · {note}
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-3.5" data-testid="facility-type-breakdown">
                 <p className="ui-body font-bold text-slate-800">시설 유형 분포</p>

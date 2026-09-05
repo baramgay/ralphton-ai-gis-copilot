@@ -486,10 +486,13 @@ describe("CopilotApp", () => {
     openControls();
 
     fireEvent.click(screen.getByRole("tab", { name: "이용" }));
-    expect(screen.getByText("이렇게 쓰세요")).toBeInTheDocument();
+    expect(screen.getByTestId("usage-guide")).toBeInTheDocument();
+    expect(screen.getByText("활용 가이드")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "데이터" }));
     await waitFor(() => expect(screen.getByText("행정동")).toBeInTheDocument());
+    // 「무엇을 썼는가」는 결과만큼 중요하다. 데이터 탭에 목록이 실제로 있어야 한다.
+    expect(screen.getByTestId("data-inventory")).toBeInTheDocument();
   });
 
   test("executes a distinct radius result and exposes its active metric", async () => {
@@ -1261,8 +1264,8 @@ describe("로딩 화면의 상단 바", () => {
   test("눌러도 열 패널이 없는 버튼은 내보내지 않는다", () => {
     render(<CopilotApp boundaryVersion="20260701" />);
 
-    expect(screen.queryByRole("button", { name: "이용" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "데이터" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "활용가이드" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "활용데이터" })).toBeNull();
   });
 
   test("본 셸은 아직 없다 — h1이 준비 신호가 아님을 못 박는다", () => {

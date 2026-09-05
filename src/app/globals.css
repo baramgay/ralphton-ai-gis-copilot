@@ -506,7 +506,8 @@ html[data-theme="dark"] .bg-amber-50\/95 {
 
 html[data-theme="dark"] .text-amber-950,
 html[data-theme="dark"] .text-amber-900,
-html[data-theme="dark"] .text-amber-800 {
+html[data-theme="dark"] .text-amber-800,
+html[data-theme="dark"] .text-amber-700 {
   color: #fcd34d !important;
 }
 
@@ -715,6 +716,10 @@ html[data-theme="contrast"] .text-slate-800,
 html[data-theme="contrast"] .text-slate-700,
 html[data-theme="contrast"] .text-slate-600,
 html[data-theme="contrast"] .text-slate-500,
+html[data-theme="contrast"] .text-slate-400,
+html[data-theme="contrast"] .text-amber-700,
+html[data-theme="contrast"] .text-amber-800,
+html[data-theme="contrast"] .text-amber-900,
 html[data-theme="contrast"] .ui-title,
 html[data-theme="contrast"] .ui-display,
 html[data-theme="contrast"] .ui-caption {

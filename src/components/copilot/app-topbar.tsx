@@ -64,8 +64,8 @@ export function AppTopbar({
         <nav className="ml-auto flex items-center gap-1" aria-label="도움말·데이터">
           {(
             [
-              ["help", "이용"],
-              ["data", "데이터"],
+              ["help", "활용가이드"],
+              ["data", "활용데이터"],
             ] as const
           ).map(([id, label]) => (
             <button
