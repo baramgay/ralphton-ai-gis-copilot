@@ -1326,7 +1326,23 @@ input:hover {
   font-weight: 700;
 }
 
+/*
+ * 최근 질문 앞의 말머리. 이것이 없으면 내가 쓴 말과 우리가 준 예시가 같은 모양으로
+ * 나란히 서서, 자기 오타를 제품 문구로 읽게 된다.
+ */
+.query-hero-chip-note {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.25rem;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: var(--ls-caption);
+  color: var(--text-3);
+}
+
+/* 내 말은 점선 테두리로 가른다 — 유리 위에서 색은 못 쓴다(최악 타일에서 깨진다). */
 .query-hero-chip.is-recent {
+  border-style: dashed;
   color: var(--text-2);
 }
 

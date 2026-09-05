@@ -135,12 +135,21 @@ export function QueryHero({
         </div>
       ) : null}
 
+      {/*
+       * 최근 질문은 **내가 쓴 말**이고 예시는 **우리가 준 말**이다. 둘이 같은 모양이면
+       * 자기 오타를 제품 문구로 읽는다 — 실제로 「의려취약지역」이라는 자기 입력을 보고
+       * 오타를 고치라는 말을 들었다.
+       *
+       * 유리 위에서는 색으로 가를 수 없으므로(색 글자는 최악의 타일에서 깨진다) 앞에
+       * 「최근」이라는 말을 붙여 가른다.
+       */}
       {recentQueries.length > 0 ? (
         <div
           className="query-hero-chips is-optional"
           data-testid="recent-queries"
           aria-label="최근 질문"
         >
+          <span className="query-hero-chip-note">최근</span>
           {recentQueries.slice(0, 3).map((item) => (
             <button
               key={item}

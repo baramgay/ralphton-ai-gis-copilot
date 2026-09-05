@@ -838,11 +838,17 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByText("DemoMap");
 
-    // 레이어: 출처가 한 눈에 구분된다
+    /*
+     * 레이어: 큰 갈래는 민간·공공 둘이고 제공기관은 그 아래다. 제공기관을 최상위에 놓으면
+     * 「공공」 아래에 인구와 의료기관 둘만 서서 이 도구가 의료 도구처럼 보인다.
+     */
     const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
-    expect(within(layerGroup).getByText("SKT 민간데이터")).toBeInTheDocument();
-    expect(within(layerGroup).getByText("NH 민간데이터")).toBeInTheDocument();
-    expect(within(layerGroup).getByText("KCB 민간데이터")).toBeInTheDocument();
+    expect(within(layerGroup).getByText("민간 데이터")).toBeInTheDocument();
+    expect(within(layerGroup).getByText("공공 데이터")).toBeInTheDocument();
+    expect(within(layerGroup).queryByText("의료 데이터")).toBeNull();
+    for (const provider of ["SKT", "NH", "KCB"]) {
+      expect(within(layerGroup).getAllByText(provider).length).toBeGreaterThan(0);
+    }
 
     // 프리셋: 정책 영역으로 좁힌 뒤 고른다
     const presets = await screen.findByTestId("cross-presets");
@@ -1037,6 +1043,34 @@ describe("CopilotApp", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
     await waitFor(() => expect(screen.queryByTestId("stale-answer-notice")).toBeNull());
+  }, 30_000);
+
+  /*
+   * 답 못 한 말이 「최근 질문」 칩으로 돌아오면 다시 누를거리가 된다. 오타로 아무것도
+   * 못 찾은 말까지 예시 옆에 나란히 서서, 실제로 자기 입력을 제품 오타로 읽는 일이 있었다.
+   */
+  test("답하지 못한 질의는 최근 질문에 남기지 않는다", async () => {
+    // 같은 파일의 앞선 테스트가 남긴 기록을 지우고 시작한다(jsdom의 localStorage는 공유된다).
+    window.localStorage.removeItem("ralphton-recent-queries-v1");
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByText("DemoMap");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "부산 소득 높은 곳" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/부산.*범위 밖/);
+    });
+    expect(screen.queryByTestId("recent-queries")).toBeNull();
+
+    // 답을 받은 질의는 남는다 — 기억 자체를 끈 것이 아니다.
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "생활인구 많은 동" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(screen.getByTestId("recent-queries")).toBeInTheDocument());
+    expect(screen.getByTestId("recent-queries").textContent ?? "").not.toMatch(/부산/);
   }, 30_000);
 
   test("shows one-line conclusion in the result panel", async () => {

@@ -218,7 +218,11 @@ export const KCB_GRID_LAYER: Omit<LayerDescriptor, "months"> = {
 
 export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   id: "medical",
-  label: "의료",
+  /*
+   * 「의료」 한 낱말이면 자료가 아니라 **분야**로 읽힌다 — 레이어 목록에서 큰 분류처럼
+   * 서서 이 도구를 의료 도구로 보이게 했다. 이것은 의료기관 목록이라는 자료 하나다.
+   */
+  label: "의료기관",
   provider: "공공",
   kind: "point",
   coverage: "gyeongnam",

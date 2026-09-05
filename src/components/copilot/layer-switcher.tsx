@@ -6,10 +6,25 @@ type LayerSwitcherProps = {
   onChange: (id: string) => void;
 };
 
-/** 제공기관 표시 순서. 목록에 없는 기관은 뒤에 등장 순서대로 붙는다. */
-const PROVIDER_ORDER = ["공공", "SKT", "NH", "KCB"];
+/**
+ * 큰 갈래는 **민간과 공공** 둘이다.
+ *
+ * 전에는 제공기관을 그대로 최상위에 놓아 「공공」 아래에 인구와 의료 둘만 서 있었다.
+ * 그러면 첫 화면이 「공공 = 인구·의료」로 읽히고, 이 도구가 의료 도구처럼 보인다.
+ * 실제 정체는 **민간 특화 데이터(SKT·NH·KCB)를 중심으로 쓰고 공공을 함께 쓰는** 것이다.
+ * 의료기관은 공공 자료 중 하나이지 큰 분류가 아니다.
+ *
+ * 제공기관은 사라지지 않고 **한 단 아래**로 내려간다 — 출처는 여전히 한눈에 보여야 한다.
+ */
+const PRIVATE_PROVIDERS = ["SKT", "NH", "KCB"];
 
-export function groupByProvider(layers: LayerOption[]): Array<{ provider: string; layers: LayerOption[] }> {
+/** 제공기관 표시 순서. 목록에 없는 기관은 뒤에 등장 순서대로 붙는다. */
+const PROVIDER_ORDER = ["SKT", "NH", "KCB", "공공", "KOSIS"];
+
+export type ProviderGroup = { provider: string; layers: LayerOption[] };
+export type SourceGroup = { source: "민간" | "공공"; note: string; providers: ProviderGroup[] };
+
+export function groupByProvider(layers: LayerOption[]): ProviderGroup[] {
   const groups = new Map<string, LayerOption[]>();
   for (const layer of layers) {
     const bucket = groups.get(layer.provider) ?? [];
@@ -25,35 +40,56 @@ export function groupByProvider(layers: LayerOption[]): Array<{ provider: string
     .map(([provider, items]) => ({ provider, layers: items }));
 }
 
-/**
- * 레이어가 11개로 늘면서 한 줄 나열로는 어느 것이 공공이고 어느 것이 민간인지, 같은
- * 기관 안에서 무엇이 묶이는지 읽히지 않았다. 제공기관별로 묶어 한 눈에 출처가 보이게 한다.
- */
-export function LayerSwitcher({ layers, activeId, onChange }: LayerSwitcherProps) {
-  const groups = groupByProvider(layers);
+/** 민간이 먼저다. 이 도구의 중심 자료이고, 공공은 함께 쓰는 쪽이다. */
+export function groupBySource(layers: LayerOption[]): SourceGroup[] {
+  const byProvider = groupByProvider(layers);
+  const pick = (isPrivate: boolean) =>
+    byProvider.filter((group) => PRIVATE_PROVIDERS.includes(group.provider) === isPrivate);
 
   return (
-    <div role="group" aria-label="레이어 선택" className="space-y-2">
+    [
+      {
+        source: "민간" as const,
+        note: "이동통신·카드·신용 기반. 이 도구의 중심 자료입니다.",
+        providers: pick(true),
+      },
+      {
+        source: "공공" as const,
+        note: "주민등록 인구와 의료기관 등 행정 기준 자료입니다.",
+        providers: pick(false),
+      },
+    ] satisfies SourceGroup[]
+  ).filter((group) => group.providers.length > 0);
+}
+
+export function LayerSwitcher({ layers, activeId, onChange }: LayerSwitcherProps) {
+  const groups = groupBySource(layers);
+
+  return (
+    <div role="group" aria-label="레이어 선택" className="space-y-3">
       {groups.map((group) => (
-        <div key={group.provider}>
-          <p className="ui-caption mb-1 font-bold text-slate-500">
-            {group.provider}
-            {group.provider === "공공" ? "" : " 민간데이터"}
-          </p>
-          <div className="layer-switcher">
-            {group.layers.map((layer) => (
-              <button
-                key={layer.id}
-                type="button"
-                aria-pressed={layer.id === activeId}
-                className="layer-switcher-item"
-                onClick={() => onChange(layer.id)}
-              >
-                <span className="layer-switcher-label">{layer.label}</span>
-                <span className="layer-switcher-provider">{layer.provider}</span>
-              </button>
-            ))}
-          </div>
+        <div key={group.source}>
+          <p className="ui-chip font-bold text-slate-700">{group.source} 데이터</p>
+          <p className="ui-caption mb-1.5 text-slate-500">{group.note}</p>
+          {group.providers.map((byProvider) => (
+            <div key={byProvider.provider} className="mt-1.5">
+              <p className="ui-caption mb-1 font-bold text-slate-500">{byProvider.provider}</p>
+              <div className="layer-switcher">
+                {byProvider.layers.map((layer) => (
+                  <button
+                    key={layer.id}
+                    type="button"
+                    aria-pressed={layer.id === activeId}
+                    className="layer-switcher-item"
+                    onClick={() => onChange(layer.id)}
+                  >
+                    <span className="layer-switcher-label">{layer.label}</span>
+                    <span className="layer-switcher-provider">{layer.provider}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </div>

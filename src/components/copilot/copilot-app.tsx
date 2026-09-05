@@ -2914,9 +2914,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      * "부산 소득 높은 곳"이 아무 경고 없이 경남 순위를 답하고 있었다(prod 실측).
      * 부산·울산은 바로 옆이라 실제로 물을 법한 지역이라 더 위험하다.
      */
+    /*
+     * ⚠️ 아래 네 갈래(범위 밖·차원 없음·시설 없음·지표 없음)는 **답하지 못한 질의**다.
+     * 여기서 rememberQuery 를 부르면 답 못 한 말이 「최근 질문」 칩으로 돌아와 다시
+     * 누를거리가 된다. 오타로 아무것도 못 찾은 말까지 제품 문구처럼 나란히 서서,
+     * 실제로 자기 입력(「의려취약지역」)을 우리 오타로 읽는 일이 있었다.
+     * 기억은 **답을 받은 질의**에만 남긴다.
+     */
     const outOfScope = detectOutOfScopePlace(trimmed);
     if (outOfScope) {
-      rememberQuery(trimmed);
       setParseStage("idle");
       setQueryNotice(
         `"${outOfScope}"은(는) 경남 지역 범위 밖입니다. 이 도구는 경남 305개 읍면동만 다룹니다.`,
@@ -2932,7 +2938,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      */
     const unsupported = detectUnsupportedDimension(trimmed);
     if (unsupported) {
-      rememberQuery(trimmed);
       setParseStage("idle");
       setQueryNotice(
         `"${unsupported}"은(는) 이 데이터로 답할 수 없습니다. 큐브가 월 단위 집계라 요일·시간대 구분이 없습니다. 월 단위로 바꿔 물어보세요 — 예: "생활인구 많은 동".`,
@@ -2949,7 +2954,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      */
     const noPoi = detectUnsupportedFacility(trimmed);
     if (noPoi) {
-      rememberQuery(trimmed);
       setParseStage("idle");
       setQueryNotice(
         `"${noPoi}" 위치 데이터가 없습니다. 이 도구가 가진 시설은 의료기관(병원·의원·약국·치과·한의원·보건소)뿐입니다. 소비·인구 지표로 바꿔 물어보세요.`,
@@ -2965,7 +2969,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      */
     const missing = detectMissingMetric(trimmed);
     if (missing) {
-      rememberQuery(trimmed);
       setParseStage("idle");
       setQueryNotice(
         `${missing.label} 지표가 없습니다. 이 도구에 있는 것은 ${missing.have}이고, 둘은 다른 값입니다. ${missing.have}(으)로 보시겠다면 그렇게 물어보세요.`,
@@ -3559,8 +3562,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               */}
               {activeLayerId === "medical" ? (
                 <section>
+                  {/*
+                    여덟 개 중 넷이 의료다. 공공 스냅샷(인구·의료기관)으로 도는 것들이라
+                    그런 것인데, 아무 말이 없으면 이 도구가 의료 도구로 읽힌다.
+                    무엇으로 도는지와 나머지는 어디 있는지를 함께 적는다.
+                  */}
                   <h2 className="section-label">빠른 분석</h2>
-                  <p className="ui-caption mb-2 -mt-1">클릭 한 번으로 바로 결과 확인</p>
+                  <p className="ui-caption mb-2 -mt-1">
+                    공공 데이터(인구·의료기관)로 바로 도는 분석입니다. 민간 데이터는 질문으로
+                    묻거나 위에서 레이어를 고르세요.
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {QUICK_ANALYSES.map((item) => (
                       <button
