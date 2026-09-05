@@ -283,3 +283,43 @@ describe("합계를 지어내지 않는다", () => {
     expect(probe.notes.some((note) => note.includes("경계 밖"))).toBe(true);
   });
 });
+
+/*
+ * 한 카드 안에서 두 자를 쓰지 않는다.
+ *
+ * 시설 거리는 하버사인(R = 6371.0088km), 행정동 거리는 평면 근사였는데 근사가 다른 상수
+ * (110.574·111.32)를 써서 남북 3km에서 16.8m, 5km에서 27.9m씩 어긋났다. 같은 원의 안팎을
+ * 두 자로 판정하면 경계 근처의 포함이 뒤집힌다. 두 값이 같은 자로 재였는지를 검사한다.
+ */
+describe("행정동 거리와 시설 거리는 같은 자로 잰다", () => {
+  const KM_PER_DEGREE = ((6371008.8 / 1e3) * Math.PI) / 180;
+
+  /** 꼭짓점이 모두 같은 자리인 고리 — 「그 점까지의 거리」를 그대로 재게 한다. */
+  const pointFeature = (lat: number, lng: number): BoundaryFeature =>
+    ({
+      type: "Feature",
+      properties: { adm_cd2: "9999999999", adm_nm: "검사용 지점" },
+      geometry: { type: "Polygon", coordinates: [[[lng, lat], [lng, lat], [lng, lat]]] },
+    }) as unknown as BoundaryFeature;
+
+  test.each([
+    ["북쪽 3km", 3, 0],
+    ["동쪽 3km", 0, 3],
+    ["북쪽 5km", 5, 0],
+  ])("%s — 두 거리 차이가 1m 미만이다", (_label, northKm, eastKm) => {
+    const lat = CHANGWON_HALL.lat + northKm / KM_PER_DEGREE;
+    const lng =
+      CHANGWON_HALL.lng + eastKm / (KM_PER_DEGREE * Math.cos((CHANGWON_HALL.lat * Math.PI) / 180));
+    const probe = probeRadius({
+      point: CHANGWON_HALL,
+      radiusKm: 10,
+      boundary: { type: "FeatureCollection", features: [pointFeature(lat, lng)] } as BoundaryCollection,
+      facilities: [{ id: "f1", name: "검사용 시설", type: "병원", lat, lng }],
+    });
+
+    expect(probe.regions).toHaveLength(1);
+    expect(probe.nearest).not.toBeNull();
+    // 옛 상수(110.574)였다면 북쪽 3km에서 16.8m, 5km에서 27.9m 어긋나 여기서 붉어진다.
+    expect(Math.abs(probe.regions[0].distanceKm - probe.nearest!.distanceKm)).toBeLessThan(0.001);
+  });
+});

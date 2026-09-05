@@ -151,7 +151,15 @@ type RankedRegion = {
   code: string;
   name: string;
   district: string;
-  mapScore: number;
+  /*
+   * 지도 채색용 0~100. **칠할 것이 없으면 null이다.**
+   *
+   * 상관·이상치는 지역별 점수가 아니라 지표 사이의 값이라 칠할 것이 없다. 그런데 여기에
+   * 0을 박아 두었더니 해석문이 그 0을 그대로 「1위 창원시(0점)」로 인쇄했다(배포본 실측).
+   * 존재하지 않는 점수가 화면에 숫자로 나오는 것은, 없는 값을 0으로 메우는 것과 같은
+   * 결함이다 — null이면 해석문이 지표 값으로 대신 말한다.
+   */
+  mapScore: number | null;
   valueLabel: string;
   note: string;
   metrics: MetricDescriptor[];
@@ -1585,7 +1593,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (activeLayerId !== "medical" && isLayerCubeLoading) {
       return new Map<string, number>();
     }
-    return new Map(quickAnalysis?.ranked.map((row) => [row.code, row.mapScore]) ?? []);
+    return new Map(
+      (quickAnalysis?.ranked ?? [])
+        .filter((row): row is typeof row & { mapScore: number } => row.mapScore !== null)
+        .map((row) => [row.code, row.mapScore]),
+    );
   }, [activeLayerId, layerAnalysisResult, isLayerCubeLoading, quickAnalysis]);
 
   const isCompareView = Boolean(
@@ -2390,15 +2402,29 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       };
 
       let view: StatsView;
+      // 점수가 없는 결과라 해석문이 대신 말할 값. 상관이면 A축, 이상치면 그 지표다.
+      let statsMetric: { label: string; unit: string; formula: string; referenceMonth: string };
       if (stats.kind === "correlation") {
         const a = refFor(stats.a.layerId, stats.a.metricKey);
         const b = refFor(stats.b.layerId, stats.b.metricKey);
         if (!a || !b) return false;
         view = correlationView(stats, a, b, { asksCausation: asksCausation(query) });
+        statsMetric = {
+          label: stats.a.metricLabel,
+          unit: a.metric.unit,
+          formula: a.metric.formula,
+          referenceMonth: a.cube.referenceMonth,
+        };
       } else {
         const ref = refFor(stats.ref.layerId, stats.ref.metricKey);
         if (!ref) return false;
         view = outlierView(stats, ref);
+        statsMetric = {
+          label: stats.ref.metricLabel,
+          unit: ref.metric.unit,
+          formula: ref.metric.formula,
+          referenceMonth: ref.cube.referenceMonth,
+        };
       }
 
       /*
@@ -2416,10 +2442,23 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             code: row.code,
             name,
             district: name.split(/\s+/)[0] ?? "지역",
-            mapScore: 0,
+            mapScore: null,
             valueLabel: row.detail,
             note: "",
-            metrics: [],
+            /*
+             * 점수가 없으니 해석문이 대신 말할 값을 준다. 상관이면 A축 값, 이상치면 그
+             * 지표 값이다 — 「1위 창원시(30.6%)」처럼 실제로 잰 것이 나온다.
+             */
+            metrics: [
+              {
+                label: statsMetric.label,
+                value: row.score,
+                unit: statsMetric.unit,
+                formula: statsMetric.formula,
+                referenceMonth: statsMetric.referenceMonth,
+                limitation: view.notes[0] ?? "",
+              },
+            ],
           };
         }),
         filteredFacilities: [],
@@ -2642,7 +2681,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         formulaNotes: [
           `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100${periodLabel}`,
           `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
-          "관측이 2개월 미만이거나 첫 값이 0인 지역은 추세를 산출하지 않고 순위에서 제외한다",
+          result.excluded > 0
+            ? `관측이 2개월 미만이거나 첫 값이 0이라 변화율을 낼 수 없는 ${result.excluded.toLocaleString("ko-KR")}개 ${unitWordOf(trendMatch.layerId, trendMatch.adminLevel)}을 순위에서 제외했다(0에서 시작한 값의 변화율은 나눗셈이 되지 않는다)`
+            : "관측이 2개월 미만이거나 첫 값이 0인 지역은 추세를 산출하지 않고 순위에서 제외한다",
         ],
         legendLabel: `${trendMatch.metricLabel} ${directionLabel}폭`,
         isFacilityResult: false,
@@ -4941,9 +4982,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         </span>
                         <span className="rank-value">{row.valueLabel}</span>
                       </button>
-                      <span className="score-bar ml-9" aria-hidden>
-                        <span style={{ width: `${Math.max(6, Math.min(100, row.mapScore))}%` }} />
-                      </span>
+                      {/* 점수가 없는 결과(상관·이상치)는 막대를 그리지 않는다. 길이가 곧
+                          "이만큼"이라는 주장이라, 없는 점수로 그리면 거짓을 그린다. */}
+                      {row.mapScore === null ? null : (
+                        <span className="score-bar ml-9" aria-hidden>
+                          <span style={{ width: `${Math.max(6, Math.min(100, row.mapScore))}%` }} />
+                        </span>
+                      )}
                       {isCompareView ? (
                         <button
                           type="button"

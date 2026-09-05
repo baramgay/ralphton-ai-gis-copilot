@@ -52,8 +52,12 @@ describe("buildLayerView - sgg level", () => {
     const changwon = view.ranking.find((r) => r.code === "48120")!;
     expect(changwon.value).toBe(400); // 100 + 300
     const jinju = view.ranking.find((r) => r.code === "48170")!;
-    // aggregateToSgg's sum aggregation treats a null member as 0 contribution
-    expect(jinju.value).toBe(0);
+    /*
+     * 결손은 0이 아니다. 전에는 null 구성원을 0으로 더해 「인구 0명인 시군구」를 만들었고,
+     * 그 값이 순위 맨 아래에 그럴듯한 얼굴로 앉았다. 하나라도 비면 합계를 내지 않는다
+     * (2026-09-04 외부 검증 — 실데이터에서 kcb-migration.move_in 등 4개 지표가 해당).
+     */
+    expect(jinju.value).toBeNull();
   });
 
   it("aggregates ranking rows via weightedAvg", () => {
@@ -74,10 +78,10 @@ describe("buildLayerView - sgg level", () => {
     expect(view.scores.get("4812052000")).toBe(400);
   });
 
-  it("maps a dong to a zero sgg value (only null is omitted, not zero)", () => {
+  it("omits a dong whose sgg total cannot be summed (a member is null)", () => {
     const view = buildLayerView(dongCube, "pop", "sgg", 0, metrics);
-    // 진주 A동's sgg (48170) sums to 0 (null member treated as 0), which is a valid, non-null score
-    expect(view.scores.get("4817051000")).toBe(0);
+    // 칠하지 않는다. 0으로 칠하면 「가장 적은 곳」이라는 거짓을 색으로 말하게 된다.
+    expect(view.scores.has("4817051000")).toBe(false);
   });
 
   it("omits a dong's score when its parent sgg's weightedAvg is genuinely null", () => {

@@ -27,6 +27,15 @@ export type TrendRankResult = {
   scores: Map<string, number>;
   /** 추세를 낼 수 있었던 지역 수(관측 2개월 이상). */
   comparable: number;
+  /**
+   * 변화율을 못 내 순위에서 **빠진** 지역 수.
+   *
+   * 첫 관측이 0이면 변화율은 나눗셈이 안 돼 산출 불가다(0 → 50은 몇 %인가). 그 지역들을
+   * 빼는 것 자체는 옳지만, 개수를 말하지 않으면 화면은 「경남 전부를 본 순위」처럼 보인다.
+   * 실측(2026-09-04): `nh-storetype.pub_share`는 305개 읍면동 중 165곳이 첫 달 0이라
+   * 절반 이상이 조용히 빠진 채 순위가 인쇄되고 있었다.
+   */
+  excluded: number;
 };
 
 /**
@@ -47,9 +56,14 @@ export function buildTrendRanking(
   const source = adminLevel === "sgg" ? aggregateToSgg(cube, metrics) : cube;
 
   const rows: TrendRow[] = [];
+  let excluded = 0;
   for (const cell of source.cells) {
     const trend = computeTrend(sliceRecentMonths(cell.series[metric.key] ?? [], source.months, trendMonths));
-    if (trend.changeRate === null) continue;
+    // 산출 불가를 0%로 두면 「0 → 50으로 는 곳」이 보합 한가운데에 놓인다. 빼되, 센다.
+    if (trend.changeRate === null) {
+      excluded += 1;
+      continue;
+    }
     rows.push({ code: cell.code, name: cell.name, trend });
   }
 
@@ -83,5 +97,5 @@ export function buildTrendRanking(
           .slice(0, 10)
           .filter((row) => row.trend.first != null && row.trend.first < smallBaseThreshold).length;
 
-  return { ranked: rows, scores, comparable: rows.length, smallBaseInTop, smallBaseThreshold };
+  return { ranked: rows, scores, comparable: rows.length, excluded, smallBaseInTop, smallBaseThreshold };
 }

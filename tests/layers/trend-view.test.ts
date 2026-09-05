@@ -135,3 +135,40 @@ describe("기저 쏠림 진단", () => {
     expect(result.smallBaseInTop).toBe(0);
   });
 });
+
+/*
+ * 첫 값이 0인 지역은 변화율을 못 내 순위에서 빠진다. 빼는 것은 옳지만 **몇 곳이 빠졌는지**
+ * 말하지 않으면 화면은 전수 순위처럼 보인다. 실데이터에서는 nh-storetype.pub_share가
+ * 305곳 중 165곳을 이렇게 잃고 있었다.
+ */
+describe("변화율을 못 낸 지역은 세어서 알린다", () => {
+  test("첫 값이 0인 지역 수를 excluded로 돌린다", () => {
+    const result = buildTrendRanking(
+      cube({
+        "1": [10, 12, 14],
+        "2": [0, 5, 9],
+        "3": [0, 0, 7],
+        "4": [8, 8, 9],
+      }),
+      metric,
+      [metric],
+      "rising",
+      "dong",
+    );
+    expect(result.comparable).toBe(2);
+    expect(result.excluded).toBe(2);
+    // 0에서 7로 는 곳이 0%(보합)로 섞여 들지 않았는지 — 섞였다면 순위에 남아 있다.
+    expect(result.ranked.map((row) => row.code)).not.toContain("3");
+  });
+
+  test("전부 낼 수 있으면 0이다", () => {
+    const result = buildTrendRanking(
+      cube({ "1": [10, 12, 14], "2": [5, 4, 3] }),
+      metric,
+      [metric],
+      "rising",
+      "dong",
+    );
+    expect(result.excluded).toBe(0);
+  });
+});

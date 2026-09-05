@@ -1,3 +1,4 @@
+import { collapseReplicatedDistricts } from "@/lib/layers/independent-observations";
 import { buildLayerView } from "@/lib/layers/select";
 import type { AdminLevel, LayerCube, MetricDef } from "@/lib/layers/types";
 
@@ -85,10 +86,30 @@ export function crossLayerView(
     const name = (nameByCode.get(code) ?? "").replace(/\s+/g, "");
     return compactFilters.some((filter) => name.includes(filter));
   });
-  const aValues = codes.map((code) => entriesA.get(code)!.value);
-  const bValues = codes.map((code) => entriesB.get(code)!.value);
-  const statA = standardize(aValues);
-  const statB = standardize(bValues);
+  /*
+   * 평균·표준편차는 **독립 관측**으로 낸다.
+   *
+   * 시군구 22칸에는 창원 5개 구가 같은 값으로 들어 있다(KOSIS가 시 한 행만 준다).
+   * 그대로 표준화하면 한 도시가 22.7%의 가중으로 평균을 끌고, 그 평균이 「경남 평균
+   * 이상」이라는 문구로 화면에 나온다. 상관·이상치와 같은 뿌리의 결함이라 같은 규칙으로
+   * 잡는다 — z를 만드는 기준만 독립 관측으로 내리고, 순위·지도 채색은 22칸 그대로 둔다
+   * (창원 각 구도 자기 z를 받아야 지도가 칠해진다).
+   */
+  const observations = codes.map((code) => ({
+    name: nameByCode.get(code) ?? code,
+    a: entriesA.get(code)!.value,
+    b: entriesB.get(code)!.value,
+  }));
+  const independent =
+    adminLevel === "sgg"
+      ? collapseReplicatedDistricts(
+          observations,
+          (row) => row.name,
+          (row) => [row.a, row.b],
+        ).items
+      : observations;
+  const statA = standardize(independent.map((row) => row.a));
+  const statB = standardize(independent.map((row) => row.b));
 
   const rows: CrossRow[] = codes
     .map((code) => {

@@ -71,3 +71,46 @@ describe("aggregateToSgg", () => {
     expect(changwon.point.lng).toBeCloseTo(128.6, 5);
   });
 });
+
+/*
+ * 2026-09-04 외부 검증에서 잡힌 결함. sum 경로가 `?? 0`으로 결손을 0으로 더해, 소속 동
+ * 하나가 비면 그 시군구 합계가 **실제보다 작은 값**으로 인쇄됐다. 실데이터에 이미 있다:
+ * kcb-migration.move_in 1곳, nh-demographics.card_sales 2곳, nh-hourly 3곳.
+ */
+describe("sum 집계는 결손을 0으로 메우지 않는다", () => {
+  const sumMetric: MetricDef = {
+    key: "s",
+    label: "합계 지표",
+    unit: "명",
+    aggregation: "sum",
+    formula: "소속 읍면동 합",
+    limitation: "",
+    triggers: ["합계"],
+  };
+
+  const cubeOf = (values: (number | null)[]): LayerCube => ({
+    layerId: "test",
+    adminLevel: "dong",
+    referenceMonth: "2025-12",
+    months: ["2025-12"],
+    cells: values.map((value, index) => ({
+      code: `4817${String(index).padStart(6, "0")}`,
+      name: `경상남도 진주시 ${index}동`,
+      point: { lat: 35, lng: 128 },
+      areaKm2: 1,
+      series: { s: [value] },
+    })),
+  });
+
+  it("한 동이 비면 시군구 합계는 null이다", () => {
+    const out = aggregateToSgg(cubeOf([100, null, 50]), [sumMetric]);
+    expect(out.cells).toHaveLength(1);
+    // 150은 "있는 것만 더한" 값이다. 그 값이 나오면 결손이 낮은 지역으로 인쇄된다.
+    expect(out.cells[0].series.s[0]).toBeNull();
+  });
+
+  it("전부 있으면 그대로 더한다", () => {
+    const out = aggregateToSgg(cubeOf([100, 30, 50]), [sumMetric]);
+    expect(out.cells[0].series.s[0]).toBe(180);
+  });
+});

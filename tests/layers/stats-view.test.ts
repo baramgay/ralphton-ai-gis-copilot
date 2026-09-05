@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { cityOf, correlationView, outlierView } from "@/lib/layers/stats-view";
+import { districtParentCity } from "@/lib/layers/independent-observations";
+import { correlationView, outlierView } from "@/lib/layers/stats-view";
 import type { LayerCube, MetricDef } from "@/lib/layers/types";
 
 const metric = (key: string, label: string, unit = "%"): MetricDef => ({
@@ -193,10 +194,16 @@ describe("같은 값을 나눠 가진 구는 한 줄로 접는다", () => {
     expect(changwon[0].detail).toContain("5개 구 공통값");
   });
 
-  test("접어도 계수는 22개가 아니라 원래 표본으로 낸다", () => {
-    // 계수 계산과 보여 주는 자리는 다르다. 접기는 화면만 건드린다.
+  test("접은 만큼 표본도 준다 — 복제된 값은 한 관측이다", () => {
+    /*
+     * 2026-09-04 외부 검증에서 뒤집힌 판정이다. 그전에는 "접기는 화면만 건드린다"며 계수를
+     * 11칸으로 냈다. 실제 레이어로 재 보니 창원 5표가 스피어만을 0.07~0.15 부풀렸고
+     * (빈집×화재 0.798 → 0.647), 하필 창원은 세 지표 모두에서 끝값이라 가장 세게 끄는
+     * 자리에 있었다. 게다가 같은 화면이 18줄을 보여 주면서 표본만 22라고 적고 있었다.
+     */
     const view = correlationView(match("sgg"), withChangwon("a", A), withChangwon("b", B));
-    expect(view.notes.join(" ")).toContain("표본 11개 시군구");
+    expect(view.notes.join(" ")).toContain("표본 7개 시군구");
+    expect(view.notes.join(" ")).toContain("창원시 5개 구");
   });
 
   test("값이 다르면 접지 않는다 — 서로 다른 지역이다", () => {
@@ -224,20 +231,24 @@ describe("같은 값을 나눠 가진 구는 한 줄로 접는다", () => {
   });
 });
 
-describe("cityOf", () => {
+describe("districtParentCity", () => {
   /*
    * ⚠️ 실제 이름에는 띄어쓰기가 없다 — 「창원시의창구」다. 공백으로 잘라 첫 마디를 쓰면
    * 다섯 구가 서로 다른 시가 되어 접기가 통째로 헛돈다(배포본에서 실제로 그랬다).
+   *
+   * 자치구가 **아닌** 이름에는 null을 준다. 시·군을 이름만 보고 묶으면 진주시의 두 동이
+   * 우연히 같은 값을 가졌을 때 서로 다른 관측을 한 관측으로 접어 버린다.
    */
   test.each([
     ["창원시의창구", "창원시"],
     ["창원시마산합포구", "창원시"],
     ["창원시 진해구", "창원시"],
     ["경상남도 창원시성산구", "창원시"],
-    ["진주시", "진주시"],
-    ["의령군", "의령군"],
-    ["경상남도 하동군", "하동군"],
+    ["진주시", null],
+    ["의령군", null],
+    ["경상남도 하동군", null],
+    ["경상남도 진주시 상봉동", null],
   ])("%s → %s", (name, city) => {
-    expect(cityOf(name)).toBe(city);
+    expect(districtParentCity(name)).toBe(city);
   });
 });

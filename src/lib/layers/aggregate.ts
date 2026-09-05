@@ -27,8 +27,26 @@ export function aggregateToSgg(cube: LayerCube, metrics: MetricDef[]): LayerCube
     for (const metric of metrics) {
       series[metric.key] = Array.from({ length: n }, (_, i) => {
         if (metric.aggregation === "sum") {
+          /*
+           * 하나라도 비면 **합계를 내지 않는다.**
+           *
+           * 있는 것만 더하면 실제보다 작은 값이 그럴듯한 얼굴로 순위에 올라간다 — 결손이
+           * 「낮은 지역」으로 인쇄되는 것이다. 실제로 그런 자료가 있다(2026-09-04 실측):
+           * `kcb-migration.move_in` 1개 시군구, `nh-demographics.card_sales` 2곳,
+           * `nh-hourly.day_sales`·`night_sales` 3곳에서 소속 동 일부만 null이다.
+           *
+           * 같은 저장소가 이미 같은 판단을 해 두었다 — `tool-registry.ts`의
+           * `sumNullableSeries`가 1인가구에서 똑같이 null을 전파한다. 여기만 예외였다.
+           *
+           * 대가는 그 시군구가 순위에서 「자료 없음」이 되는 것이다. 그편이 낫다:
+           * 없는 것은 없다고 말할 수 있어도, 작게 적힌 값은 되돌릴 수 없다.
+           */
           let total = 0;
-          for (const m of members) total += m.series[metric.key]?.[i] ?? 0;
+          for (const m of members) {
+            const value = m.series[metric.key]?.[i];
+            if (value == null || !Number.isFinite(value)) return null;
+            total += value;
+          }
           return total;
         }
         // weightedAvg

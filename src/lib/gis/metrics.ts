@@ -23,7 +23,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
  * 새로 만든다. 그 할당이 초기 화면 계산을 3초 넘게 붙잡고 있었다(prod 실측).
  * 수식·지구반지름·연산 순서를 turf와 똑같이 맞췄고, 두 결과가 일치하는지는 테스트로 잠갔다.
  */
-const EARTH_RADIUS_KM = 6371008.8 / 1e3;
+export const EARTH_RADIUS_KM = 6371008.8 / 1e3;
 
 function toRadians(degrees: number): number {
   return ((degrees % 360) * Math.PI) / 180;

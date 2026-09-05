@@ -1,5 +1,5 @@
 import type { BoundaryCollection, BoundaryFeature, LinearRing } from "@/components/copilot/types";
-import { distanceInKilometers, type GeoPoint } from "@/lib/gis/metrics";
+import { EARTH_RADIUS_KM, distanceInKilometers, type GeoPoint } from "@/lib/gis/metrics";
 
 /**
  * 지도 위 **아무 지점**을 찍고 그 둘레를 읽는다.
@@ -88,10 +88,22 @@ export function findContainingRegion(
  * 꼭짓점까지의 거리가 아니라 **변까지의 거리**를 잰다.
  *
  * 꼭짓점만 재면 긴 변이 지점 바로 옆을 지나가는데도 양 끝이 멀어 "안 걸친다"고 답한다.
- * 몇 km 규모에서는 위경도를 그 자리의 평면으로 펴서 재도 오차가 미터 아래다.
+ *
+ * ## 척도는 시설 거리와 같은 구를 쓴다
+ *
+ * 전에는 110.574(적도 자오선 호)·111.32를 썼는데, 같은 카드 안의 시설 거리는 하버사인
+ * (R = 6371.0088km, 위도 1° = 111.195km)이었다. **한 원 안에서 두 자가 쓰이고 있었던
+ * 것이다.** 0.56% 어긋남은 남북으로 3km에서 −16.8m, 5km에서 −27.9m라(2026-09-04 실측),
+ * 반경 경계에 그만한 너비의 회색 지대를 만들어 그 안의 동·시설 포함이 뒤집힐 수 있었다.
+ *
+ * 이제 두 상수를 모두 같은 구에서 끌어온다. 남는 오차는 곡률 항뿐이라 몇 km 규모에서
+ * 미터 아래다. 구 자체가 타원체와 다른 것(경도에서 약 0.2%)은 이 앱 전체가 이미 지고
+ * 있는 근사이고, 여기서 중요한 것은 **같은 화면의 두 숫자가 같은 자로 재였는가**다.
  */
+const KM_PER_DEGREE = (EARTH_RADIUS_KM * Math.PI) / 180;
+
 function localScale(lat: number): { latScale: number; lngScale: number } {
-  return { latScale: 110.574, lngScale: 111.32 * Math.cos((lat * Math.PI) / 180) };
+  return { latScale: KM_PER_DEGREE, lngScale: KM_PER_DEGREE * Math.cos((lat * Math.PI) / 180) };
 }
 
 function segmentDistanceKm(point: ProbePoint, a: readonly number[], b: readonly number[]): number {

@@ -25,5 +25,10 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  /*
+   * scripts/kimi-review/*는 외부 검증용 일회성 진단 스크립트다. **붉은 것이 정상**이고
+   * (결함을 재현하는 검사가 들어 있다) src를 고치면 같이 깨지므로 게이트에 넣지 않는다.
+   * vitest도 같은 이유로 include를 tests/**로 좁혀 두었다.
+   */
+  "exclude": ["node_modules", "scripts/kimi-review"]
 }
