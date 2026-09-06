@@ -84,7 +84,7 @@ import {
   PRIVATE_LAYERS,
   CROSS_CANDIDATE_LAYERS,
   KCB_GRID_LAYER,
-  POPULATION_LAYER,
+  SKT_LIVING_LAYER,
 } from "@/lib/layers/catalog";
 import { medicalCubeFromSnapshot, populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
@@ -926,7 +926,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [toast, setToast] = useState<string | null>(null);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>("balanced");
   const [drillTrail, setDrillTrail] = useState<string[]>([]);
-  const [activeLayerId, setActiveLayerId] = useState<LayerId>("medical");
+  const [activeLayerId, setActiveLayerId] = useState<LayerId>("skt-living");
   /* 세션 안에서만. 첫 방문자가 접힌 고르기를 보면 지표 자리가 안 보인다. */
   const [pickerOpen, setPickerOpen] = useState(true);
   // 낮은 쪽을 물었으면 순위를 뒤집는다. 레이어를 바꿔도 방향이 남아 있으면 혼란스러우므로
@@ -954,7 +954,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [pendingShareQuery, setPendingShareQuery] = useState<string | null>(null);
   const shareQueryRunRef = useRef(false);
 
-  const [activeMetricKey, setActiveMetricKey] = useState<string>(POPULATION_LAYER.metrics[0].key);
+  const [activeMetricKey, setActiveMetricKey] = useState<string>(SKT_LIVING_LAYER.metrics[0].key);
   const [adminLevel, setAdminLevel] = useState<AdminLevel>("dong");
   /**
    * 지금 단위를 누가 정했나.
@@ -1300,9 +1300,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   /**
    * 민간 큐브를 필요할 때 받는다.
    *
-   * 마운트 즉시 11개를 모두 받으면 1.4MB를 첫 화면에서 내려받게 되는데, 시작 화면은 의료
-   * 레이어라 그중 어느 것도 당장 쓰이지 않는다. 모바일에서 초기 로딩이 길어지던 원인이다.
-   * 지금 보고 있는 레이어를 먼저 받고, 화면이 뜬 뒤 나머지를 배경에서 채워 교차·추세 질의가
+   * 마운트 즉시 11개를 모두 받으면 1.4MB를 첫 화면에서 내려받는다. 시작 화면은 생활인구
+   * 하나라 그것만 먼저 받고, 나머지는 화면이 뜬 뒤 배경에서 채워 교차·추세 질의가
    * 곧바로 동작하게 한다.
    */
   const requestedCubesRef = useRef(new Set<string>());
@@ -2324,6 +2323,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const runQuick = useCallback(
     (id: QuickId) => {
       setFollowSelection(false);
+      setActiveLayerId("medical");
       if (id === "reset") {
         setActiveQuick("scarcity");
         const next = snapshot

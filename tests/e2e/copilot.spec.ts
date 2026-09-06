@@ -49,6 +49,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("result-panel")).toBeVisible();
 
     await openSheet(page, "조작");
+    await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
     await page.getByTestId("quick-elderly").click();
     await openSheet(page, "결과");
     await expect(page.getByTestId("interpretation-card")).toBeVisible();
@@ -179,7 +180,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await openSheet(page, "조작");
 
     const chip = page.locator(".map-chip-topleft");
-    await expect(chip).toContainText("의료기관");
+    await expect(chip).toContainText("생활인구");
 
     await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^인구/ }).click();
     await page.getByTestId("metric-picker").getByRole("button", { name: /총인구/ }).click();

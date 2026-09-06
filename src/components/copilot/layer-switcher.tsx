@@ -97,7 +97,7 @@ export function groupBySource(layers: LayerOption[]): SourceGroup[] {
     [
       {
         source: "민간" as const,
-        note: "이동통신·카드·신용 기반. 이 도구의 중심 자료입니다.",
+        note: "이동통신·카드·신용 기반. 이 도구의 중심입니다.",
         providers: pick(true),
       },
       {
@@ -185,7 +185,7 @@ export function LayerSwitcher({
                 <div key={group.source}>
                   {query.trim() ? null : (
                     <>
-                      <p className="layer-group-kicker">{group.source} 데이터</p>
+                      <p className="layer-group-kicker">{group.source} 자료</p>
                       <p className="ui-caption mb-1.5">{group.note}</p>
                     </>
                   )}

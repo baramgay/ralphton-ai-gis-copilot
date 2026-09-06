@@ -19,6 +19,13 @@ function openControls() {
   fireEvent.click(toggle);
 }
 
+function selectMedicalLayer() {
+  openControls();
+  fireEvent.click(
+    within(screen.getByRole("group", { name: "레이어 선택" })).getByRole("button", { name: /^의료기관/ }),
+  );
+}
+
 const snapshot = {
   mode: "demo" as const,
   referenceMonth: "2026-06",
@@ -453,7 +460,7 @@ describe("CopilotApp", () => {
       render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
 
       expect(await screen.findByTestId("demo-map-badge", {}, { timeout: 20_000 })).toBeInTheDocument();
-      openControls();
+      selectMedicalLayer();
       for (const label of [
         "의료 접근성",
         "고령 대비 의료",
@@ -498,7 +505,7 @@ describe("CopilotApp", () => {
   test("executes a distinct radius result and exposes its active metric", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
-    openControls();
+    selectMedicalLayer();
 
     fireEvent.click(screen.getByRole("button", { name: "반경 내 의료기관" }));
 
@@ -558,7 +565,7 @@ describe("CopilotApp", () => {
   test("shows compare picker when gu compare is selected", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
-    openControls();
+    selectMedicalLayer();
 
     fireEvent.click(screen.getByRole("button", { name: "지역 비교" }));
     expect(await screen.findByTestId("compare-picker")).toBeInTheDocument();
@@ -612,6 +619,7 @@ describe("CopilotApp", () => {
   test("facility list shows sort controls", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
+    selectMedicalLayer();
     fireEvent.click(screen.getByRole("button", { name: "의료기관 목록" }));
     expect(await screen.findByTestId("facility-sort-name")).toBeInTheDocument();
     expect(screen.getByTestId("facility-sort-type")).toBeInTheDocument();
@@ -622,10 +630,11 @@ describe("CopilotApp", () => {
   test("hides medical quick analysis and sources methodology/month from the active layer when a cube layer is selected", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    openControls();
 
-    // Medical is the default layer: quick analysis grid is present.
-    expect(screen.getByRole("button", { name: "의료 접근성" })).toBeInTheDocument();
-    expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
+    // 시작 화면은 생활인구(민간). 의료 빠른 분석은 없다.
+    expect(screen.queryByRole("button", { name: "의료 접근성" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("picker-summary")).toHaveTextContent(/생활인구/);
 
     const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
     fireEvent.click(within(layerGroup).getByRole("button", { name: /^인구/ }));
@@ -846,8 +855,8 @@ describe("CopilotApp", () => {
      * 「공공」 아래에 인구와 의료기관 둘만 서서 이 도구가 의료 도구처럼 보인다.
      */
     const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
-    expect(within(layerGroup).getByText("민간 데이터")).toBeInTheDocument();
-    expect(within(layerGroup).getByText("공공 데이터")).toBeInTheDocument();
+    expect(within(layerGroup).getByText("민간 자료")).toBeInTheDocument();
+    expect(within(layerGroup).getByText("공공 자료")).toBeInTheDocument();
     expect(within(layerGroup).queryByText("의료 데이터")).toBeNull();
     for (const provider of ["SKT", "NH", "KCB"]) {
       expect(within(layerGroup).getAllByText(provider).length).toBeGreaterThan(0);
@@ -1259,9 +1268,7 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("analysis-intro")).toHaveTextContent(
       /자료를 지도에 겹쳐 보고, 질문으로 순위를 냅니다/,
     );
-    expect(screen.getByTestId("metric-picker")).toHaveTextContent(
-      /이 레이어는 지점 목록이라 고를 지표가 없습니다/,
-    );
+    expect(screen.getByTestId("metric-picker")).toHaveTextContent(/총생활인구/);
     expect(screen.getByRole("group", { name: "분석 단위" })).toBeInTheDocument();
   });
 
@@ -1271,14 +1278,14 @@ describe("CopilotApp", () => {
     openControls();
 
     const summary = screen.getByTestId("picker-summary");
-    expect(summary).toHaveTextContent(/의료기관/);
+    expect(summary).toHaveTextContent(/생활인구/);
     expect(summary).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByLabelText("레이어 검색")).toBeInTheDocument();
 
     fireEvent.click(summary);
     expect(summary).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("레이어 검색")).not.toBeInTheDocument();
-    expect(summary).toHaveTextContent(/의료기관 · 지점 목록 · 행정동/);
+    expect(summary).toHaveTextContent(/생활인구 · 총생활인구 · 행정동/);
 
     fireEvent.click(summary);
     expect(summary).toHaveAttribute("aria-expanded", "true");

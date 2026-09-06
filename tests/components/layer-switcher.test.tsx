@@ -54,8 +54,8 @@ describe("LayerSwitcher", () => {
   test("큰 갈래는 민간·공공 둘이고 제공기관은 그 아래다", () => {
     render(<LayerSwitcher layers={many} activeId="population" onChange={vi.fn()} />);
 
-    expect(screen.getByText("민간 데이터")).toBeInTheDocument();
-    expect(screen.getByText("공공 데이터")).toBeInTheDocument();
+    expect(screen.getByText("민간 자료")).toBeInTheDocument();
+    expect(screen.getByText("공공 자료")).toBeInTheDocument();
     // 제공기관은 사라지지 않는다 — 출처는 여전히 한눈에 보여야 한다
     for (const provider of ["SKT", "NH", "KCB"]) {
       expect(screen.getAllByText(provider).length).toBeGreaterThan(0);
