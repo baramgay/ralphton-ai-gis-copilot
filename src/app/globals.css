@@ -1554,6 +1554,33 @@ input:hover {
   top: 3.5rem;
 }
 
+/* 첫 화면 시군구 이름. 행정동 305개를 다 쓰면 읽히지 않는다. */
+.map-sgg-label {
+  pointer-events: none;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-bg-strong);
+  color: var(--glass-text);
+  padding: 0.12rem 0.45rem;
+  font-size: var(--fs-chip);
+  font-weight: 800;
+  letter-spacing: var(--ls-caption);
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+  box-shadow: var(--glass-edge);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+}
+
+.map-sgg-label-svg {
+  fill: var(--text-1);
+  font-size: 13px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--surface-1);
+  stroke-width: 4px;
+}
+
 .map-hover-chip {
   pointer-events: none;
   position: absolute;

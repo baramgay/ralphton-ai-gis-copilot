@@ -449,6 +449,74 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/layers/kosis-finance.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "kosis-finance",
+              adminLevel: "sgg",
+              referenceMonth: "2024-12",
+              months: ["2024-12"],
+              cells: [
+                {
+                  code: "4812500000",
+                  name: "경상남도 창원시",
+                  point: { lat: 35.2, lng: 128.6 },
+                  areaKm2: 10,
+                  series: { fiscal_independence: [40], fiscal_autonomy: [60], welfare_budget: [30], admin_budget: [8] },
+                },
+                {
+                  code: "4817000000",
+                  name: "경상남도 진주시",
+                  point: { lat: 35.18, lng: 128.1 },
+                  areaKm2: 10,
+                  series: { fiscal_independence: [20], fiscal_autonomy: [50], welfare_budget: [35], admin_budget: [7] },
+                },
+                {
+                  code: "4822000000",
+                  name: "경상남도 통영시",
+                  point: { lat: 34.85, lng: 128.43 },
+                  areaKm2: 10,
+                  series: { fiscal_independence: [12], fiscal_autonomy: [45], welfare_budget: [38], admin_budget: [6] },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes("/data/layers/kosis-housing.json")) {
+          return new Response(
+            JSON.stringify({
+              layerId: "kosis-housing",
+              adminLevel: "sgg",
+              referenceMonth: "2024-12",
+              months: ["2024-12"],
+              cells: [
+                {
+                  code: "4812500000",
+                  name: "경상남도 창원시",
+                  point: { lat: 35.2, lng: 128.6 },
+                  areaKm2: 10,
+                  series: { old_housing: [15], vacant: [4], ownership: [60] },
+                },
+                {
+                  code: "4817000000",
+                  name: "경상남도 진주시",
+                  point: { lat: 35.18, lng: 128.1 },
+                  areaKm2: 10,
+                  series: { old_housing: [22], vacant: [9], ownership: [62] },
+                },
+                {
+                  code: "4822000000",
+                  name: "경상남도 통영시",
+                  point: { lat: 35.85, lng: 128.43 },
+                  areaKm2: 10,
+                  series: { old_housing: [30], vacant: [14], ownership: [65] },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
@@ -605,6 +673,32 @@ describe("CopilotApp", () => {
     await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("copy-conclusion")).toBeInTheDocument();
+  });
+
+  test("첫 화면은 시군구 경계만 그리고 생활인구 순위를 칠하지 않는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
+    expect(screen.getByTestId("demo-map")).toHaveAttribute("data-outline", "1");
+    expect(screen.getByTestId("map-sgg-label")).toHaveTextContent("창원시 의창구");
+    expect(screen.getByTestId("result-panel")).toHaveTextContent(/시군구·행정동·격자/);
+    expect(screen.queryByRole("heading", { name: /총생활인구 순위/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "의료 접근성" })).not.toBeInTheDocument();
+  });
+
+  test("상관 질의는 생활인구 순위 대신 상관 결과를 보여 준다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "재정자립도와 빈집 비율의 상관관계" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("result-panel")).toHaveTextContent(/상관/);
+      },
+      { timeout: 15_000 },
+    );
+    expect(screen.getByTestId("result-panel")).not.toHaveTextContent(/총생활인구 순위/);
   });
 
   test("help tab shows evaluator guide and method summary on results", async () => {

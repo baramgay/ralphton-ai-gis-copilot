@@ -180,6 +180,9 @@ test.describe("AI GIS Copilot core journey", () => {
     await openSheet(page, "조작");
 
     const chip = page.locator(".map-chip-topleft");
+    await expect(chip).toContainText("시군구 경계");
+
+    await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: "생활인구 SKT" }).click();
     await expect(chip).toContainText("생활인구");
 
     await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^인구/ }).click();

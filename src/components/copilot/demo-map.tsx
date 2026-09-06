@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
+import { sggLabelPoints } from "@/lib/gis/sgg-label";
+
 import type {
   BoundaryCollection,
   BoundaryFeature,
@@ -22,6 +24,8 @@ type DemoMapProps = {
   focusRegionCodes?: Set<string> | null;
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
+  outlineMode?: boolean;
+  showSggLabels?: boolean;
   legendLabel?: string;
   viewLabel?: string;
   onSelectRegion: (code: string) => void;
@@ -50,6 +54,8 @@ export function DemoMap({
   focusRegionCodes = null,
   radiusKm,
   showFacilities,
+  outlineMode = false,
+  showSggLabels = false,
   legendLabel = "상대 분석값",
   viewLabel,
   onSelectRegion,
@@ -115,11 +121,16 @@ export function DemoMap({
   const selectedRegion = regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   const hoveredFeature = boundary.features.find((feature) => feature.properties.adm_cd2 === hovered);
   const visibleFacilities = facilities;
+  const sggLabels = useMemo(
+    () => (showSggLabels ? sggLabelPoints(regions) : []),
+    [regions, showSggLabels],
+  );
 
   return (
     <div
       className="relative size-full overflow-hidden bg-[#dfe8ef]"
       data-facilities-mode={showFacilities ? "all" : "analysis"}
+      data-outline={outlineMode ? "1" : "0"}
       data-testid="demo-map"
     >
       <svg
@@ -152,17 +163,29 @@ export function DemoMap({
                 <path
                   key={code}
                   d={pathForFeature(feature)}
-                  fill={isDimmed ? "#e8edf2" : scale.colorOf(code)}
+                  fill={
+                    outlineMode
+                      ? choroplethTheme === "dark"
+                        ? "#0a1120"
+                        : "#ffffff"
+                      : isDimmed
+                        ? "#e8edf2"
+                        : scale.colorOf(code)
+                  }
                   fillRule="evenodd"
-                  fillOpacity={isDimmed ? 0.42 : 1}
+                  fillOpacity={outlineMode ? 0.08 : isDimmed ? 0.42 : 1}
                   stroke={
-                    isSelected
-                      ? "#172554"
-                      : isFocused && focusRegionCodes
-                        ? "#b45309"
-                        : isHovered
-                          ? "#2563eb"
-                          : "#ffffff"
+                    outlineMode
+                      ? choroplethTheme === "dark"
+                        ? "#94a3b8"
+                        : "#334155"
+                      : isSelected
+                        ? "#172554"
+                        : isFocused && focusRegionCodes
+                          ? "#b45309"
+                          : isHovered
+                            ? "#2563eb"
+                            : "#ffffff"
                   }
                   strokeWidth={
                     isSelected ? 3.4 : isFocused && focusRegionCodes ? 2.4 : isHovered ? 2.2 : 0.9
@@ -190,7 +213,24 @@ export function DemoMap({
             })}
           </g>
 
-          {selectedRegion ? (
+          {sggLabels.map((label) => {
+            const [x, y] = projection.point([label.lng, label.lat]);
+            return (
+              <text
+                key={label.code}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="map-sgg-label-svg"
+                data-testid="map-sgg-label"
+              >
+                {label.name}
+              </text>
+            );
+          })}
+
+          {selectedRegion && !outlineMode ? (
             <circle
               cx={projection.point([
                 selectedRegion.representativePoint.lng,
@@ -267,6 +307,7 @@ export function DemoMap({
         </button>
       </div>
 
+      {outlineMode ? null : (
       <div className="map-legend map-legend-narrow">
         <div className="map-legend-head">
           <span>{legendLabel}</span><span>높음</span>
@@ -278,6 +319,7 @@ export function DemoMap({
           <span>5분위(같은 수의 동)</span><span>높음</span>
         </div>
       </div>
+      )}
     </div>
   );
 }

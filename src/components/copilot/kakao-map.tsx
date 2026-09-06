@@ -5,6 +5,7 @@ import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
+import { sggLabelPoints } from "@/lib/gis/sgg-label";
 
 import {
   ensureMarkerClusterer,
@@ -49,6 +50,12 @@ type KakaoMapProps = {
   followSelection?: boolean;
   /** 반경 원을 그릴지. 2km 반경은 의료 접근성 분석에서만 뜻이 있다. */
   showRadius?: boolean;
+  /**
+   * 값을 칠하지 않고 경계만 그린다. 카카오 바탕(도로·시설)이 비치도록 첫 화면에 쓴다.
+   */
+  outlineMode?: boolean;
+  /** 시군구 이름을 올린다. 행정동 이름은 올리지 않는다. */
+  showSggLabels?: boolean;
   /**
    * 지점 찍기 모드.
    *
@@ -145,6 +152,8 @@ export function KakaoMap({
   showFacilities,
   followSelection = true,
   showRadius = true,
+  outlineMode = false,
+  showSggLabels = false,
   probeMode = false,
   probePoint = null,
   probeRadiusKm = 2,
@@ -379,15 +388,31 @@ export function KakaoMap({
       for (const polygonCoordinates of polygons) {
         const polygon = new maps.Polygon({
           path: polygonCoordinates.map(toPath),
-          strokeWeight: isSelected ? 3 : isFocused && focusRegionCodes ? 2.2 : 1,
-          strokeColor: isSelected
-            ? "#172554"
-            : isFocused && focusRegionCodes
-              ? "#b45309"
-              : "#ffffff",
-          strokeOpacity: isDimmed ? 0.35 : 0.9,
-          fillColor: isDimmed ? "#e8edf2" : scale.colorOf(code),
-          fillOpacity: isDimmed ? 0.28 : isSelected ? 0.82 : 0.72,
+          strokeWeight: outlineMode
+            ? 1.4
+            : isSelected
+              ? 3
+              : isFocused && focusRegionCodes
+                ? 2.2
+                : 1,
+          strokeColor: outlineMode
+            ? choroplethTheme === "dark"
+              ? "#94a3b8"
+              : "#334155"
+            : isSelected
+              ? "#172554"
+              : isFocused && focusRegionCodes
+                ? "#b45309"
+                : "#ffffff",
+          strokeOpacity: outlineMode ? 0.55 : isDimmed ? 0.35 : 0.9,
+          fillColor: outlineMode
+            ? choroplethTheme === "dark"
+              ? "#0a1120"
+              : "#ffffff"
+            : isDimmed
+              ? "#e8edf2"
+              : scale.colorOf(code),
+          fillOpacity: outlineMode ? 0.06 : isDimmed ? 0.28 : isSelected ? 0.82 : 0.72,
         });
         polygon.setMap(map);
         maps.event.addListener(polygon, "click", () => {
@@ -553,6 +578,23 @@ export function KakaoMap({
       }
     }
 
+    if (showSggLabels && typeof maps.CustomOverlay === "function") {
+      for (const label of sggLabelPoints(regions)) {
+        const el = document.createElement("div");
+        el.className = "map-sgg-label";
+        el.textContent = label.name;
+        el.setAttribute("data-testid", "map-sgg-label");
+        const overlay = new maps.CustomOverlay({
+          content: el,
+          position: new maps.LatLng(label.lat, label.lng),
+          yAnchor: 0.5,
+          zIndex: 8,
+        });
+        overlay.setMap(map);
+        overlaysRef.current.push(overlay);
+      }
+    }
+
     for (const place of livePlaces.slice(0, 20)) {
       const marker = new maps.Marker({
         position: new maps.LatLng(place.lat, place.lng),
@@ -624,6 +666,8 @@ export function KakaoMap({
     showFacilities,
     followSelection,
     showRadius,
+    outlineMode,
+    showSggLabels,
     probePoint,
     probeRadiusKm,
   ]);
@@ -642,6 +686,7 @@ export function KakaoMap({
         // 커서가 그대로면 사용자는 지도를 눌러 보고서야 모드를 안다.
         style={probeMode ? { cursor: "crosshair" } : undefined}
         data-probe-mode={probeMode ? "on" : "off"}
+        data-outline={outlineMode ? "1" : "0"}
         aria-label="경남 행정동 분석 지도"
       />
       {/*
@@ -657,6 +702,7 @@ export function KakaoMap({
           <p className="map-status">{status}</p>
         </div>
       ) : null}
+      {outlineMode ? null : (
       <div className="map-legend">
         <div className="map-legend-head">
           <span className="truncate">{legendLabel}</span>
@@ -671,6 +717,7 @@ export function KakaoMap({
           5분위 채색(구간별 동 수 비슷) · 호버 시 이름·점수 · 시설 핀 색은 유형별
         </p>
       </div>
+      )}
     </div>
   );
 }

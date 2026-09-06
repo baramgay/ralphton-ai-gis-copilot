@@ -22,6 +22,8 @@ type MapCanvasProps = {
   followSelection?: boolean;
   /** 반경 원 표시 여부. 의료 접근성 분석에서만 뜻이 있다. */
   showRadius?: boolean;
+  outlineMode?: boolean;
+  showSggLabels?: boolean;
   /** 지점 찍기 모드. Kakao 지도에서만 뜻이 있다(DemoMap은 좌표 클릭을 받지 못한다). */
   probeMode?: boolean;
   probePoint?: { lat: number; lng: number } | null;

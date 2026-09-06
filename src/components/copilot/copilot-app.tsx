@@ -203,6 +203,18 @@ type AnalysisView = {
   totalCount?: number;
 };
 
+const IDLE_ANALYSIS: AnalysisView = {
+  id: "idle",
+  title: "경남 시군구",
+  summary: "질문을 적거나 왼쪽에서 자료를 고르면 시군구·행정동·격자에 맞춰 지도에 그립니다.",
+  ranked: [],
+  filteredFacilities: [],
+  formulaNotes: ["아직 분석을 고르지 않았습니다."],
+  legendLabel: "시군구 경계",
+  isFacilityResult: false,
+  unitWord: "시군구",
+};
+
 type LivePlace = LiveMapPlace & {
   categoryName: string;
   phone: string | null;
@@ -925,6 +937,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>("balanced");
   const [drillTrail, setDrillTrail] = useState<string[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<LayerId>("skt-living");
+  /**
+   * 첫 화면은 자료를 칠하지 않는다. 질문하거나 왼쪽에서 고르면 그때 시군구·행정동·격자로
+   * 그린다. 기본 레이어를 생활인구로 두되, 고르기 전에는 경계만 보여 카카오 바탕이 비친다.
+   */
+  const [analysisRequested, setAnalysisRequested] = useState(false);
   /* 세션 안에서만. 첫 방문자가 접힌 고르기를 보면 지표 자리가 안 보인다. */
   const [pickerOpen, setPickerOpen] = useState(true);
   // 낮은 쪽을 물었으면 순위를 뒤집는다. 레이어를 바꿔도 방향이 남아 있으면 혼란스러우므로
@@ -1451,6 +1468,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 질의로 들어올 때는 이미 시군구로 돌려세우고 있었는데, 버튼으로 고를 때만 안 그랬다.
    */
   const selectMetric = useCallback((metric: MetricDef) => {
+    setAnalysisRequested(true);
     setActiveMetricKey(metric.key);
     if (metric.scope === "sgg") {
       adminLevelSourceRef.current = "user";
@@ -1492,17 +1510,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * effect로 하면 한 번 그린 뒤 다시 그리게 되어, 엉뚱한 지역이 선택된 화면이 한 프레임
    * 스쳐 간다. 아래 조건이 이미 "달라졌을 때만" 세팅하므로 무한 렌더로 가지 않는다.
    */
-  const rankedForSelection = layerAnalysisResult?.analysis.ranked;
-  if (rankedForSelection && rankedForSelection.length > 0) {
-    const keepUserPick =
-      followSelection &&
-      selectedRegionCode !== null &&
-      rankedForSelection.some((row) => row.code === selectedRegionCode);
-    if (!keepUserPick && selectedRegionCode !== rankedForSelection[0].code) {
-      setSelectedRegionCode(rankedForSelection[0].code);
-    }
-  }
-
   // A choropleth layer is "loading" when it's active, its cube hasn't arrived yet,
   // and it hasn't errored out (errors already surface via activeLayerError). While this
   // is true `analysis` must not silently fall back to the medical quickAnalysis.
@@ -1527,12 +1534,29 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }, [isLayerCubeLoading, activeLayerId, activeMetric]);
 
   const analysis = useMemo<AnalysisView | null>(() => {
+    if (customAnalysis) return customAnalysis;
+    if (!analysisRequested) return IDLE_ANALYSIS;
     if (activeLayerId !== "medical") {
       if (layerAnalysisResult) return { ...layerAnalysisResult.analysis, id: activeLayerId };
       if (layerLoadingView) return layerLoadingView;
     }
     return quickAnalysis;
-  }, [activeLayerId, layerAnalysisResult, layerLoadingView, quickAnalysis]);
+  }, [analysisRequested, customAnalysis, activeLayerId, layerAnalysisResult, layerLoadingView, quickAnalysis]);
+
+  if (
+    analysisRequested &&
+    analysis &&
+    analysis.id !== "idle" &&
+    analysis.ranked.length > 0
+  ) {
+    const keepUserPick =
+      followSelection &&
+      selectedRegionCode !== null &&
+      analysis.ranked.some((row) => row.code === selectedRegionCode);
+    if (!keepUserPick && selectedRegionCode !== analysis.ranked[0]!.code) {
+      setSelectedRegionCode(analysis.ranked[0]!.code);
+    }
+  }
 
   const dismissOnboard = useCallback(() => {
     setShowOnboard(false);
@@ -1556,6 +1580,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setCustomAnalysis(null);
     setSelectedFacilityId(null);
     setDrillTrail([]);
+    setAnalysisRequested(true);
     setQuery(ONBOARD_EXAMPLE);
 
     const match = resolveLayerQuery(ONBOARD_EXAMPLE, PRIVATE_NL_LAYERS, {
@@ -1604,6 +1629,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }, [snapshot, analysis, selectedRegionCode]);
 
   const scores = useMemo(() => {
+    if (!analysisRequested) return new Map<string, number>();
+    if (customAnalysis) {
+      return new Map(
+        customAnalysis.ranked
+          .filter((row): row is typeof row & { mapScore: number } => row.mapScore !== null)
+          .map((row) => [row.code, row.mapScore]),
+      );
+    }
     if (activeLayerId !== "medical" && layerAnalysisResult) {
       return layerAnalysisResult.scores;
     }
@@ -1615,7 +1648,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         .filter((row): row is typeof row & { mapScore: number } => row.mapScore !== null)
         .map((row) => [row.code, row.mapScore]),
     );
-  }, [activeLayerId, layerAnalysisResult, isLayerCubeLoading, quickAnalysis]);
+  }, [analysisRequested, customAnalysis, activeLayerId, layerAnalysisResult, isLayerCubeLoading, quickAnalysis]);
 
   const isCompareView = Boolean(
     activeQuick === "compare" ||
@@ -1629,6 +1662,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // 교차분석 순위는 두 지표의 합성 격차 기준이다. 일반 결론 생성기는 metrics[0](= A지표)
     // 이름을 붙여 "A 기준 상위 3곳"이라고 써버려 순위 근거를 오도하므로, 이미 격차를 설명하는
     // 교차 해석문을 그대로 결론으로 쓴다.
+    if (analysis.id === "idle") return analysis.summary;
     if (analysis.id === "cross") return analysis.summary;
     const rankedRegions = analysis.ranked.map((row, index) => {
       const region = snapshot.regions.find((item) => item.adm_cd2 === row.code);
@@ -2208,13 +2242,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const runQuick = useCallback(
     (id: QuickId) => {
       setFollowSelection(false);
-      setActiveLayerId("medical");
       if (id === "reset") {
+        setAnalysisRequested(false);
+        setActiveLayerId("skt-living");
         setActiveQuick("scarcity");
-        const next = snapshot
-          ? executeQuickAnalysis(snapshot, "scarcity", 2, comparePair)
-          : null;
-        setSelectedRegionCode(next?.ranked[0]?.code ?? snapshot?.regions[0]?.adm_cd2 ?? null);
+        setSelectedRegionCode(null);
         setRadiusKm(2);
         setQuery("");
         setQueryNotice(null);
@@ -2227,6 +2259,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         setResultSearch("");
         return;
       }
+      setAnalysisRequested(true);
+      setActiveLayerId("medical");
       setActiveQuick(id);
       setCustomAnalysis(null);
       setSelectedFacilityId(null);
@@ -2775,6 +2809,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const runQueryText = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
+    setAnalysisRequested(true);
 
     /*
      * 기본 단위는 **질의를 던지는 이 시점에** 정한다.
@@ -3005,6 +3040,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      * 지표를 지목해 준 질의가 같은 자리를 쓴다 — 두 벌로 두면 한쪽만 고쳐진다.
      */
     const applyLayerMatch = (match: LayerQueryMatch, prefix = "") => {
+      setCustomAnalysis(null);
       setActiveLayerId(match.layerId as LayerId);
       setActiveMetricKey(match.metricKey);
       setLayerDirection(match.direction);
@@ -3252,8 +3288,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
   }
 
-  // 교차분석은 activeLayerId를 medical로 두고 customAnalysis로 렌더하므로, 방법론·기준월이
-  // 의료 레이어 값으로 새지 않도록 교차 결과 자체의 산식을 쓴다.
+  // 교차·통계 결과는 customAnalysis가 우선이라, 방법론·기준월이 활성 레이어 값으로 새지
+  // 않도록 결과 자체의 산식을 쓴다.
   const isCrossView = analysis?.id === "cross";
   /*
    * 공공 도구 결과는 `activeLayerId`가 "medical"인 채로 렌더된다. 그래서 이 자리가
@@ -3264,7 +3300,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 제외한다** — 그 산식은 "약국을 제외한 모든 의료기관"처럼 목록을 거르는 규칙이라,
    * 지도에 그려진 지표(의료취약지수)와 무관하다. METHOD_SUMMARY는 그럴 때의 기본값이다.
    */
-  const methodSummaryText = isCrossView
+  const methodSummaryText = !analysisRequested || analysis.id === "idle"
+    ? analysis.formulaNotes.join(" · ")
+    : isCrossView
     ? analysis.formulaNotes.join(" · ")
     : activeLayerId !== "medical" && activeMetric
       ? `${activeMetric.label} = ${activeMetric.formula}${
@@ -3281,7 +3319,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     activeLayerId === "medical" ? "지점 목록" : (activeMetric?.label ?? "지표");
   const activeUnitLabel = unitWordOf(activeLayerId, adminLevel);
   const pickerSummary = `${activeLayerLabel} · ${activeMetricLabel} · ${activeUnitLabel}`;
-  const mapViewLabel = `${pickerSummary} · ${referenceMonthLabel}`;
+  const outlineMode = !analysisRequested || scores.size === 0;
+  const showSggLabels =
+    outlineMode ||
+    (analysisRequested && adminLevel === "sgg" && activeLayerId !== KCB_GRID_LAYER.id);
+  const mapViewLabel = outlineMode
+    ? "경상남도 · 시군구 경계"
+    : `${pickerSummary} · ${referenceMonthLabel}`;
 
   const latestIndex = snapshot.months.length - 1;
   const currentPopulation = selectedRegion?.population[latestIndex] ?? 0;
@@ -3290,6 +3334,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const currentOnePerson = selectedRegion?.onePersonHouseholds[latestIndex] ?? null;
   const currentRank = analysis.ranked.findIndex((row) => row.code === selectedRegionCode) + 1;
   const emptyResult =
+    analysis.id !== "idle" &&
     !isLayerCubeLoading &&
     (analysis.isFacilityResult
       ? analysis.filteredFacilities.length === 0
@@ -3423,6 +3468,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   activeId={activeLayerId}
                   onChange={(id) => {
                     const nextId = id as LayerId;
+                    setAnalysisRequested(true);
                     setActiveLayerId(nextId);
                     // 앞 질의에서 "낮은 순"이었으면 레이어만 바꿨을 때도 그대로 남는다.
                     // 버튼으로 고른 것은 방향 요구가 없으므로 기본(높은 순)으로 되돌린다.
@@ -3431,9 +3477,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     if (nextId !== "medical") {
                       selectMetric(CUBE_LAYER_METRICS[nextId][0]);
                     }
-                    // 교차분석은 activeLayerId를 medical로 둔 채 customAnalysis로 렌더한다.
-                    // 이걸 비우지 않으면 의료 레이어를 눌러도(이미 medical이라 상태가 그대로여서)
-                    // 교차 결과가 화면에 남아 레이어를 바꿔도 아무 반응이 없는 것처럼 보인다.
+                    // 질의 결과는 customAnalysis가 우선이다. 레이어를 손고르면 그 결과를 비운다.
                     setCustomAnalysis(null);
                   }}
                   activeSlot={
@@ -4444,6 +4488,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
            * 순위에도 늘 겹쳐 그려서, 뜻 없는 파란 원이 지도를 덮고 있었다.
            */
           showRadius={activeLayerId === "medical" && !customAnalysis}
+          outlineMode={outlineMode}
+          showSggLabels={showSggLabels}
           probeMode={probeMode}
           probePoint={probePoint}
           probeRadiusKm={probeRadiusKm}

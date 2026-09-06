@@ -40,13 +40,27 @@ try {
 }
 
 const shell = await page.getByTestId("copilot-shell").innerText();
-check(shell.includes("의료 접근성"), "빠른 분석이 새 이름으로 나온다");
-check(
-  shell.includes("공급·거리·고령수요 합성"),
-  "이름만으로 뜻이 안 서는 지표는 부제가 산식을 말한다",
-);
 check(!/의료취약지수/.test(shell), "옛 이름(의료취약지수)이 화면에 남아 있지 않다");
 check(!/구 비교/.test(shell), "옛 이름(구 비교)이 남아 있지 않다");
+
+/*
+ * 첫 화면은 시군구 경계만 보여 의료 빠른 분석이 없다. 의료기관 레이어를 고른 뒤에
+ * 새 이름·부제가 나오는지 본다 — 옛 이름 부활을 막는 자리는 그대로 둔다.
+ */
+const openLeft = page.getByRole("button", { name: "조작 패널 열기" });
+if (await openLeft.isVisible().catch(() => false)) {
+  await openLeft.click();
+} else {
+  const toggle = page.getByRole("button", { name: "조작", exact: true });
+  if (await toggle.isVisible().catch(() => false)) await toggle.click();
+}
+await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
+const medicalPanel = await page.getByLabel("분석 조작 패널").innerText();
+check(medicalPanel.includes("의료 접근성"), "의료기관을 고르면 빠른 분석이 새 이름으로 나온다");
+check(
+  medicalPanel.includes("공급·거리·고령수요 합성"),
+  "이름만으로 뜻이 안 서는 지표는 부제가 산식을 말한다",
+);
 
 /*
  * 용어집은 「의료취약지역이 뭐냐」는 물음에서 나왔다. 그 물음이 화면에서 답이 되는지를
