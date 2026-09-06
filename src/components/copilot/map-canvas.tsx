@@ -105,7 +105,7 @@ export function MapCanvas(props: MapCanvasProps) {
     <div className="relative size-full">
       <DemoMap {...mapProps} />
       {kakaoMapKey ? (
-        <div className="absolute left-4 top-14 z-20 max-w-sm rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg">
+        <div className="pointer-events-none absolute left-4 top-14 z-20 max-w-sm rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg">
           <p className="text-[11px] font-bold text-amber-900">지도를 불러오지 못했습니다 · 임시 지도로 표시 중</p>
           <p className="mt-1 text-[10px] leading-5 text-amber-800">
             {errorMessage ??
@@ -113,7 +113,7 @@ export function MapCanvas(props: MapCanvasProps) {
           </p>
           <button
             type="button"
-            className="mt-2 rounded-lg bg-amber-900 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-amber-800 active:scale-[0.98]"
+            className="pointer-events-auto mt-2 rounded-lg bg-amber-900 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-amber-800 active:scale-[0.98]"
             onClick={retryKakao}
           >
             지도 다시 불러오기
