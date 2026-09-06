@@ -2920,6 +2920,19 @@ input:hover {
   }
 }
 
+/*
+ * 아이패드 프로 12.9 가로(1366)는 3칸을 유지한다. 다만 접힌 왼쪽 때문에 지도가
+ * 좁아져 질의창이 칩을 덮는다(배포본 실측). 시트는 열지 않고 칩만 내린다.
+ */
+@media (min-width: 1281px) and (max-width: 1366px) {
+  .map-chip-topleft,
+  .map-chip-fallback {
+    top: 8rem;
+    left: 0.5rem;
+    max-width: min(18rem, calc(100% - 10rem));
+  }
+}
+
 /* 태블릿: 질의창·칩을 조금 더 키운다. 세로는 시트, 가로는 아직 시트다. */
 @media (min-width: 600px) and (max-width: 1280px) {
   .query-hero {
