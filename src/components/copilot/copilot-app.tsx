@@ -565,7 +565,6 @@ const QUICK_ANALYSES: Array<{
   label: string;
   subtitle: string;
   symbol: string;
-  tone: string;
 }> = [
   /*
    * 이름은 **무엇을 재는지** 말해야 한다. 「의료 취약」은 그 자체로는 뜻이 서지 않아
@@ -576,14 +575,14 @@ const QUICK_ANALYSES: Array<{
    * (SKT·NH·KCB)는 질의창과 레이어에서 다루므로, 여기서 의료가 다수라고 해서 이 도구가
    * 의료 도구인 것은 아니다. 이름이 그 오해를 만들지 않게 적는다.
    */
-  { id: "scarcity", label: "의료 접근성", subtitle: "공급·거리·고령수요 합성", symbol: "+", tone: "bg-rose-50 text-rose-600" },
-  { id: "elderly", label: "고령 대비 의료", subtitle: "고령비율 높은 순", symbol: "◎", tone: "bg-violet-50 text-violet-600" },
-  { id: "growth", label: "인구 증가", subtitle: "최근 1년 변화율", symbol: "↗", tone: "bg-emerald-50 text-emerald-600" },
-  { id: "nearest", label: "최근접 의료기관", subtitle: "대표점 직선거리", symbol: "⌖", tone: "bg-sky-50 text-sky-600" },
-  { id: "radius", label: "반경 내 의료기관", subtitle: "1~3km 안 기관 수", symbol: "◉", tone: "bg-blue-50 text-blue-600" },
-  { id: "compare", label: "지역 비교", subtitle: "두 곳 나란히", symbol: "⇄", tone: "bg-amber-50 text-amber-700" },
-  { id: "facilities", label: "의료기관 목록", subtitle: "병원·의원·약국", symbol: "◆", tone: "bg-cyan-50 text-cyan-700" },
-  { id: "reset", label: "초기화", subtitle: "처음부터", symbol: "↺", tone: "bg-slate-100 text-slate-600" },
+  { id: "scarcity", label: "의료 접근성", subtitle: "공급·거리·고령수요 합성", symbol: "+" },
+  { id: "elderly", label: "고령 대비 의료", subtitle: "고령비율 높은 순", symbol: "◎" },
+  { id: "growth", label: "인구 증가", subtitle: "최근 1년 변화율", symbol: "↗" },
+  { id: "nearest", label: "최근접 의료기관", subtitle: "대표점 직선거리", symbol: "⌖" },
+  { id: "radius", label: "반경 내 의료기관", subtitle: "1~3km 안 기관 수", symbol: "◉" },
+  { id: "compare", label: "지역 비교", subtitle: "두 곳 나란히", symbol: "⇄" },
+  { id: "facilities", label: "의료기관 목록", subtitle: "병원·의원·약국", symbol: "◆" },
+  { id: "reset", label: "초기화", subtitle: "처음부터", symbol: "↺" },
 ];
 
 function compactName(region: RegionSeries): string {
@@ -3487,8 +3486,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ))}
         </div>
         {/* 제품 헤더는 상단 바(copilot-topbar)로 올렸다. 여기서는 탭부터 시작한다. */}
-        <nav className="px-3 pt-3" aria-label="왼쪽 패널 탭">
-          <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1" role="tablist">
+        <nav className="panel-tabs" aria-label="왼쪽 패널 탭">
+          <div className="panel-tabs-inner" role="tablist">
             {(
               [
                 ["control", "분석"],
@@ -3501,9 +3500,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 type="button"
                 role="tab"
                 aria-selected={activeTab === id}
-                className={`rounded-[9px] px-2 py-2 ui-body font-semibold transition hover:text-slate-800 ${
-                  activeTab === id ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:bg-white/60"
-                }`}
+                className="panel-tab"
                 onClick={() => setActiveTab(id)}
               >
                 {label}
@@ -3532,9 +3529,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       {LAYER_OPTIONS.length}개 자료를 지도에 겹쳐 보고, 질문으로 순위를 냅니다
                     </p>
               <div>
-                <h2 className="section-label">레이어 직접 고르기</h2>
+                <h2 className="section-label">지도에 올릴 자료</h2>
                 <p className="ui-caption mb-2 -mt-1">
-                  질문으로 안 될 때 손으로 고릅니다 · {LAYER_OPTIONS.length}개
+                  찾거나 눌러 고르세요 · {LAYER_OPTIONS.length}개
                 </p>
                 <LayerSwitcher
                   layers={LAYER_OPTIONS}
@@ -3623,10 +3620,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   */}
                   <h2 className="section-label">빠른 분석</h2>
                   <p className="ui-caption mb-2 -mt-1">
-                    공공 데이터(인구·의료기관)로 바로 도는 분석입니다. 민간 데이터는 질문으로
-                    묻거나 위에서 레이어를 고르세요.
+                    인구·의료기관으로 바로 돌려 봅니다. 다른 자료는 위에서 고르거나 질문하세요.
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="quick-grid">
                     {QUICK_ANALYSES.map((item) => (
                       <button
                         key={item.id}
@@ -3638,17 +3634,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         onClick={(event) => {
                           if (event.detail === 0) runQuick(item.id);
                         }}
-                        className={`quick-tile min-h-[64px] rounded-xl border p-2.5 text-left transition active:scale-[.98] ${
-                          activeQuick === item.id && item.id !== "reset"
-                            ? "border-blue-300 bg-blue-50/60 shadow-sm"
-                            : "border-slate-200 bg-white hover:border-slate-300"
+                        className={`quick-tile ${
+                          activeQuick === item.id && item.id !== "reset" ? "is-active" : ""
                         }`}
                       >
-                        <span className={`inline-grid size-7 place-items-center rounded-md text-sm font-bold ${item.tone}`}>
-                          {item.symbol}
-                        </span>
-                        <span className="mt-1.5 block ui-body font-bold text-slate-900">{item.label}</span>
-                        <span className="ui-caption mt-0.5 block text-slate-500">
+                        <span className="quick-symbol">{item.symbol}</span>
+                        <span className="quick-name">{item.label}</span>
+                        <span className="quick-sub">
                           {item.id === "compare"
                             ? `${comparePair[0]} · ${comparePair[1]}`
                             : item.subtitle}
@@ -3659,12 +3651,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </section>
               ) : null}
 
+              <details className="ui-details">
+                <summary>더 많은 분석</summary>
+                <div className="ui-details-body space-y-4">
               <section data-testid="trend-presets">
-                <h2 className="section-label">추세 분석</h2>
+                <h2 className="section-label">시간에 따른 변화</h2>
                 <p className="ui-caption mb-2 -mt-1">
-                  기준월 값이 아니라 전 기간 변화율 순
+                  한 시점 값이 아니라, 그동안 얼마나 달라졌는지
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="quick-grid">
                   {TREND_PRESETS.map((preset) => (
                     <button
                       key={preset.id}
@@ -3672,19 +3667,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       data-testid={`trend-${preset.id}`}
                       aria-label={preset.label}
                       onClick={() => runTrendPreset(preset.query)}
-                      className="quick-tile min-h-[56px] rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-slate-300 active:scale-[.98]"
+                      className="quick-tile"
                     >
-                      <span className="block ui-body font-bold text-slate-900">{preset.label}</span>
-                      <span className="ui-caption mt-0.5 block text-slate-500">{preset.subtitle}</span>
+                      <span className="quick-name">{preset.label}</span>
+                      <span className="quick-sub">{preset.subtitle}</span>
                     </button>
                   ))}
                 </div>
               </section>
 
               <section data-testid="cross-presets">
-                <h2 className="section-label">민간데이터 교차분석</h2>
+                <h2 className="section-label">두 자료를 겹쳐 보기</h2>
                 <p className="ui-caption mb-2 -mt-1">
-                  두 지표를 z-표준화해 비교 (SKT·NH·KCB × 공공)
+                  생활·소비·신용 자료를 인구·의료와 나란히 봅니다
                 </p>
                 <div className="space-y-2.5">
                   {CROSS_PRESET_GROUPS.map((group) => {
@@ -3692,8 +3687,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     if (items.length === 0) return null;
                     return (
                       <div key={group}>
-                        <p className="ui-caption mb-1 font-bold text-slate-500">{group}</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <p className="layer-group-kicker mb-1">{group}</p>
+                        <div className="quick-grid">
                           {items.map((preset) => (
                             <button
                               key={preset.id}
@@ -3701,10 +3696,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                               data-testid={`cross-${preset.id}`}
                               aria-label={preset.label}
                               onClick={() => runCrossPreset(preset.query)}
-                              className="quick-tile min-h-[56px] rounded-xl border border-slate-200 bg-white p-2.5 text-left transition hover:border-slate-300 active:scale-[.98]"
+                              className="quick-tile"
                             >
-                              <span className="block ui-body font-bold text-slate-900">{preset.label}</span>
-                              <span className="ui-caption mt-0.5 block text-slate-500">{preset.subtitle}</span>
+                              <span className="quick-name">{preset.label}</span>
+                              <span className="quick-sub">{preset.subtitle}</span>
                             </button>
                           ))}
                         </div>
@@ -3713,17 +3708,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   })}
                 </div>
               </section>
+                </div>
+              </details>
                   </>
                 ) : null}
               </section>
 
               {activeLayerId === "medical" && (activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
                 <section
-                  className="rounded-xl border border-amber-200 bg-amber-50/70 p-3"
+                  className="compare-card"
                   data-testid="compare-picker"
                 >
-                  <p className="ui-body font-bold text-amber-950">비교 대상</p>
-                  <p className="ui-caption mt-1 text-amber-900/80">
+                  <p className="ui-body font-bold">비교 대상</p>
+                  <p className="ui-caption mt-1">
                     구·군 합산 또는 행정동 1:1 비교
                   </p>
                   <div className="mt-2 flex gap-1">
@@ -3737,11 +3734,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         key={id}
                         type="button"
                         aria-pressed={compareScope === id}
-                        className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
-                          compareScope === id
-                            ? "bg-amber-900 text-white"
-                            : "bg-white text-amber-950 border border-amber-200"
-                        }`}
+                        className="choice-btn flex-1"
                         onClick={() => {
                           const pool =
                             id === "dong"
@@ -3760,7 +3753,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <label className="block">
                       <span className="ui-caption mb-1 block">A</span>
                       <select
-                        className="w-full rounded-lg border border-amber-200 bg-white px-2 py-2 ui-body font-bold text-slate-900"
+                        className="compare-select"
                         value={
                           compareOptions.includes(comparePair[0])
                             ? comparePair[0]
@@ -3781,7 +3774,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <label className="block">
                       <span className="ui-caption mb-1 block">B</span>
                       <select
-                        className="w-full rounded-lg border border-amber-200 bg-white px-2 py-2 ui-body font-bold text-slate-900"
+                        className="compare-select"
                         value={
                           compareOptions.includes(comparePair[1])
                             ? comparePair[1]
@@ -3975,11 +3968,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           type="button"
                           title={LAYOUT_PRESETS[id].hint}
                           aria-pressed={layoutPreset === id}
-                          className={`rounded-lg border px-2 py-2 text-left ui-chip font-bold transition ${
-                            layoutPreset === id
-                              ? "border-slate-900 bg-slate-900 text-white"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-blue-300"
-                          }`}
+                          className="choice-btn text-left"
                           onClick={() => applyLayoutPreset(id)}
                         >
                           {LAYOUT_PRESETS[id].label}
@@ -4000,9 +3989,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           key={id}
                           type="button"
                           aria-pressed={density === id}
-                          className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
-                            density === id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-                          }`}
+                          className="choice-btn flex-1"
                           onClick={() => {
                             setDensity(id);
                             showToast(id === "compact" ? "촘촘한 화면" : "여유 있는 화면");
@@ -4034,11 +4021,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           type="button"
                           data-testid={`theme-${id}`}
                           aria-pressed={themePreference === id}
-                          className={`rounded-lg py-2 ui-chip font-bold ${
-                            themePreference === id
-                              ? "bg-slate-900 text-white"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
+                          className="choice-btn"
                           onClick={() => {
                             setThemePreference(id);
                             showToast(`테마: ${label}`);
@@ -4056,8 +4039,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </div>
               </details>
 
-              <p className="ui-caption text-center text-slate-400">
-                결과는 오른쪽 패널 · 지도에서 동을 눌러 자세히 보기
+              <p className="ui-caption text-center">
+                지도에서 동을 누르면 자세한 내용이 열립니다
               </p>
             </div>
           ) : activeTab === "help" ? (
@@ -4809,9 +4792,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </button>
           ))}
         </div>
-        <header className="border-b border-slate-200/80 px-4 pb-3.5 pt-4">
-          <p className="section-label !mb-1 text-blue-600">결과</p>
-          <h2 className="ui-display text-slate-950">{analysis.title}</h2>
+        <header className="result-header">
+          <p className="section-label !mb-1">결과</p>
+          <h2 className="ui-display">{analysis.title}</h2>
           {drillTrail.length > 0 ? (
             <div className="mt-2 flex flex-wrap items-center gap-1.5 ui-chip" data-testid="drill-trail">
               <button
@@ -4828,10 +4811,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ))}
             </div>
           ) : null}
-          <p className="ui-body mt-1.5 text-slate-600">{analysis.summary}</p>
+          <p className="ui-body mt-1.5 ui-soft">{analysis.summary}</p>
           {!answeredLastQuery ? (
             <p
-              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 ui-body text-amber-900"
+              className="stale-notice ui-body"
               data-testid="stale-answer-notice"
             >
               방금 질문에는 답하지 못했습니다. 아래는 직전 분석 결과입니다.
@@ -4843,7 +4826,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <span className="result-conclusion-label !mb-0">한 줄 결론</span>
                 <button
                   type="button"
-                  className="ui-caption font-bold text-blue-700 hover:underline"
+                  className="ui-caption font-bold"
                   data-testid="copy-conclusion"
                   onClick={() => void copyOneLineConclusion()}
                 >

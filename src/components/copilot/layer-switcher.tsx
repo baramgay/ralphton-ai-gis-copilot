@@ -160,7 +160,7 @@ export function LayerSwitcher({
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="레이어·지표 이름"
+        placeholder="자료 이름 또는 지표"
         aria-label="레이어 검색"
         className="layer-search"
         data-testid="layer-search"
@@ -185,13 +185,13 @@ export function LayerSwitcher({
                 <div key={group.source}>
                   {query.trim() ? null : (
                     <>
-                      <p className="ui-chip font-bold text-slate-700">{group.source} 데이터</p>
-                      <p className="ui-caption mb-1.5 text-slate-500">{group.note}</p>
+                      <p className="layer-group-kicker">{group.source} 데이터</p>
+                      <p className="ui-caption mb-1.5">{group.note}</p>
                     </>
                   )}
                   {group.providers.map((byProvider) => (
                     <div key={byProvider.provider} className="mt-1.5">
-                      <p className="ui-caption mb-1 font-bold text-slate-500">{byProvider.provider}</p>
+                      <p className="ui-caption mb-1 font-bold">{byProvider.provider}</p>
                       <div className="layer-switcher">
                         {byProvider.layers.map((layer) => (
                           <LayerButton

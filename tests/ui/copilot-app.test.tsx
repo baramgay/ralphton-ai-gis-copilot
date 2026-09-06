@@ -838,6 +838,8 @@ describe("CopilotApp", () => {
   test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(screen.getByText("더 많은 분석"));
 
     /*
      * 레이어: 큰 갈래는 민간·공공 둘이고 제공기관은 그 아래다. 제공기관을 최상위에 놓으면
@@ -967,7 +969,9 @@ describe("CopilotApp", () => {
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
-    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
+    openControls();
+    fireEvent.click(screen.getByText("더 많은 분석"));
+    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeVisible());
 
     fireEvent.click(await screen.findByTestId("cross-living-vs-sales"));
 
@@ -978,7 +982,9 @@ describe("CopilotApp", () => {
   test("selecting the 의료 layer clears a cross-analysis result instead of leaving it on screen", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
-    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeInTheDocument());
+    openControls();
+    fireEvent.click(screen.getByText("더 많은 분석"));
+    await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeVisible());
 
     fireEvent.click(screen.getByTestId("cross-living-vs-sales"));
     await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
