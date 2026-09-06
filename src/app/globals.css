@@ -176,10 +176,6 @@ html[data-theme="dark"] {
  * 어두운 바탕에서는 얇은 회색 테두리가 사라져 패널 경계가 뭉개진다. 위쪽에 아주 옅은
  * 빛줄기를 하나 넣어 면이 서로 겹쳐 있다는 것만 알린다(그라디언트 장식이 아니라 경계선).
  */
-html[data-theme="dark"] .copilot-topbar {
-  box-shadow: inset 0 -1px 0 var(--border-1), 0 1px 0 rgb(255 255 255 / 4%);
-}
-
 /* 강조는 자료에만. 선택된 것·활성 탭만 청록으로 물든다. */
 html[data-theme="dark"] .ui-status-live {
   color: #67e8f9;
@@ -329,12 +325,6 @@ html[data-theme="dark"] .empty-state {
 
 html[data-theme="dark"] .score-bar {
   background: var(--score-track);
-}
-
-html[data-theme="dark"] .ui-toast {
-  background: rgb(226 232 240 / 96%);
-  color: #0f172a;
-  border-color: rgb(255 255 255 / 50%);
 }
 
 html[data-theme="dark"] .ui-details {
@@ -653,12 +643,6 @@ html[data-theme="dark"] .copilot-map .rounded-2xl.border {
   color: #e2e8f0;
 }
 
-html[data-theme="dark"] .onboard-card {
-  border-color: rgb(71 85 105 / 60%);
-  background: rgb(15 23 42 / 96%);
-  box-shadow: 0 18px 48px rgb(0 0 0 / 50%);
-}
-
 /* Demo map canvas tint */
 html[data-theme="dark"] [data-testid="demo-map"] {
   background: #1a2332 !important;
@@ -957,9 +941,24 @@ input:hover {
   align-items: center;
   gap: 0.625rem;
   grid-column: 1 / -1;
-  border-bottom: 1px solid rgb(203 213 225 / 70%);
-  background: var(--surface-1, rgb(248 250 252 / 98%));
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-bg);
   padding: 0 0.875rem;
+  color: var(--glass-text);
+  box-shadow: var(--glass-edge);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+}
+
+.copilot-topbar h1 {
+  color: var(--text-1);
+  letter-spacing: var(--ls-title);
+}
+
+.copilot-topbar-meta {
+  color: var(--text-2);
+  font-weight: 600;
+  letter-spacing: var(--ls-caption);
 }
 
 .copilot-topbar-link {
@@ -972,12 +971,17 @@ input:hover {
   /* 색을 못박아 두면 테마를 따라가지 못한다 — 다크에서 2.41:1 이었다(실측). */
   color: var(--text-2);
   white-space: nowrap;
-  transition: border-color 140ms ease, color 140ms ease;
+  transition: border-color 140ms ease, color 140ms ease,
+    transform var(--dur-press) ease-out;
 }
 
 .copilot-topbar-link:hover {
   border-color: var(--accent-line);
   color: var(--text-1);
+}
+
+.copilot-topbar-link:active {
+  transform: scale(0.97);
 }
 
 .copilot-topbar-link {
@@ -1109,8 +1113,9 @@ input:hover {
   font-weight: 800;
   line-height: 1;
   color: var(--glass-text);
-  box-shadow: 0 8px 20px rgb(15 23 42 / 14%);
-  backdrop-filter: blur(10px);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
   transform: translateY(-50%);
   transition:
     background-color 140ms ease,
@@ -1122,11 +1127,14 @@ input:hover {
 .panel-edge-toggle:hover {
   border-color: var(--accent-line);
   color: var(--accent);
-  box-shadow: 0 10px 24px rgb(37 99 235 / 18%);
+}
+
+.panel-edge-toggle:active {
+  transform: translateY(-50%) scale(0.97);
 }
 
 .panel-edge-toggle:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -1148,16 +1156,17 @@ input:hover {
   left: 50%;
   max-width: min(92vw, 28rem);
   transform: translateX(-50%);
-  border: 1px solid rgb(255 255 255 / 80%);
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
-  background: rgb(15 23 42 / 82%);
+  background: var(--glass-bg-strong);
   padding: 0.5rem 1rem;
   font-size: var(--fs-chip);
   font-weight: 600;
   line-height: var(--lh-tight);
-  color: #f8fafc;
-  box-shadow: 0 10px 28px rgb(15 23 42 / 22%);
-  backdrop-filter: blur(10px);
+  color: var(--glass-text);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
 }
 
 /*
@@ -1172,13 +1181,46 @@ input:hover {
   top: 10.5rem;
   width: min(92vw, 22rem);
   transform: translateX(-50%);
-  border: 1px solid rgb(148 163 184 / 35%);
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--accent);
   border-radius: 1.15rem;
-  background: rgb(15 23 42 / 94%);
+  background: var(--glass-bg-strong);
+  color: var(--text-2);
   padding: 1rem 1.1rem 1.05rem;
-  box-shadow: 0 18px 48px rgb(15 23 42 / 35%);
-  backdrop-filter: blur(14px);
-  animation: toast-in 200ms ease;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  animation: glass-materialize var(--dur-materialize) var(--ease-out-expo);
+}
+
+.onboard-card h2 {
+  color: var(--text-1);
+}
+
+.onboard-card .ui-caption {
+  color: var(--text-2);
+}
+
+.onboard-btn-primary {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--background);
+}
+
+.onboard-btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.onboard-btn-ghost {
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-1);
+}
+
+.onboard-btn-ghost:hover {
+  border-color: var(--accent-line);
 }
 
 @media (max-width: 767px) {
@@ -1206,17 +1248,18 @@ input:hover {
   bottom: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
-  border: 1px solid rgb(255 255 255 / 70%);
+  border: 1px solid var(--glass-border);
   border-radius: 999px;
-  background: rgb(15 23 42 / 90%);
+  background: var(--glass-bg-strong);
   padding: 0.6rem 1.1rem;
   font-size: var(--fs-body);
   font-weight: 700;
   line-height: var(--lh-tight);
-  color: #f8fafc;
-  box-shadow: 0 12px 32px rgb(15 23 42 / 28%);
-  backdrop-filter: blur(12px);
-  animation: toast-in 180ms ease;
+  color: var(--glass-text);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  animation: glass-materialize var(--dur-materialize) var(--ease-out-expo);
 }
 
 @keyframes toast-in {
@@ -1290,19 +1333,21 @@ input:hover {
   min-width: var(--touch-min);
   min-height: var(--touch-min);
   border-radius: 0.75rem;
-  background: #1d4ed8;
+  background: var(--accent);
   font-size: var(--fs-body);
   font-weight: 700;
-  color: #fff;
-  transition: background-color 140ms ease;
+  color: var(--background);
+  transition: background-color 140ms ease, filter var(--dur-press) ease-out;
 }
 
 .query-hero-submit:hover:not(:disabled) {
-  background: #1e40af;
+  filter: brightness(1.08);
 }
 
 .query-hero-submit:disabled {
-  background: #cbd5e1;
+  background: var(--surface-3);
+  color: var(--text-3);
+  filter: none;
 }
 
 .query-hero-status,
@@ -1314,8 +1359,9 @@ input:hover {
   padding: 0.6rem 0.85rem;
   font-size: var(--fs-body);
   line-height: var(--lh-body);
-  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
-  backdrop-filter: blur(12px);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
 }
 
 .query-hero-status {
@@ -1396,10 +1442,15 @@ input:hover {
   color: var(--text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow: var(--glass-edge), 0 6px 18px rgb(15 23 42 / 10%);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur-sm);
   backdrop-filter: var(--glass-blur-sm);
-  transition: color var(--dur-ui) ease, border-color var(--dur-ui) ease;
+  transition: color var(--dur-ui) ease, border-color var(--dur-ui) ease,
+    transform var(--dur-press) ease-out;
+}
+
+.query-hero-chip:active {
+  transform: scale(0.97);
 }
 
 .query-hero-chip:hover {
@@ -1511,6 +1562,27 @@ input:hover {
 .map-chip-topleft {
   left: 1rem;
   top: 1rem;
+}
+
+.map-chip-fallback {
+  left: 1rem;
+  top: 3.5rem;
+}
+
+.map-status {
+  max-width: min(24rem, calc(100% - 2rem));
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  background: var(--glass-bg-strong);
+  color: var(--glass-text);
+  padding: 0.75rem 1rem;
+  font-size: var(--fs-chip);
+  font-weight: 600;
+  line-height: var(--lh-body);
+  text-align: center;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
 }
 
 .map-legend {
@@ -1629,14 +1701,29 @@ input:hover {
  * 켠 채 팬하면 32fps(p95 49.9ms)까지 떨어지고, 흐림을 끄면 59fps 를 지킨다.
  * 어차피 움직이는 배경 위의 흐림은 읽히지도 않는다.
  */
+.copilot-shell.is-map-moving .copilot-topbar,
 .copilot-shell.is-map-moving .map-float-bar,
+.copilot-shell.is-map-moving .map-chip,
+.copilot-shell.is-map-moving .map-legend,
 .copilot-shell.is-map-moving .map-context-badge,
+.copilot-shell.is-map-moving .map-status,
+.copilot-shell.is-map-moving .panel-edge-toggle,
+.copilot-shell.is-map-moving .mobile-panel-btn,
 .copilot-shell.is-map-moving .query-hero-input,
 .copilot-shell.is-map-moving .query-hero-chip,
-.copilot-shell.is-map-moving .probe-card {
+.copilot-shell.is-map-moving .probe-card,
+.copilot-shell.is-map-moving .onboard-card,
+.copilot-shell.is-map-moving .ui-toast,
+.copilot-shell.is-map-moving .ux-hint {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   background: var(--glass-bg-strong);
+}
+
+.copilot-shell.is-map-moving .query-hero-status,
+.copilot-shell.is-map-moving .query-hero-notice {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* 유리는 도착해야 한다 — 페이드만으로는 재질이 생기지 않는다. */
@@ -1652,7 +1739,10 @@ input:hover {
 }
 
 .probe-card,
-.map-context-badge {
+.map-context-badge,
+.map-chip,
+.onboard-card,
+.ui-toast {
   animation: glass-materialize var(--dur-materialize) var(--ease-out-expo);
 }
 
@@ -1661,11 +1751,20 @@ input:hover {
  * 고대비 테마와 달리 이쪽은 색을 그대로 두고 재질만 불투명으로 바꾼다.
  */
 @media (prefers-reduced-transparency: reduce) {
+  .copilot-topbar,
   .map-float-bar,
+  .map-chip,
+  .map-legend,
   .map-context-badge,
+  .map-status,
+  .panel-edge-toggle,
+  .mobile-panel-btn,
   .query-hero-input,
   .query-hero-chip,
-  .probe-card {
+  .probe-card,
+  .onboard-card,
+  .ui-toast,
+  .ux-hint {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: var(--surface-1);
@@ -2204,19 +2303,19 @@ input:hover {
   flex: 1;
   min-height: var(--touch-min);
   white-space: nowrap;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-2);
   border-radius: 999px;
-  background: var(--surface-1);
+  background: transparent;
   padding: 0.35rem 0.5rem;
   font-size: var(--fs-chip);
   font-weight: 700;
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 .sheet-snap-btn.is-active {
-  border-color: #0f172a;
-  background: #0f172a;
-  color: #fff;
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--text-1);
 }
 
 /*
@@ -2233,14 +2332,21 @@ input:hover {
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--glass-text);
-  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
-  backdrop-filter: blur(12px);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+  transition: color var(--dur-ui) ease, background-color var(--dur-ui) ease,
+    border-color var(--dur-ui) ease, transform var(--dur-press) ease-out;
+}
+
+.mobile-panel-btn:active {
+  transform: scale(0.97);
 }
 
 .mobile-panel-btn[aria-pressed="true"] {
-  border-color: #1d4ed8;
-  background: #1d4ed8;
-  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--background);
 }
 
 .skip-link {
@@ -2305,10 +2411,13 @@ input:hover {
     border-radius: 1.1rem 1.1rem 0 0;
     border-left: none !important;
     border-right: none !important;
-    border-top: 1px solid rgb(203 213 225 / 80%);
+    border-top: 1px solid var(--glass-border);
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
     transform: translateY(108%);
-    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 -12px 40px rgb(15 23 42 / 22%);
+    transition: transform var(--dur-sheet) var(--ease-out-expo);
+    box-shadow: var(--glass-edge), var(--glass-shadow);
     pointer-events: auto;
   }
 
@@ -2319,9 +2428,14 @@ input:hover {
    */
   .copilot-panel.is-collapsed {
     opacity: 1;
-    border-top: 1px solid rgb(203 213 225 / 80%);
-    box-shadow: 0 -12px 40px rgb(15 23 42 / 22%);
+    border-top: 1px solid var(--glass-border);
+    box-shadow: var(--glass-edge), var(--glass-shadow);
     pointer-events: auto;
+  }
+
+  .copilot-shell.is-map-moving .copilot-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .copilot-panel-left.sheet-open,
@@ -2341,7 +2455,7 @@ input:hover {
     width: 2.5rem;
     height: 0.28rem;
     border-radius: 999px;
-    background: #cbd5e1;
+    background: var(--text-4);
   }
 
   .sheet-snap-bar {

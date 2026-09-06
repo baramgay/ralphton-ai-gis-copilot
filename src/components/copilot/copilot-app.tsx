@@ -4720,33 +4720,33 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             aria-labelledby="onboard-title"
             data-testid="onboard-card"
           >
-            <p className="ui-caption font-bold text-blue-300">30초 시작</p>
-            <h2 id="onboard-title" className="ui-title mt-1 text-white">
+            <p className="ui-caption font-bold">30초 시작</p>
+            <h2 id="onboard-title" className="ui-title mt-1">
               이렇게 써 보세요
             </h2>
-            <ol className="mt-3 space-y-2 ui-body text-slate-200">
+            <ol className="mt-3 space-y-2 ui-body">
               {/* 질의창이 지도 위 맨 위로 올라갔다. 어디를 보라는 말인지 맞춰 둔다. */}
               <li>
-                <span className="font-bold text-white">1.</span> 맨 위 질문창에 「생활인구 많은 동네」처럼 적습니다
+                <span className="font-bold">1.</span> 맨 위 질문창에 「생활인구 많은 동네」처럼 적습니다
               </li>
               <li>
-                <span className="font-bold text-white">2.</span> SKT·NH·KCB 민간데이터가 지도에 칠해집니다
+                <span className="font-bold">2.</span> SKT·NH·KCB 민간데이터가 지도에 칠해집니다
               </li>
               <li>
-                <span className="font-bold text-white">3.</span> 결과 패널에서 순위·해석을 보고 보고서로 내보냅니다
+                <span className="font-bold">3.</span> 결과 패널에서 순위·해석을 보고 보고서로 내보냅니다
               </li>
             </ol>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                className="rounded-full bg-blue-500 px-3.5 py-2 ui-chip font-bold text-white hover:bg-blue-400"
+                className="onboard-btn-primary px-3.5 py-2 ui-chip font-bold"
                 onClick={runOnboardExample}
               >
                 생활인구 보기
               </button>
               <button
                 type="button"
-                className="rounded-full border border-white/30 bg-white/10 px-3.5 py-2 ui-chip font-bold text-slate-100 hover:bg-white/15"
+                className="onboard-btn-ghost px-3.5 py-2 ui-chip font-bold"
                 onClick={dismissOnboard}
               >
                 바로 시작

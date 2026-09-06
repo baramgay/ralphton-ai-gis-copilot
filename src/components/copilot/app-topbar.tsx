@@ -34,19 +34,19 @@ export function AppTopbar({
         alt=""
         width={28}
         height={28}
-        className="size-7 shrink-0 rounded-lg shadow-sm ring-1 ring-slate-200/80"
+        className="size-7 shrink-0 rounded-lg"
       />
       <div className="min-w-0">
-        <h1 className="ui-body-lg truncate font-black text-slate-950">누리맵</h1>
+        <h1 className="ui-body-lg truncate font-black">누리맵</h1>
       </div>
       {snapshot ? (
-        <p className="copilot-topbar-meta ui-caption truncate text-slate-500">
+        <p className="copilot-topbar-meta ui-caption truncate">
           {dataModeLabel(snapshot.mode, snapshot.sourceNotes)} · {snapshot.referenceMonth} ·{" "}
           {snapshot.regions.length.toLocaleString("ko-KR")}개 행정동
         </p>
       ) : (
         <p
-          className="copilot-topbar-meta ui-caption truncate text-slate-500"
+          className="copilot-topbar-meta ui-caption truncate"
           data-testid="topbar-loading-meta"
         >
           경남 공간 데이터를 준비하는 중…

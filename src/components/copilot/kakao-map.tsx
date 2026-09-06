@@ -656,10 +656,8 @@ export function KakaoMap({
         {viewLabel ?? legendLabel}
       </div>
       {status ? (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-slate-100/50">
-          <p className="max-w-sm rounded-2xl bg-white px-4 py-3 text-center text-xs font-semibold leading-5 text-slate-600 shadow">
-            {status}
-          </p>
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">
+          <p className="map-status">{status}</p>
         </div>
       ) : null}
       <div className="map-legend">

@@ -120,7 +120,7 @@ export function MapCanvas(props: MapCanvasProps) {
           </button>
         </div>
       ) : (
-        <div className="absolute left-4 top-14 z-20 rounded-2xl border border-slate-200 bg-white/95 px-3 py-2 text-[10px] font-semibold text-slate-600 shadow">
+        <div className="map-chip map-chip-fallback">
           지도 서비스가 연결되지 않아 임시 지도로 표시합니다
         </div>
       )}
