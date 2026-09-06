@@ -51,6 +51,12 @@ const measure = async (page) =>
     const visible = (el) => {
       if (el.closest('[aria-hidden="true"]')) return false;
       if (el.classList.contains("skip-link")) return false;
+      /*
+       * 카카오가 지도 안에 심는 저작권 링크는 우리 크롬이 아니다.
+       * 44로 키우면 법적 표기를 일그러뜨리고, 안 키우면 이 검사가 제품 표적으로 센다.
+       */
+      const href = el.getAttribute("href") || "";
+      if (/map\.kakao\.com|kakao\.com\/|daumcdn\.net/.test(href)) return false;
       const st = getComputedStyle(el);
       if (st.display === "none" || st.visibility === "hidden" || st.pointerEvents === "none") {
         return false;

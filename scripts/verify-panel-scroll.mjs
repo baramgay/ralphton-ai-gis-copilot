@@ -140,7 +140,16 @@ for (const [label, sel] of [
     console.log(`  --  ${label}: 접혀 있어 건너뜀`);
     continue;
   }
-  await target.hover();
+  await target.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  const box = await target.boundingBox();
+  if (!box) continue;
+  /*
+   * 상자 한가운데는 레이어 목록의 안쪽 스크롤(`.layer-switcher-scroll`)이다.
+   * 거기에 휠을 주면 패널은 안 움직인다. 맨 위 요약 줄을 가리킨다.
+   */
+  await page.mouse.move(box.x + Math.min(48, box.width / 2), box.y + 16);
   await page.mouse.wheel(0, 500);
   await page.waitForTimeout(300);
   const moved = await target.evaluate((el) => el.scrollTop);
