@@ -171,4 +171,23 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("result-panel")).toBeVisible();
     await expect(page.getByTestId("interpretation-card")).toBeVisible({ timeout: 30_000 });
   });
+
+  test("지표를 바꾸면 지도 위 한 줄이 따라 바뀐다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
+    await openSheet(page, "조작");
+
+    const chip = page.locator(".map-chip-topleft");
+    await expect(chip).toContainText("의료기관");
+
+    await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^인구/ }).click();
+    await page.getByTestId("metric-picker").getByRole("button", { name: /총인구/ }).click();
+    await expect(chip).toContainText("인구");
+    await expect(chip).toContainText("총인구");
+
+    await page.getByTestId("picker-summary").click();
+    await page.getByTestId("metric-picker").getByRole("button", { name: /세대수/ }).click();
+    await expect(chip).toContainText("세대수");
+  });
 });

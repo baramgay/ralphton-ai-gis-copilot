@@ -28,6 +28,7 @@ type MapCanvasProps = {
   probeRadiusKm?: number;
   onProbePoint?: (point: { lat: number; lng: number }) => void;
   legendLabel?: string;
+  viewLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
   onSelectLivePlace?: (place: LiveMapPlace) => void;

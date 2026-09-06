@@ -928,6 +928,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [layoutPreset, setLayoutPreset] = useState<LayoutPresetId>("balanced");
   const [drillTrail, setDrillTrail] = useState<string[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<LayerId>("medical");
+  /* 세션 안에서만. 첫 방문자가 접힌 고르기를 보면 지표 자리가 안 보인다. */
+  const [pickerOpen, setPickerOpen] = useState(true);
   // 낮은 쪽을 물었으면 순위를 뒤집는다. 레이어를 바꿔도 방향이 남아 있으면 혼란스러우므로
   // 새 질의·레이어 선택 때마다 다시 정한다.
   const [layerDirection, setLayerDirection] = useState<"desc" | "asc">("desc");
@@ -3389,6 +3391,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         : METHOD_SUMMARY;
   const referenceMonthLabel =
     activeLayerId !== "medical" && activeCube ? activeCube.referenceMonth : snapshot.referenceMonth;
+  const activeLayerLabel =
+    LAYER_OPTIONS.find((layer) => layer.id === activeLayerId)?.label ?? activeLayerId;
+  const activeMetricLabel =
+    activeLayerId === "medical" ? "지점 목록" : (activeMetric?.label ?? "지표");
+  const activeUnitLabel = unitWordOf(activeLayerId, adminLevel);
+  const pickerSummary = `${activeLayerLabel} · ${activeMetricLabel} · ${activeUnitLabel}`;
+  const mapViewLabel = `${pickerSummary} · ${referenceMonthLabel}`;
 
   const latestIndex = snapshot.months.length - 1;
   const currentPopulation = selectedRegion?.population[latestIndex] ?? 0;
@@ -3479,7 +3488,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         </div>
         {/* 제품 헤더는 상단 바(copilot-topbar)로 올렸다. 여기서는 탭부터 시작한다. */}
         <nav className="px-3 pt-3" aria-label="왼쪽 패널 탭">
-          <div className="grid grid-cols-3 rounded-xl bg-slate-100 p-1" role="tablist">
+          <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1" role="tablist">
             {(
               [
                 ["control", "분석"],
@@ -3506,7 +3515,23 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         <div className="copilot-scroll px-3 pb-6 pt-3">
           {activeTab === "control" ? (
             <div className="space-y-5">
-              <section>
+              <section className="picker-block" data-testid="analysis-picker">
+                <button
+                  type="button"
+                  className="picker-summary"
+                  aria-expanded={pickerOpen}
+                  data-testid="picker-summary"
+                  onClick={() => setPickerOpen((open) => !open)}
+                >
+                  <span className="picker-summary-label">{pickerSummary}</span>
+                  <span className="picker-summary-hint">{pickerOpen ? "접기" : "고르기"}</span>
+                </button>
+                {pickerOpen ? (
+                  <>
+                    <p className="picker-intro" data-testid="analysis-intro">
+                      {LAYER_OPTIONS.length}개 자료를 지도에 겹쳐 보고, 질문으로 순위를 냅니다
+                    </p>
+              <div>
                 <h2 className="section-label">레이어 직접 고르기</h2>
                 <p className="ui-caption mb-2 -mt-1">
                   질문으로 안 될 때 손으로 고릅니다 · {LAYER_OPTIONS.length}개
@@ -3530,25 +3555,37 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     setCustomAnalysis(null);
                   }}
                   activeSlot={
-                    activeLayerId === "medical" ? null : (
                       <div className="metric-picker" data-testid="metric-picker">
-                        <p className="ui-caption metric-picker-head">지표 · {activeLayerMetrics.length}개</p>
-                        <div role="group" aria-label="지표 선택" className="metric-chips">
-                          {activeLayerMetrics.map((metric) => (
-                            <button
-                              key={metric.key}
-                              type="button"
-                              className="metric-chip"
-                              aria-pressed={metric.key === activeMetricKey}
-                              onClick={() => selectMetric(metric)}
-                            >
-                              {metric.label}
-                              {metric.unit ? (
-                                <span className="metric-chip-unit">{metric.unit}</span>
-                              ) : null}
-                            </button>
-                          ))}
-                        </div>
+                        {activeLayerId === "medical" ? (
+                          <p className="ui-caption metric-picker-note">
+                            이 레이어는 지점 목록이라 고를 지표가 없습니다
+                          </p>
+                        ) : (
+                          <>
+                            <p className="ui-caption metric-picker-head">
+                              지표 · {activeLayerMetrics.length}개
+                            </p>
+                            <div role="group" aria-label="지표 선택" className="metric-chips">
+                              {activeLayerMetrics.map((metric) => (
+                                <button
+                                  key={metric.key}
+                                  type="button"
+                                  className="metric-chip"
+                                  aria-pressed={metric.key === activeMetricKey}
+                                  onClick={() => {
+                                    selectMetric(metric);
+                                    setPickerOpen(false);
+                                  }}
+                                >
+                                  {metric.label}
+                                  {metric.unit ? (
+                                    <span className="metric-chip-unit">{metric.unit}</span>
+                                  ) : null}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <AdminLevelToggle
                             value={adminLevel}
@@ -3565,13 +3602,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           ) : null}
                         </div>
                       </div>
-                    )
                   }
                 />
                 {activeLayerError ? (
                   <p className="mt-2 ui-caption text-rose-600">{activeLayerError}</p>
                 ) : null}
-              </section>
+              </div>
 
               {/*
                 질의창은 이 패널에 없다. 지도 위 히어로(QueryHero)로 올렸다 — 주기능이
@@ -3676,6 +3712,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     );
                   })}
                 </div>
+              </section>
+                  </>
+                ) : null}
               </section>
 
               {activeLayerId === "medical" && (activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
@@ -4546,6 +4585,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           probeRadiusKm={probeRadiusKm}
           onProbePoint={setProbePoint}
           legendLabel={analysis.legendLabel}
+          viewLabel={mapViewLabel}
           onSelectRegion={selectRegion}
           onSelectFacility={selectFacility}
           onSelectLivePlace={selectLivePlace}

@@ -23,6 +23,7 @@ type DemoMapProps = {
   radiusKm: 1 | 2 | 3;
   showFacilities: boolean;
   legendLabel?: string;
+  viewLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
 };
@@ -50,6 +51,7 @@ export function DemoMap({
   radiusKm,
   showFacilities,
   legendLabel = "상대 분석값",
+  viewLabel,
   onSelectRegion,
   onSelectFacility,
 }: DemoMapProps) {
@@ -235,8 +237,8 @@ export function DemoMap({
         </g>
       </svg>
 
-      <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/70 bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-xl" data-testid="demo-map-badge">
-        임시 지도
+      <div className="map-chip map-chip-topleft" data-testid="demo-map-badge">
+        {viewLabel ?? "임시 지도"}
       </div>
 
       {hoveredFeature ? (

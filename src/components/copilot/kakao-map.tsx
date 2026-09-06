@@ -62,6 +62,8 @@ type KakaoMapProps = {
   probeRadiusKm?: number;
   onProbePoint?: (point: { lat: number; lng: number }) => void;
   legendLabel?: string;
+  /** 지금 보고 있는 레이어 · 지표 · 단위 · 기준월. */
+  viewLabel?: string;
   onSelectRegion: (code: string) => void;
   onSelectFacility?: (facility: Facility) => void;
   onSelectLivePlace?: (place: LiveMapPlace) => void;
@@ -151,6 +153,7 @@ export function KakaoMap({
   probeRadiusKm = 2,
   onProbePoint,
   legendLabel = "상대 분석값",
+  viewLabel,
   onSelectRegion,
   onSelectFacility,
   onSelectLivePlace,
@@ -649,9 +652,8 @@ export function KakaoMap({
         이었는데, 고대비 테마는 글자만 흰색으로 뒤집고 `bg-white/90` 은 열거에 없어 그대로
         흰색이었다 — 흰 바탕에 흰 글자, 1.02:1(실측). 토큰은 테마를 따라간다.
       */}
-      <div className="map-chip map-chip-topleft">
-        Kakao Maps
-        {context?.clustererReady ? " · 클러스터" : ""}
+      <div className="map-chip map-chip-topleft" data-testid="map-view-chip">
+        {viewLabel ?? legendLabel}
       </div>
       {status ? (
         <div className="pointer-events-none absolute inset-0 grid place-items-center bg-slate-100/50">

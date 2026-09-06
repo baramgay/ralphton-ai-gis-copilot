@@ -564,8 +564,9 @@ describe("CopilotApp", () => {
     expect(await screen.findByTestId("compare-picker")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
     expect(screen.getByLabelText("비교 지역 B")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "행정동" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "행정동" }));
+    const compare = screen.getByTestId("compare-picker");
+    expect(within(compare).getByRole("button", { name: "행정동" })).toBeInTheDocument();
+    fireEvent.click(within(compare).getByRole("button", { name: "행정동" }));
     expect(screen.getByLabelText("비교 지역 A")).toBeInTheDocument();
   });
 
@@ -1243,6 +1244,76 @@ describe("CopilotApp", () => {
     });
     expect(document.body.textContent).toMatch(/카드소비 · 카드매출 레이어로 전환했습니다/);
   }, 20_000);
+
+  test("첫 화면에서 지표 자리와 할 수 있는 일을 스크롤 없이 말한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+
+    expect(screen.getByTestId("analysis-intro")).toHaveTextContent(
+      /자료를 지도에 겹쳐 보고, 질문으로 순위를 냅니다/,
+    );
+    expect(screen.getByTestId("metric-picker")).toHaveTextContent(
+      /이 레이어는 지점 목록이라 고를 지표가 없습니다/,
+    );
+    expect(screen.getByRole("group", { name: "분석 단위" })).toBeInTheDocument();
+  });
+
+  test("고르기 영역은 접히면 한 줄 요약이고 누르면 다시 펼쳐진다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+
+    const summary = screen.getByTestId("picker-summary");
+    expect(summary).toHaveTextContent(/의료기관/);
+    expect(summary).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("레이어 검색")).toBeInTheDocument();
+
+    fireEvent.click(summary);
+    expect(summary).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("레이어 검색")).not.toBeInTheDocument();
+    expect(summary).toHaveTextContent(/의료기관 · 지점 목록 · 행정동/);
+
+    fireEvent.click(summary);
+    expect(summary).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("레이어 검색")).toBeInTheDocument();
+  });
+
+  test("지표를 고르면 고르기가 접히고 지도 위 한 줄이 따라 바뀐다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+
+    const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
+    fireEvent.click(within(layerGroup).getByRole("button", { name: /^인구/ }));
+    fireEvent.click(within(screen.getByTestId("metric-picker")).getByRole("button", { name: /총인구/ }));
+
+    expect(screen.getByTestId("picker-summary")).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("picker-summary")).toHaveTextContent(/인구 · 총인구 · 행정동/);
+    expect(screen.getByTestId("demo-map-badge")).toHaveTextContent(/인구 · 총인구 · 행정동 · 2026-06/);
+  });
+
+  test("「유출」검색 후 이동인구를 고르면 유입·유출·순유입 칩이 보인다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+
+    fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "유출" } });
+    fireEvent.click(screen.getByRole("button", { name: /이동인구/ }));
+    const chips = screen.getByTestId("metric-picker");
+    expect(within(chips).getByRole("button", { name: /유입인구/ })).toBeInTheDocument();
+    expect(within(chips).getByRole("button", { name: /유출인구/ })).toBeInTheDocument();
+    expect(within(chips).getByRole("button", { name: /순유입/ })).toBeInTheDocument();
+  });
+
+  test("「재정」검색이면 KOSIS 재정 레이어가 손에 닿는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+
+    fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "재정" } });
+    expect(screen.getByRole("button", { name: /지방재정/ })).toBeInTheDocument();
+  });
 
   test("AI가 지목한 지표를 리졸버가 못 잡으면 평소 안내로 내려간다", async () => {
     // 지목만 믿고 화면을 바꾸면, 리졸버가 다른 지표를 골랐을 때 안내와 결과가 어긋난다.

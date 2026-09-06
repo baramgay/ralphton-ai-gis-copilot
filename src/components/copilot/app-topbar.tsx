@@ -61,7 +61,7 @@ export function AppTopbar({
         일어나지 않는 버튼은 고장으로 읽힌다.
       */}
       {onOpenTab ? (
-        <nav className="ml-auto flex items-center gap-1" aria-label="도움말·데이터">
+        <nav className="ml-auto flex items-center gap-2" aria-label="도움말·데이터">
           {(
             [
               ["help", "활용가이드"],
