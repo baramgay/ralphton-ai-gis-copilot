@@ -1764,6 +1764,68 @@ input:hover {
   color: var(--text-3);
 }
 
+/*
+ * 지표 고르기. 콤보박스가 아니라 칩 줄이다 — 상자를 열기 전에는 안에 무엇이 있는지
+ * 알 수 없고, 실제로 「이동인구에 유입인구만 있다」로 읽혔다. 칩이면 유입·유출·순유입이
+ * 한눈에 보인다. 색은 전부 토큰이라 테마 열거에서 빠질 자리가 없다.
+ */
+.metric-picker {
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 0.5rem 0.55rem 0.55rem;
+}
+
+.metric-picker-head {
+  margin-bottom: 0.35rem;
+  color: var(--text-3);
+}
+
+.metric-picker-note {
+  color: var(--text-3);
+}
+
+.metric-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.metric-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  background: var(--surface-3);
+  padding: 0.32rem 0.6rem;
+  font-size: var(--fs-body);
+  font-weight: 700;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.metric-chip:hover {
+  border-color: var(--accent-line);
+}
+
+.metric-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-1);
+}
+
+.metric-chip-unit {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.metric-chip[aria-pressed="true"] .metric-chip-unit {
+  color: var(--text-2);
+}
+
 .admin-level-toggle {
   display: inline-flex;
   border: 1px solid #e2e8f0;

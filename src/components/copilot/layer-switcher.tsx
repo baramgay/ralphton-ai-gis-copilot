@@ -1,9 +1,20 @@
+import type { ReactNode } from "react";
+
 export type LayerOption = { id: string; label: string; provider: string };
 
 type LayerSwitcherProps = {
   layers: LayerOption[];
   activeId: string;
   onChange: (id: string) => void;
+  /**
+   * 고른 레이어의 버튼 줄 **바로 아래**에 끼워 넣을 것 — 지표 고르기가 여기로 온다.
+   *
+   * 전에는 목록 전체가 끝난 뒤에 지표 콤보박스가 하나 있었다. 레이어가 스물둘이라
+   * 위쪽 SKT 레이어를 고르면 그 콤보박스는 화면 밖이었고, 「이동인구에는 유입인구밖에
+   * 없다」로 읽혔다 — 유출인구도 순유입도 그 상자 안에 있었는데 상자가 안 보였다.
+   * 고른 자리에 붙여 두면 무엇을 더 고를 수 있는지가 고르는 순간 보인다.
+   */
+  activeSlot?: ReactNode;
 };
 
 /**
@@ -62,7 +73,7 @@ export function groupBySource(layers: LayerOption[]): SourceGroup[] {
   ).filter((group) => group.providers.length > 0);
 }
 
-export function LayerSwitcher({ layers, activeId, onChange }: LayerSwitcherProps) {
+export function LayerSwitcher({ layers, activeId, onChange, activeSlot }: LayerSwitcherProps) {
   const groups = groupBySource(layers);
 
   return (
@@ -88,6 +99,9 @@ export function LayerSwitcher({ layers, activeId, onChange }: LayerSwitcherProps
                   </button>
                 ))}
               </div>
+              {activeSlot && byProvider.layers.some((layer) => layer.id === activeId) ? (
+                <div className="mt-2">{activeSlot}</div>
+              ) : null}
             </div>
           ))}
         </div>

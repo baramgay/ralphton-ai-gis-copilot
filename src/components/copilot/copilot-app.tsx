@@ -82,21 +82,9 @@ import {
   CUBE_LAYERS,
   NL_LAYERS,
   PRIVATE_LAYERS,
-  KCB_COMMUTE_LAYER,
-  KCB_CREDIT_LAYER,
-  KCB_MIGRATION_LAYER,
   CROSS_CANDIDATE_LAYERS,
   KCB_GRID_LAYER,
-  MEDICAL_LAYER,
-  NH_CONSUMPTION_LAYER,
-  NH_DEMOGRAPHICS_LAYER,
-  NH_HOURLY_LAYER,
-  NH_INDUSTRY_LAYER,
-  NH_STORETYPE_LAYER,
   POPULATION_LAYER,
-  SKT_DAYNIGHT_LAYER,
-  SKT_LIVING_LAYER,
-  SKT_MOBILITY_LAYER,
 } from "@/lib/layers/catalog";
 import { medicalCubeFromSnapshot, populationCubeFromSnapshot } from "@/lib/layers/from-snapshot";
 import { crossLayerView, type CrossLayerResult } from "@/lib/layers/cross-analysis";
@@ -229,22 +217,17 @@ type CopilotAppProps = {
   kakaoMapKey?: string;
 };
 
-const LAYER_OPTIONS: LayerOption[] = [
-  { id: POPULATION_LAYER.id, label: POPULATION_LAYER.label, provider: POPULATION_LAYER.provider },
-  { id: SKT_LIVING_LAYER.id, label: SKT_LIVING_LAYER.label, provider: SKT_LIVING_LAYER.provider },
-  { id: SKT_MOBILITY_LAYER.id, label: SKT_MOBILITY_LAYER.label, provider: SKT_MOBILITY_LAYER.provider },
-  { id: SKT_DAYNIGHT_LAYER.id, label: SKT_DAYNIGHT_LAYER.label, provider: SKT_DAYNIGHT_LAYER.provider },
-  { id: NH_CONSUMPTION_LAYER.id, label: NH_CONSUMPTION_LAYER.label, provider: NH_CONSUMPTION_LAYER.provider },
-  { id: NH_DEMOGRAPHICS_LAYER.id, label: NH_DEMOGRAPHICS_LAYER.label, provider: NH_DEMOGRAPHICS_LAYER.provider },
-  { id: NH_HOURLY_LAYER.id, label: NH_HOURLY_LAYER.label, provider: NH_HOURLY_LAYER.provider },
-  { id: NH_INDUSTRY_LAYER.id, label: NH_INDUSTRY_LAYER.label, provider: NH_INDUSTRY_LAYER.provider },
-  { id: NH_STORETYPE_LAYER.id, label: NH_STORETYPE_LAYER.label, provider: NH_STORETYPE_LAYER.provider },
-  { id: KCB_CREDIT_LAYER.id, label: KCB_CREDIT_LAYER.label, provider: KCB_CREDIT_LAYER.provider },
-  { id: KCB_MIGRATION_LAYER.id, label: KCB_MIGRATION_LAYER.label, provider: KCB_MIGRATION_LAYER.provider },
-  { id: KCB_COMMUTE_LAYER.id, label: KCB_COMMUTE_LAYER.label, provider: KCB_COMMUTE_LAYER.provider },
-  { id: KCB_GRID_LAYER.id, label: KCB_GRID_LAYER.label, provider: KCB_GRID_LAYER.provider },
-  { id: MEDICAL_LAYER.id, label: MEDICAL_LAYER.label, provider: MEDICAL_LAYER.provider },
-];
+/*
+ * 손으로 적던 목록이었다. KOSIS 여덟 레이어를 카탈로그에 붙이고 이 배열은 안 고쳐서,
+ * 「활용 데이터」는 22개라 적고 「직접 고르기」에는 14개만 나왔다 — 남은 여덟은 질문으로만
+ * 닿을 수 있었고, 그런 게 있는 줄도 알 수 없었다. 바로 아래 주석이 경고하던 그 어긋남이다.
+ * 그래서 정본에서 만든다.
+ */
+const LAYER_OPTIONS: LayerOption[] = CROSS_CANDIDATE_LAYERS.map((layer) => ({
+  id: layer.id,
+  label: layer.label,
+  provider: layer.provider,
+}));
 
 /**
  * 레이어별 지표 목록. 손으로 적으면 반드시 어긋난다 — 실제로 의료를 교차 후보에 더하고도
@@ -1461,6 +1444,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const activeLayerMetrics = activeLayerId === "medical" ? [] : CUBE_LAYER_METRICS[activeLayerId];
   const activeMetric =
     activeLayerMetrics.find((metric) => metric.key === activeMetricKey) ?? activeLayerMetrics[0] ?? null;
+
+  /*
+   * 손으로 고른 지표에도 자연어 질의와 같은 규칙을 적용한다.
+   *
+   * 시군구까지만 제공되는 지표(KOSIS e-지방지표 등)는 행정동 셀에 소속 시군구 값이 그대로
+   * 복제돼 있다. 행정동으로 두면 같은 값 서른 개를 놓고 「상위 3곳」이라 답하게 된다.
+   * 질의로 들어올 때는 이미 시군구로 돌려세우고 있었는데, 버튼으로 고를 때만 안 그랬다.
+   */
+  const selectMetric = useCallback((metric: MetricDef) => {
+    setActiveMetricKey(metric.key);
+    if (metric.scope === "sgg") {
+      adminLevelSourceRef.current = "user";
+      setAdminLevel("sgg");
+    }
+  }, []);
   // population is derived from the snapshot; every other cube layer is a remote JSON.
   const activeCube =
     activeLayerId === "population"
@@ -3524,41 +3522,52 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     setLayerDirection("desc");
                     setLayerRegionFilters([]);
                     if (nextId !== "medical") {
-                      setActiveMetricKey(CUBE_LAYER_METRICS[nextId][0].key);
+                      selectMetric(CUBE_LAYER_METRICS[nextId][0]);
                     }
                     // 교차분석은 activeLayerId를 medical로 둔 채 customAnalysis로 렌더한다.
                     // 이걸 비우지 않으면 의료 레이어를 눌러도(이미 medical이라 상태가 그대로여서)
                     // 교차 결과가 화면에 남아 레이어를 바꿔도 아무 반응이 없는 것처럼 보인다.
                     setCustomAnalysis(null);
                   }}
+                  activeSlot={
+                    activeLayerId === "medical" ? null : (
+                      <div className="metric-picker" data-testid="metric-picker">
+                        <p className="ui-caption metric-picker-head">지표 · {activeLayerMetrics.length}개</p>
+                        <div role="group" aria-label="지표 선택" className="metric-chips">
+                          {activeLayerMetrics.map((metric) => (
+                            <button
+                              key={metric.key}
+                              type="button"
+                              className="metric-chip"
+                              aria-pressed={metric.key === activeMetricKey}
+                              onClick={() => selectMetric(metric)}
+                            >
+                              {metric.label}
+                              {metric.unit ? (
+                                <span className="metric-chip-unit">{metric.unit}</span>
+                              ) : null}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <AdminLevelToggle
+                            value={adminLevel}
+                            onChange={(level) => {
+                              // 사용자가 직접 고른 단위는 다음 질의까지 이어진다.
+                              adminLevelSourceRef.current = "user";
+                              setAdminLevel(level);
+                            }}
+                          />
+                          {activeMetric?.scope === "sgg" ? (
+                            <span className="ui-caption metric-picker-note">
+                              원자료가 시군구까지만 제공되는 지표입니다
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    )
+                  }
                 />
-                {activeLayerId !== "medical" ? (
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <label htmlFor="layer-metric" className="sr-only">
-                      지표 선택
-                    </label>
-                    <select
-                      id="layer-metric"
-                      value={activeMetricKey}
-                      onChange={(event) => setActiveMetricKey(event.target.value)}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 ui-body font-semibold text-slate-700"
-                    >
-                      {activeLayerMetrics.map((metric) => (
-                        <option key={metric.key} value={metric.key}>
-                          {metric.label}
-                        </option>
-                      ))}
-                    </select>
-                    <AdminLevelToggle
-                      value={adminLevel}
-                      onChange={(level) => {
-                        // 사용자가 직접 고른 단위는 다음 질의까지 이어진다.
-                        adminLevelSourceRef.current = "user";
-                        setAdminLevel(level);
-                      }}
-                    />
-                  </div>
-                ) : null}
                 {activeLayerError ? (
                   <p className="mt-2 ui-caption text-rose-600">{activeLayerError}</p>
                 ) : null}

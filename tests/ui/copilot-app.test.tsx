@@ -985,7 +985,8 @@ describe("CopilotApp", () => {
     // 교차분석은 activeLayerId를 medical로 두므로, 의료 버튼을 눌러도 상태가 그대로라
     // 결과가 남을 수 있다. 레이어 선택은 언제나 새 분석을 시작해야 한다.
     const layerGroup = screen.getByRole("group", { name: "레이어 선택" });
-    fireEvent.click(within(layerGroup).getByRole("button", { name: /의료/ }));
+    // KOSIS 「보건의료」가 목록에 들어와 /의료/ 는 둘을 문다. 앞머리로 묶는다.
+    fireEvent.click(within(layerGroup).getByRole("button", { name: /^의료기관/ }));
 
     // 직전 동작을 알리는 상태 문구(role="status")는 남아도 되지만, 결과 패널은
     // 선택한 레이어의 분석으로 바뀌어야 한다.
