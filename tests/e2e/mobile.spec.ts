@@ -156,3 +156,29 @@ test.describe("mobile sheet", () => {
     expect(await isReachable(page, "조작")).toBe(true);
   });
 });
+
+test.describe("tablet sheet", () => {
+  // iPad Pro 11 세로. 예전 900px 분기는 이 폭을 3칸으로 밀어 패널이 쪼그라들었다.
+  test.use({ viewport: { width: 834, height: 1194 } });
+
+  test("태블릿 세로에서도 시트로 조작·결과가 열린다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator(".sheet-handle").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "조작" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "결과" })).toBeVisible();
+
+    await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
+    await page.getByRole("button", { name: "조작", exact: true }).click();
+    await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
+    await expect(page.getByText("민간 자료")).toBeVisible();
+    await expect(page.getByRole("button", { name: /생활인구/ })).toBeVisible();
+    await page.getByText("공공 자료").scrollIntoViewIfNeeded();
+    await expect(page.getByText("공공 자료")).toBeVisible();
+    await page.getByRole("button", { name: /의료기관/ }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole("button", { name: /의료기관/ })).toBeVisible();
+
+    expect(await selectorReachable(page, "#analysis-query")).toBe(true);
+    expect(await isReachable(page, "결과")).toBe(true);
+  });
+});

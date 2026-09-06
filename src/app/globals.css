@@ -2078,9 +2078,12 @@ input:hover {
   color: var(--text-2);
 }
 
+/*
+ * 예전에는 max-height: 10.5rem 으로 잘랐다. 22개 자료가 본문인데 네 줄만 보이면
+ * 목록이 부가기능처럼 읽히고, NH 칩 모서리가 잘려 44×44 검사를 떨어뜨렸다.
+ * 스크롤은 패널(.copilot-scroll)이 맡는다.
+ */
 .layer-switcher-scroll {
-  max-height: 10.5rem;
-  overflow-y: auto;
   padding-right: 0.15rem;
 }
 
@@ -2289,9 +2292,32 @@ input:hover {
 }
 
 .layer-group-kicker {
+  font-size: var(--fs-body);
+  font-weight: 800;
+  letter-spacing: var(--ls-title);
+  color: var(--text-1);
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.export-action {
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  background: var(--surface-2);
+  padding: 0.35rem 0.95rem;
   font-size: var(--fs-chip);
   font-weight: 700;
-  color: var(--text-2);
+  color: var(--text-1);
+}
+
+.export-action:hover {
+  border-color: var(--accent-line);
 }
 
 .stale-notice {
@@ -2513,6 +2539,7 @@ input:hover {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   /*
    * 손잡이 색은 테마를 따라간다.
@@ -2643,14 +2670,12 @@ input:hover {
   transform: translateY(0);
 }
 
+/*
+ * 1100px 이하는 바텀시트다. 예전 900px은 아이패드 프로 12.9 세로(1024)와
+ * 미니 가로(1024)를 3칸으로 밀어 패널이 260+300으로 쪼그라들었다. JS의
+ * matchMedia('(max-width: 1100px)') 와 같아야 한다 — 어긋나면 버튼이 빈 구간이 생긴다.
+ */
 @media (max-width: 1100px) {
-  :root {
-    --panel-left: 260px;
-    --panel-right: 300px;
-  }
-}
-
-@media (max-width: 900px) {
   .copilot-shell {
     /* 좁은 화면에서는 세로가 아까우므로 상단 바를 낮춘다. */
     --topbar-h: 2.75rem;
@@ -2810,12 +2835,78 @@ input:hover {
     z-index: 40;
     bottom: calc(var(--sheet-height, 72dvh) + 0.6rem);
   }
+
+  /*
+   * 떠 있는 버튼 줄은 화면 절반만 쓰고 있었다(`left:50%`+`translate`).
+   * 태블릿 세로에서도 같은 일이 난다 — 폭 규칙이 767이 아니라 시트 기준과 같아야 한다.
+   */
+  .map-float-dock {
+    left: 0 !important;
+    right: 0;
+    /*
+     * `translate`이지 `transform`이 아니다. Tailwind v4의 `-translate-x-1/2`는 별도
+     * CSS 속성 `translate`에 값을 넣으므로 `transform: none`으로는 지워지지 않는다 —
+     * 그렇게 껐더니 바가 화면 절반만큼 왼쪽으로 나가 조작·결과가 화면 밖으로 사라졌다
+     * (실측 x = -196.5).
+     */
+    translate: none !important;
+    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .copilot-panel {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /*
+   * 자료 목록이 이 화면의 본문이다. 칩을 키우고 갈래 제목을 본문 크기로 둔다.
+   * 잘린 스크롤 상자 안에 넣지 않는다 — 패널이 스크롤한다.
+   */
+  .layer-picker {
+    gap: 0.85rem;
+  }
+
+  .layer-switcher {
+    gap: 0.55rem;
+    padding: 0.5rem;
+  }
+
+  .layer-switcher-item {
+    padding: 0.5rem 0.85rem;
+  }
+
+  .layer-group-kicker {
+    margin-top: 0.35rem;
+    font-size: var(--fs-body-lg);
+  }
 }
 
-@media (min-width: 901px) {
+@media (min-width: 1101px) {
   .sheet-handle,
   .sheet-snap-bar {
     display: none;
+  }
+}
+
+/* 태블릿: 질의창·칩을 조금 더 키운다. 세로는 시트, 가로는 아직 시트다. */
+@media (min-width: 600px) and (max-width: 1100px) {
+  .query-hero {
+    width: min(42rem, calc(100% - 2.5rem));
+  }
+
+  .query-hero-input {
+    height: 3.1rem;
+    font-size: var(--fs-title);
+  }
+
+  .layer-switcher-label {
+    font-size: var(--fs-body-lg);
+  }
+}
+
+/* 전화기는 카카오 저작권 줄 위로 버튼을 띄운다. */
+@media (max-width: 600px) {
+  .map-float-dock {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -2993,31 +3084,6 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
 /* 예시 칩도 흰 판이었다. */
 
 
-/*
- * 아래쪽 떠 있는 버튼 줄은 화면 절반만 쓰고 있었다.
- *
- * `left: 50%` + `translateX(-50%)`로 가운데를 잡으면 요소가 쓸 수 있는 폭이 **화면의
- * 절반**으로 줄어든다(393px 화면에서 196.5px). 버튼이 둘일 때는 마침 들어맞아 아무도
- * 몰랐는데, 셋이 되자 줄이 접히면서 바가 위로 47px 자라 첫 방문 안내 카드 밑으로
- * 들어갔다 — 카드를 닫기 전에는 「조작」이 눌리지 않았다(Pixel 5 실측).
- *
- * 가운데 정렬은 이미 `items-center`가 하고 있다. 좁은 화면에서는 폭을 화면 전체로
- * 돌려주기만 하면 된다.
- */
-@media (width <= 767px) {
-  .map-float-dock {
-    left: 0 !important;
-    right: 0;
-    /*
-     * `translate`이지 `transform`이 아니다. Tailwind v4의 `-translate-x-1/2`는 별도
-     * CSS 속성 `translate`에 값을 넣으므로 `transform: none`으로는 지워지지 않는다 —
-     * 그렇게 껐더니 바가 화면 절반만큼 왼쪽으로 나가 조작·결과가 화면 밖으로 사라졌다
-     * (실측 x = -196.5). 껐다고 믿은 것이 실은 켜져 있었다.
-     */
-    translate: none !important;
-  }
-}
-
 /* ─── 지점 분석 카드 ─── */
 /*
  * 지도 위에 뜨는 카드는 토큰으로만 칠한다. 흰색을 직접 박으면 어두운 화면에서 흰 판만
@@ -3173,11 +3239,11 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
   box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
 }
 
-@media (width <= 767px) {
+@media (max-width: 1100px) {
   .probe-card,
   .probe-hint {
     top: auto;
-    bottom: 6.5rem;
+    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
     right: 0.75rem;
     left: 0.75rem;
     width: auto;

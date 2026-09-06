@@ -126,6 +126,28 @@ describe("LayerSwitcher", () => {
     expect(screen.queryByRole("button", { name: /^인구/ })).not.toBeInTheDocument();
   });
 
+  test("고른 레이어를 목록 밖으로 빼지 않는다 — 민간·공공 목록이 본문이다", () => {
+    render(<LayerSwitcher layers={many} activeId="skt-living" onChange={vi.fn()} />);
+    const living = screen.getAllByRole("button", { name: /생활인구/ });
+    expect(living).toHaveLength(1);
+    const kicker = screen.getByText("민간 자료");
+    expect(kicker.compareDocumentPosition(living[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test("지표 자리는 고른 레이어가 있는 묶음 바로 아래다", () => {
+    render(
+      <LayerSwitcher
+        layers={many}
+        activeId="medical"
+        onChange={vi.fn()}
+        activeSlot={<div data-testid="active-slot">슬롯</div>}
+      />,
+    );
+    const medical = screen.getByRole("button", { name: /의료기관/ });
+    const slot = screen.getByTestId("active-slot");
+    expect(medical.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   test("groupByProvider는 SKT·NH·KCB·공공 순으로 묶는다", () => {
     const groups = groupByProvider([
       { id: "a", label: "A", provider: "KCB" },

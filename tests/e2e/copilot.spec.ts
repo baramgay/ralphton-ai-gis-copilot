@@ -21,7 +21,7 @@ async function openSheet(page: Page, name: "조작" | "결과") {
       (el) => !el.classList.contains("is-collapsed") || el.classList.contains("sheet-open"),
     );
 
-  const narrow = await page.evaluate(() => window.matchMedia("(max-width: 900px)").matches);
+  const narrow = await page.evaluate(() => window.matchMedia("(max-width: 1100px)").matches);
   if (narrow) {
     if (await panel.evaluate((el) => el.classList.contains("sheet-open"))) return;
     await toggle.click({ force: true });

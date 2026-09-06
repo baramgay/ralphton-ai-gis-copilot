@@ -17,11 +17,9 @@ import {
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
 import { dataModeLabel, dataModeTitle, populationIsLive, providerSourceLabel } from "@/lib/analysis/data-mode";
-import { buildA4HtmlReport } from "@/lib/analysis/export-a4";
-import { buildHwpHtmlReport, copyHtmlToClipboard } from "@/lib/analysis/export-hwp";
+import { buildA4HtmlReport, openHtmlForPrint } from "@/lib/analysis/export-a4";
 import { buildRegionProfile } from "@/lib/layers/region-profile";
-import { buildMarkdownReport, type ReportInput } from "@/lib/analysis/export-report";
-import { buildSlideHtml } from "@/lib/analysis/export-slide";
+import { type ReportInput } from "@/lib/analysis/export-report";
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
 import {
@@ -1911,13 +1909,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   /*
    * 조작·결과 패널 여닫이. 좁은 화면이면 패널이 바텀시트라 sheetMode가, 넓은 화면이면
    * 접힘 상태(leftCollapsed)가 여닫이를 맡는다. 한 버튼이 두 모델을 다 다뤄야 하므로
-   * 누르는 시점에 어느 쪽인지 본다. CSS 분기점(900px)과 같은 값을 쓴다 — 어긋나면
+   * 누르는 시점에 어느 쪽인지 본다. CSS 분기점(1100px)과 같은 값을 쓴다 — 어긋나면
    * 버튼이 아무 일도 하지 않는 폭 구간이 생긴다.
    */
   const isNarrowNow = () =>
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 900px)").matches;
+    window.matchMedia("(max-width: 1100px)").matches;
 
   const toggleControls = useCallback(() => {
     if (isNarrowNow()) setSheetMode((mode) => (mode === "left" ? "none" : "left"));
@@ -2123,8 +2121,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           address: facility.address ?? "",
         })),
       );
-      downloadTextFile(`ralphton-facilities-${stamp}.csv`, csv);
-      showToast("시설 CSV 저장");
+      downloadTextFile(`누리맵-시설-${stamp}.csv`, csv);
+      showToast("시설 표 저장");
       return;
     }
     const csv = rankedToCsv(
@@ -2143,20 +2141,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         };
       }),
     );
-    downloadTextFile(`ralphton-rank-${stamp}.csv`, csv);
-    showToast("순위 CSV 저장");
+    downloadTextFile(`누리맵-순위-${stamp}.csv`, csv);
+    showToast("순위 표 저장");
   }, [analysis, exportProvenance, exportRanked, showToast, snapshot]);
 
   /**
-   * 화면의 분석을 보고서용 개조식 마크다운으로 저장하고 클립보드에도 넣는다.
-   * CSV는 원자료 첨부용이라 본문에 붙이기 어려워, 요약·표·산식·한계를 갖춘 문단을 만든다.
-   */
-  /**
-   * 내보내기 네 갈래(마크다운·한글·A4·슬라이드)가 쓰는 보고서 재료를 한 자리에서 만든다.
-   *
-   * 갈래마다 따로 적고 있었다. 「답하지 못했습니다」경고나 모수(totalCount)처럼 **답의
-   * 정직성을 지키는 항목**이 한 갈래에만 들어가면, 그 갈래로 내보낸 사람만 단서를 못 본다.
-   * 하나로 모아 그럴 수 없게 한다.
+   * 보고서가 쓰는 재료를 한 자리에서 만든다. 「답하지 못했습니다」경고나 모수처럼
+   * 정직성을 지키는 항목이 갈래마다 빠지지 않게 한다.
    */
   const buildReportInput = useCallback((): ReportInput | null => {
     if (!snapshot || !analysis || !exportProvenance) return null;
@@ -2193,123 +2184,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   ]);
 
   /**
-   * A4로 인쇄되는 HTML 보고서.
-   *
-   * 한글 붙여넣기용과 목적이 다르다 — 이쪽은 열어서 그대로 인쇄하거나 PDF로 저장하는
-   * 완성본이다. 화면은 어두운 테마지만 인쇄본은 늘 흰 바탕이다(어두운 색을 그대로
-   * 인쇄하면 토너를 붓거나 흰 글씨가 흰 종이에 찍힌다).
+   * A4 HTML을 열어 인쇄 대화상자에서 PDF로 저장한다. 팝업이 막히면 HTML 파일로 내려받는다.
+   * 파일 이름에 제품 코드명을 넣지 않는다.
    */
-  const exportCurrentA4 = useCallback(() => {
+  const exportCurrentReport = useCallback(() => {
     const reportInput = buildReportInput();
     if (!reportInput || !exportProvenance) return;
-    downloadTextFile(
-      `ralphton-a4-${exportProvenance.referenceMonth}.html`,
-      buildA4HtmlReport(reportInput),
-      "text/html;charset=utf-8",
-    );
-    showToast("A4 보고서 저장 — 열어서 인쇄·PDF 저장");
+    const title = `누리맵-보고서-${exportProvenance.referenceMonth}`;
+    const html = buildA4HtmlReport(reportInput, { printOnLoad: true });
+    const mode = openHtmlForPrint(html, title);
+    showToast(mode === "print" ? "인쇄 창에서 PDF로 저장하세요" : "보고서 저장");
   }, [buildReportInput, exportProvenance, showToast]);
-
-  const exportCurrentReport = useCallback(async () => {
-    if (!snapshot || !analysis || !exportProvenance) return;
-    const reportInput = buildReportInput();
-    if (!reportInput) return;
-    const markdown = buildMarkdownReport(reportInput);
-
-    downloadTextFile(
-      `ralphton-report-${exportProvenance.referenceMonth}.md`,
-      markdown,
-      "text/markdown;charset=utf-8",
-    );
-    try {
-      await navigator.clipboard.writeText(markdown);
-      showToast("보고서 저장·복사");
-    } catch {
-      // 클립보드가 막힌 환경에서도 파일 저장은 이미 끝났다.
-      showToast("보고서 저장");
-    }
-  }, [
-    analysis,
-    answeredLastQuery,
-    exportProvenance,
-    exportRanked,
-    exportTotal,
-    oneLineConclusion,
-    showToast,
-    snapshot,
-  ]);
-
-  /**
-   * 한글(HWP) 붙여넣기용 내보내기. 마크다운 표는 한글에 붙이면 평문이 되지만, HTML
-   * 클립보드는 한글이 진짜 표로 받는다. 같은 내용을 .doc(HTML)로도 저장해 파일로도 열 수 있게 한다.
-   */
-  const exportCurrentHwp = useCallback(async () => {
-    if (!snapshot || !analysis || !exportProvenance) return;
-    const reportInput = buildReportInput();
-    if (!reportInput) return;
-    const html = buildHwpHtmlReport(reportInput);
-    downloadTextFile(
-      `ralphton-report-${exportProvenance.referenceMonth}.doc`,
-      html,
-      "application/msword;charset=utf-8",
-    );
-    const copied = await copyHtmlToClipboard(html, buildMarkdownReport(reportInput));
-    showToast(copied ? "한글 문서 저장·표 복사" : "한글 문서 저장");
-  }, [
-    analysis,
-    answeredLastQuery,
-    exportProvenance,
-    exportRanked,
-    exportTotal,
-    oneLineConclusion,
-    showToast,
-    snapshot,
-  ]);
-
-  /**
-   * 발표용 슬라이드(표지·핵심결과·근거 3장) 내보내기. PPTX 바이너리 대신 파워포인트·한글이
-   * 모두 여는 HTML로 만든다 — 브라우저 인쇄로 PDF 배포가 되고 표는 복사해 붙일 수 있다.
-   */
-  const exportCurrentSlides = useCallback(() => {
-    if (!snapshot || !analysis || !exportProvenance) return;
-    const html = buildSlideHtml({
-      title: analysis.title,
-      summary: oneLineConclusion ?? analysis.summary,
-      referenceMonth: exportProvenance.referenceMonth,
-      source: exportProvenance.source,
-      mode: snapshot.mode,
-      formulaNotes: answeredLastQuery
-        ? analysis.formulaNotes
-        : [
-            "⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다.",
-            ...analysis.formulaNotes,
-          ],
-      rows: exportRanked.map((row, index) => ({
-        rank: index + 1,
-        code: row.code,
-        name: row.name,
-        valueLabel: row.valueLabel,
-        note: row.note,
-      })),
-      totalCount: exportTotal,
-      exportedAt: new Date().toLocaleString("ko-KR"),
-    });
-    downloadTextFile(
-      `ralphton-slides-${exportProvenance.referenceMonth}.html`,
-      html,
-      "text/html;charset=utf-8",
-    );
-    showToast("슬라이드 저장 (브라우저에서 열어 인쇄→PDF)");
-  }, [
-    analysis,
-    answeredLastQuery,
-    exportProvenance,
-    exportRanked,
-    exportTotal,
-    oneLineConclusion,
-    showToast,
-    snapshot,
-  ]);
 
   const applyLayoutPreset = useCallback(
     (id: LayoutPresetId) => {
@@ -4634,7 +4519,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           </div>
         ) : null}
 
-        <div className="map-float-dock absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 max-md:bottom-20">
+        <div className="map-float-dock absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2">
           {/*
             레이아웃 프리셋 5개(지도 넓게·분석 넓게·결과 넓게·균형·레이아웃)가 지도의 알짜
             공간을 두 줄로 차지하고 있었다. 패널을 여닫는 일은 조작·결과 두 버튼과 가장자리
@@ -4935,51 +4820,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${analysis.unitWord ?? unitWordOf(activeLayerId, adminLevel)}`}
             {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
           </p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="내보내기">
+          <div className="export-actions mt-1.5" role="group" aria-label="내보내기">
             <button
               type="button"
               data-testid="export-csv"
-              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
+              className="export-action"
               onClick={exportCurrentCsv}
             >
-              CSV
+              표
             </button>
             <button
               type="button"
               data-testid="export-report"
-              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
-              onClick={() => void exportCurrentReport()}
+              className="export-action"
+              onClick={exportCurrentReport}
             >
               보고서
             </button>
             <button
               type="button"
-              data-testid="export-hwp"
-              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
-              onClick={() => void exportCurrentHwp()}
-            >
-              한글
-            </button>
-            <button
-              type="button"
-              data-testid="export-a4"
-              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
-              onClick={exportCurrentA4}
-              title="A4로 인쇄되거나 PDF로 저장되는 보고서 파일"
-            >
-              A4
-            </button>
-            <button
-              type="button"
-              data-testid="export-slides"
-              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
-              onClick={exportCurrentSlides}
-            >
-              슬라이드
-            </button>
-            <button
-              type="button"
-              className="ui-chip rounded-full border border-slate-200 bg-white px-2.5 py-1 font-bold text-slate-700 hover:border-blue-300"
+              data-testid="export-share"
+              className="export-action"
               onClick={() => {
                 /*
                  * 민간 레이어·교차·추세 결과는 공공 도구가 아니라 lastIntent가 null이다.

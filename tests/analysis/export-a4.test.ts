@@ -105,4 +105,13 @@ describe("A4 인쇄 보고서", () => {
   test("모르는 값은 지어내지 않고 그대로 적는다", () => {
     expect(html({ mode: "partial" })).toContain("partial");
   });
+
+  test("파일 제목에 누리맵-보고서와 기준월이 실린다", () => {
+    expect(html()).toContain("<title>누리맵-보고서-2025-12 — ");
+  });
+
+  test("printOnLoad면 열자마자 인쇄 대화상자를 연다", () => {
+    expect(html()).not.toContain("window.print()");
+    expect(buildA4HtmlReport(base, { printOnLoad: true })).toContain("window.print()");
+  });
 });

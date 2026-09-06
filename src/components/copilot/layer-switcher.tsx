@@ -144,15 +144,15 @@ export function LayerSwitcher({
     [layers, query, searchSource],
   );
   /*
-   * 고른 레이어(또는 검색 결과가 하나일 때 그 레이어)를 맨 위에 둔다.
-   * 22개가 민간→공공 순으로 서 있으면 기본값 의료기관의 지표 자리가 목록 바닥에
-   * 깔려 첫 화면에 안 보인다.
+   * 고른 레이어를 목록 밖으로 빼지 않는다. 이 목록이 이 화면의 본문이고, 민간·공공
+   * 묶음 안에서 고르는 것이 첫 동작이다. 빼 두면 목록은 잘린 나머지만 남고(예전에
+   * 10.5rem 스크롤), 의료기관만 따로 떠 공공 자료의 하나로 읽히지 않았다.
+   *
+   * 지표 고르기는 고른 버튼이 있는 **그 제공기관 묶음 바로 아래**에 둔다. 목록 맨
+   * 밑에 두면 SKT를 골랐을 때 상자가 화면 밖이라 「이동인구에는 유입인구밖에 없다」로
+   * 읽혔다.
    */
-  const focus =
-    visible.length === 1 ? visible[0] : visible.find((layer) => layer.id === activeId);
-  const rest = focus ? visible.filter((layer) => layer.id !== focus.id) : visible;
-  const groups = groupBySource(rest);
-  const showSlot = Boolean(activeSlot && focus && focus.id === activeId);
+  const groups = groupBySource(visible);
 
   return (
     <div className="layer-picker">
@@ -171,43 +171,34 @@ export function LayerSwitcher({
         </p>
       ) : (
         <div role="group" aria-label="레이어 선택" className="space-y-3">
-          {focus ? (
-            <div>
-              <div className="layer-switcher">
-                <LayerButton layer={focus} activeId={activeId} onChange={onChange} />
-              </div>
-              {showSlot ? <div className="mt-2">{activeSlot}</div> : null}
-            </div>
-          ) : null}
-          {groups.length > 0 ? (
-            <div className={query.trim() ? undefined : "layer-switcher-scroll"}>
-              {groups.map((group) => (
-                <div key={group.source}>
-                  {query.trim() ? null : (
-                    <>
-                      <p className="layer-group-kicker">{group.source} 자료</p>
-                      <p className="ui-caption mb-1.5">{group.note}</p>
-                    </>
-                  )}
-                  {group.providers.map((byProvider) => (
-                    <div key={byProvider.provider} className="mt-1.5">
-                      <p className="ui-caption mb-1 font-bold">{byProvider.provider}</p>
-                      <div className="layer-switcher">
-                        {byProvider.layers.map((layer) => (
-                          <LayerButton
-                            key={layer.id}
-                            layer={layer}
-                            activeId={activeId}
-                            onChange={onChange}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+          {groups.map((group) => (
+            <div key={group.source}>
+              {query.trim() ? null : (
+                <>
+                  <p className="layer-group-kicker">{group.source} 자료</p>
+                  <p className="ui-caption mb-1.5">{group.note}</p>
+                </>
+              )}
+              {group.providers.map((byProvider) => (
+                <div key={byProvider.provider} className="mt-1.5">
+                  <p className="ui-caption mb-1 font-bold">{byProvider.provider}</p>
+                  <div className="layer-switcher">
+                    {byProvider.layers.map((layer) => (
+                      <LayerButton
+                        key={layer.id}
+                        layer={layer}
+                        activeId={activeId}
+                        onChange={onChange}
+                      />
+                    ))}
+                  </div>
+                  {activeSlot && byProvider.layers.some((layer) => layer.id === activeId) ? (
+                    <div className="mt-2">{activeSlot}</div>
+                  ) : null}
                 </div>
               ))}
             </div>
-          ) : null}
+          ))}
         </div>
       )}
     </div>

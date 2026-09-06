@@ -146,8 +146,7 @@ for (const [label, sel] of [
   const box = await target.boundingBox();
   if (!box) continue;
   /*
-   * 상자 한가운데는 레이어 목록의 안쪽 스크롤(`.layer-switcher-scroll`)이다.
-   * 거기에 휠을 주면 패널은 안 움직인다. 맨 위 요약 줄을 가리킨다.
+   * 맨 위 요약 줄을 가리킨다. 한가운데는 안쪽 칩·표가 휠을 가로챌 수 있다.
    */
   await page.mouse.move(box.x + Math.min(48, box.width / 2), box.y + 16);
   await page.mouse.wheel(0, 500);

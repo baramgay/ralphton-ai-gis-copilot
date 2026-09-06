@@ -1,4 +1,4 @@
-import { regionUnitLabel } from "@/lib/analysis/export-csv";
+import { downloadTextFile, regionUnitLabel } from "@/lib/analysis/export-csv";
 import { rankWordOf, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
 
 /**
@@ -118,9 +118,14 @@ const PRINT_CSS = `
 /**
  * 인쇄용 A4 보고서 HTML.
  *
- * `.html`로 저장해 브라우저에서 열면 그대로 인쇄·PDF 저장이 된다.
+ * 브라우저에서 열면 그대로 인쇄하거나 PDF로 저장된다. `printOnLoad`면 창이 뜨자마자
+ * 인쇄 대화상자를 연다 — 「보고서」버튼이 PDF 저장으로 이어지게 하기 위해서다.
  */
-export function buildA4HtmlReport(input: ReportInput): string {
+export type A4ReportOptions = {
+  printOnLoad?: boolean;
+};
+
+export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions): string {
   const topCount = input.topCount ?? 20;
   const top = input.rows.slice(0, topCount);
   const totalCount = input.totalCount ?? input.rows.length;
@@ -153,14 +158,18 @@ export function buildA4HtmlReport(input: ReportInput): string {
    */
   const truncated =
     totalCount > top.length
-      ? `<p class="doc-meta">※ 분석 대상 ${totalCount.toLocaleString("ko-KR")}개 ${unit} 중 ${rankWord} ${top.length}개만 표에 수록. 전체는 CSV로 내려받기 가능.</p>`
+      ? `<p class="doc-meta">※ 분석 대상 ${totalCount.toLocaleString("ko-KR")}개 ${unit} 중 ${rankWord} ${top.length}개만 표에 수록. 전체는 표로 내려받기 가능.</p>`
       : "";
+
+  const printOnLoad = options?.printOnLoad
+    ? `<script>window.addEventListener("load",function(){try{window.print();}catch(e){}});</script>`
+    : "";
 
   return `<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>${escapeHtml(input.title)}</title>
+<title>${escapeHtml(`누리맵-보고서-${input.referenceMonth}`)} — ${escapeHtml(input.title)}</title>
 <style>${PRINT_CSS}</style>
 </head>
 <body>
@@ -204,7 +213,26 @@ ${notes}
     누리맵(경남 공간데이터 분석) · ${escapeHtml(exportedAt)} 작성 · 인용 시 기준월과 자료 한계를 함께 표기
   </footer>
 </div>
+${printOnLoad}
 </body>
 </html>
 `;
+}
+
+/**
+ * 인쇄용 HTML을 새 창에서 연다. 인쇄 대화상자에서 PDF로 저장한다.
+ * 팝업이 막히면 같은 내용을 HTML 파일로 내려받는다.
+ */
+export function openHtmlForPrint(html: string, documentTitle: string): "print" | "download" {
+  if (typeof window === "undefined" || typeof document === "undefined") return "download";
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (!win) {
+    downloadTextFile(`${documentTitle}.html`, html, "text/html;charset=utf-8");
+    URL.revokeObjectURL(url);
+    return "download";
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return "print";
 }

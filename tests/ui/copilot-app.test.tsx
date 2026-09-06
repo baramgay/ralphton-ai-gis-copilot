@@ -539,7 +539,7 @@ describe("CopilotApp", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((queryText: string) => ({
-        matches: queryText.includes("max-width: 900px"),
+        matches: queryText.includes("max-width: 1100px"),
         media: queryText,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -822,13 +822,15 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
   });
 
-  test("CSV·보고서·한글·슬라이드 내보내기 버튼이 결과 패널에 노출된다", async () => {
+  test("내려받기는 표·보고서·공유 셋이다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
-    expect(await screen.findByTestId("export-report")).toBeInTheDocument();
-    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
-    expect(screen.getByTestId("export-hwp")).toBeInTheDocument();
-    expect(screen.getByTestId("export-slides")).toBeInTheDocument();
+    expect(await screen.findByTestId("export-report")).toHaveTextContent("보고서");
+    expect(screen.getByTestId("export-csv")).toHaveTextContent("표");
+    expect(screen.getByTestId("export-share")).toHaveTextContent("공유");
+    expect(screen.queryByTestId("export-hwp")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("export-a4")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("export-slides")).not.toBeInTheDocument();
   });
 
   test("선택 지역의 민간데이터 종합 프로파일을 백분위와 함께 보여준다", async () => {
