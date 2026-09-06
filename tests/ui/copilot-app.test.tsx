@@ -1109,6 +1109,38 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
   }, 30_000);
 
+  test("합성 인구 live 스냅샷의 결과 칩이 실데이터라고 단정하지 않는다", async () => {
+    const inner = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/data/snapshot")) {
+        return new Response(
+          JSON.stringify({
+            ...snapshot,
+            mode: "live",
+            sourceNotes: [
+              "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+              "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
+              "HIRA 병원정보서비스(v2)로 경남 시설 4272곳을 갱신했습니다.",
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      return inner(input, init);
+    }) as typeof global.fetch;
+
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "레이어 선택" })).getByRole("button", { name: /^인구/ }),
+    );
+    const chip = await screen.findByTestId("data-provenance");
+    expect(chip).toHaveTextContent("시설 실데이터");
+    expect(chip.textContent?.trim().startsWith("실데이터")).toBe(false);
+  });
+
   test("의료기관을 골라도 지도에 병의원 핀을 올리지 않는다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");

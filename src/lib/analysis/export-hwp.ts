@@ -1,5 +1,12 @@
 import { regionUnitLabel } from "@/lib/analysis/export-csv";
-import { rankWordOf, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
+import {
+  rankWordOf,
+  reportCitationWarning,
+  reportModeLabel,
+  reportSourceLabel,
+  toNounEnding,
+  type ReportInput,
+} from "@/lib/analysis/export-report";
 
 /**
  * 분석 결과를 한글(HWP)에 표 서식 그대로 붙여넣을 수 있는 HTML로 만든다.
@@ -33,8 +40,9 @@ export function buildHwpHtmlReport(input: ReportInput): string {
 
   parts.push("<ul>");
   parts.push(`<li>기준월: ${escapeHtml(input.referenceMonth)}</li>`);
-  parts.push(`<li>자료출처: ${escapeHtml(input.source)}</li>`);
-  parts.push(`<li>데이터모드: ${escapeHtml(input.mode)}</li>`);
+  const source = reportSourceLabel(input.source);
+  if (source) parts.push(`<li>자료출처: ${escapeHtml(source)}</li>`);
+  parts.push(`<li>데이터모드: ${escapeHtml(reportModeLabel(input))}</li>`);
   if (input.exportedAt) parts.push(`<li>작성시각: ${escapeHtml(input.exportedAt)}</li>`);
   parts.push("</ul>");
 
@@ -75,6 +83,8 @@ export function buildHwpHtmlReport(input: ReportInput): string {
 
   parts.push('<h2 style="font-size:13pt;">유의사항</h2>');
   parts.push("<ul>");
+  const citation = reportCitationWarning(input);
+  if (citation) parts.push(`<li>${escapeHtml(citation)}</li>`);
   parts.push("<li>순위는 기준월 단일 시점 값이며 추세 판단에는 다월 비교 필요</li>");
   parts.push("<li>절대값 지표는 인구·상권 규모에 좌우되므로 비율 지표와 병행 해석 필요</li>");
   parts.push("</ul>");

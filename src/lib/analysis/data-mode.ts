@@ -57,3 +57,62 @@ export function providerSourceLabel(provider: string): string {
   if (provider === "공공") return "공공데이터";
   return `${provider} 민간데이터`;
 }
+
+/** 화면 배너의 정본 문장. 인구 파생 순위를 내보낼 때 산출물에도 그대로 싣는다. */
+export const POPULATION_CITATION_WARNING =
+  "인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요.";
+
+/**
+ * 지금 내보내는 순위가 스냅샷 인구·세대·출생·사망에서 나왔는가.
+ *
+ * 시설·KOSIS·SKT·NH·KCB 순위에는 합성 인구 경고를 붙이지 않는다. 그쪽은 실측이다.
+ */
+export function isSnapshotPopulationRanking(input: {
+  isFacilityResult?: boolean;
+  layerId?: string;
+  title?: string;
+  formulaNotes?: readonly string[];
+}): boolean {
+  if (input.isFacilityResult) return false;
+  const layerId = input.layerId ?? "";
+  if (/^(skt-|nh-|kcb-|kosis)/.test(layerId) || layerId === "cross") return false;
+  if (layerId === "population") return true;
+  const text = `${input.title ?? ""} ${(input.formulaNotes ?? []).join(" ")}`;
+  if (/취약지수|의료 접근성/.test(text)) return false;
+  return /고령화율|고령비율|인구밀도|1인.?가구|자연증가|출생|사망|총인구|세대수|주민등록 인구/.test(
+    text,
+  );
+}
+
+/**
+ * 산출물·결과 칩에 쓸 자료 성격.
+ *
+ * 스냅샷 mode 만 보면 고령화율도 KOSIS도 같이 「실데이터」가 된다. 인구가 합성인데
+ * 지금 순위가 그 인구에서 나왔을 때만 「시설 실데이터」다.
+ */
+export function exportModeLabel(
+  mode: string,
+  sourceNotes: readonly string[],
+  populationDerived: boolean,
+): string {
+  if (mode !== "live") return dataModeLabel(mode, sourceNotes);
+  if (populationDerived && !populationIsLive(mode, sourceNotes)) return "시설 실데이터";
+  return "실데이터";
+}
+
+/** 산출물에 내부 저장소 이름을 싣지 않는다. 없으면 그 줄을 뺀다. */
+export function exportSourceLabel(source: string): string | null {
+  if (source === "supabase-cache" || source === "loading") return null;
+  if (source === "demo" || source === "demo-fallback") return "시연 자료";
+  return source;
+}
+
+export function populationCitationWarning(
+  mode: string,
+  sourceNotes: readonly string[],
+  populationDerived: boolean,
+): string | null {
+  if (!populationDerived) return null;
+  if (populationIsLive(mode, sourceNotes)) return null;
+  return POPULATION_CITATION_WARNING;
+}

@@ -2,6 +2,17 @@
  * Analysis rank / facility tables → CSV for download.
  */
 
+import {
+  exportModeLabel,
+  exportSourceLabel,
+  populationCitationWarning,
+} from "@/lib/analysis/data-mode";
+
+export type CsvExportOptions = {
+  sourceNotes?: readonly string[];
+  populationDerived?: boolean;
+};
+
 export type CsvRankRow = {
   rank: number;
   code: string;
@@ -77,20 +88,37 @@ export function toCsv(headers: string[], rows: string[][]): string {
   return `\uFEFF${lines.join("\r\n")}`;
 }
 
+function csvMeta(
+  title: string,
+  referenceMonth: string,
+  dataSource: string,
+  mode: string,
+  options?: CsvExportOptions,
+): string[][] {
+  const notes = options?.sourceNotes ?? [];
+  const derived = options?.populationDerived === true;
+  const meta: string[][] = [
+    ["제목", title],
+    ["기준월", referenceMonth],
+    ["데이터모드", exportModeLabel(mode, notes, derived)],
+  ];
+  const source = exportSourceLabel(dataSource);
+  if (source) meta.push(["출처", source]);
+  const warning = populationCitationWarning(mode, notes, derived);
+  if (warning) meta.push(["주의", warning]);
+  meta.push(["내보낸시각", new Date().toISOString()]);
+  return meta;
+}
+
 export function rankedToCsv(
   title: string,
   referenceMonth: string,
   dataSource: string,
   mode: string,
   rows: CsvRankRow[],
+  options?: CsvExportOptions,
 ): string {
-  const meta = [
-    ["제목", title],
-    ["기준월", referenceMonth],
-    ["데이터모드", mode],
-    ["출처", dataSource],
-    ["내보낸시각", new Date().toISOString()],
-  ];
+  const meta = csvMeta(title, referenceMonth, dataSource, mode, options);
   const header = ["순위", `${regionUnitLabel(rows.map((row) => row.code))}코드`, "시도시", "이름", "값", "비고"];
   const body = rows.map((row) => [
     String(row.rank),
@@ -115,14 +143,12 @@ export function facilitiesToCsv(
   dataSource: string,
   mode: string,
   rows: CsvFacilityRow[],
+  options?: CsvExportOptions,
 ): string {
-  const meta = [
-    ["제목", title],
-    ["기준월", referenceMonth],
-    ["데이터모드", mode],
-    ["출처", dataSource],
-    ["내보낸시각", new Date().toISOString()],
-  ];
+  const meta = csvMeta(title, referenceMonth, dataSource, mode, {
+    sourceNotes: options?.sourceNotes,
+    populationDerived: false,
+  });
   const header = ["ID", "시설명", "유형", "시도시", "행정동", "주소"];
   const body = rows.map((row) => [
     row.id,

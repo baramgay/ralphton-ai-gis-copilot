@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
 
-import { dataModeLabel, dataModeTitle, populationIsLive } from "@/lib/analysis/data-mode";
+import {
+  dataModeLabel,
+  dataModeTitle,
+  exportSourceLabel,
+  isSnapshotPopulationRanking,
+  populationCitationWarning,
+  populationIsLive,
+} from "@/lib/analysis/data-mode";
 
 /*
  * prod가 `mode: "live"`인데 인구는 합성값이었다(2026-07-31 실측). `mode`는 시설 동기화가
@@ -67,5 +74,52 @@ describe("배지와 설명이 사실을 말한다", () => {
   test("demo는 시연이라 말한다", () => {
     expect(dataModeLabel("demo", PROD_NOTES)).toBe("시연");
     expect(dataModeTitle("demo", PROD_NOTES)).toMatch(/합성값/);
+  });
+});
+
+describe("산출물에 실릴 출처 말", () => {
+  test("내부 저장소 이름은 산출물에 안 실린다", () => {
+    expect(exportSourceLabel("supabase-cache")).toBeNull();
+    expect(exportSourceLabel("loading")).toBeNull();
+  });
+
+  test("사람이 읽는 출처는 그대로 둔다", () => {
+    expect(exportSourceLabel("KOSIS 국가통계")).toBe("KOSIS 국가통계");
+    expect(exportSourceLabel("NH · 카드소비")).toBe("NH · 카드소비");
+  });
+});
+
+describe("인구 파생 순위의 인용 경고", () => {
+  test("고령화율 공식은 인구 파생이다", () => {
+    expect(
+      isSnapshotPopulationRanking({
+        title: "고령화율이 높은 지역",
+        formulaNotes: ["고령화율 = 65세 이상 ÷ 총인구 × 100."],
+      }),
+    ).toBe(true);
+  });
+
+  test("인구 레이어는 인구 파생이다", () => {
+    expect(isSnapshotPopulationRanking({ layerId: "population" })).toBe(true);
+  });
+
+  test("시설 목록·민간·KOSIS는 인구 파생이 아니다", () => {
+    expect(isSnapshotPopulationRanking({ isFacilityResult: true, title: "의료기관 검색" })).toBe(false);
+    expect(isSnapshotPopulationRanking({ layerId: "skt-living", title: "총생활인구" })).toBe(false);
+    expect(isSnapshotPopulationRanking({ layerId: "kosis-finance", title: "재정자립도" })).toBe(false);
+    expect(
+      isSnapshotPopulationRanking({
+        title: "의료 접근성 취약지수",
+        formulaNotes: ["의료 접근성 취약지수 = 공급 부족 35% + 고령화 수요 25%"],
+      }),
+    ).toBe(false);
+  });
+
+  test("합성 인구 순위에만 인용 금지 문장을 붙인다", () => {
+    expect(populationCitationWarning("live", PROD_NOTES, true)).toBe(
+      "인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요.",
+    );
+    expect(populationCitationWarning("live", PROD_NOTES, false)).toBeNull();
+    expect(populationCitationWarning("live", FULLY_LIVE_NOTES, true)).toBeNull();
   });
 });

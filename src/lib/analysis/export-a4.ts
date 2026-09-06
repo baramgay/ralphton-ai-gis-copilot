@@ -1,5 +1,12 @@
 import { downloadTextFile, regionUnitLabel } from "@/lib/analysis/export-csv";
-import { rankWordOf, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
+import {
+  rankWordOf,
+  reportCitationWarning,
+  reportModeLabel,
+  reportSourceLabel,
+  toNounEnding,
+  type ReportInput,
+} from "@/lib/analysis/export-report";
 
 /**
  * 분석 결과를 **A4로 인쇄되는 HTML 보고서**로 만든다.
@@ -37,10 +44,10 @@ function escapeHtml(value: string): string {
  * 상태값이 실린다 — 읽는 사람에게는 뜻이 없고, 무엇보다 시연 데이터인지 실데이터인지를
  * 가려 주지 못한다. 모르는 값은 지어내지 않고 그대로 적는다.
  */
-function modeWord(mode: string): string {
-  if (mode === "live") return "실데이터";
-  if (mode === "demo") return "시연 데이터";
-  return mode;
+function modeWord(input: ReportInput): string {
+  if (input.mode !== "live" && input.mode !== "demo") return input.mode;
+  if (input.mode === "demo") return "시연 데이터";
+  return reportModeLabel(input);
 }
 
 const PRINT_CSS = `
@@ -148,9 +155,18 @@ export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions)
     )
     .join("\n");
 
-  const notes = input.formulaNotes
-    .map((note) => `<li>${escapeHtml(note)}</li>`)
-    .join("\n");
+  const citation = reportCitationWarning(input);
+  const notes = [
+    ...(citation ? [`<li>${escapeHtml(citation)}</li>`] : []),
+    ...input.formulaNotes.map((note) => `<li>${escapeHtml(note)}</li>`),
+  ].join("\n");
+  const source = reportSourceLabel(input.source);
+  const metaBits = [
+    `기준월 ${escapeHtml(input.referenceMonth)}`,
+    ...(source ? [`출처 ${escapeHtml(source)}`] : []),
+    escapeHtml(modeWord(input)),
+    `작성일 ${escapeHtml(exportedAt)}`,
+  ];
 
   /*
    * 표가 상한에 걸려 잘렸으면 그 사실을 적는다. 적지 않으면 20행이 전부인 줄 알고
@@ -177,7 +193,7 @@ export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions)
   <header class="doc-head">
     <p class="doc-kicker">경상남도 공간데이터 분석</p>
     <h1>${escapeHtml(input.title)}</h1>
-    <p class="doc-meta">기준월 ${escapeHtml(input.referenceMonth)} · 출처 ${escapeHtml(input.source)} · ${escapeHtml(modeWord(input.mode))} · 작성일 ${escapeHtml(exportedAt)}</p>
+    <p class="doc-meta">${metaBits.join(" · ")}</p>
   </header>
 
   <h2>1. 분석 개요</h2>

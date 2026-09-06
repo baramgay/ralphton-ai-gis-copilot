@@ -25,8 +25,25 @@ describe("buildMarkdownReport", () => {
     expect(md).toContain("# 카드매출 순위");
     expect(md).toContain("- 기준월: 2025-12");
     expect(md).toContain("- 자료출처: NH · 카드소비");
-    expect(md).toContain("- 데이터모드: live");
     expect(md).toContain("- 작성시각: 2026-07-25 16:00");
+  });
+
+  test("합성 인구 보고서에 live·내부 저장소 이름이 없고 합성값임을 적는다", () => {
+    const md = buildMarkdownReport({
+      ...base,
+      title: "고령화율이 높은 지역",
+      source: "supabase-cache",
+      mode: "live",
+      sourceNotes: [
+        "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+        "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
+      ],
+      populationDerived: true,
+    });
+    expect(md).not.toMatch(/데이터모드:\s*live/);
+    expect(md).not.toContain("supabase-cache");
+    expect(md).toContain("시설 실데이터");
+    expect(md).toContain("인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요.");
   });
 
   test("상위 N개만 표로 내며 전체 모수를 함께 밝힌다", () => {

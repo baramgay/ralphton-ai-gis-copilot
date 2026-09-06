@@ -1,3 +1,8 @@
+import {
+  exportModeLabel,
+  exportSourceLabel,
+  populationCitationWarning,
+} from "@/lib/analysis/data-mode";
 import { regionUnitLabel } from "@/lib/analysis/export-csv";
 
 export type ReportRow = {
@@ -15,6 +20,10 @@ export type ReportInput = {
   referenceMonth: string;
   source: string;
   mode: string;
+  /** 스냅샷 각주. mode 만으로는 인구가 합성인지 가를 수 없다. */
+  sourceNotes?: readonly string[];
+  /** 지금 순위가 스냅샷 인구·세대·출생·사망에서 나왔는가. */
+  populationDerived?: boolean;
   /** 분석 산식·한계. 보고서 각주로 그대로 옮긴다. */
   formulaNotes: string[];
   rows: ReportRow[];
@@ -28,6 +37,20 @@ export type ReportInput = {
   /** 내보낸 시각 표기(주입 가능 — 테스트 고정용). */
   exportedAt?: string;
 };
+
+export function reportModeLabel(input: Pick<ReportInput, "mode" | "sourceNotes" | "populationDerived">): string {
+  return exportModeLabel(input.mode, input.sourceNotes ?? [], input.populationDerived === true);
+}
+
+export function reportSourceLabel(source: string): string | null {
+  return exportSourceLabel(source);
+}
+
+export function reportCitationWarning(
+  input: Pick<ReportInput, "mode" | "sourceNotes" | "populationDerived">,
+): string | null {
+  return populationCitationWarning(input.mode, input.sourceNotes ?? [], input.populationDerived === true);
+}
 
 function escapePipes(value: string): string {
   return value.replaceAll("|", "\\|");
@@ -87,8 +110,9 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push(`# ${input.title}`);
   lines.push("");
   lines.push(`- 기준월: ${input.referenceMonth}`);
-  lines.push(`- 자료출처: ${input.source}`);
-  lines.push(`- 데이터모드: ${input.mode}`);
+  const source = reportSourceLabel(input.source);
+  if (source) lines.push(`- 자료출처: ${source}`);
+  lines.push(`- 데이터모드: ${reportModeLabel(input)}`);
   if (input.exportedAt) lines.push(`- 작성시각: ${input.exportedAt}`);
   lines.push("");
 
@@ -124,6 +148,8 @@ export function buildMarkdownReport(input: ReportInput): string {
 
   lines.push("## 유의사항");
   lines.push("");
+  const citation = reportCitationWarning(input);
+  if (citation) lines.push(`- ${citation}`);
   lines.push("- 순위는 기준월 단일 시점 값이며 추세 판단에는 다월 비교 필요");
   lines.push("- 절대값 지표는 인구·상권 규모에 좌우되므로 비율 지표와 병행 해석 필요");
   lines.push("");

@@ -16,7 +16,14 @@ import {
   rankedToCsv,
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
-import { dataModeLabel, dataModeTitle, populationIsLive, providerSourceLabel } from "@/lib/analysis/data-mode";
+import {
+  dataModeLabel,
+  dataModeTitle,
+  exportModeLabel,
+  isSnapshotPopulationRanking,
+  populationIsLive,
+  providerSourceLabel,
+} from "@/lib/analysis/data-mode";
 import { buildA4HtmlReport, openHtmlForPrint } from "@/lib/analysis/export-a4";
 import { buildRegionProfile } from "@/lib/layers/region-profile";
 import { type ReportInput } from "@/lib/analysis/export-report";
@@ -2129,6 +2136,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const exportCurrentCsv = useCallback(() => {
     if (!snapshot || !analysis || !exportProvenance) return;
     const { referenceMonth: stamp, source } = exportProvenance;
+    const csvOptions = {
+      sourceNotes: snapshot.sourceNotes,
+      populationDerived: isSnapshotPopulationRanking({
+        isFacilityResult: analysis.isFacilityResult,
+        layerId: analysis.id,
+        title: analysis.title,
+        formulaNotes: analysis.formulaNotes,
+      }),
+    };
     if (analysis.isFacilityResult) {
       const csv = facilitiesToCsv(
         analysis.title,
@@ -2143,6 +2159,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           region: facility.adm_nm,
           address: facility.address ?? "",
         })),
+        csvOptions,
       );
       downloadTextFile(`누리맵-시설-${stamp}.csv`, csv);
       showToast("시설 표 저장");
@@ -2163,6 +2180,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           note: row.note,
         };
       }),
+      csvOptions,
     );
     downloadTextFile(`누리맵-순위-${stamp}.csv`, csv);
     showToast("순위 표 저장");
@@ -2180,6 +2198,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       referenceMonth: exportProvenance.referenceMonth,
       source: exportProvenance.source,
       mode: snapshot.mode,
+      sourceNotes: snapshot.sourceNotes,
+      populationDerived: isSnapshotPopulationRanking({
+        isFacilityResult: analysis.isFacilityResult,
+        layerId: analysis.id,
+        title: analysis.title,
+        formulaNotes: analysis.formulaNotes,
+      }),
       formulaNotes: answeredLastQuery
         ? analysis.formulaNotes
         : [
@@ -4783,7 +4808,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             data-testid="data-provenance"
           >
             <span className="font-bold">
-              {snapshot.mode === "live" ? "실데이터" : "시연 데이터"}
+              {exportModeLabel(
+                snapshot.mode,
+                snapshot.sourceNotes,
+                isSnapshotPopulationRanking({
+                  isFacilityResult: analysis.isFacilityResult,
+                  layerId: analysis.id,
+                  title: analysis.title,
+                  formulaNotes: analysis.formulaNotes,
+                }),
+              )}
             </span>
             {" · "}기준월 {referenceMonthLabel}
             {" · "}{activeLayerProvider}

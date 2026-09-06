@@ -102,6 +102,23 @@ describe("A4 인쇄 보고서", () => {
     expect(html({ mode: "demo" })).toContain("시연 데이터");
   });
 
+  test("합성 인구 순위의 머리글이 실데이터라고 단정하지 않는다", () => {
+    const out = html({
+      title: "고령화율이 높은 지역",
+      source: "supabase-cache",
+      mode: "live",
+      sourceNotes: [
+        "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+        "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
+      ],
+      populationDerived: true,
+    });
+    expect(out).toContain("시설 실데이터");
+    expect(out).not.toContain("supabase-cache");
+    expect(out).not.toMatch(/·\s*live\s*·/);
+    expect(out).toContain("인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요.");
+  });
+
   test("모르는 값은 지어내지 않고 그대로 적는다", () => {
     expect(html({ mode: "partial" })).toContain("partial");
   });

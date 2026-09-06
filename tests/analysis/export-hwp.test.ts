@@ -78,4 +78,22 @@ describe("buildHwpHtmlReport", () => {
     expect(html).toContain("유의사항");
     expect(html).toContain("비율 지표와 병행 해석 필요");
   });
+
+  test("합성 인구 HWP에 live·내부 저장소 이름이 없고 합성값임을 적는다", () => {
+    const html = buildHwpHtmlReport({
+      ...base,
+      title: "고령화율이 높은 지역",
+      source: "supabase-cache",
+      mode: "live",
+      sourceNotes: [
+        "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+        "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
+      ],
+      populationDerived: true,
+    });
+    expect(html).not.toMatch(/데이터모드:\s*live/);
+    expect(html).not.toContain("supabase-cache");
+    expect(html).toContain("시설 실데이터");
+    expect(html).toContain("인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요.");
+  });
 });

@@ -129,3 +129,49 @@ describe("regionUnitLabel", () => {
     expect(csv).not.toContain("행정동코드");
   });
 });
+
+describe("합성 인구를 실데이터라 내보내지 않는다", () => {
+  const syntheticNotes = [
+    "인구·세대·출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.",
+    "인구·세대 시계열은 검증된 기준 스냅샷을 유지합니다.",
+  ];
+
+  test("고령화율 CSV에 live·supabase-cache가 없고 합성값임을 적는다", () => {
+    const csv = rankedToCsv(
+      "고령화율이 높은 지역",
+      "2026-06",
+      "supabase-cache",
+      "live",
+      [
+        {
+          rank: 1,
+          code: "4817032000",
+          sido: "경남",
+          name: "진주시 정촌면",
+          valueLabel: "24.92%",
+          note: "고령화율 · 24.92%",
+        },
+      ],
+      { sourceNotes: syntheticNotes, populationDerived: true },
+    );
+    expect(csv).not.toMatch(/,live(?:\r|$)/);
+    expect(csv).not.toContain("supabase-cache");
+    expect(csv).toContain("시설 실데이터");
+    expect(csv).toContain("인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요.");
+  });
+
+  test("KOSIS 실측 순위는 실데이터라 적고 합성 경고를 붙이지 않는다", () => {
+    const csv = rankedToCsv(
+      "재정자립도",
+      "2025-12",
+      "KOSIS 국가통계",
+      "live",
+      [{ rank: 1, code: "48840", sido: "경남", name: "남해군", valueLabel: "12.3%", note: "" }],
+      { sourceNotes: syntheticNotes, populationDerived: false },
+    );
+    expect(csv).toMatch(/데이터모드,실데이터(?:\r|$)/);
+    expect(csv).not.toContain("시설 실데이터");
+    expect(csv).toContain("KOSIS 국가통계");
+    expect(csv).not.toContain("합성값이라 대외 수치로 인용하지 마세요");
+  });
+});
