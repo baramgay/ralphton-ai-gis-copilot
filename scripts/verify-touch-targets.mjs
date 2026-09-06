@@ -136,7 +136,9 @@ const browser = await chromium.launch();
 const viewports = [
   ["데스크톱", { width: 1440, height: 900 }, false],
   ["태블릿", { width: 834, height: 1194 }, true],
+  ["태블릿가로", { width: 1180, height: 820 }, true],
   ["모바일", { width: 390, height: 844 }, true],
+  ["폰가로", { width: 844, height: 390 }, true],
 ];
 
 for (const [name, viewport, narrow] of viewports) {

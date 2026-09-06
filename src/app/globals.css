@@ -1212,13 +1212,12 @@ input:hover {
   border-color: var(--accent-line);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1280px) {
   .onboard-card {
     /*
-     * 조작·결과 시트 토글 바가 bottom: 5rem에 높이 약 2.3rem으로 떠 있다. 6.5rem이면
-     * 카드 아래쪽이 그 바를 덮어, 첫 방문자가 카드를 닫기 전에는 시트를 열 수 없었다
-     * (Pixel 5 393×727에서 조작 버튼 중심의 히트 대상이 .onboard-card로 나왔다).
-     * 바를 완전히 비켜서도록 올린다.
+     * 조작·결과 시트 토글 바가 아래에 떠 있다. 예전 767px 분기는 폰 가로(844×390)를
+     * 데스크톱 자리(top: 10.5rem)로 남겨, 안내 카드가 조작 버튼을 덮었다(배포본 실측,
+     * 히트 대상이 LI). 시트 분기와 같아야 한다.
      */
     /* 좁은 화면은 아래쪽 유지. top을 풀지 않으면 위아래가 다 묶여 카드가 늘어난다. */
     top: auto;
@@ -2671,11 +2670,12 @@ input:hover {
 }
 
 /*
- * 1100px 이하는 바텀시트다. 예전 900px은 아이패드 프로 12.9 세로(1024)와
- * 미니 가로(1024)를 3칸으로 밀어 패널이 260+300으로 쪼그라들었다. JS의
- * matchMedia('(max-width: 1100px)') 와 같아야 한다 — 어긋나면 버튼이 빈 구간이 생긴다.
+ * 1280px 이하는 바텀시트다. 예전 1100px은 아이패드 미니·에어·프로11 가로
+ * (1133·1180·1194)를 3칸으로 밀어 지도를 잘랐다. 1366 노트북·프로 12.9 가로는
+ * 그대로 3칸이다. JS의 matchMedia('(max-width: 1280px)') 와 같아야 한다 —
+ * 어긋나면 버튼이 빈 구간이 생긴다.
  */
-@media (max-width: 1100px) {
+@media (max-width: 1280px) {
   .copilot-shell {
     /* 좁은 화면에서는 세로가 아까우므로 상단 바를 낮춘다. */
     --topbar-h: 2.75rem;
@@ -2878,9 +2878,42 @@ input:hover {
     margin-top: 0.35rem;
     font-size: var(--fs-body-lg);
   }
+
+  /*
+   * iOS는 입력 글자가 16px 미만이면 포커스 때 화면을 확대해 질의창·시트를 밀어 낸다.
+   * 데스크톱 본문 크기(13–15px)는 그대로 두고, 시트 폭에서만 16px로 올린다.
+   */
+  .query-hero-input,
+  .layer-search,
+  .copilot-panel input[type="search"],
+  .copilot-panel input[type="text"] {
+    font-size: 1rem;
+  }
+
+  /*
+   * 질의창이 윗줄을 쓰므로 지도 칩은 그 아래로 내린다. 안 그러면 「지금 보고 있는 것」이
+   * 유리 밑에 가려 읽히지 않는다(배포본 393–1194 전 폭에서 겹침 실측).
+   */
+  .map-chip-topleft,
+  .map-chip-fallback {
+    top: 7.25rem;
+    left: 0.5rem;
+    max-width: min(18rem, calc(100% - 10rem));
+  }
+
+  /*
+   * 범례는 아래 오른쪽에 있어 조작 줄을 덮었다. 칩과 같은 높이에 오른쪽으로 옮긴다.
+   */
+  .map-legend {
+    top: 7.25rem;
+    right: 0.5rem;
+    bottom: auto;
+    width: 8.5rem;
+    padding: 0.5rem;
+  }
 }
 
-@media (min-width: 1101px) {
+@media (min-width: 1281px) {
   .sheet-handle,
   .sheet-snap-bar {
     display: none;
@@ -2888,14 +2921,14 @@ input:hover {
 }
 
 /* 태블릿: 질의창·칩을 조금 더 키운다. 세로는 시트, 가로는 아직 시트다. */
-@media (min-width: 600px) and (max-width: 1100px) {
+@media (min-width: 600px) and (max-width: 1280px) {
   .query-hero {
     width: min(42rem, calc(100% - 2.5rem));
   }
 
   .query-hero-input {
     height: 3.1rem;
-    font-size: var(--fs-title);
+    font-size: 1rem;
   }
 
   .layer-switcher-label {
@@ -2922,8 +2955,10 @@ input:hover {
 }
 
 button,
-a {
+a,
+[role="tab"] {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 :focus-visible {
@@ -3239,7 +3274,7 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
   box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1280px) {
   .probe-card,
   .probe-hint {
     top: auto;
@@ -3249,5 +3284,28 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
     width: auto;
     max-width: none;
     max-height: 45vh;
+  }
+}
+
+/*
+ * 폰 가로처럼 세로가 짧은 화면. 안내 카드가 조작 버튼을 덮고, 56dvh 시트가 질의창까지
+ * 올라온다(844×390 실측). 부가 요소를 접고 시트 높이를 낮춘다.
+ * 폭 조건이 없으면 짧은 데스크톱 창에서 옆 패널이 52dvh로 잘린다.
+ */
+@media (max-width: 1280px) and (max-height: 520px) {
+  .onboard-card,
+  .map-legend,
+  .query-hero-chips {
+    display: none;
+  }
+
+  .map-chip-topleft,
+  .map-chip-fallback {
+    top: 4.5rem;
+    max-width: calc(100% - 1.5rem);
+  }
+
+  .copilot-panel {
+    max-height: 52dvh;
   }
 }

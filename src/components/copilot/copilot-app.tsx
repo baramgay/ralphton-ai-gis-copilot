@@ -1909,13 +1909,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   /*
    * 조작·결과 패널 여닫이. 좁은 화면이면 패널이 바텀시트라 sheetMode가, 넓은 화면이면
    * 접힘 상태(leftCollapsed)가 여닫이를 맡는다. 한 버튼이 두 모델을 다 다뤄야 하므로
-   * 누르는 시점에 어느 쪽인지 본다. CSS 분기점(1100px)과 같은 값을 쓴다 — 어긋나면
+   * 누르는 시점에 어느 쪽인지 본다. CSS 분기점(1280px)과 같은 값을 쓴다 — 어긋나면
    * 버튼이 아무 일도 하지 않는 폭 구간이 생긴다.
    */
   const isNarrowNow = () =>
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 1100px)").matches;
+    window.matchMedia("(max-width: 1280px)").matches;
 
   const toggleControls = useCallback(() => {
     if (isNarrowNow()) setSheetMode((mode) => (mode === "left" ? "none" : "left"));

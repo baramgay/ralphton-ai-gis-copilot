@@ -172,7 +172,7 @@ test.describe("tablet sheet", () => {
     await page.getByRole("button", { name: "조작", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
     await expect(page.getByText("민간 자료")).toBeVisible();
-    await expect(page.getByRole("button", { name: /생활인구/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "생활인구 SKT" })).toBeVisible();
     await page.getByText("공공 자료").scrollIntoViewIfNeeded();
     await expect(page.getByText("공공 자료")).toBeVisible();
     await page.getByRole("button", { name: /의료기관/ }).scrollIntoViewIfNeeded();
@@ -180,5 +180,41 @@ test.describe("tablet sheet", () => {
 
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
     expect(await isReachable(page, "결과")).toBe(true);
+  });
+});
+
+test.describe("tablet landscape sheet", () => {
+  // iPad Air 가로. 예전 1100px 분기는 이 폭(1180)을 3칸으로 남겼다.
+  test.use({ viewport: { width: 1180, height: 820 } });
+
+  test("태블릿 가로에서도 시트로 조작이 열린다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator(".sheet-handle").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
+    await page.getByRole("button", { name: "조작", exact: true }).click();
+    await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
+    await expect(page.getByText("민간 자료")).toBeVisible();
+    expect(await selectorReachable(page, "#analysis-query")).toBe(true);
+    expect(await isReachable(page, "결과")).toBe(true);
+  });
+});
+
+test.describe("phone landscape", () => {
+  test.use({ viewport: { width: 844, height: 390 } });
+
+  test("폰 가로에서도 조작 버튼이 닿는다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator(".sheet-handle").first()).toBeVisible();
+    expect(await isReachable(page, "조작")).toBe(true);
+    expect(await isReachable(page, "결과")).toBe(true);
+    expect(await selectorReachable(page, "#analysis-query")).toBe(true);
+
+    const inputPx = await page.locator(".query-hero-input").evaluate((el) =>
+      parseFloat(getComputedStyle(el).fontSize),
+    );
+    expect(inputPx).toBeGreaterThanOrEqual(16);
   });
 });
