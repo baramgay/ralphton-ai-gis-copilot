@@ -2057,11 +2057,12 @@ input:hover {
 }
 
 .quick-tile {
-  min-height: 64px;
+  min-height: var(--touch-min);
+  overflow: hidden;
   border: 1px solid var(--border-2);
   border-radius: var(--ui-radius);
   background: var(--surface-2);
-  padding: 0.625rem;
+  padding: 0.4rem 0.55rem;
   text-align: left;
   transition: transform var(--dur-press) ease-out, border-color var(--dur-ui) ease,
     background-color var(--dur-ui) ease;
@@ -2083,10 +2084,10 @@ input:hover {
 .quick-symbol {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  font-size: 13px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 11px;
   font-weight: 800;
   background: var(--surface-3);
   color: var(--text-1);
@@ -2099,7 +2100,7 @@ input:hover {
 
 .quick-name {
   display: block;
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: var(--fs-body);
   font-weight: 700;
   color: var(--text-1);
@@ -2107,7 +2108,7 @@ input:hover {
 
 .quick-sub {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   font-size: var(--fs-caption);
   letter-spacing: var(--ls-caption);
   color: var(--text-3);
