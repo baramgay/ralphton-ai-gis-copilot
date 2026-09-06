@@ -2,11 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  filterLayersByQuery,
   groupByProvider,
   groupBySource,
   LayerSwitcher,
   type LayerOption,
 } from "@/components/copilot/layer-switcher";
+import { CROSS_CANDIDATE_LAYERS } from "@/lib/layers/catalog";
 
 const layers: LayerOption[] = [
   { id: "population", label: "인구", provider: "공공" },
@@ -74,6 +76,54 @@ describe("LayerSwitcher", () => {
   test("어느 갈래에도 레이어가 없으면 그 갈래는 나오지 않는다", () => {
     const onlyPublic = groupBySource([{ id: "population", label: "인구", provider: "공공" }]);
     expect(onlyPublic.map((group) => group.source)).toEqual(["공공"]);
+  });
+
+  test("검색이 지표 이름·트리거에 걸린다 — 「유출」은 이동인구만", () => {
+    const catalogLayers: LayerOption[] = CROSS_CANDIDATE_LAYERS.map((layer) => ({
+      id: layer.id,
+      label: layer.label,
+      provider: layer.provider,
+    }));
+    const found = filterLayersByQuery(catalogLayers, "유출", CROSS_CANDIDATE_LAYERS);
+    expect(found.map((layer) => layer.id)).toEqual(["skt-mobility"]);
+  });
+
+  test("「재정」으로 검색하면 KOSIS 재정 레이어가 나온다", () => {
+    const catalogLayers: LayerOption[] = CROSS_CANDIDATE_LAYERS.map((layer) => ({
+      id: layer.id,
+      label: layer.label,
+      provider: layer.provider,
+    }));
+    const found = filterLayersByQuery(catalogLayers, "재정", CROSS_CANDIDATE_LAYERS);
+    expect(found.some((layer) => layer.id === "kosis-finance")).toBe(true);
+  });
+
+  test("검색어가 비면 지금 묶음 그대로다", () => {
+    const found = filterLayersByQuery(layers, "   ", [
+      { id: "population", label: "인구", metrics: [] },
+      { id: "skt-living", label: "생활인구", metrics: [] },
+    ]);
+    expect(found.map((layer) => layer.id)).toEqual(["population", "skt-living"]);
+  });
+
+  test("화면에 「유출」을 치면 이동인구만 남는다", () => {
+    const catalogLayers: LayerOption[] = CROSS_CANDIDATE_LAYERS.map((layer) => ({
+      id: layer.id,
+      label: layer.label,
+      provider: layer.provider,
+    }));
+    render(<LayerSwitcher layers={catalogLayers} activeId="medical" onChange={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "유출" } });
+    expect(screen.getByRole("button", { name: /이동인구/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^인구/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /의료기관/ })).not.toBeInTheDocument();
+  });
+
+  test("0건이면 무엇을 못 찾았는지 문장으로 말한다", () => {
+    render(<LayerSwitcher layers={layers} activeId="population" onChange={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "없는자료xyz" } });
+    expect(screen.getByTestId("layer-search-empty")).toHaveTextContent("「없는자료xyz」에 해당하는 레이어가 없습니다");
+    expect(screen.queryByRole("button", { name: /^인구/ })).not.toBeInTheDocument();
   });
 
   test("groupByProvider는 SKT·NH·KCB·공공 순으로 묶는다", () => {

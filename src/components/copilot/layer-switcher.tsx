@@ -1,6 +1,15 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+
+import { CROSS_CANDIDATE_LAYERS } from "@/lib/layers/catalog";
 
 export type LayerOption = { id: string; label: string; provider: string };
+
+/** 검색에 쓰는 최소 정보. 정본은 catalog.ts 의 label · metrics[].label · triggers. */
+export type LayerSearchSource = {
+  id: string;
+  label: string;
+  metrics: readonly { label: string; triggers: readonly string[] }[];
+};
 
 type LayerSwitcherProps = {
   layers: LayerOption[];
@@ -15,7 +24,34 @@ type LayerSwitcherProps = {
    * 고른 자리에 붙여 두면 무엇을 더 고를 수 있는지가 고르는 순간 보인다.
    */
   activeSlot?: ReactNode;
+  /** 검색 색인. 생략하면 카탈로그 정본을 쓴다. */
+  searchSource?: readonly LayerSearchSource[];
 };
+
+/**
+ * 레이어 이름뿐 아니라 지표 이름·트리거에도 걸린다.
+ * 「유출」을 치면 이동인구가 남는다 — 레이어 이름에는 그 글자가 없다.
+ */
+export function filterLayersByQuery<T extends { id: string; label: string }>(
+  layers: readonly T[],
+  query: string,
+  source: readonly LayerSearchSource[],
+): T[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [...layers];
+  const byId = new Map(source.map((entry) => [entry.id, entry]));
+  return layers.filter((layer) => {
+    const entry = byId.get(layer.id);
+    if (layer.label.toLowerCase().includes(needle)) return true;
+    if (!entry) return false;
+    if (entry.label.toLowerCase().includes(needle)) return true;
+    return entry.metrics.some(
+      (metric) =>
+        metric.label.toLowerCase().includes(needle) ||
+        metric.triggers.some((trigger) => trigger.toLowerCase().includes(needle)),
+    );
+  });
+}
 
 /**
  * 큰 갈래는 **민간과 공공** 둘이다.
@@ -73,39 +109,107 @@ export function groupBySource(layers: LayerOption[]): SourceGroup[] {
   ).filter((group) => group.providers.length > 0);
 }
 
-export function LayerSwitcher({ layers, activeId, onChange, activeSlot }: LayerSwitcherProps) {
-  const groups = groupBySource(layers);
+function LayerButton({
+  layer,
+  activeId,
+  onChange,
+}: {
+  layer: LayerOption;
+  activeId: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={layer.id === activeId}
+      className="layer-switcher-item"
+      onClick={() => onChange(layer.id)}
+    >
+      <span className="layer-switcher-label">{layer.label}</span>
+      <span className="layer-switcher-provider">{layer.provider}</span>
+    </button>
+  );
+}
+
+export function LayerSwitcher({
+  layers,
+  activeId,
+  onChange,
+  activeSlot,
+  searchSource = CROSS_CANDIDATE_LAYERS,
+}: LayerSwitcherProps) {
+  const [query, setQuery] = useState("");
+  const visible = useMemo(
+    () => filterLayersByQuery(layers, query, searchSource),
+    [layers, query, searchSource],
+  );
+  /*
+   * 고른 레이어(또는 검색 결과가 하나일 때 그 레이어)를 맨 위에 둔다.
+   * 22개가 민간→공공 순으로 서 있으면 기본값 의료기관의 지표 자리가 목록 바닥에
+   * 깔려 첫 화면에 안 보인다.
+   */
+  const focus =
+    visible.length === 1 ? visible[0] : visible.find((layer) => layer.id === activeId);
+  const rest = focus ? visible.filter((layer) => layer.id !== focus.id) : visible;
+  const groups = groupBySource(rest);
+  const showSlot = Boolean(activeSlot && focus && focus.id === activeId);
 
   return (
-    <div role="group" aria-label="레이어 선택" className="space-y-3">
-      {groups.map((group) => (
-        <div key={group.source}>
-          <p className="ui-chip font-bold text-slate-700">{group.source} 데이터</p>
-          <p className="ui-caption mb-1.5 text-slate-500">{group.note}</p>
-          {group.providers.map((byProvider) => (
-            <div key={byProvider.provider} className="mt-1.5">
-              <p className="ui-caption mb-1 font-bold text-slate-500">{byProvider.provider}</p>
+    <div className="layer-picker">
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="레이어·지표 이름"
+        aria-label="레이어 검색"
+        className="layer-search"
+        data-testid="layer-search"
+      />
+      {visible.length === 0 ? (
+        <p className="layer-search-empty" data-testid="layer-search-empty" role="status">
+          「{query.trim()}」에 해당하는 레이어가 없습니다
+        </p>
+      ) : (
+        <div role="group" aria-label="레이어 선택" className="space-y-3">
+          {focus ? (
+            <div>
               <div className="layer-switcher">
-                {byProvider.layers.map((layer) => (
-                  <button
-                    key={layer.id}
-                    type="button"
-                    aria-pressed={layer.id === activeId}
-                    className="layer-switcher-item"
-                    onClick={() => onChange(layer.id)}
-                  >
-                    <span className="layer-switcher-label">{layer.label}</span>
-                    <span className="layer-switcher-provider">{layer.provider}</span>
-                  </button>
-                ))}
+                <LayerButton layer={focus} activeId={activeId} onChange={onChange} />
               </div>
-              {activeSlot && byProvider.layers.some((layer) => layer.id === activeId) ? (
-                <div className="mt-2">{activeSlot}</div>
-              ) : null}
+              {showSlot ? <div className="mt-2">{activeSlot}</div> : null}
             </div>
-          ))}
+          ) : null}
+          {groups.length > 0 ? (
+            <div className={query.trim() ? undefined : "layer-switcher-scroll"}>
+              {groups.map((group) => (
+                <div key={group.source}>
+                  {query.trim() ? null : (
+                    <>
+                      <p className="ui-chip font-bold text-slate-700">{group.source} 데이터</p>
+                      <p className="ui-caption mb-1.5 text-slate-500">{group.note}</p>
+                    </>
+                  )}
+                  {group.providers.map((byProvider) => (
+                    <div key={byProvider.provider} className="mt-1.5">
+                      <p className="ui-caption mb-1 font-bold text-slate-500">{byProvider.provider}</p>
+                      <div className="layer-switcher">
+                        {byProvider.layers.map((layer) => (
+                          <LayerButton
+                            key={layer.id}
+                            layer={layer}
+                            activeId={activeId}
+                            onChange={onChange}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ))}
+      )}
     </div>
   );
 }
