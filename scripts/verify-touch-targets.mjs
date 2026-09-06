@@ -67,6 +67,18 @@ const measure = async (page) =>
         return false;
       }
       /*
+       * 패널 접힌 자리에 걸쳐 있는 칩은 레이아웃 상자만 있다. 모서리를 찍으면
+       * 패널 밖이 잡힌다 — 그건 안 보이는 표적이지 작은 표적이 아니다.
+       */
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const overflow = getComputedStyle(p);
+        if (!/(auto|scroll|hidden|clip)/.test(`${overflow.overflowX}${overflow.overflowY}`)) continue;
+        const pr = p.getBoundingClientRect();
+        if (r.top < pr.top - 0.5 || r.bottom > pr.bottom + 0.5 || r.left < pr.left - 0.5 || r.right > pr.right + 0.5) {
+          return false;
+        }
+      }
+      /*
        * overflow 로 잘린 버튼은 레이아웃 상자에만 있다. 모서리를 찍으면 그 자리의
        * 다른 요소가 잡힌다. 중심이 실제로 이 버튼이면 「보이는」 것이다.
        */
@@ -123,6 +135,7 @@ const measure = async (page) =>
 const browser = await chromium.launch();
 const viewports = [
   ["데스크톱", { width: 1440, height: 900 }, false],
+  ["태블릿", { width: 834, height: 1194 }, true],
   ["모바일", { width: 390, height: 844 }, true],
 ];
 
