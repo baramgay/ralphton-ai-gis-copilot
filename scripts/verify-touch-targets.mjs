@@ -50,6 +50,7 @@ const measure = async (page) =>
   page.evaluate((min) => {
     const visible = (el) => {
       if (el.closest('[aria-hidden="true"]')) return false;
+      if (el.classList.contains("skip-link")) return false;
       const st = getComputedStyle(el);
       if (st.display === "none" || st.visibility === "hidden" || st.pointerEvents === "none") {
         return false;
@@ -59,7 +60,13 @@ const measure = async (page) =>
       if (r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) {
         return false;
       }
-      return true;
+      /*
+       * overflow 로 잘린 버튼은 레이아웃 상자에만 있다. 모서리를 찍으면 그 자리의
+       * 다른 요소가 잡힌다. 중심이 실제로 이 버튼이면 「보이는」 것이다.
+       */
+      const mid = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!mid) return false;
+      return el === mid || el.contains(mid) || mid.contains(el);
     };
 
     const labelOf = (el) =>
@@ -80,13 +87,18 @@ const measure = async (page) =>
       const r = el.getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
-      const hw = Math.max(r.width, min) / 2;
-      const hh = Math.max(r.height, min) / 2;
+      /*
+       * 히트 영역은 요소 전체가 아니라 중심 44×44 다. 큰 타일의 바깥 모서리나
+       * 알약 버튼의 둥근 바깥각을 찍으면 옆 요소가 잡힌다.
+       * 둥근 44 원의 내접 사각형은 중심에서 ±15.5 이므로 8px 들여 찍는다.
+       */
+      const half = min / 2;
+      const inset = 8;
       const points = [
-        [cx - hw + 2, cy - hh + 2],
-        [cx + hw - 2, cy - hh + 2],
-        [cx - hw + 2, cy + hh - 2],
-        [cx + hw - 2, cy + hh - 2],
+        [cx - half + inset, cy - half + inset],
+        [cx + half - inset, cy - half + inset],
+        [cx - half + inset, cy + half - inset],
+        [cx + half - inset, cy + half - inset],
       ];
       const sizeOk = r.width + 0.5 >= min && r.height + 0.5 >= min;
       const corners = points.filter(([x, y]) => hits(el, x, y)).length;
