@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { HoverRow } from "@/lib/gis/hover-caption";
+import type { MapPoint } from "@/lib/gis/map-point";
 import { DemoMap } from "./demo-map";
 import { KakaoMap, type LiveMapPlace } from "./kakao-map";
 import { resetKakaoSdkCache } from "./kakao-sdk";
-import type { BoundaryCollection, Facility, RegionSeries } from "./types";
+import type { BoundaryCollection, RegionSeries } from "./types";
 
 type MapCanvasProps = {
   kakaoMapKey: string;
   boundary: BoundaryCollection;
   regions: RegionSeries[];
-  facilities: Facility[];
+  facilities: MapPoint[];
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
@@ -34,7 +35,7 @@ type MapCanvasProps = {
   legendLabel?: string;
   viewLabel?: string;
   onSelectRegion: (code: string) => void;
-  onSelectFacility?: (facility: Facility) => void;
+  onSelectFacility?: (facility: MapPoint) => void;
   onSelectLivePlace?: (place: LiveMapPlace) => void;
   onEngineChange?: (engine: "kakao" | "demo") => void;
 };

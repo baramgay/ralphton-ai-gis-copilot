@@ -1113,9 +1113,45 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
     selectMedicalLayer();
-    expect(screen.queryByRole("button", { name: /중앙의원/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /중앙약국/ })).toBeNull();
+    const map = screen.getByTestId("demo-map");
+    expect(map).toHaveAttribute("data-facilities-mode", "analysis");
+    expect(within(map).queryByRole("button", { name: /중앙의원/ })).toBeNull();
+    expect(within(map).queryByRole("button", { name: /중앙약국/ })).toBeNull();
   });
+
+  test("약국 위치를 물으면 지도에 그 핀이 뜨고 누르면 선택된다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "창원시 약국 위치" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    expect(await screen.findByRole("heading", { name: "의료기관 검색" })).toBeInTheDocument();
+    const map = screen.getByTestId("demo-map");
+    expect(map).toHaveAttribute("data-facilities-mode", "all");
+    const pin = within(map).getByRole("button", { name: /중앙약국/ });
+    expect(within(map).queryByRole("button", { name: /중앙의원/ })).toBeNull();
+    fireEvent.click(pin);
+    expect(
+      within(screen.getByTestId("result-panel")).getByRole("button", { name: /중앙약국/ }),
+    ).toHaveClass("is-selected");
+  });
+
+  test("총생활인구를 고르면 지도에 병의원 핀이 없다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(
+      within(screen.getByTestId("metric-picker")).getByRole("button", { name: /총생활인구/ }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("demo-map")).toHaveAttribute("data-outline", "0");
+    });
+    const map = screen.getByTestId("demo-map");
+    expect(map).toHaveAttribute("data-facilities-mode", "analysis");
+    expect(within(map).queryByRole("button", { name: /중앙의원/ })).toBeNull();
+    expect(within(map).queryByRole("button", { name: /중앙약국/ })).toBeNull();
+  }, 15_000);
 
   test("분석을 고르면 지도 호버에 그 지역의 지표 값이 적힌다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);

@@ -10,7 +10,8 @@ import type {
   KakaoMapsNamespace,
   KakaoOverlay,
 } from "@/components/copilot/kakao-sdk";
-import type { BoundaryCollection, Facility, RegionSeries } from "@/components/copilot/types";
+import type { BoundaryCollection, RegionSeries } from "@/components/copilot/types";
+import type { MapPoint } from "@/lib/gis/map-point";
 
 const { loadKakaoSdkMock } = vi.hoisted(() => ({
   loadKakaoSdkMock: vi.fn(),
@@ -64,44 +65,38 @@ const regions: RegionSeries[] = [{
   naturalChange: Array(13).fill(-1),
 }];
 
-const facilities: Facility[] = [
+const points: MapPoint[] = [
   {
     id: "clinic",
     name: "중앙의원",
-    type: "의원",
+    kind: "의원",
     adm_cd2: "4812125000",
-    adm_nm: "경상남도 창원시 의창구 동읍",
     lat: 35.1,
     lng: 129.04,
-    specialties: ["내과"],
-    hours: null,
   },
   {
     id: "pharmacy",
     name: "중앙약국",
-    type: "약국",
+    kind: "약국",
     adm_cd2: "4812125000",
-    adm_nm: "경상남도 창원시 의창구 동읍",
     lat: 35.101,
     lng: 129.041,
-    specialties: null,
-    hours: null,
   },
 ];
 
 describe("DemoMap facility interactions", () => {
-  test("renders every passed facility and selects markers by pointer or keyboard", () => {
+  test("요청했을 때만 점을 그리고 누르거나 키보드로 고른다", () => {
     const onSelectFacility = vi.fn();
 
     render(
       <DemoMap
         boundary={boundary}
         regions={regions}
-        facilities={facilities}
+        facilities={points}
         scores={new Map([["4812125000", 73]])}
         selectedRegionCode={null}
         radiusKm={2}
-        showFacilities={false}
+        showFacilities
         legendLabel="의료 취약도"
         onSelectRegion={vi.fn()}
         onSelectFacility={onSelectFacility}
@@ -115,12 +110,32 @@ describe("DemoMap facility interactions", () => {
     fireEvent.keyDown(pharmacy, { key: "Enter" });
     fireEvent.keyDown(pharmacy, { key: " " });
 
-    expect(onSelectFacility).toHaveBeenNthCalledWith(1, facilities[0]);
-    expect(onSelectFacility).toHaveBeenNthCalledWith(2, facilities[1]);
-    expect(onSelectFacility).toHaveBeenNthCalledWith(3, facilities[1]);
+    expect(onSelectFacility).toHaveBeenNthCalledWith(1, points[0]);
+    expect(onSelectFacility).toHaveBeenNthCalledWith(2, points[1]);
+    expect(onSelectFacility).toHaveBeenNthCalledWith(3, points[1]);
     expect(screen.getByText("의료 취약도")).toBeInTheDocument();
     // 채색 방식을 범례에 밝힌다 — 분위수는 "몇 등인가"라서 절대값으로 오해하면 안 된다.
     expect(screen.getByText("5분위(같은 수의 동)")).toBeInTheDocument();
+  });
+
+  test("요청하지 않으면 넘긴 점도 그리지 않는다", () => {
+    render(
+      <DemoMap
+        boundary={boundary}
+        regions={regions}
+        facilities={points}
+        scores={new Map([["4812125000", 73]])}
+        selectedRegionCode={null}
+        radiusKm={2}
+        showFacilities={false}
+        legendLabel="의료 취약도"
+        onSelectRegion={vi.fn()}
+        onSelectFacility={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /중앙의원/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /중앙약국/ })).toBeNull();
   });
 
   test("호버에 분석 요청한 지표 값을 적는다", () => {
@@ -229,11 +244,11 @@ describe("KakaoMap facility interactions", () => {
         appKey="public-app-key"
         boundary={boundary}
         regions={regions}
-        facilities={facilities}
+        facilities={points}
         scores={new Map([["4812125000", 73]])}
         selectedRegionCode={null}
         radiusKm={2}
-        showFacilities={false}
+        showFacilities
         legendLabel="의료 취약도"
         onSelectRegion={vi.fn()}
         onSelectFacility={onSelectFacility}
@@ -247,7 +262,7 @@ describe("KakaoMap facility interactions", () => {
 
     listeners.get(pharmacy!.marker)?.get("click")?.();
 
-    expect(onSelectFacility).toHaveBeenCalledWith(facilities[1]);
+    expect(onSelectFacility).toHaveBeenCalledWith(points[1]);
   });
 });
 
@@ -261,7 +276,7 @@ describe("MapCanvas SDK fallback", () => {
         kakaoMapKey="public-app-key"
         boundary={boundary}
         regions={regions}
-        facilities={facilities}
+        facilities={points}
         scores={new Map()}
         selectedRegionCode={null}
         radiusKm={2}

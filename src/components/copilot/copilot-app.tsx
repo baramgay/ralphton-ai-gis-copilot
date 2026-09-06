@@ -64,6 +64,12 @@ import {
 } from "@/lib/analysis/share-state";
 import { executeAnalysisIntent } from "@/lib/analysis/tool-registry";
 import { FACILITY_TYPE_COLORS } from "@/lib/gis/facility-style";
+import {
+  MAP_POINT_CAP,
+  capMapPoints,
+  facilityToMapPoint,
+  mapPointCapNotice,
+} from "@/lib/gis/map-point";
 import { probeRadius } from "@/lib/gis/point-probe";
 import { InterpretationCard } from "./interpretation-card";
 import type { LiveMapPlace } from "./kakao-map";
@@ -711,7 +717,7 @@ function executeQuickAnalysis(
   return resultToView(id, result, titleOverride);
 }
 
-const MAP_FACILITY_CAP = 900;
+const MAP_FACILITY_CAP = MAP_POINT_CAP;
 const RESULT_PAGE_STEP = 24;
 
 function dataSourceLabel(source: string): string {
@@ -1739,26 +1745,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }, [analysis?.ranked, comparePair, isCompareView, snapshot]);
 
   const selectedRegion = snapshot?.regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
-  const defaultMedicalFacilities = snapshot?.facilities.filter((facility) => facility.type !== "약국") ?? [];
   /*
-   * 의료시설 핀은 의료를 물었을 때만 뜻이 있다.
-   *
-   * 생활인구·카드매출 순위를 보는 화면에도 병의원 4,272곳이 클러스터로 얹혀, 단계구분도
-   * 위에 128·83·60 같은 숫자 방울이 떠 있었다(prod 실측). 지금 보는 지표와 아무 관계가
-   * 없는 숫자라 지도를 읽는 것을 방해한다.
+   * 지점 핀은 **물었을 때만** 올린다. 레이어를 고르기만 한 것으로는 병의원 수천 곳이
+   * 단계구분도를 가린다. 목록은 시설 질의 결과이고, 상한을 넘기면 잘랐다고 적는다.
    */
-  const showMedicalFacilities = activeLayerId === "medical";
-  const rawMapFacilities = analysis?.isFacilityResult
-    ? analysis.filteredFacilities
-    : !showMedicalFacilities
-      ? []
-      : (analysis?.filteredFacilities.length ?? 0) > 0
-        ? (analysis?.filteredFacilities ?? [])
-        : defaultMedicalFacilities;
+  const rawMapFacilities = analysis?.isFacilityResult ? analysis.filteredFacilities : [];
   const scopedMapFacilities =
     markerScope === "selected" && selectedRegionCode
       ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
       : rawMapFacilities;
+  const mapPointCap = capMapPoints(scopedMapFacilities.map(facilityToMapPoint));
+  const mapFacilities = mapPointCap.shown;
+  const mapFacilitiesCapped = mapPointCap.capped;
   const selectedFacilities = scopedMapFacilities.filter(
     (facility) => facility.adm_cd2 === selectedRegionCode,
   );
@@ -1952,7 +1950,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     else toggleRight();
   }, [toggleRight]);
 
-  const selectFacility = useCallback((facility: Facility) => {
+  const selectFacility = useCallback((facility: { id: string; adm_cd2: string }) => {
     setSelectedFacilityId(facility.id);
     setSelectedLivePlace(null);
     setFollowSelection(true);
@@ -4404,13 +4402,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           kakaoMapKey={kakaoMapKey}
           boundary={activeLayerId === KCB_GRID_LAYER.id && gridBoundary ? gridBoundary : boundary}
           regions={snapshot.regions}
-          facilities={[]}
+          facilities={mapFacilities}
           livePlaces={livePlaces}
           scores={scores}
           selectedRegionCode={selectedRegionCode}
           focusRegionCodes={focusRegionCodes}
           radiusKm={radiusKm}
-          showFacilities={false}
+          showFacilities={analysis.isFacilityResult}
           hoverRows={analysis.ranked}
           followSelection={followSelection}
           /*
@@ -4427,6 +4425,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           legendLabel={analysis.legendLabel}
           viewLabel={mapViewLabel}
           onSelectRegion={selectRegion}
+          onSelectFacility={selectFacility}
           onSelectLivePlace={selectLivePlace}
           onEngineChange={setMapEngine}
         />
@@ -4457,6 +4456,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           내렸다. 지도 조작을 가리지 않도록 pointer-events는 없다.
         */}
         <div className="map-context-badge">
+          {mapFacilitiesCapped ? (
+            <p className="ui-caption mb-1 font-semibold text-amber-700" data-testid="map-point-cap">
+              {mapPointCapNotice(MAP_FACILITY_CAP, mapPointCap.total)}
+            </p>
+          ) : null}
           <p className="ui-caption font-bold text-blue-600">{analysis.title}</p>
           {/*
             지도가 비추는 곳을 말해야 한다. 사용자가 직접 고르기 전까지 지도는 경남 전역을

@@ -12,8 +12,15 @@ export const FACILITY_TYPE_COLORS: Record<Facility["type"], string> = {
   약국: "#ea580c",
 };
 
+const DEFAULT_POINT_KIND_COLOR = "#64748b";
+
 export function facilityTypeColor(type: Facility["type"] | string): string {
-  return FACILITY_TYPE_COLORS[type as Facility["type"]] ?? "#64748b";
+  return FACILITY_TYPE_COLORS[type as Facility["type"]] ?? DEFAULT_POINT_KIND_COLOR;
+}
+
+/** 지점 종류 색. 목록에 없으면 기본색이라 새 자료를 붙여도 지도 코드를 안 고친다. */
+export function pointKindColor(kind: string): string {
+  return facilityTypeColor(kind);
 }
 
 export function facilityTypeShort(type: Facility["type"] | string): string {

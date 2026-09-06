@@ -6,6 +6,7 @@ import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
 import { hoverCaptionOf, type HoverRow } from "@/lib/gis/hover-caption";
+import type { MapPoint } from "@/lib/gis/map-point";
 import { sggLabelPoints } from "@/lib/gis/sgg-label";
 
 import {
@@ -16,7 +17,7 @@ import {
   type KakaoMarkerClusterer,
   type KakaoOverlay,
 } from "./kakao-sdk";
-import type { BoundaryCollection, Facility, Position, RegionSeries } from "./types";
+import type { BoundaryCollection, Position, RegionSeries } from "./types";
 
 export type LiveMapPlace = {
   id: string;
@@ -34,7 +35,7 @@ type KakaoMapProps = {
   appKey: string;
   boundary: BoundaryCollection;
   regions: RegionSeries[];
-  facilities: Facility[];
+  facilities: MapPoint[];
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
@@ -75,7 +76,7 @@ type KakaoMapProps = {
   /** 지금 보고 있는 레이어 · 지표 · 단위 · 기준월. */
   viewLabel?: string;
   onSelectRegion: (code: string) => void;
-  onSelectFacility?: (facility: Facility) => void;
+  onSelectFacility?: (facility: MapPoint) => void;
   onSelectLivePlace?: (place: LiveMapPlace) => void;
   onError: (message: string) => void;
   onReady?: () => void;
@@ -151,11 +152,11 @@ function boundsOf(boundary: BoundaryCollection): {
 
 /** Prefer selected dong, then high analysis score regions. */
 function prioritizeFacilities(
-  facilities: Facility[],
+  facilities: MapPoint[],
   selectedRegionCode: string | null,
   scores: Map<string, number>,
   cap: number,
-): Facility[] {
+): MapPoint[] {
   if (facilities.length <= cap) return facilities;
   const ranked = [...facilities].sort((left, right) => {
     const leftSelected = left.adm_cd2 === selectedRegionCode ? 1 : 0;
@@ -538,20 +539,17 @@ export function KakaoMap({
 
     const useCluster = clustererReady && typeof maps.MarkerClusterer === "function";
     const cap = useCluster ? CLUSTER_MARKER_CAP : PLAIN_MARKER_CAP;
-    const markerFacilities = prioritizeFacilities(
-      facilities,
-      selectedRegionCode,
-      scores,
-      cap,
-    );
+    const markerFacilities = showFacilities
+      ? prioritizeFacilities(facilities, selectedRegionCode, scores, cap)
+      : [];
 
-    const makeFacilityMarker = (facility: Facility) => {
+    const makeFacilityMarker = (facility: MapPoint) => {
       const position = new maps.LatLng(facility.lat, facility.lng);
       let image: object | undefined;
       if (typeof maps.MarkerImage === "function" && typeof maps.Size === "function") {
         try {
           image = new maps.MarkerImage(
-            facilityMarkerImageDataUri(facility.type),
+            facilityMarkerImageDataUri(facility.kind),
             new maps.Size(28, 28),
             typeof maps.Point === "function"
               ? { offset: new maps.Point(14, 14) }
@@ -563,7 +561,7 @@ export function KakaoMap({
       }
       const marker = new maps.Marker({
         position,
-        title: `${facility.name} · ${facility.type}`,
+        title: `${facility.name} · ${facility.kind}`,
         image,
         zIndex: facility.adm_cd2 === selectedRegionCode ? 5 : 1,
       });

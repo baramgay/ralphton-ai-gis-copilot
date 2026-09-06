@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
+import { pointKindColor } from "@/lib/gis/facility-style";
 import { hoverCaptionOf, type HoverRow } from "@/lib/gis/hover-caption";
+import type { MapPoint } from "@/lib/gis/map-point";
 import { sggLabelPoints } from "@/lib/gis/sgg-label";
 
 import type {
   BoundaryCollection,
   BoundaryFeature,
-  Facility,
   Position,
   RegionSeries,
 } from "./types";
@@ -18,7 +19,7 @@ import type {
 type DemoMapProps = {
   boundary: BoundaryCollection;
   regions: RegionSeries[];
-  facilities: Facility[];
+  facilities: MapPoint[];
   scores: Map<string, number>;
   selectedRegionCode: string | null;
   /** When set, non-listed dongs are dimmed (e.g. gu compare focus). */
@@ -31,7 +32,7 @@ type DemoMapProps = {
   legendLabel?: string;
   viewLabel?: string;
   onSelectRegion: (code: string) => void;
-  onSelectFacility?: (facility: Facility) => void;
+  onSelectFacility?: (facility: MapPoint) => void;
 };
 
 const VIEW_WIDTH = 1000;
@@ -130,7 +131,7 @@ export function DemoMap({
         hoverRows,
       )
     : null;
-  const visibleFacilities = facilities;
+  const visibleFacilities = showFacilities ? facilities : [];
   const sggLabels = useMemo(
     () => (showSggLabels ? sggLabelPoints(regions) : []),
     [regions, showSggLabels],
@@ -268,7 +269,7 @@ export function DemoMap({
                 transform={`translate(${x} ${y})`}
                 role={onSelectFacility ? "button" : undefined}
                 tabIndex={onSelectFacility ? 0 : undefined}
-                aria-label={onSelectFacility ? `${facility.name} · ${facility.type} 선택` : undefined}
+                aria-label={onSelectFacility ? `${facility.name} · ${facility.kind} 선택` : undefined}
                 className={onSelectFacility ? "cursor-pointer outline-none focus-visible:stroke-blue-950" : undefined}
                 onClick={() => onSelectFacility?.(facility)}
                 onKeyDown={(event) => {
@@ -279,8 +280,8 @@ export function DemoMap({
                 }}
               >
                 <circle r="5.5" fill="#ffffff" stroke="#0f172a" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-                <circle r="2.2" fill={facility.type === "종합병원" ? "#dc2626" : "#2563eb"} />
-                <title>{`${facility.name} · ${facility.type}`}</title>
+                <circle r="2.2" fill={pointKindColor(facility.kind)} />
+                <title>{`${facility.name} · ${facility.kind}`}</title>
               </g>
             );
           })}
