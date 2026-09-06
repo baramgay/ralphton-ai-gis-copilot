@@ -50,6 +50,13 @@ try {
 }
 await page.waitForTimeout(1200);
 
+/*
+ * 왼쪽 패널은 기본으로 접혀 있다. 접힌 채 재면 폭 0이라 이 검사가
+ * 「접혀 있어 건너뜀」으로 초록이 된다. 지시서대로 연 뒤에 잰다.
+ */
+await page.keyboard.press("[");
+await page.waitForTimeout(400);
+
 for (const [name, theme] of [
   ["라이트", null],
   ["다크", "dark"],

@@ -46,15 +46,15 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
     >
       <header className="probe-card-head">
         <div className="min-w-0">
-          <p className="ui-caption font-bold text-amber-600">
+          <p className="ui-caption font-bold">
             지점 분석
             {collapsed ? ` · 반경 ${radiusKm}km 시설 ${total}곳` : ""}
           </p>
-          <p className="truncate ui-body font-bold text-slate-900" data-testid="probe-region">
+          <p className="truncate ui-body font-bold" data-testid="probe-region">
             {probe.containing ? probe.containing.name.replace("경상남도 ", "") : "경상남도 경계 밖"}
           </p>
           {collapsed ? null : (
-            <p className="ui-caption text-slate-500">
+            <p className="ui-caption">
               {probe.point.lat.toFixed(5)}, {probe.point.lng.toFixed(5)}
             </p>
           )}
@@ -102,9 +102,9 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
       </div>
 
       <div className="probe-section">
-        <p className="ui-caption font-bold text-slate-500">반경 {radiusKm}km 안 의료시설</p>
+        <p className="ui-caption font-bold">반경 {radiusKm}km 안 의료시설</p>
         {total === 0 ? (
-          <p className="ui-body text-slate-700" data-testid="probe-facility-empty">
+          <p className="ui-body" data-testid="probe-facility-empty">
             {/*
               "없습니다"로 끝내면 5.1km에 병원이 있는 곳과 40km에 있는 곳이 같은 답을 받는다.
               그 둘은 전혀 다른 상황이라, 없을 때일수록 가장 가까운 곳을 말해야 한다.
@@ -116,7 +116,7 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
           </p>
         ) : (
           <>
-            <p className="ui-body font-bold text-slate-900" data-testid="probe-facility-total">
+            <p className="ui-body font-bold" data-testid="probe-facility-total">
               {total.toLocaleString("ko-KR")}곳
             </p>
             <div className="probe-chips">
@@ -127,7 +127,7 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
               ))}
             </div>
             {probe.nearest ? (
-              <p className="ui-caption text-slate-500">
+              <p className="ui-caption">
                 최근접 {probe.nearest.name} · {KM(probe.nearest.distanceKm)}
               </p>
             ) : null}
@@ -136,7 +136,7 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
       </div>
 
       <div className="probe-section">
-        <p className="ui-caption font-bold text-slate-500">
+        <p className="ui-caption font-bold">
           걸치는 행정동 {probe.regions.length}곳
         </p>
         <ul className="probe-regions" data-testid="probe-regions">
@@ -150,7 +150,7 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
           ))}
         </ul>
         {probe.regions.length > 8 ? (
-          <p className="ui-caption text-slate-400">외 {probe.regions.length - 8}곳</p>
+          <p className="ui-caption">외 {probe.regions.length - 8}곳</p>
         ) : null}
       </div>
 
@@ -158,7 +158,7 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
         <summary>이 결과의 한계</summary>
         <div className="ui-details-body space-y-1.5">
           {probe.notes.map((note) => (
-            <p key={note} className="ui-caption text-slate-600">
+            <p key={note} className="ui-caption">
               · {note}
             </p>
           ))}

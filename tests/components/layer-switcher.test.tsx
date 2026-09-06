@@ -122,7 +122,7 @@ describe("LayerSwitcher", () => {
   test("0건이면 무엇을 못 찾았는지 문장으로 말한다", () => {
     render(<LayerSwitcher layers={layers} activeId="population" onChange={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "없는자료xyz" } });
-    expect(screen.getByTestId("layer-search-empty")).toHaveTextContent("「없는자료xyz」에 해당하는 레이어가 없습니다");
+    expect(screen.getByTestId("layer-search-empty")).toHaveTextContent("「없는자료xyz」에 해당하는 자료가 없습니다");
     expect(screen.queryByRole("button", { name: /^인구/ })).not.toBeInTheDocument();
   });
 

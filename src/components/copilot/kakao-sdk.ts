@@ -191,7 +191,7 @@ function isMapsReady(maps: KakaoMapsNamespace | undefined): boolean {
 
 function domainHint(): string {
   if (typeof location === "undefined") return "";
-  return ` 현재 도메인(${location.origin})을 Kakao Developers → 앱 설정 → 플랫폼 → Web 에 등록했는지 확인하세요.`;
+  return ` 이 사이트의 주소(${location.origin})가 지도 서비스에 등록돼 있는지 확인하세요.`;
 }
 
 export function loadKakaoSdk(appKey: string): Promise<KakaoMapsNamespace> {
@@ -241,7 +241,7 @@ export function loadKakaoSdk(appKey: string): Promise<KakaoMapsNamespace> {
       }
       finishErr(
         new Error(
-          `Kakao Maps SDK 로드 시간 초과.${domainHint()} 네트워크·CSP(eval)·도메인을 확인하세요.`,
+          `지도를 불러오는 데 시간이 너무 걸립니다.${domainHint()}`,
         ),
       );
     }, LOAD_TIMEOUT_MS);

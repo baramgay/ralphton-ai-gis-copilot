@@ -167,7 +167,7 @@ export function LayerSwitcher({
       />
       {visible.length === 0 ? (
         <p className="layer-search-empty" data-testid="layer-search-empty" role="status">
-          「{query.trim()}」에 해당하는 레이어가 없습니다
+          「{query.trim()}」에 해당하는 자료가 없습니다
         </p>
       ) : (
         <div role="group" aria-label="레이어 선택" className="space-y-3">

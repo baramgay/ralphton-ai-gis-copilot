@@ -242,24 +242,24 @@ export function DemoMap({
       </div>
 
       {hoveredFeature ? (
-        <div className="pointer-events-none absolute left-1/2 top-5 -translate-x-1/2 rounded-xl border border-white/70 bg-slate-950/88 px-3 py-2 text-xs font-medium text-white shadow-xl backdrop-blur-xl">
+        <div className="map-hover-chip">
           {hoveredFeature.properties.adm_nm.replace("경상남도 ", "")}
         </div>
       ) : null}
 
-      <div className="absolute right-4 top-4 flex flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white/92 shadow-lg backdrop-blur-xl">
+      <div className="map-zoom">
         <button
           type="button"
-          className="grid size-10 place-items-center text-xl font-light text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+          className="grid size-10 place-items-center"
           aria-label="지도 확대"
           onClick={() => setZoom((current) => Math.min(1.8, current + 0.2))}
         >
           +
         </button>
-        <span className="h-px bg-slate-200" />
+        <span className="map-zoom-split" />
         <button
           type="button"
-          className="grid size-10 place-items-center text-xl font-light text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+          className="grid size-10 place-items-center"
           aria-label="지도 축소"
           onClick={() => setZoom((current) => Math.max(0.8, current - 0.2))}
         >

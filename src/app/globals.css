@@ -982,6 +982,12 @@ input:hover {
   min-width: var(--touch-min);
 }
 
+.copilot-map a[href*="kakao.com"],
+.copilot-map a[href*="daumcdn.net"] {
+  min-height: 0;
+  min-width: 0;
+}
+
 /* 좁은 화면에서는 기준월 문구를 접는다. 제품명과 데이터 상태가 먼저다. */
 @media (max-width: 560px) {
   .copilot-topbar-meta {
@@ -1176,6 +1182,10 @@ input:hover {
   color: var(--text-1);
 }
 
+.onboard-card ol {
+  font-weight: 600;
+}
+
 .onboard-card .ui-caption {
   color: var(--text-2);
 }
@@ -1283,7 +1293,7 @@ input:hover {
   background: var(--glass-bg-strong);
   padding: 0 3.5rem 0 1.125rem;
   font-size: var(--fs-body-lg);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--glass-text);
   box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -1293,7 +1303,7 @@ input:hover {
 }
 
 .query-hero-input::placeholder {
-  color: var(--text-4);
+  color: var(--text-2);
 }
 
 .query-hero-input:focus {
@@ -1334,18 +1344,18 @@ input:hover {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--accent);
   border-radius: 0.75rem;
+  background: var(--glass-bg-strong);
   padding: 0.6rem 0.85rem;
   font-size: var(--fs-body);
+  font-weight: 600;
   line-height: var(--lh-body);
+  color: var(--text-1);
   box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur-sm);
   backdrop-filter: var(--glass-blur-sm);
-}
-
-.query-hero-status {
-  background: rgb(219 234 254 / 95%);
-  color: #1e40af;
 }
 
 @keyframes query-hero-pulse {
@@ -1365,29 +1375,26 @@ input:hover {
   height: 0.4rem;
   flex-shrink: 0;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--accent);
   animation: query-hero-pulse 1.4s ease-in-out infinite;
 }
 
 .query-hero-notice.is-neutral {
-  background: rgb(248 250 252 / 96%);
+  border-left-color: var(--glass-border);
   color: var(--text-2);
 }
 
 .query-hero-notice.is-success {
-  background: rgb(209 250 229 / 96%);
-  color: #065f46;
+  border-left-color: var(--accent);
 }
 
 .query-hero-notice.is-error {
-  background: rgb(254 226 226 / 96%);
-  color: #9f1239;
+  border-left-color: var(--accent-warm);
 }
 
 /* 답은 냈지만 요청의 일부를 반영하지 못했을 때. 오류는 아니므로 붉은색은 쓰지 않는다. */
 .query-hero-notice.is-warn {
-  background: rgb(254 243 199 / 96%);
-  color: #854d0e;
+  border-left-color: var(--accent-warm);
 }
 
 .query-hero-chips {
@@ -1462,7 +1469,7 @@ input:hover {
   font-size: var(--fs-caption);
   font-weight: 700;
   letter-spacing: var(--ls-caption);
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 /* 내 말은 점선 테두리로 가른다 — 유리 위에서 색은 못 쓴다(최악 타일에서 깨진다). */
@@ -1546,6 +1553,112 @@ input:hover {
 .map-chip-fallback {
   left: 1rem;
   top: 3.5rem;
+}
+
+.map-hover-chip {
+  pointer-events: none;
+  position: absolute;
+  left: 50%;
+  top: 1.25rem;
+  z-index: 10;
+  transform: translateX(-50%);
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  background: var(--glass-bg-strong);
+  padding: 0.4rem 0.75rem;
+  font-size: var(--fs-chip);
+  font-weight: 700;
+  color: var(--glass-text);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+}
+
+.map-zoom {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.75rem;
+  background: var(--glass-bg-strong);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+}
+
+.map-zoom button {
+  color: var(--glass-text);
+  font-size: 1.25rem;
+  font-weight: 300;
+}
+
+.map-zoom button:hover {
+  background: var(--accent-soft);
+}
+
+.map-zoom-split {
+  height: 1px;
+  background: var(--glass-border);
+}
+
+.map-error-card {
+  pointer-events: none;
+  position: absolute;
+  left: 1rem;
+  top: 3.5rem;
+  z-index: 20;
+  max-width: min(20rem, calc(100% - 2rem));
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--accent-warm);
+  border-radius: 1rem;
+  background: var(--glass-bg-strong);
+  padding: 0.75rem;
+  color: var(--text-1);
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.map-error-card p {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  line-height: var(--lh-body);
+}
+
+.map-error-card button {
+  pointer-events: auto;
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  padding: 0.4rem 0.75rem;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--background);
+}
+
+.kakao-map-tooltip {
+  padding: 6px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass-bg-strong);
+  color: var(--glass-text);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--glass-edge), var(--glass-shadow);
+  pointer-events: none;
+  transform: translateY(-4px);
+}
+
+.follow-card {
+  border: 1px solid var(--accent-line);
+  border-radius: 0.9rem;
+  background: var(--accent-soft);
+  padding: 0.75rem;
 }
 
 .map-status {
@@ -1685,6 +1798,9 @@ input:hover {
 .copilot-shell.is-map-moving .map-chip,
 .copilot-shell.is-map-moving .map-legend,
 .copilot-shell.is-map-moving .map-context-badge,
+.copilot-shell.is-map-moving .map-hover-chip,
+.copilot-shell.is-map-moving .map-zoom,
+.copilot-shell.is-map-moving .map-error-card,
 .copilot-shell.is-map-moving .map-status,
 .copilot-shell.is-map-moving .panel-edge-toggle,
 .copilot-shell.is-map-moving .mobile-panel-btn,
@@ -1735,6 +1851,9 @@ input:hover {
   .map-chip,
   .map-legend,
   .map-context-badge,
+  .map-hover-chip,
+  .map-zoom,
+  .map-error-card,
   .map-status,
   .panel-edge-toggle,
   .mobile-panel-btn,
@@ -2027,7 +2146,7 @@ input:hover {
 .panel-tabs-inner {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.25rem;
+  gap: 0.5rem;
   border-radius: 12px;
   background: var(--surface-3);
   padding: 4px;
@@ -2863,21 +2982,12 @@ html[data-theme="dark"] .copilot-map [class*="bg-[#dfe8ef]"] {
  * 배너 색은 **뜻**을 나른다. 파스텔을 그냥 어둡게 누르면 성공과 경고가 같아 보이므로,
  * 색조는 지키고 채도만 낮춘다(성공=청록, 경고=앰버, 오류=붉음, 중립=바탕).
  */
-html[data-theme="dark"] .query-hero-notice.is-neutral {
-  background: rgb(16 26 44 / 95%);
-  color: var(--text-2);
-}
-html[data-theme="dark"] .query-hero-notice.is-success {
-  background: rgb(8 51 68 / 95%);
-  color: #7dd3fc;
-}
-html[data-theme="dark"] .query-hero-notice.is-error {
-  background: rgb(69 10 10 / 95%);
-  color: #fca5a5;
-}
+html[data-theme="dark"] .query-hero-notice.is-neutral,
+html[data-theme="dark"] .query-hero-notice.is-success,
+html[data-theme="dark"] .query-hero-notice.is-error,
 html[data-theme="dark"] .query-hero-notice.is-warn {
-  background: rgb(69 45 6 / 95%);
-  color: #fcd34d;
+  background: var(--glass-bg-strong);
+  color: var(--text-1);
 }
 
 /* 예시 칩도 흰 판이었다. */

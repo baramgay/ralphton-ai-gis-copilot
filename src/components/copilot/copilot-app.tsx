@@ -3602,7 +3602,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   }
                 />
                 {activeLayerError ? (
-                  <p className="mt-2 ui-caption text-rose-600">{activeLayerError}</p>
+                  <p className="mt-2 ui-caption">{activeLayerError}</p>
                 ) : null}
               </div>
 
@@ -3812,7 +3812,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           <button
                             key={`${a}-${b}`}
                             type="button"
-                            className="ui-chip rounded-full border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-950"
+                            className="choice-btn !w-auto rounded-full px-2.5 py-1"
                             onClick={() => applyComparePair(a, b, "gu")}
                           >
                             {a.replace(/[구현군]$/, "")}·{b.replace(/[구현군]$/, "")}
@@ -3833,7 +3833,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           <button
                             key={`${a}-${b}`}
                             type="button"
-                            className="ui-chip max-w-full truncate rounded-full border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-950"
+                            className="choice-btn !w-auto max-w-full truncate rounded-full px-2.5 py-1"
                             title={`${a} vs ${b}`}
                             onClick={() => applyComparePair(a, b, "dong")}
                           >
@@ -3848,16 +3848,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               {activeLayerId === "medical" ? (
                 <section>
                   <h2 className="section-label">접근 반경</h2>
-                  <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                  <div className="flex gap-2">
                     {([1, 2, 3] as const).map((radius) => (
                       <button
                         key={radius}
                         type="button"
                         aria-label={`${radius}km 반경`}
                         aria-pressed={radiusKm === radius}
-                        className={`flex-1 rounded-lg py-2.5 ui-body font-bold ${
-                          radiusKm === radius ? "bg-slate-900 text-white" : "text-slate-500"
-                        }`}
+                        className="choice-btn flex-1"
                         onPointerDown={() => runRadius(radius)}
                         onClick={(event) => {
                           if (event.detail === 0) runRadius(radius);
@@ -3871,9 +3869,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ) : null}
 
               {activeLayerId === "medical" && selectedRegion && lastIntent ? (
-                <section className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
-                  <p className="ui-caption font-bold text-blue-800">이어서 묻기</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                <section className="follow-card">
+                  <p className="ui-caption font-bold">이어서 묻기</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {[
                       "이 동만 병원 보여줘",
                       "반경 3km로",
@@ -3882,7 +3880,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       <button
                         key={item}
                         type="button"
-                        className="ui-chip rounded-full border border-blue-200 bg-white px-2.5 py-1 text-blue-900"
+                        className="choice-btn !w-auto rounded-full px-2.5 py-1"
                         onClick={() => setQuery(item)}
                       >
                         {item}
@@ -3897,7 +3895,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <div className="ui-details-body space-y-3">
                   <div>
                     <p className="ui-caption mb-1.5">마커 범위</p>
-                    <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    <div className="flex gap-2">
                       {(
                         [
                           ["priority", "우선 표시"],
@@ -3908,9 +3906,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           key={id}
                           type="button"
                           aria-pressed={markerScope === id}
-                          className={`flex-1 rounded-lg py-2 ui-chip font-bold ${
-                            markerScope === id ? "bg-slate-900 text-white" : "text-slate-500"
-                          }`}
+                          className="choice-btn flex-1"
                           onClick={() => setMarkerScope(id)}
                         >
                           {label}
@@ -3978,7 +3974,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </div>
                   <div>
                     <p className="ui-caption mb-1.5">글자·여백 밀도</p>
-                    <div className="flex gap-1">
+                    <div className="flex gap-2">
                       {(
                         [
                           ["comfortable", "여유"],
@@ -4003,11 +3999,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   <div>
                     <p className="ui-caption mb-1.5">
                       테마{" "}
-                      <span className="font-normal text-slate-400">
+                      <span className="font-normal">
                         · <kbd className="kbd">Shift</kbd>+<kbd className="kbd">D</kbd>
                       </span>
                     </p>
-                    <div className="grid grid-cols-2 gap-1">
+                    <div className="grid grid-cols-2 gap-2">
                       {(
                         [
                           ["system", "시스템"],
@@ -4031,7 +4027,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         </button>
                       ))}
                     </div>
-                    <p className="ui-caption mt-1.5 text-slate-400" data-testid="theme-resolved">
+                    <p className="ui-caption mt-1.5" data-testid="theme-resolved">
                       화면: {THEME_LABELS[resolveTheme(themePreference)]}
                       {themePreference === "system" ? " · OS 따름" : ""}
                     </p>
@@ -4239,7 +4235,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     ? "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 live 스냅샷으로 전환됩니다."
                     : populationIsLive(snapshot.mode, snapshot.sourceNotes)
                       ? "기준월과 출처 노트를 함께 확인하세요. 시설·인구 원천이 다를 수 있습니다."
-                      : "의료기관은 HIRA 실데이터입니다. 인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요."}
+                      : "의료기관은 심평원 시설 자료입니다. 인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요."}
                 </p>
                 <p className="ui-caption mt-2 font-semibold opacity-95">
                   범위: 경상남도 · 산식: 공급35+고령25+거리25+2km무시설15
@@ -4427,7 +4423,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </p>
                   ) : (
                     <p className="ui-chip mt-1 text-amber-800">
-                      게시된 live 스냅샷 없음 · POST /api/data/sync 필요
+                      게시된 실데이터 스냅샷이 없습니다. 아래 동기화를 실행하세요.
                     </p>
                   )}
                   {/* 갱신 권장 사유는 운영자용이다. 첫 화면 토스트에서 여기로 옮겼다. */}
@@ -4450,7 +4446,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <p className="ui-body mt-1 text-rose-700">오류: {syncOps.lastError}</p>
                   ) : null}
                   <p className="ui-chip mt-2 text-slate-500">
-                    상세: /api/data/sync · 연결 상태: /api/health
+                    자세한 연결 상태는 아래 「연결 상태」에서 봅니다.
                   </p>
                 </div>
               ) : null}
@@ -4462,13 +4458,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <ul className="space-y-2 ui-body">
                       {(
                         [
-                          ["Kakao 지도", capabilities.kakaoMapsJs],
-                          ["Kakao 장소검색", capabilities.kakaoRest],
+                          ["지도", capabilities.kakaoMapsJs],
+                          ["장소 검색", capabilities.kakaoRest],
                           ["AI 질문 해석", capabilities.ai],
                           ["공공데이터", capabilities.publicData],
                           ["인구 live 병합", Boolean(capabilities.populationLive)],
                           ["RAG 원격 임베딩", Boolean(capabilities.ragRemoteEmbed)],
-                          ["Supabase", capabilities.supabase],
+                          ["원격 저장", capabilities.supabase],
                           ["시설 동기화", capabilities.dataSync],
                           ["cron 실패 알림", Boolean(capabilities.cronAlert)],
                         ] as const
@@ -5306,7 +5302,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-[10px] font-bold text-slate-600">실시간 주변 장소</p>
-                <p className="text-[9px] text-slate-400">카카오 로컬 REST · 선택 동 대표점 기준</p>
+                <p className="ui-caption">선택 동 대표점 기준 주변 장소</p>
               </div>
               <button
                 type="button"

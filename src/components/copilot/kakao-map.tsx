@@ -75,10 +75,7 @@ function makeTooltipElement(text: string): HTMLDivElement {
   const el = document.createElement("div");
   el.className = "kakao-map-tooltip";
   el.textContent = text;
-  el.style.cssText =
-    "padding:6px 10px;border-radius:10px;background:rgba(15,23,42,.9);color:#fff;" +
-    "font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 8px 20px rgba(15,23,42,.25);" +
-    "pointer-events:none;transform:translateY(-4px);";
+  el.style.cssText = "";
   return el;
 }
 
@@ -180,7 +177,7 @@ export function KakaoMap({
     map: KakaoMapInstance;
     clustererReady: boolean;
   } | null>(null);
-  const [status, setStatus] = useState("Kakao 지도를 연결하는 중…");
+  const [status, setStatus] = useState("지도를 연결하는 중…");
 
   /*
    * 최신 콜백을 ref에 담아 두는 흔한 수법이다. SDK 로드는 비동기라, 그 사이 부모가 새
@@ -645,7 +642,7 @@ export function KakaoMap({
         // 커서가 그대로면 사용자는 지도를 눌러 보고서야 모드를 안다.
         style={probeMode ? { cursor: "crosshair" } : undefined}
         data-probe-mode={probeMode ? "on" : "off"}
-        aria-label="Kakao 경남 행정동 분석 지도"
+        aria-label="경남 행정동 분석 지도"
       />
       {/*
         지도 위에 뜨는 것은 유리 토큰으로 칠한다. 예전에는 `bg-white/90` + `text-slate-700`

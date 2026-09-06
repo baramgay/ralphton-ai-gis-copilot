@@ -34,7 +34,7 @@ describe("buildKakaoSdkUrl", () => {
 
     // Script will never fire load in this test environment.
     const rejection = expect(loadKakaoSdk("public-app-key")).rejects.toThrow(
-      /Kakao Maps SDK 로드 시간 초과|스크립트 로드 실패/,
+      /지도를 불러오는 데 시간이 너무 걸립니다|스크립트 로드 실패/,
     );
 
     await vi.advanceTimersByTimeAsync(13_000);
