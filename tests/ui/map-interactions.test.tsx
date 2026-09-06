@@ -122,6 +122,60 @@ describe("DemoMap facility interactions", () => {
     // 채색 방식을 범례에 밝힌다 — 분위수는 "몇 등인가"라서 절대값으로 오해하면 안 된다.
     expect(screen.getByText("5분위(같은 수의 동)")).toBeInTheDocument();
   });
+
+  test("호버에 분석 요청한 지표 값을 적는다", () => {
+    render(
+      <DemoMap
+        boundary={boundary}
+        regions={regions}
+        facilities={[]}
+        scores={new Map([["4812125000", 73]])}
+        selectedRegionCode={null}
+        radiusKm={2}
+        showFacilities={false}
+        hoverRows={[
+          {
+            code: "4812125000",
+            name: "창원시 의창구 동읍",
+            valueLabel: "8,000명",
+            metrics: [{ label: "총생활인구", value: 8000, unit: "명" }],
+          },
+        ]}
+        legendLabel="총생활인구 분포"
+        onSelectRegion={vi.fn()}
+      />,
+    );
+
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "경상남도 창원시 의창구 동읍 선택" }));
+    const chip = screen.getByTestId("map-hover-chip");
+    expect(chip).toHaveTextContent("창원시 의창구 동읍");
+    expect(chip).toHaveTextContent("총생활인구 8,000명");
+    expect(chip).not.toHaveTextContent("73점");
+  });
+
+  test("분석 전에는 시군 이름만 적는다", () => {
+    render(
+      <DemoMap
+        boundary={boundary}
+        regions={regions}
+        facilities={[]}
+        scores={new Map()}
+        selectedRegionCode={null}
+        radiusKm={2}
+        showFacilities={false}
+        outlineMode
+        hoverRows={[]}
+        legendLabel="시군구 경계"
+        onSelectRegion={vi.fn()}
+      />,
+    );
+
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "경상남도 창원시 의창구 동읍 선택" }));
+    const chip = screen.getByTestId("map-hover-chip");
+    expect(chip).toHaveTextContent("창원시 의창구");
+    expect(chip).not.toHaveTextContent("동읍");
+    expect(chip).not.toHaveTextContent("점");
+  });
 });
 
 describe("KakaoMap facility interactions", () => {

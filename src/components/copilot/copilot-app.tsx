@@ -905,7 +905,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [syncOps, setSyncOps] = useState<SyncOpsInfo | null>(null);
   const [selectedLivePlace, setSelectedLivePlace] = useState<LivePlace | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
-  const [facilityTypeFilter, setFacilityTypeFilter] = useState<string | "all">("all");
+
   const [resultSearch, setResultSearch] = useState("");
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
   /* "상위 10%"는 전체 행 수를 알아야 개수가 나온다. 분석이 끝난 뒤 렌더에서 환산한다. */
@@ -1759,24 +1759,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     markerScope === "selected" && selectedRegionCode
       ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
       : rawMapFacilities;
-  const typedMapFacilities =
-    facilityTypeFilter === "all"
-      ? scopedMapFacilities
-      : scopedMapFacilities.filter((facility) => facility.type === facilityTypeFilter);
-  const mapFacilitiesCapped = typedMapFacilities.length > MAP_FACILITY_CAP;
-  const mapFacilities = mapFacilitiesCapped
-    ? typedMapFacilities.slice(0, MAP_FACILITY_CAP)
-    : typedMapFacilities;
-  const selectedFacilities = typedMapFacilities.filter(
+  const selectedFacilities = scopedMapFacilities.filter(
     (facility) => facility.adm_cd2 === selectedRegionCode,
   );
 
   /*
    * 지점 둘레 읽기.
    *
-   * 시설은 화면에 그려진 것(`mapFacilities`)이 아니라 **스냅샷 전체**로 센다. 화면 목록은
-   * 유형 필터·표시 상한(600곳)이 걸려 있어서, 그것으로 세면 "반경 2km 안 3곳"이 실은
-   * "그려진 것 중 3곳"이 된다. 지도에 안 그려졌다고 병원이 없는 것은 아니다.
+   * 시설은 지도 핀이 아니라 **스냅샷 전체**로 센다. 화면 목록은 유형 필터·표시 상한이
+   * 걸려 있어서, 그것으로 세면 "반경 2km 안 3곳"이 실은 "목록에 남은 3곳"이 된다.
    */
   const probeFacilities = snapshot?.facilities;
   const probe = useMemo(() => {
@@ -3820,68 +3811,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ) : null}
 
               <details className="ui-details">
-                <summary>지도 표시 옵션</summary>
-                <div className="ui-details-body space-y-3">
-                  <div>
-                    <p className="ui-caption mb-1.5">마커 범위</p>
-                    <div className="flex gap-2">
-                      {(
-                        [
-                          ["priority", "우선 표시"],
-                          ["selected", "선택 동만"],
-                        ] as const
-                      ).map(([id, label]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          aria-pressed={markerScope === id}
-                          className="choice-btn flex-1"
-                          onClick={() => setMarkerScope(id)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="ui-caption mb-1.5">시설 유형</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      <button
-                        type="button"
-                        className={`ui-chip rounded-full px-2.5 py-1 font-bold ${
-                          facilityTypeFilter === "all"
-                            ? "bg-slate-900 text-white"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                        onClick={() => setFacilityTypeFilter("all")}
-                      >
-                        전체
-                      </button>
-                      {Object.entries(FACILITY_TYPE_COLORS).map(([type, color]) => (
-                        <button
-                          key={type}
-                          type="button"
-                          className={`ui-chip rounded-full px-2.5 py-1 font-bold ${
-                            facilityTypeFilter === type ? "text-white" : "text-slate-700"
-                          }`}
-                          style={{
-                            backgroundColor:
-                              facilityTypeFilter === type ? color : `${color}22`,
-                            border: `1px solid ${color}`,
-                          }}
-                          onClick={() =>
-                            setFacilityTypeFilter((current) => (current === type ? "all" : type))
-                          }
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </details>
-
-              <details className="ui-details">
                 <summary>화면 설정</summary>
                 <div className="ui-details-body space-y-3">
                   <div>
@@ -4475,13 +4404,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           kakaoMapKey={kakaoMapKey}
           boundary={activeLayerId === KCB_GRID_LAYER.id && gridBoundary ? gridBoundary : boundary}
           regions={snapshot.regions}
-          facilities={mapFacilities}
+          facilities={[]}
           livePlaces={livePlaces}
           scores={scores}
           selectedRegionCode={selectedRegionCode}
           focusRegionCodes={focusRegionCodes}
           radiusKm={radiusKm}
-          showFacilities={analysis.isFacilityResult}
+          showFacilities={false}
+          hoverRows={analysis.ranked}
           followSelection={followSelection}
           /*
            * 반경 원은 "2km 안에 의료시설이 있는가"를 묻는 분석의 표시다. 생활인구·소비
@@ -4497,7 +4427,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           legendLabel={analysis.legendLabel}
           viewLabel={mapViewLabel}
           onSelectRegion={selectRegion}
-          onSelectFacility={selectFacility}
           onSelectLivePlace={selectLivePlace}
           onEngineChange={setMapEngine}
         />
@@ -4528,11 +4457,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           내렸다. 지도 조작을 가리지 않도록 pointer-events는 없다.
         */}
         <div className="map-context-badge">
-          {mapFacilitiesCapped ? (
-            <p className="ui-caption mb-1 font-semibold text-amber-700">
-              지도 시설 {MAP_FACILITY_CAP}개 표시 · 전체 {typedMapFacilities.length.toLocaleString("ko-KR")}
-            </p>
-          ) : null}
           <p className="ui-caption font-bold text-blue-600">{analysis.title}</p>
           {/*
             지도가 비추는 곳을 말해야 한다. 사용자가 직접 고르기 전까지 지도는 경남 전역을

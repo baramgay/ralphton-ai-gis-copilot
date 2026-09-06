@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
+import { hoverCaptionOf, type HoverRow } from "@/lib/gis/hover-caption";
 import { sggLabelPoints } from "@/lib/gis/sgg-label";
 
 import type {
@@ -26,6 +27,7 @@ type DemoMapProps = {
   showFacilities: boolean;
   outlineMode?: boolean;
   showSggLabels?: boolean;
+  hoverRows?: readonly HoverRow[];
   legendLabel?: string;
   viewLabel?: string;
   onSelectRegion: (code: string) => void;
@@ -56,6 +58,7 @@ export function DemoMap({
   showFacilities,
   outlineMode = false,
   showSggLabels = false,
+  hoverRows = [],
   legendLabel = "상대 분석값",
   viewLabel,
   onSelectRegion,
@@ -120,6 +123,13 @@ export function DemoMap({
 
   const selectedRegion = regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   const hoveredFeature = boundary.features.find((feature) => feature.properties.adm_cd2 === hovered);
+  const hoveredCaption = hoveredFeature
+    ? hoverCaptionOf(
+        hoveredFeature.properties.adm_cd2,
+        hoveredFeature.properties.adm_nm,
+        hoverRows,
+      )
+    : null;
   const visibleFacilities = facilities;
   const sggLabels = useMemo(
     () => (showSggLabels ? sggLabelPoints(regions) : []),
@@ -281,9 +291,10 @@ export function DemoMap({
         {viewLabel ?? "임시 지도"}
       </div>
 
-      {hoveredFeature ? (
-        <div className="map-hover-chip">
-          {hoveredFeature.properties.adm_nm.replace("경상남도 ", "")}
+      {hoveredCaption ? (
+        <div className="map-hover-chip" data-testid="map-hover-chip">
+          <div>{hoveredCaption.name}</div>
+          {hoveredCaption.value ? <div>{hoveredCaption.value}</div> : null}
         </div>
       ) : null}
 

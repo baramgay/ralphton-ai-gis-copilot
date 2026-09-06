@@ -5,6 +5,7 @@ import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
+import { hoverCaptionOf, type HoverRow } from "@/lib/gis/hover-caption";
 import { sggLabelPoints } from "@/lib/gis/sgg-label";
 
 import {
@@ -56,6 +57,8 @@ type KakaoMapProps = {
   outlineMode?: boolean;
   /** 시군구 이름을 올린다. 행정동 이름은 올리지 않는다. */
   showSggLabels?: boolean;
+  /** 분석 결과 행. 호버에 시군·행정동·격자 값을 적는다. */
+  hoverRows?: readonly HoverRow[];
   /**
    * 지점 찍기 모드.
    *
@@ -78,12 +81,38 @@ type KakaoMapProps = {
   onReady?: () => void;
 };
 
-function makeTooltipElement(text: string): HTMLDivElement {
+function makeTooltipElement(name: string, value: string | null): HTMLDivElement {
   const el = document.createElement("div");
   el.className = "kakao-map-tooltip";
-  el.textContent = text;
-  el.style.cssText = "";
+  el.setAttribute("data-testid", "map-hover-chip");
+  const nameEl = document.createElement("div");
+  nameEl.textContent = name;
+  el.append(nameEl);
+  if (value) {
+    const valueEl = document.createElement("div");
+    valueEl.textContent = value;
+    el.append(valueEl);
+  }
   return el;
+}
+
+function pointOfFeature(
+  feature: BoundaryCollection["features"][number],
+  region: RegionSeries | undefined,
+): { lat: number; lng: number } {
+  if (region) return region.representativePoint;
+  const ring =
+    feature.geometry.type === "Polygon"
+      ? feature.geometry.coordinates[0]
+      : feature.geometry.coordinates[0]?.[0];
+  if (!ring || ring.length === 0) return { lat: 0, lng: 0 };
+  let lat = 0;
+  let lng = 0;
+  for (const [x, y] of ring) {
+    lng += x;
+    lat += y;
+  }
+  return { lat: lat / ring.length, lng: lng / ring.length };
 }
 
 const PLAIN_MARKER_CAP = 80;
@@ -154,6 +183,7 @@ export function KakaoMap({
   showRadius = true,
   outlineMode = false,
   showSggLabels = false,
+  hoverRows = [],
   probeMode = false,
   probePoint = null,
   probeRadiusKm = 2,
@@ -357,16 +387,12 @@ export function KakaoMap({
     // 분위수 경계는 이번에 그릴 값 전체로 한 번만 계산한다.
     const scale = buildScale(scores, choroplethTheme);
 
-    const showTooltip = (code: string, lat: number, lng: number) => {
+    const showTooltip = (code: string, featureName: string, lat: number, lng: number) => {
       if (typeof maps.CustomOverlay !== "function") return;
       tooltipRef.current?.setMap(null);
-      const region = regionByCode.get(code);
-      const score = scores.get(code);
-      const label = region
-        ? `${region.adm_nm.replace("경상남도 ", "")}${score != null ? ` · ${score.toFixed(0)}` : ""}`
-        : code;
+      const caption = hoverCaptionOf(code, featureName, hoverRows);
       const overlay = new maps.CustomOverlay({
-        content: makeTooltipElement(label),
+        content: makeTooltipElement(caption.name, caption.value),
         position: new maps.LatLng(lat, lng),
         yAnchor: 1.4,
         zIndex: 10,
@@ -422,13 +448,8 @@ export function KakaoMap({
           onSelectRegion(code);
         });
         maps.event.addListener(polygon, "mouseover", () => {
-          if (region) {
-            showTooltip(
-              code,
-              region.representativePoint.lat,
-              region.representativePoint.lng,
-            );
-          }
+          const point = pointOfFeature(feature, region);
+          showTooltip(code, feature.properties.adm_nm, point.lat, point.lng);
         });
         maps.event.addListener(polygon, "mouseout", () => {
           tooltipRef.current?.setMap(null);
@@ -668,6 +689,7 @@ export function KakaoMap({
     showRadius,
     outlineMode,
     showSggLabels,
+    hoverRows,
     probePoint,
     probeRadiusKm,
   ]);
@@ -714,7 +736,7 @@ export function KakaoMap({
           ))}
         </div>
         <p className="map-legend-note">
-          5분위 채색(구간별 동 수 비슷) · 호버 시 이름·점수 · 시설 핀 색은 유형별
+          5분위 채색(구간별 동 수 비슷) · 호버 시 이름·값
         </p>
       </div>
       )}

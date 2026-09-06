@@ -1594,6 +1594,8 @@ input:hover {
   padding: 0.4rem 0.75rem;
   font-size: var(--fs-chip);
   font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
   color: var(--glass-text);
   box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur-sm);
@@ -1674,7 +1676,10 @@ input:hover {
   color: var(--glass-text);
   font-size: 11px;
   font-weight: 700;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  max-width: 16rem;
   box-shadow: var(--glass-edge), var(--glass-shadow);
   pointer-events: none;
   transform: translateY(-4px);

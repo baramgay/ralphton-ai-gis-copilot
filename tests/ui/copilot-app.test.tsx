@@ -1109,6 +1109,32 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
   }, 30_000);
 
+  test("의료기관을 골라도 지도에 병의원 핀을 올리지 않는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
+    expect(screen.queryByRole("button", { name: /중앙의원/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /중앙약국/ })).toBeNull();
+  });
+
+  test("분석을 고르면 지도 호버에 그 지역의 지표 값이 적힌다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(
+      within(screen.getByTestId("metric-picker")).getByRole("button", { name: /총생활인구/ }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("demo-map")).toHaveAttribute("data-outline", "0");
+    });
+    fireEvent.pointerEnter(screen.getByRole("button", { name: /동읍 선택/ }));
+    const chip = screen.getByTestId("map-hover-chip");
+    expect(chip).toHaveTextContent(/동읍|창원시/);
+    expect(chip).toHaveTextContent(/총생활인구/);
+    expect(chip).toHaveTextContent(/8,000/);
+    expect(chip).not.toHaveTextContent(/점/);
+  }, 15_000);
+
   test("의료취약 × 민간 교차가 실제로 실행된다", async () => {
     // 해석(resolveCrossQuery)만 테스트하면 이 결함을 못 잡는다. 실제로 겪었다 —
     // 교차 후보에는 의료를 더했는데 지표 목록에서 빠뜨려 runCross가 조용히 false를

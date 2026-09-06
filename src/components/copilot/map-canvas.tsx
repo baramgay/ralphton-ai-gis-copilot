@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import type { HoverRow } from "@/lib/gis/hover-caption";
 import { DemoMap } from "./demo-map";
 import { KakaoMap, type LiveMapPlace } from "./kakao-map";
 import { resetKakaoSdkCache } from "./kakao-sdk";
@@ -24,6 +25,7 @@ type MapCanvasProps = {
   showRadius?: boolean;
   outlineMode?: boolean;
   showSggLabels?: boolean;
+  hoverRows?: readonly HoverRow[];
   /** 지점 찍기 모드. Kakao 지도에서만 뜻이 있다(DemoMap은 좌표 클릭을 받지 못한다). */
   probeMode?: boolean;
   probePoint?: { lat: number; lng: number } | null;
