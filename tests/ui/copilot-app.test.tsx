@@ -1137,6 +1137,24 @@ describe("CopilotApp", () => {
     ).toHaveClass("is-selected");
   });
 
+  test("시설을 물은 뒤 의료기관 레이어를 고르면 핀이 없다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "창원시 약국 위치" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    expect(await screen.findByRole("heading", { name: "의료기관 검색" })).toBeInTheDocument();
+    expect(screen.getByTestId("demo-map")).toHaveAttribute("data-facilities-mode", "all");
+    selectMedicalLayer();
+    await waitFor(() => {
+      expect(screen.getByTestId("demo-map")).toHaveAttribute("data-facilities-mode", "analysis");
+    });
+    const map = screen.getByTestId("demo-map");
+    expect(within(map).queryByRole("button", { name: /중앙약국/ })).toBeNull();
+    expect(within(map).queryByRole("button", { name: /중앙의원/ })).toBeNull();
+  });
+
   test("총생활인구를 고르면 지도에 병의원 핀이 없다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");

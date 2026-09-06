@@ -3467,7 +3467,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       selectMetric(CUBE_LAYER_METRICS[nextId][0]);
                     }
                     // 질의 결과는 customAnalysis가 우선이다. 레이어를 손고르면 그 결과를 비운다.
+                    // 시설 질의는 activeQuick이 facilities로 남아, 의료기관 레이어만 골라도
+                    // 지점이 다시 찍힌다. 레이어 기본 분석으로 되돌린다.
                     setCustomAnalysis(null);
+                    setActiveQuick("scarcity");
+                    setLivePlaces([]);
+                    setSelectedFacilityId(null);
                   }}
                   activeSlot={
                       <div className="metric-picker" data-testid="metric-picker">
