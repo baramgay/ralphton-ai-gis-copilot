@@ -1,3 +1,4 @@
+import { collapseReplicatedDistricts } from "@/lib/layers/independent-observations";
 import { buildLayerView } from "@/lib/layers/select";
 import type { AdminLevel, LayerCube, MetricDef } from "@/lib/layers/types";
 
@@ -101,7 +102,25 @@ export function multiLayerView(
   const totalCodes = new Set<string>();
   for (const map of entryMaps) for (const code of map.keys()) if (matchesFilter(code)) totalCodes.add(code);
 
-  const stats = entryMaps.map((map) => standardize(codes.map((code) => map.get(code)!.value)));
+  /*
+   * 평균·표준편차는 **독립 관측**으로 낸다. 2지표 교차(crossLayerView)와 같은 규칙 —
+   * 시군구 복제(창원 5개 구)를 그대로 세면 한 도시가 여러 표를 갖는다.
+   */
+  const observations = codes.map((code) => ({
+    name: nameByCode.get(code) ?? code,
+    values: entryMaps.map((map) => map.get(code)!.value),
+  }));
+  const independent =
+    adminLevel === "sgg"
+      ? collapseReplicatedDistricts(
+          observations,
+          (row) => row.name,
+          (row) => row.values,
+        ).items
+      : observations;
+  const stats = entryMaps.map(
+    (_, index) => standardize(independent.map((row) => row.values[index])),
+  );
   const signs = operands.map((operand) => (operand.direction === "high" ? 1 : -1));
 
   const ranked: MultiRow[] = codes

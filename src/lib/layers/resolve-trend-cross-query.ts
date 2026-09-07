@@ -38,6 +38,8 @@ const FALLING_CUES = ["감소", "줄어", "줄고", "주는", "줄", "하락", "
 
 type Hit = {
   operand: Omit<TrendCrossOperand, "direction">;
+  /** 시군구까지만 있는 지표인가. 한쪽이라도 그렇다면 추세 교차도 시군구로 봐야 한다. */
+  sggOnly: boolean;
   start: number;
   end: number;
 };
@@ -63,6 +65,7 @@ function allHits(text: string, layers: readonly LayerLike[]): Hit[] {
           metricLabel: metric.label,
           unit: metric.unit,
         },
+        sggOnly: metric.scope === "sgg",
         start: best.at,
         end: best.at + best.trigger.replace(/\s+/g, "").length,
       });
@@ -124,7 +127,15 @@ export function resolveTrendCrossQuery(
   return {
     a: { ...first.operand, direction: firstDirection },
     b: { ...second.operand, direction: secondDirection },
-    adminLevel: detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
+    /*
+     * 한쪽이 시군구까지만 있는 지표면 읍면동으로 겹쳐 볼 수 없다. 그 값은 소속
+     * 읍면동에 똑같이 복제돼 있어, 읍면동 순위는 상대 지표만으로 정해진 것과
+     * 같아진다(단일·교차·다중·단일추세와 같은 규칙 — 여기만 빠져 있었다).
+     */
+    adminLevel:
+      first.sggOnly || second.sggOnly
+        ? "sgg"
+        : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
     regionFilters: detectRegionFilters(text, options.dongNames ?? []),
     months: detectTrendMonths(text),
   };

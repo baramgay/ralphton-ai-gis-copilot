@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { CUBE_LAYERS } from "@/lib/layers/catalog";
 import { resolveTrendCrossQuery } from "@/lib/layers/resolve-trend-cross-query";
+import type { LayerDescriptor } from "@/lib/layers/types";
 
 /**
  * "생활인구는 느는데 소비는 주는 곳"은 값의 크기가 아니라 두 흐름이 엇갈리는 곳을 묻는다.
@@ -36,5 +37,36 @@ describe("추세 교차 해석", () => {
     const match = resolveTrendCrossQuery("최근 6개월 창원 생활인구는 느는데 소비는 주는 곳", CUBE_LAYERS);
     expect(match?.months).toBe(6);
     expect(match?.regionFilters[0]).toMatch(/^창원시/);
+  });
+
+  test("시군구까지만 있는 지표가 끼면 시군구로 본다", () => {
+    // 단일·교차·다중·단일추세와 같은 규칙. 여기만 빠져 있어 복제 305행 표준화가 됐다.
+    const fake = (id: string, trigger: string, sggOnly: boolean): LayerDescriptor => ({
+      id,
+      label: id,
+      provider: "KOSIS",
+      kind: "choropleth",
+      coverage: "gyeongnam",
+      adminLevels: ["dong", "sgg"],
+      months: ["2025-01"],
+      sourceNotes: [],
+      metrics: [
+        {
+          key: "m",
+          label: id,
+          unit: "",
+          aggregation: "sum",
+          formula: "f",
+          limitation: "",
+          triggers: [trigger],
+          ...(sggOnly ? { scope: "sgg" as const } : {}),
+        },
+      ],
+    });
+    const layers = [fake("sa", "에이", true), fake("sb", "비", false)];
+    const match = resolveTrendCrossQuery("에이 늘고 비 주는 곳", layers);
+    expect(match?.adminLevel).toBe("sgg");
+    const both = [fake("sa", "에이", false), fake("sb", "비", false)];
+    expect(resolveTrendCrossQuery("에이 늘고 비 주는 곳", both)?.adminLevel).toBe("dong");
   });
 });

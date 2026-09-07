@@ -141,3 +141,72 @@ describe("multiLayerView", () => {
     expect(result.comparable).toBe(0);
   });
 });
+
+describe("시군구 복제 표준화", () => {
+  /*
+   * trend-cross와 같은 규칙. 복제 4곳을 덜어낸 실행과 합성값이 같아야 한다.
+   */
+  const guCodes = ["48121", "48123", "48125", "48127", "48129"];
+  const guNames = ["의창구", "성산구", "마산합포구", "마산회원구", "진해구"];
+  function sggOperand(key: string, guValue: number, others: Record<string, number>): MultiOperand {
+    const cells = guCodes.map((prefix, i) => ({
+      code: `${prefix}00000`,
+      name: `경상남도 창원시${guNames[i]}`,
+      point: { lat: 35, lng: 128 },
+      areaKm2: 1,
+      series: { [key]: [guValue] },
+    }));
+    for (const [code, value] of Object.entries(others)) {
+      cells.push({
+        code,
+        name: `경상남도 시 ${code}`,
+        point: { lat: 35, lng: 128 },
+        areaKm2: 1,
+        series: { [key]: [value] },
+      });
+    }
+    const m = metric(key);
+    return {
+      cube: { layerId: `layer-${key}`, adminLevel: "dong", referenceMonth: "2025-01", months: ["2025-01"], cells },
+      metric: m,
+      metrics: [m],
+      direction: "high",
+    };
+  }
+
+  test("창원 5개 구를 1곳으로 세어 표준화한다", () => {
+    const full = multiLayerView(
+      [
+        sggOperand("a", 10, { "4817000000": 30, "4822000000": 50 }),
+        sggOperand("b", 20, { "4817000000": 40, "4822000000": 60 }),
+        sggOperand("c", 30, { "4817000000": 50, "4822000000": 70 }),
+      ],
+      "sgg",
+    );
+    const dropGu = (operand: MultiOperand): MultiOperand => ({
+      ...operand,
+      cube: {
+        ...operand.cube,
+        cells: operand.cube.cells.filter(
+          (cell) => cell.code === "4812100000" || !cell.code.startsWith("4812"),
+        ),
+      },
+    });
+    const reduced = multiLayerView(
+      [
+        dropGu(sggOperand("a", 10, { "4817000000": 30, "4822000000": 50 })),
+        dropGu(sggOperand("b", 20, { "4817000000": 40, "4822000000": 60 })),
+        dropGu(sggOperand("c", 30, { "4817000000": 50, "4822000000": 70 })),
+      ],
+      "sgg",
+    );
+    const byCode = new Map(reduced.ranked.map((row) => [row.code, row.composite]));
+    for (const row of full.ranked) {
+      if (byCode.has(row.code)) {
+        expect(row.composite).toBeCloseTo(byCode.get(row.code)!, 9);
+      }
+    }
+    expect(full.ranked).toHaveLength(7);
+    expect(reduced.ranked).toHaveLength(3);
+  });
+});

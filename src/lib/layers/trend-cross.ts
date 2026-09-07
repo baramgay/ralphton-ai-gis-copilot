@@ -1,3 +1,4 @@
+import { collapseReplicatedDistricts } from "@/lib/layers/independent-observations";
 import { buildTrendRanking } from "@/lib/layers/trend-view";
 import type { AdminLevel, LayerCube, MetricDef } from "@/lib/layers/types";
 
@@ -69,15 +70,32 @@ export function trendCrossView(
 
   // 물어본 방향으로 부호를 맞춘다. 감소를 물었으면 많이 줄수록(음수가 클수록) 큰 값이다.
   const signOf = (direction: "rising" | "falling") => (direction === "rising" ? 1 : -1);
-  const valuesA = pairs.map(({ row }) => (row.trend.changeRate ?? 0) * signOf(a.direction));
-  const valuesB = pairs.map(({ other }) => (other.trend.changeRate ?? 0) * signOf(b.direction));
-  const statA = standardize(valuesA);
-  const statB = standardize(valuesB);
+  /*
+   * 평균·표준편차는 **독립 관측**으로 낸다. 시군구 22칸에는 창원 5개 구가 같은 값으로
+   * 들어 있어(KOSIS가 시 한 행만 준다), 그대로 표준화하면 한 도시가 5표 가중으로
+   * 평균을 끈다. 2지표 교차(crossLayerView)와 같은 규칙 — z 기준만 접고 순위·지도는
+   * 그대로 둔다.
+   */
+  const observations = pairs.map(({ row, other }) => ({
+    name: row.name,
+    a: (row.trend.changeRate ?? 0) * signOf(a.direction),
+    b: (other.trend.changeRate ?? 0) * signOf(b.direction),
+  }));
+  const independent =
+    adminLevel === "sgg"
+      ? collapseReplicatedDistricts(
+          observations,
+          (row) => row.name,
+          (row) => [row.a, row.b],
+        ).items
+      : observations;
+  const statA = standardize(independent.map((row) => row.a));
+  const statB = standardize(independent.map((row) => row.b));
 
   const ranked: TrendCrossRow[] = pairs
     .map(({ row, other }, index) => {
-      const zA = (valuesA[index] - statA.mean) / statA.std;
-      const zB = (valuesB[index] - statB.mean) / statB.std;
+      const zA = (observations[index].a - statA.mean) / statA.std;
+      const zB = (observations[index].b - statB.mean) / statB.std;
       return {
         code: row.code,
         name: row.name,
