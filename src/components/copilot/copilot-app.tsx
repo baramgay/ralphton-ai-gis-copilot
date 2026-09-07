@@ -1930,11 +1930,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 선택 지역이 바뀌면 그 주변 실시간 장소를 다시 받는다. 외부 시스템(Kakao 장소 API)과
    * 화면 상태를 맞추는 일이라 effect가 제자리다. 결과를 상태에 넣는 것이 이 effect의
    * 목적 자체이므로 setState를 뺄 수 없다.
+   *
+   * **시설을 물었을 때만 부른다.** 전에는 선택 지역이 바뀔 때마다 조건 없이 "병원"을
+   * 조회했다. 그래서 「고령화율이 높은 곳」처럼 시설과 무관한 질문에도 카카오 장소가
+   * 딸려 오고, 그 점이 지도에 그려졌다(배포본 실측 — 마커 2개). 묻지 않은 것을 띄우지
+   * 않는다는 규칙은 시설 핀에만이 아니라 **점을 그리는 모든 경로**에 걸린다.
    */
+  const wantsFacilities = analysis?.isFacilityResult === true;
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadLivePlacesNearSelection(selectedRegion, "병원");
-  }, [selectedRegion, loadLivePlacesNearSelection]);
+    void loadLivePlacesNearSelection(wantsFacilities ? selectedRegion : null, "병원");
+  }, [wantsFacilities, selectedRegion, loadLivePlacesNearSelection]);
 
   /*
    * 조작·결과 패널 여닫이. 좁은 화면이면 패널이 바텀시트라 sheetMode가, 넓은 화면이면
@@ -3310,19 +3316,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 무엇을 물어도 의료취약지수 공식만 보여 주고 있었다 — "세대수 많은 동"을 물었는데
    * 화면 아래에 "공급 부족 35% + 고령 수요 25% …"가 붙어 나왔다(prod 실측).
    *
-   * 도구마다 이미 제 산식을 `formulaNotes`로 낸다. 그것을 쓰면 된다. 단 **시설 검색은
-   * 제외한다** — 그 산식은 "약국을 제외한 모든 의료기관"처럼 목록을 거르는 규칙이라,
-   * 지도에 그려진 지표(의료취약지수)와 무관하다. METHOD_SUMMARY는 그럴 때의 기본값이다.
+   * 도구마다 이미 제 산식을 `formulaNotes`로 낸다. 그것을 쓰면 된다.
+   *
+   * 시설 검색도 마찬가지다. 전에는 시설 결과를 여기서 빼고 METHOD_SUMMARY(의료취약지수
+   * 산식)로 떨어뜨렸는데, 그러면 **계산하지도 않은 산식**이 방법론으로 인쇄된다 —
+   * 「의료기관 검색 1,361곳」 밑에 "공급 부족 35% + 고령 수요 25% …"가 붙었다(배포본 실측).
+   * 목록을 뽑은 결과의 방법론은 목록을 뽑은 규칙이다. 그 규칙은 시설 도구가 이미
+   * `formulaNotes`로 낸다("시설 종류가 명시되지 않으면 …", "운영시간·진료과 값이 없는
+   * 시설은 …"). 적을 것이 없으면 빈 문자열로 두어 줄 자체를 감춘다 — 없는 방법론을
+   * 지어내는 것보다 낫다.
    */
   const methodSummaryText = !analysisRequested || analysis.id === "idle"
     ? analysis.formulaNotes.join(" · ")
     : isCrossView
     ? analysis.formulaNotes.join(" · ")
+    : analysis.isFacilityResult
+    ? analysis.formulaNotes.join(" · ")
     : activeLayerId !== "medical" && activeMetric
       ? `${activeMetric.label} = ${activeMetric.formula}${
           activeMetric.limitation ? ` · ${activeMetric.limitation}` : ""
         }`
-      : analysis && !analysis.isFacilityResult && analysis.formulaNotes.length > 0
+      : analysis && analysis.formulaNotes.length > 0
         ? analysis.formulaNotes.join(" · ")
         : METHOD_SUMMARY;
   const referenceMonthLabel =
@@ -3353,6 +3367,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (analysis.isFacilityResult
       ? analysis.filteredFacilities.length === 0
       : analysis.ranked.length === 0);
+
+  /*
+   * 실시간 장소도 시설 핀과 같은 문 아래 둔다. 조회를 막는 것만으로는 부족하다 —
+   * 시설 질의로 받아 둔 목록이 남아 있는 채 다른 분석으로 넘어가면 점만 그대로 남는다.
+   * 지도에 넘기는 자리에서도 한 번 더 잠근다.
+   */
+  const mapLivePlaces = analysis.isFacilityResult ? livePlaces : [];
 
   const shellStyle = {
     ...cssVars,
@@ -4401,8 +4422,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               {snapshot.sourceNotes.length > 0 ? (
                 <details className="ui-details">
                   <summary>출처 노트</summary>
+                  {/*
+                    자르지 않는다. 앞서 여섯 줄만 그렸더니 하필 **잘리는 쪽이 갱신 사실**이었다
+                    — 사용자가 본 여섯 줄은 전부 "시연·합성"인데, 잘린 일곱째 줄이
+                    "HIRA 병원정보서비스(v2)로 경남 시설 4272곳을 갱신했습니다"였다(배포본 실측).
+                    길면 이 details 가 접어 준다. 접는 것과 자르는 것은 다르다.
+                  */}
                   <div className="ui-details-body space-y-1.5">
-                    {snapshot.sourceNotes.slice(0, 6).map((note) => (
+                    {snapshot.sourceNotes.map((note) => (
                       <p key={note} className="ui-body text-slate-600">
                         · {note}
                       </p>
@@ -4433,7 +4460,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           boundary={activeLayerId === KCB_GRID_LAYER.id && gridBoundary ? gridBoundary : boundary}
           regions={snapshot.regions}
           facilities={mapFacilities}
-          livePlaces={livePlaces}
+          livePlaces={mapLivePlaces}
           scores={scores}
           selectedRegionCode={selectedRegionCode}
           focusRegionCodes={focusRegionCodes}
@@ -4792,13 +4819,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </div>
             </details>
           ) : null}
-          <p
-            className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"
-            data-testid="method-summary"
-          >
-            <span className="font-bold text-slate-800">방법론 · </span>
-            {methodSummaryText}
-          </p>
+          {methodSummaryText.trim() ? (
+            <p
+              className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"
+              data-testid="method-summary"
+            >
+              <span className="font-bold text-slate-800">방법론 · </span>
+              {methodSummaryText}
+            </p>
+          ) : null}
           <div
             className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
               snapshot.mode === "live"
