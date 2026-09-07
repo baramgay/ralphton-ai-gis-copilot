@@ -33,16 +33,24 @@ jobs:
 
   smoke-prod:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: verify
+    # 배포 시차(Vercel 반영 지연)·외부 의존(카카오·KOSIS) 때문에 실패해도 머지를
+    # 막지 않는다. 붉으면 배포본을 사람이 본다. 전체 12종은 출시 전 수동으로
+    # `npm run verify:prod`를 돌린다.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20.19"
-      - name: Production smoke
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Production checks (fast subset)
         env:
-          SMOKE_BASE_URL: https://ralphton-ai-gis-copilot.vercel.app
-        run: node scripts/smoke.mjs
+          PROD_URL: https://gnbc.site/
+        run: node scripts/verify-prod.mjs https://gnbc.site/ terms map-overlap sgg probe

@@ -22,6 +22,7 @@
     "lint": "eslint .",
     "verify:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-windows.ps1",
     "verify": "node scripts/verify.mjs",
+    "verify:prod": "node scripts/verify-prod.mjs",
     "verify:unit": "npm run test && npm run typecheck && npm run lint && npm run build",
     "smoke": "node scripts/smoke.mjs"
   },
