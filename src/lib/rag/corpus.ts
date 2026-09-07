@@ -100,8 +100,8 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   },
   {
     id: "kakao-live",
-    title: "실시간 장소 검색",
-    body: "근처·주변 질의는 시설 자료와 실시간 장소 검색을 함께 쓸 수 있습니다. 지도·검색 제공 설정과 웹 도메인 등록이 필요합니다.",
+    title: "카카오 실시간 장소",
+    body: "근처·주변 질의는 시설 자료와 카카오 로컬 장소 검색을 함께 쓸 수 있습니다. 지도·검색 제공 설정과 웹 도메인 등록이 필요합니다.",
     tags: ["kakao", "nearby", "filterFacilitiesByTypeAndHours"],
     keywords: ["카카오", "근처", "주변", "실시간", "장소", "로컬"],
   },

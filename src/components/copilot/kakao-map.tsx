@@ -217,7 +217,9 @@ export function KakaoMap({
       ? "시군구"
       : boundary.features.some((feature) => feature.properties.adm_cd2.includes("_"))
         ? "격자"
-        : "행정동";  const overlaysRef = useRef<KakaoOverlay[]>([]);
+        : "행정동";
+
+  const overlaysRef = useRef<KakaoOverlay[]>([]);
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
   const liveMarkersRef = useRef<KakaoOverlay[]>([]);
   const tooltipRef = useRef<KakaoOverlay | null>(null);

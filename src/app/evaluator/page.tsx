@@ -25,7 +25,7 @@ export default function EvaluatorPrintPage() {
         <h1 className="mt-1 text-2xl font-bold tracking-tight">평가자 한 장 요약</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           범위: 경상남도 행정동(약 305개) · 시설: 건강보험심사평가원 병원정보서비스 v2 ·
-          인구: 주민등록 기반 시연·실측 병합 · 지도: 온라인 지도
+          인구: 주민등록 기반 시연·실측 병합 · 지도: 카카오 지도
         </p>
         <div className="mt-3 flex flex-wrap gap-2 print:hidden">
           <PrintButton />
@@ -98,7 +98,7 @@ export default function EvaluatorPrintPage() {
           <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-slate-700">
             <li>의료 취약 순위 · 구/시 비교 · 동 드릴다운</li>
             <li>자연어 질의 (규칙 우선 + 규칙이 놓친 표현만 AI)</li>
-            <li>지도 색상·마커 연동</li>
+            <li>카카오 지도 색상·마커 연동</li>
             <li>CSV · 공유 링크 · 다크 모드</li>
           </ul>
         </div>

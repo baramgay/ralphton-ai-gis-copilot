@@ -771,8 +771,8 @@ function dataSourceLabel(source: string): string {
 function mapEngineLabel(kakaoMapKey: string, mapEngine: "kakao" | "demo" | "unknown"): string {
   if (!kakaoMapKey) return "임시 지도";
   if (mapEngine === "demo") return "임시 지도(연결 실패)";
-  if (mapEngine === "kakao") return "온라인 지도";
-  return "지도 연결 중";
+  if (mapEngine === "kakao") return "카카오 지도";
+  return "카카오 지도 연결 중";
 }
 
 type AiLastOutcome =
