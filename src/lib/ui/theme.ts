@@ -21,15 +21,14 @@ export function isThemePreference(value: string | null | undefined): value is Th
 /**
  * 아무것도 고르지 않았을 때의 테마.
  *
- * 이 도구는 지도와 단계구분·차트가 화면의 대부분이다. 어두운 바탕에서 색 대비가 커져
- * 단계 차이가 눈에 먼저 들어오고, 회의실 빔프로젝터에서도 흰 화면보다 덜 번진다.
- * 시스템 설정을 따르면 사람마다 다른 화면을 보게 되어 같은 자료를 두고 이야기하기
- * 어렵다 — 기본을 하나로 고정하고, 바꾸고 싶은 사람은 테마 단추로 바꾼다.
+ * 기기 설정을 따른다. 같은 자료를 두고 이야기할 때 사람마다 화면이 달라질 수
+ * 있지만, 사용자가 기기에서 정한 밝기 선호를 덮지 않는 쪽을 택했다.
  *
  * ⚠️ 첫 페인트 전에 도는 `THEME_BOOTSTRAP_SCRIPT`의 기본값과 **반드시 같아야 한다.**
- * 어긋나면 흰 화면이 한 번 번쩍인 뒤 어두워진다.
+ * 어긋나면 흰 화면이 한 번 번쩍인 뒤 어두워진다. (아래 스크립트는 이 상수를
+ * 그대로 박아 넣으므로, 여기만 바꾸면 둘이 함께 바뀐다.)
  */
-export const DEFAULT_THEME: ThemePreference = "dark";
+export const DEFAULT_THEME: ThemePreference = "system";
 
 export function readStoredTheme(): ThemePreference {
   if (typeof window === "undefined") return DEFAULT_THEME;

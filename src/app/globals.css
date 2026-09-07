@@ -126,7 +126,8 @@ html[data-density="compact"] .quick-tile {
 /*
  * 다크 「데이터룸」 팔레트.
  *
- * 기본 테마이므로 대부분의 사용자가 보는 화면이다(theme.ts DEFAULT_THEME).
+ * 기기 설정이 어두운 쪽일 때의 화면이다(theme.ts DEFAULT_THEME="system"이
+ * 그렇게 가르킨다).
  * 바탕은 남색 계열 한 톤으로 눌러 두고, **색은 자료에만 쓴다** — 강조 청록(cyan)은
  * 지금 보고 있는 것, 앰버는 주의해야 할 것에만. 화면 장식에 색을 쓰면 단계구분 색과
  * 경쟁해서 정작 자료가 안 보인다.
@@ -1637,6 +1638,7 @@ input:hover {
   top: 1.25rem;
   z-index: 10;
   transform: translateX(-50%);
+  max-width: min(18rem, calc(100% - 2rem));
   border: 1px solid var(--glass-border);
   border-radius: 0.75rem;
   background: var(--glass-bg-strong);
@@ -1646,6 +1648,10 @@ input:hover {
   line-height: 1.35;
   text-align: center;
   color: var(--glass-text);
+  /* 값 문장이 길면 다음 줄로 넘긴다. 줄바꿈 없는 긴 숫자·코드는
+     overflow-wrap이 끊는다. 짧을 때는 내용 폭 그대로 둔다. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur-sm);
   backdrop-filter: var(--glass-blur-sm);
@@ -1722,6 +1728,11 @@ input:hover {
  * 걸면 shrink-to-fit 이 최소 폭(min-content)으로 접히고, 한글은 글자 사이 어디서나
  * 끊기므로 「거제시 자동차 천대당 교통사고 5.7건/천대」가 **한 글자씩 세로로** 섰다
  * (배포본 실측). 그래서 폭을 max-content 로 못박고 상한만 따로 준다.
+ *
+ * 반대쪽 함정: 오버레이 맥락이 줄바꿈을 안 하는 쪽이면, 상한에 걸린 뒤에도 값이
+ * 한 줄로 테두리를 뚫고 나간다(배포본 실측). 그래서 줄바꿈을 명시하고, 공백 없는
+ * 긴 숫자·코드는 overflow-wrap으로 끊는다. 짧을 때는 max-content라 박스가 내용에
+ * 맞게 작아지고, 길 때는 상한까지 커진 뒤 다음 줄로 넘어간다.
  */
 .kakao-map-tooltip {
   width: max-content;
@@ -1733,6 +1744,8 @@ input:hover {
   color: var(--glass-text);
   line-height: var(--lh-tight);
   text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
   box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur-sm);
   backdrop-filter: var(--glass-blur-sm);
