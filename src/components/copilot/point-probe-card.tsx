@@ -11,20 +11,56 @@ import type { RadiusProbe } from "@/lib/gis/point-probe";
  *
  * 「반경 2km 안 생활인구 3만 8천 명」 같은 큰 숫자가 없다. 인구·소비는 행정동 단위라
  * 원이 동을 자르면 면적 비례 배분을 가정해야 하는데, 산이 절반인 읍에서 그 가정은
- * 사람을 산에 올려놓는다. 대신 **걸치는 동을 이름으로** 보여 준다 — 합계를 못 내는 것이
- * 아니라 내면 틀리기 때문이고, 그 사실을 각주가 아니라 화면에 적는다.
+ * 사람을 산에 올려놓는다. 대신 **걸치는 동을 이름으로** 보여 주고, 현재 분석이
+ * 있으면 그 동의 분석 값을 **조회만** 해서 함께 보여 준다(합산·분할 없음).
+ * 격자는 중심점이 원 안에 든 칸의 값을 그대로 보여 준다(칸을 자르지 않는다).
  */
 
 const KM = (value: number) => (value < 1 ? `${Math.round(value * 1000)}m` : `${value.toFixed(1)}km`);
+
+export type ProbeRegionValue = {
+  code: string;
+  name: string;
+  /** 현재 분석의 그 지역 값(순위표와 같은 문장). */
+  text: string;
+};
+
+export type ProbeGridValue = {
+  code: string;
+  /** 현재 지표의 그 칸 값. 칸 코드는 내부 값이라 화면에 내지 않는다. */
+  text: string;
+  distanceKm: number;
+};
 
 type Props = {
   probe: RadiusProbe;
   radiusKm: number;
   onRadiusChange: (radiusKm: number) => void;
   onClose: () => void;
+  /** 지금 보고 있는 분석 제목. 없으면 분석 연동을 쉬고 정직하게 말한다. */
+  analysisTitle?: string | null;
+  /** 걸치는 동 × 현재 분석값(조회만, 8곳까지). */
+  regionValues?: readonly ProbeRegionValue[];
+  /** 격자 모드일 때의 지표 라벨. 있으면 격자 섹션만 낸다. */
+  gridLabel?: string | null;
+  /** 원 안에 든 격자 칸의 값(가까운 8칸까지). */
+  gridValues?: readonly ProbeGridValue[];
+  gridTotal?: number;
 };
 
-export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Props) {
+const MAX_LISTED_REGIONS = 8;
+
+export function PointProbeCard({
+  probe,
+  radiusKm,
+  onRadiusChange,
+  onClose,
+  analysisTitle = null,
+  regionValues = [],
+  gridLabel = null,
+  gridValues = [],
+  gridTotal = 0,
+}: Props) {
   const total = probe.byType.reduce((sum, entry) => sum + entry.count, 0);
   /*
    * 좁은 화면에서 이 카드는 세로 314px을 차지한다 — 727px 기기에서 지도에 남는 자리가
@@ -101,6 +137,75 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
         ))}
       </div>
 
+      <div className="probe-section" data-testid="probe-analysis">
+        {gridLabel != null ? (
+          <>
+            <p className="ui-caption font-bold">
+              반경 {radiusKm}km 안 격자 {gridTotal.toLocaleString("ko-KR")}칸 · {gridLabel}
+            </p>
+            {gridValues.length === 0 ? (
+              <p className="ui-body">둘레 안에 {gridLabel} 값이 있는 칸이 없습니다.</p>
+            ) : (
+              <ul className="probe-regions">
+                {gridValues.map((cell) => (
+                  <li key={cell.code}>
+                    <span className="truncate">{cell.text}</span>
+                    <span className="probe-region-distance">중심 {KM(cell.distanceKm)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {gridTotal > gridValues.length ? (
+              <p className="ui-caption">외 {gridTotal - gridValues.length}칸</p>
+            ) : null}
+          </>
+        ) : analysisTitle == null ? (
+          <>
+            <p className="ui-caption font-bold">둘레 안 분석 값</p>
+            <p className="ui-body">
+              질문이나 지표 선택으로 분석을 먼저 실행하면, 걸치는 동의 값을 여기서 보여 드립니다.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="ui-caption font-bold">
+              둘레 안 분석 값 · {analysisTitle}
+            </p>
+            {regionValues.length === 0 ? (
+              <p className="ui-body">걸치는 동에 현재 분석 값이 없습니다.</p>
+            ) : (
+              <ul className="probe-regions">
+                {regionValues.map((entry) => (
+                  <li key={entry.code}>
+                    <span className="truncate">{entry.name}</span>
+                    <span className="probe-region-distance">{entry.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="probe-section">
+        <p className="ui-caption font-bold">
+          걸치는 행정동 {probe.regions.length}곳
+        </p>
+        <ul className="probe-regions" data-testid="probe-regions">
+          {probe.regions.slice(0, MAX_LISTED_REGIONS).map((region) => (
+            <li key={region.code}>
+              <span className="truncate">{region.name.replace("경상남도 ", "")}</span>
+              <span className="probe-region-distance">
+                {region.contains ? "지점 포함" : KM(region.distanceKm)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {probe.regions.length > MAX_LISTED_REGIONS ? (
+          <p className="ui-caption">외 {probe.regions.length - MAX_LISTED_REGIONS}곳</p>
+        ) : null}
+      </div>
+
       <div className="probe-section">
         <p className="ui-caption font-bold">반경 {radiusKm}km 안 의료시설</p>
         {total === 0 ? (
@@ -133,25 +238,6 @@ export function PointProbeCard({ probe, radiusKm, onRadiusChange, onClose }: Pro
             ) : null}
           </>
         )}
-      </div>
-
-      <div className="probe-section">
-        <p className="ui-caption font-bold">
-          걸치는 행정동 {probe.regions.length}곳
-        </p>
-        <ul className="probe-regions" data-testid="probe-regions">
-          {probe.regions.slice(0, 8).map((region) => (
-            <li key={region.code}>
-              <span className="truncate">{region.name.replace("경상남도 ", "")}</span>
-              <span className="probe-region-distance">
-                {region.contains ? "지점 포함" : KM(region.distanceKm)}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {probe.regions.length > 8 ? (
-          <p className="ui-caption">외 {probe.regions.length - 8}곳</p>
-        ) : null}
       </div>
 
       <details className="ui-details probe-notes">

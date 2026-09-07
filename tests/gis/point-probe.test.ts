@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 
 import type { BoundaryCollection, BoundaryFeature } from "@/components/copilot/types";
-import { findContainingRegion, pointInFeature, probeRadius } from "@/lib/gis/point-probe";
+import { findContainingRegion, pointInFeature, probeGridCells, probeRadius } from "@/lib/gis/point-probe";
 
 /*
  * 고정물이 아니라 **실제 경계 자료**로 잰다.
@@ -321,5 +321,40 @@ describe("행정동 거리와 시설 거리는 같은 자로 잰다", () => {
     expect(probe.nearest).not.toBeNull();
     // 옛 상수(110.574)였다면 북쪽 3km에서 16.8m, 5km에서 27.9m 어긋나 여기서 붉어진다.
     expect(Math.abs(probe.regions[0].distanceKm - probe.nearest!.distanceKm)).toBeLessThan(0.001);
+  });
+});
+
+describe("probeGridCells", () => {
+  const cells = [
+    { code: "0_0", lat: 35.2278, lng: 128.6817 },
+    { code: "1_0", lat: 35.2368, lng: 128.6817 },
+    { code: "9_9", lat: 35.5, lng: 129.0 },
+  ];
+
+  test("중심점이 원 안에 든 칸만 가까운 순으로 낸다", () => {
+    const hits = probeGridCells(CHANGWON_HALL, 2, cells);
+    expect(hits.map((hit) => hit.code)).toEqual(["0_0", "1_0"]);
+    expect(hits[0].distanceKm).toBeCloseTo(0, 5);
+    expect(hits[1].distanceKm).toBeGreaterThan(0.9);
+    expect(hits[1].distanceKm).toBeLessThan(1.1);
+  });
+
+  test("값을 합산·분할하지 않고 위치만 판정한다", () => {
+    const hits = probeGridCells(CHANGWON_HALL, 2, cells);
+    for (const hit of hits) {
+      expect(Object.keys(hit).sort()).toEqual(["code", "distanceKm"]);
+    }
+  });
+
+  test("좌표가 없는 칸은 조용히 건너뛴다", () => {
+    const hits = probeGridCells(CHANGWON_HALL, 2, [
+      ...cells,
+      { code: "bad", lat: Number.NaN, lng: 128.0 },
+    ]);
+    expect(hits.some((hit) => hit.code === "bad")).toBe(false);
+  });
+
+  test("반경이 0 이하면 던진다", () => {
+    expect(() => probeGridCells(CHANGWON_HALL, 0, cells)).toThrow(RangeError);
   });
 });

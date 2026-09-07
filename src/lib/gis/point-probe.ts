@@ -217,6 +217,37 @@ export type RadiusProbe = {
 
 type FacilityLike = { id: string; name: string; type: string; lat: number; lng: number };
 
+export type ProbeGridCell = {
+  code: string;
+  distanceKm: number;
+};
+
+/**
+ * 반경 안에 중심점이 들어가는 격자 칸을 찾는다.
+ *
+ * 행정동과 달리 격자는 면적 배분을 하지 않는다 — 칸의 중심점이 원 안에 있으면
+ * 그 칸의 값을 그대로 보여 주고, 없으면 보여 주지 않는다. 칸을 자르는 일이
+ * 없으므로 사람을 산에 올려놓는 가정이 끼어들 자리가 없다. 값 조회(어느 지표의
+ * 어느 달인지)는 부르는 쪽이 들고, 여기는 위치 판정만 한다.
+ */
+export function probeGridCells(
+  point: ProbePoint,
+  radiusKm: number,
+  cells: readonly { code: string; lat: number; lng: number }[],
+): ProbeGridCell[] {
+  if (!Number.isFinite(radiusKm) || radiusKm <= 0) {
+    throw new RangeError("radiusKm must be a finite positive number.");
+  }
+  const hits: ProbeGridCell[] = [];
+  for (const cell of cells) {
+    if (!Number.isFinite(cell.lat) || !Number.isFinite(cell.lng)) continue;
+    const distanceKm = distanceInKilometers(point, cell);
+    if (distanceKm <= radiusKm) hits.push({ code: cell.code, distanceKm });
+  }
+  hits.sort((a, b) => a.distanceKm - b.distanceKm);
+  return hits;
+}
+
 const MAX_LISTED = 60;
 
 /**

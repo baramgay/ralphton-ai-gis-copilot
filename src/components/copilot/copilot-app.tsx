@@ -77,14 +77,14 @@ import {
   facilityToMapPoint,
   mapPointCapNotice,
 } from "@/lib/gis/map-point";
-import { probeRadius } from "@/lib/gis/point-probe";
+import { probeGridCells, probeRadius } from "@/lib/gis/point-probe";
 import { InterpretationCard } from "./interpretation-card";
 import type { LiveMapPlace } from "./kakao-map";
 import { AdminLevelToggle } from "./admin-level-toggle";
 import { AppTopbar } from "./app-topbar";
 import { LayerSwitcher, type LayerOption } from "./layer-switcher";
 import { MapCanvas } from "./map-canvas";
-import { PointProbeCard } from "./point-probe-card";
+import { PointProbeCard, type ProbeRegionValue } from "./point-probe-card";
 import { PanelResizer } from "./panel-resizer";
 import { QueryHero } from "./query-hero";
 import { TrendChart } from "./trend-chart";
@@ -1784,6 +1784,68 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       facilities: probeFacilities,
     });
   }, [boundary, probeFacilities, probePoint, probeRadiusKm]);
+
+  /*
+   * 지점 카드는 프롬프트 분석의 확장이다. 걸치는 동의 값을 합산·분할하지 않고
+   * 현재 순위표에서 조회만 해서 보여 준다. 시군구 단위 분석이면 소속 시군구 값을
+   * 그대로 보여 준다(복제가 아니라 조회이므로 복제 통계 함정과 무관하다).
+   * 분석이 없으면 제목이 null이라 카드가 정직한 빈칸을 낸다.
+   */
+  const probeAnalysisTitle =
+    analysisRequested && analysis && analysis.id !== "idle" ? analysis.title : null;
+  const probeRegionValues = useMemo<ProbeRegionValue[]>(() => {
+    if (!probe || !probeAnalysisTitle) return [];
+    const ranked = analysis?.ranked ?? [];
+    if (ranked.length === 0) return [];
+    const byCode = new Map(ranked.map((row) => [row.code, row]));
+    const sggLevel = ranked.every((row) => row.code.length === 5);
+    const values: ProbeRegionValue[] = [];
+    for (const region of probe.regions.slice(0, 8)) {
+      const row =
+        byCode.get(region.code) ??
+        (sggLevel ? byCode.get(region.code.slice(0, 5)) : undefined);
+      if (!row) continue;
+      values.push({
+        code: region.code,
+        name: region.name.replace(/^경상남도\s*/, ""),
+        text: row.valueLabel,
+      });
+    }
+    return values;
+  }, [analysis, probe, probeAnalysisTitle]);
+
+  /*
+   * 격자 모드에서는 칸 중심점이 원 안에 든 칸의 값을 그대로 보여 준다.
+   * 행정동과 달리 칸을 자르지 않으므로 면적 배분 가정이 끼지 않는다.
+   * 칸 코드는 내부 값이라 화면에 내지 않고 값 문장만 낸다.
+   */
+  const probeGrid = useMemo(() => {
+    if (!probePoint || activeLayerId !== KCB_GRID_LAYER.id || !activeCube || !activeMetric) {
+      return null;
+    }
+    const monthIndex =
+      activeCube.months.indexOf(activeCube.referenceMonth) >= 0
+        ? activeCube.months.indexOf(activeCube.referenceMonth)
+        : activeCube.months.length - 1;
+    const byCode = new Map(activeCube.cells.map((cell) => [cell.code, cell]));
+    const hits = probeGridCells(
+      probePoint,
+      probeRadiusKm,
+      activeCube.cells.map((cell) => ({ code: cell.code, lat: cell.point.lat, lng: cell.point.lng })),
+    );
+    return {
+      label: activeMetric.label,
+      total: hits.length,
+      values: hits.slice(0, 8).map((hit) => {
+        const series = byCode.get(hit.code)?.series[activeMetric.key];
+        return {
+          code: hit.code,
+          text: formatMetric(series?.[monthIndex] ?? null, activeMetric.unit),
+          distanceKm: hit.distanceKm,
+        };
+      }),
+    };
+  }, [probePoint, probeRadiusKm, activeLayerId, activeCube, activeMetric]);
 
   /*
    * 값 조건은 **지표 단위가 맞을 때만** 건다. 사람이 쓴 단위와 지표의 단위가 다른데
@@ -4539,6 +4601,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             probe={probe}
             radiusKm={probeRadiusKm}
             onRadiusChange={setProbeRadiusKm}
+            analysisTitle={probeAnalysisTitle}
+            regionValues={probeRegionValues}
+            gridLabel={probeGrid?.label ?? null}
+            gridValues={probeGrid?.values ?? []}
+            gridTotal={probeGrid?.total ?? 0}
             onClose={() => {
               setProbePoint(null);
               setProbeMode(false);

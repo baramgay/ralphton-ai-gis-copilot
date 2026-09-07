@@ -83,3 +83,46 @@ describe("경계 경고", () => {
     expect(screen.getByTestId("probe-edge-warn")).toHaveTextContent("34m");
   });
 });
+
+describe("분석 확장", () => {
+  const analysisView = () => (
+    <PointProbeCard
+      probe={probe}
+      radiusKm={2}
+      onRadiusChange={vi.fn()}
+      onClose={vi.fn()}
+      analysisTitle="총생활인구 순위"
+      regionValues={[{ code: "4812300000", name: "창원시성산구 용지동", text: "12,345명" }]}
+    />
+  );
+
+  test("분석이 없으면 정직한 빈칸을 낸다", () => {
+    render(view());
+    expect(screen.getByTestId("probe-analysis")).toHaveTextContent("분석을 먼저 실행하면");
+  });
+
+  test("걸치는 동의 분석 값을 보여 준다", () => {
+    render(analysisView());
+    const section = screen.getByTestId("probe-analysis");
+    expect(section).toHaveTextContent("둘레 안 분석 값");
+    expect(section).toHaveTextContent("12,345명");
+  });
+
+  test("격자 모드에서는 칸 코드를 내지 않고 값만 낸다", () => {
+    render(
+      <PointProbeCard
+        probe={probe}
+        radiusKm={2}
+        onRadiusChange={vi.fn()}
+        onClose={vi.fn()}
+        analysisTitle="격자 성인인구 순위"
+        gridLabel="격자 성인인구"
+        gridValues={[{ code: "12_34", text: "1,234명", distanceKm: 0.22 }]}
+        gridTotal={3}
+      />,
+    );
+    const section = screen.getByTestId("probe-analysis");
+    expect(section).toHaveTextContent("1,234명");
+    expect(section).not.toHaveTextContent("12_34");
+  });
+});
