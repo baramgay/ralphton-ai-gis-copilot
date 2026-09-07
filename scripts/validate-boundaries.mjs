@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildBoundaryMetadata, validateBoundaryCollection } from "./lib/boundary-core.mjs";
+import { validateSggCollection } from "./lib/sgg-boundary.mjs";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const METADATA_PATH = path.join(PROJECT_ROOT, "public", "data", "boundary-metadata.json");
@@ -66,8 +68,37 @@ async function main() {
   }
   assertSameCodes(metadata.administrativeDongCodes, summary.administrativeDongCodes);
 
+  /*
+   * 시군구 dissolve 산출물도 함께 검증한다. 행정동 파일 접두와 1:1로 맞아야
+   * dissolve가 시군구를 빠뜨리거나 쪼개지 않은 것이다.
+   */
+  const sggPath = path.join(
+    PROJECT_ROOT,
+    "public",
+    "data",
+    `administrative-sgg-${metadata.version}.geojson`,
+  );
+  const sggBytes = await readFile(sggPath);
+  const sggCollection = parseJson(sggBytes, "경남 공개 경계(시군구)");
+  const expectedPrefixes = [
+    ...new Set(summary.administrativeDongCodes.map((code) => code.slice(0, 5))),
+  ];
+  const sggSummary = validateSggCollection(sggCollection, expectedPrefixes);
+  const sggSha256 = createHash("sha256").update(sggBytes).digest("hex");
+  if (!metadata.sgg || metadata.sgg.featureCount !== sggSummary.featureCount) {
+    throw new Error(
+      `시군구 Feature 수 불일치: metadata=${metadata.sgg?.featureCount}, actual=${sggSummary.featureCount}`,
+    );
+  }
+  if (metadata.sgg.sha256 !== sggSha256) {
+    throw new Error(`시군구 SHA-256 불일치: metadata=${metadata.sgg.sha256}, actual=${sggSha256}`);
+  }
+
   console.log(
     `경남 행정동 경계 캐시 검증 완료: ${boundaryPath}, ver${metadata.version}, ${summary.featureCount}개, SHA-256 ${expectedMetadata.sha256}`,
+  );
+  console.log(
+    `경남 시군구 경계 캐시 검증 완료: ${sggPath}, ver${metadata.version}, ${sggSummary.featureCount}개, SHA-256 ${sggSha256}`,
   );
 }
 

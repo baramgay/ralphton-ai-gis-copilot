@@ -424,7 +424,7 @@ function formatCrossValue(value: number | null, unit: string): string {
 }
 
 /** Build a copilot AnalysisView from a cross-analysis result (rendered like a tool result). */
-function crossResultToView(
+export function crossResultToView(
   cross: CrossLayerResult,
   a: { provider: string; metric: MetricDef; referenceMonth: string },
   b: { provider: string; metric: MetricDef; referenceMonth: string },
@@ -437,13 +437,28 @@ function crossResultToView(
       : `${a.metric.label}·${b.metric.label} 동시 높은`;
   const sign = mode === "gap" ? "−" : "+";
 
+  /*
+   * 지도 점수는 합성값(composite)을 0~100으로 정규화한 것이다.
+   *
+   * 전에는 `cross.scores`에서 조회했다. 그런데 시군구 모드의 scores는 지도 채색용이라
+   * 동 코드로 펼쳐져 있다(cross-analysis.ts) — 시군구 코드로 조회하면 전부 빗나가
+   * `?? 0`이 되어 순위가 전부 0점이었다. 행정동 모드에서는 scores 값이 이 정규화와
+   * 같은 값이므로, 합성값에서 직접 내면 두 모드가 같은 식이 된다.
+   */
+  const composites = cross.ranked.map((row) => row.composite);
+  const compositeMin = composites.length ? Math.min(...composites) : 0;
+  const compositeMax = composites.length ? Math.max(...composites) : 1;
+  const compositeSpan = Math.max(1e-9, compositeMax - compositeMin);
+  const scoreOfComposite = (composite: number) =>
+    composites.length <= 1 ? 50 : ((composite - compositeMin) / compositeSpan) * 100;
+
   const ranked: RankedRegion[] = cross.ranked.slice(0, limit).map((row) => {
     const name = row.name.replace(/^경상남도\s*/, "");
     return {
       code: row.code,
       name,
       district: name.split(/\s+/)[0] ?? "지역",
-      mapScore: cross.scores.get(row.code) ?? 0,
+      mapScore: scoreOfComposite(row.composite),
       valueLabel: `${a.metric.label} ${formatCrossValue(row.valueA, a.metric.unit)} · ${b.metric.label} ${formatCrossValue(row.valueB, b.metric.unit)}`,
       note: `합성 ${row.composite.toFixed(2)} · z${a.metric.label} ${row.zA.toFixed(1)} / z${b.metric.label} ${row.zB.toFixed(1)}`,
       metrics: [
@@ -509,7 +524,7 @@ function crossResultToView(
  * 없다는 것이다. 대신 지표마다 물어본 방향을 문장에 그대로 적어 준다 — "생활인구 많고
  * 소득 높고 연체 낮은"을 화면이 다시 말해 줘야 사용자가 자기 질문이 제대로 읽혔는지 안다.
  */
-function multiResultToView(
+export function multiResultToView(
   result: MultiLayerResult,
   operands: Array<{
     provider: string;
@@ -525,13 +540,25 @@ function multiResultToView(
     .map((operand) => `${operand.metric.label} ${wordOf(operand.direction)}`)
     .join(" · ");
 
+  /*
+   * crossResultToView와 같은 이유다. 시군구 모드의 `result.scores`는 동 코드로
+   * 펼쳐져 있어 시군구 코드 조회가 전부 빗나간다 — 합성값에서 직접 정규화한다.
+   * 행정동 모드에서는 같은 식·같은 집합이라 값이 바뀌지 않는다.
+   */
+  const multiComposites = result.ranked.map((row) => row.composite);
+  const multiMin = multiComposites.length ? Math.min(...multiComposites) : 0;
+  const multiMax = multiComposites.length ? Math.max(...multiComposites) : 1;
+  const multiSpan = Math.max(1e-9, multiMax - multiMin);
+  const multiScoreOf = (composite: number) =>
+    multiComposites.length <= 1 ? 50 : ((composite - multiMin) / multiSpan) * 100;
+
   const ranked: RankedRegion[] = result.ranked.slice(0, limit).map((row) => {
     const name = row.name.replace(/^경상남도\s*/, "");
     return {
       code: row.code,
       name,
       district: name.split(/\s+/)[0] ?? "지역",
-      mapScore: result.scores.get(row.code) ?? 0,
+      mapScore: multiScoreOf(row.composite),
       valueLabel: `합성 ${row.composite.toFixed(2)}`,
       note: operands
         .map((operand, index) => `${operand.metric.label} ${formatCrossValue(row.values[index] ?? null, operand.metric.unit)}`)
@@ -1448,6 +1475,26 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const [gridBoundary, setGridBoundary] = useState<BoundaryCollection | null>(null);
   const gridBoundaryRequestedRef = useRef(false);
+  /*
+   * 시군구 dissolve 경계. 첫 화면에 싣지 않고 시군구 모드에 들어갈 때 한 번만
+   * 받아 온다 — 0.9MB라 프리로드에 넣으면 첫 페인트가 늦어진다.
+   * 못 받아 오면 동 경계로 조용히 물러난다(오늘과 같은 지도).
+   */
+  const [sggBoundary, setSggBoundary] = useState<BoundaryCollection | null>(null);
+  const sggBoundaryRequestedRef = useRef(false);
+  useEffect(() => {
+    if (adminLevel !== "sgg" || sggBoundary || sggBoundaryRequestedRef.current) return;
+    sggBoundaryRequestedRef.current = true;
+    fetch(`/data/administrative-sgg-${boundaryVersion}.geojson`)
+      .then((response) => {
+        if (!response.ok) throw new Error("시군구 경계를 불러오지 못했습니다.");
+        return response.json() as Promise<BoundaryCollection>;
+      })
+      .then(setSggBoundary)
+      .catch(() => {
+        sggBoundaryRequestedRef.current = false;
+      });
+  }, [adminLevel, boundaryVersion, sggBoundary]);
   useEffect(() => {
     if (activeLayerId !== KCB_GRID_LAYER.id || gridBoundaryRequestedRef.current) return;
     gridBoundaryRequestedRef.current = true;
@@ -1753,20 +1800,45 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const selectedRegion = snapshot?.regions.find((region) => region.adm_cd2 === selectedRegionCode) ?? null;
   /*
+   * 시설의 소속 판정. 시군구 선택(5자리)에는 소속 동 전체가 든다 — 정확히
+   * 일치만 보면 시군구를 골랐는데 시설이 0곳으로 나온다.
+   */
+  const facilityInScope = (facilityAdmCd2: string, code: string | null): boolean => {
+    if (code === null) return false;
+    return facilityAdmCd2 === code || (code.length === 5 && facilityAdmCd2.startsWith(code));
+  };
+  /*
    * 지점 핀은 **물었을 때만** 올린다. 레이어를 고르기만 한 것으로는 병의원 수천 곳이
    * 단계구분도를 가린다. 목록은 시설 질의 결과이고, 상한을 넘기면 잘랐다고 적는다.
    */
   const rawMapFacilities = analysis?.isFacilityResult ? analysis.filteredFacilities : [];
   const scopedMapFacilities =
     markerScope === "selected" && selectedRegionCode
-      ? rawMapFacilities.filter((facility) => facility.adm_cd2 === selectedRegionCode)
+      ? rawMapFacilities.filter((facility) => facilityInScope(facility.adm_cd2, selectedRegionCode))
       : rawMapFacilities;
   const mapPointCap = capMapPoints(scopedMapFacilities.map(facilityToMapPoint));
   const mapFacilities = mapPointCap.shown;
   const mapFacilitiesCapped = mapPointCap.capped;
   const selectedFacilities = scopedMapFacilities.filter(
-    (facility) => facility.adm_cd2 === selectedRegionCode,
+    (facility) => facilityInScope(facility.adm_cd2, selectedRegionCode),
   );
+
+  /*
+   * 시군구 선택 칸의 주인. 스냅샷에 없는 5자리 코드라 selectedRegion은 null이다.
+   * 이름은 순위 행에서 먼저 찾고(분석이 시군구면 있다), 없으면 시군구 경계에서
+   * 찾는다. 둘 다 없으면 칸을 내지 않는다 — 코드 숫자가 제목에 나오면 안 된다.
+   */
+  const selectedSgg = useMemo(() => {
+    if (selectedRegion || !selectedRegionCode || selectedRegionCode.length !== 5) return null;
+    const row = analysis?.ranked.find((entry) => entry.code === selectedRegionCode) ?? null;
+    const featureName = sggBoundary?.features.find(
+      (feature) => feature.properties.adm_cd2 === selectedRegionCode,
+    )?.properties.adm_nm;
+    const name =
+      row?.name ?? featureName?.replace(/^경상남도\s*/, "") ?? null;
+    if (!name) return null;
+    return { code: selectedRegionCode, name };
+  }, [selectedRegion, selectedRegionCode, analysis, sggBoundary]);
 
   /*
    * 지점 둘레 읽기.
@@ -2037,6 +2109,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setSelectedFacilityId(null);
       setSelectedLivePlace(null);
       setFollowSelection(true);
+      /*
+       * 시군구 폴리곤 클릭(5자리 코드). 시군구로 선택한다 — 대표 동으로 바꾸면
+       * 지도는 시군구를 칠하는데 선택은 동을 가리켜 강조와 선택이 어긋난다.
+       * 동 단위 하류(스냅샷 조회·동 프로파일)는 5자리 코드를 못 찾고 null로
+       * 물러나며, 시군구용 칸이 따로 보인다.
+       */
+      if (code.length === 5) {
+        setSelectedRegionCode(code);
+        return;
+      }
       // At sgg admin level, ranked rows carry 5-digit sgg codes (map scores stay
       // dong-keyed — see layers/to-analysis-view.ts). Resolve the clicked sgg
       // code to a representative member dong so selection/highlight/facility
@@ -3437,6 +3519,42 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const mapLivePlaces = analysis.isFacilityResult ? livePlaces : [];
 
+  /*
+   * 시군구 모드에서는 22개 시군구 폴리곤을 그린다. 305개 동 경계는 선만 가득하고
+   * 값 비교를 가린다. 조건을 전부 걸어 둔다 — 시군구 경계를 못 받았거나, 결과가
+   * 동 코드면(의료+시군구 토글 같은 조합) 오늘과 같은 동 지도로 물러난다.
+   * scores도 시군구 키로 쓴다. 동 펼침(scores 메모)은 동 지도용이다.
+   */
+  const useSggMap =
+    adminLevel === "sgg" &&
+    activeLayerId !== KCB_GRID_LAYER.id &&
+    sggBoundary !== null &&
+    (analysis?.ranked.length ?? 0) > 0 &&
+    (analysis?.ranked.every((row) => row.code.length === 5) ?? false);
+  const mapBoundary =
+    useSggMap && sggBoundary
+      ? sggBoundary
+      : activeLayerId === KCB_GRID_LAYER.id && gridBoundary
+        ? gridBoundary
+        : boundary;
+  const mapScores = useSggMap
+    ? new Map(
+        (analysis?.ranked ?? [])
+          .filter((row): row is typeof row & { mapScore: number } => row.mapScore !== null)
+          .map((row) => [row.code, row.mapScore]),
+      )
+    : scores;
+  /*
+   * 비교 강조도 시군구로 접는다. 동 코드가 그대로 오면 전부 어둡게 가라앉아
+   * 강조가 아니라 소등이 된다.
+   */
+  const mapFocusCodes =
+    useSggMap && focusRegionCodes
+      ? new Set(
+          [...focusRegionCodes].map((code) => (code.length >= 10 ? code.slice(0, 5) : code)),
+        )
+      : focusRegionCodes;
+
   const shellStyle = {
     ...cssVars,
     ["--sheet-height" as string]: `${sheetHeight}dvh`,
@@ -4519,13 +4637,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       <section className="copilot-map" aria-label="지도 영역">
         <MapCanvas
           kakaoMapKey={kakaoMapKey}
-          boundary={activeLayerId === KCB_GRID_LAYER.id && gridBoundary ? gridBoundary : boundary}
+          boundary={mapBoundary}
           regions={snapshot.regions}
           facilities={mapFacilities}
           livePlaces={mapLivePlaces}
-          scores={scores}
+          scores={mapScores}
           selectedRegionCode={selectedRegionCode}
-          focusRegionCodes={focusRegionCodes}
+          focusRegionCodes={mapFocusCodes}
           radiusKm={radiusKm}
           showFacilities={analysis.isFacilityResult}
           hoverRows={analysis.ranked}
@@ -5265,6 +5383,43 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </div>
                 <TrendChart values={selectedRegion.population} labels={selectedRegion.months} />
               </div>
+            </section>
+          ) : selectedSgg ? (
+            /*
+             * 시군구 선택 칸. 동 단위 하류(인구 추세·민간 프로파일)는 5자리 코드를
+             * 못 찾으므로, 분석 행의 값과 소속 시설 수만 보여 준다. 없는 칸을
+             * 0으로 메우지 않는다 — 총인구·1인가구 칸 자체를 내지 않는다.
+             */
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+              <p className="ui-caption font-bold text-blue-600">선택한 시군구</p>
+              <h3 className="ui-title mt-1 text-slate-950">{selectedSgg.name}</h3>
+
+              {!analysis?.isFacilityResult && selectedAnalysisRegion && selectedAnalysisRegion.metrics.length > 0 ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
+                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2.5">
+                      <p className="ui-caption font-semibold text-blue-700">{metric.label}</p>
+                      <p className="mt-1 ui-body-lg font-black tabular-nums text-slate-950">
+                        {formatMetric(metric.value, metric.unit)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-3 grid grid-cols-2 gap-1.5">
+                {[
+                  ["의료기관", String(selectedFacilities.length)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
+                    <p className="text-[9px] text-slate-400">{label}</p>
+                    <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="ui-caption mt-2.5 text-slate-500">
+                인구 추세·민간데이터 종합은 행정동 단위로만 있습니다. 행정동을 고르면 나타납니다.
+              </p>
             </section>
           ) : null}
 

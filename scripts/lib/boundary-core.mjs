@@ -407,8 +407,28 @@ function assertGeometry(geometry, featureIndex, bbox) {
   assertHolesWithinExterior(polygons, featureIndex);
 }
 
-export function validateBoundaryCollection(featureCollection) {
-  if (
+/**
+ * 파생 경계(시군구 dissolve 등)의 geometry 한 건을 검사한다.
+ *
+ * 행정동 원본 검사를 그대로 재사용한다 — 링 닫힘·자기교차·구멍·경남 범위.
+ * bbox는 버린다(시군구 bbox는 별도로 쓰지 않는다).
+ */
+export function checkDerivedGeometry(geometry, label) {
+  const bbox = {
+    minimumLongitude: Number.POSITIVE_INFINITY,
+    minimumLatitude: Number.POSITIVE_INFINITY,
+    maximumLongitude: Number.NEGATIVE_INFINITY,
+    maximumLatitude: Number.NEGATIVE_INFINITY,
+  };
+  try {
+    assertGeometry(geometry, label, bbox);
+  } catch (error) {
+    throw new Error(`${label}: ${error instanceof Error ? error.message : error}`);
+  }
+  return [bbox.minimumLongitude, bbox.minimumLatitude, bbox.maximumLongitude, bbox.maximumLatitude];
+}
+
+export function validateBoundaryCollection(featureCollection) {  if (
     !isRecord(featureCollection) ||
     featureCollection.type !== "FeatureCollection" ||
     !Array.isArray(featureCollection.features)

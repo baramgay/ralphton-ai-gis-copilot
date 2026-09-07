@@ -81,6 +81,10 @@ const dataCacheHeaders = [
     headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
   },
   {
+    source: "/data/administrative-sgg-:version.geojson",
+    headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+  },
+  {
     source: "/data/layers/:file*",
     headers: [
       {

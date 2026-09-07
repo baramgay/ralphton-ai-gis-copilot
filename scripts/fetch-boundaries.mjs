@@ -10,6 +10,7 @@ import {
   roundCoordinatePrecision,
   validateBoundaryCollection,
 } from "./lib/boundary-core.mjs";
+import { writeSggArtifact } from "./build-sgg-boundaries.mjs";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const GITHUB_CONTENTS_API = "https://api.github.com/repos/vuski/admdongkor/contents";
@@ -172,10 +173,18 @@ async function main() {
   await atomicWrite(sourcePath, sourceBytes);
   await atomicWrite(publicPath, publicBytes);
   await atomicWrite(metadataPath, metadataBytes);
+  /*
+   * 시군구 dissolve 산출물도 함께 만든다. 공개 파일(정밀도 축소본) 기준으로
+   * 만들어 standalone 재생성(`build-sgg-boundaries.mjs`)과 바이트까지 같게 한다.
+   * metadata.sgg 패치는 writeSggArtifact가 맡는다 — 위에서 쓴 metadata 파일에
+   * 덧붙이는 형태라 순서는 공개 파일 쓰기 뒤여야 한다.
+   */
+  const sgg = await writeSggArtifact(publicCollection, version);
 
   console.log(
     `경남 행정동 경계 갱신 완료: ver${version}, ${summary.featureCount}개, SHA-256 ${metadata.sha256}`,
   );
+  console.log(`경남 시군구 경계 갱신 완료: ver${version}, ${sgg.featureCount}개, SHA-256 ${sgg.sha256}`);
 }
 
 main().catch((error) => {

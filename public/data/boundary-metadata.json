@@ -314,5 +314,9 @@
   ],
   "scope": [
     "경상남도"
-  ]
+  ],
+  "sgg": {
+    "featureCount": 22,
+    "sha256": "60be0b3e5da49baa48e901040a3e66b1d3b284ef4abf80d62e63770516ee3b4d"
+  }
 }
