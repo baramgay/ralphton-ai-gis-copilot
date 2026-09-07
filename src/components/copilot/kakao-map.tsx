@@ -208,7 +208,16 @@ export function KakaoMap({
   const ramp = choroplethRamp(choroplethTheme);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const overlaysRef = useRef<KakaoOverlay[]>([]);
+  /*
+   * 스크린리더용 지도 이름은 그리는 경계를 말한다(DemoMap과 같은 규칙).
+   */
+  const boundaryUnit =
+    boundary.features.length > 0 &&
+    boundary.features.every((feature) => feature.properties.adm_cd2.length === 5)
+      ? "시군구"
+      : boundary.features.some((feature) => feature.properties.adm_cd2.includes("_"))
+        ? "격자"
+        : "행정동";  const overlaysRef = useRef<KakaoOverlay[]>([]);
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
   const liveMarkersRef = useRef<KakaoOverlay[]>([]);
   const tooltipRef = useRef<KakaoOverlay | null>(null);
@@ -709,7 +718,7 @@ export function KakaoMap({
         style={probeMode ? { cursor: "crosshair" } : undefined}
         data-probe-mode={probeMode ? "on" : "off"}
         data-outline={outlineMode ? "1" : "0"}
-        aria-label="경남 행정동 분석 지도"
+        aria-label={`경남 ${boundaryUnit} 분석 지도`}
       />
       {/*
         지도 위에 뜨는 것은 유리 토큰으로 칠한다. 예전에는 `bg-white/90` + `text-slate-700`

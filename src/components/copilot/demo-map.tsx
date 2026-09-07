@@ -79,6 +79,18 @@ export function DemoMap({
   // 분위수 경계는 지도에 그릴 값 전체로 한 번만 계산한다.
   const scale = useMemo(() => buildScale(scores, choroplethTheme), [scores, choroplethTheme]);
 
+  /*
+   * 스크린리더용 지도 이름은 그리는 경계를 말한다. 시군구 모드에서 "행정동 지도"라고
+   * 읽으면 거짓말이다. 격자 코드에는 "_"이 들어간다(500m 격자 파일 실측).
+   */
+  const boundaryUnit =
+    boundary.features.length > 0 &&
+    boundary.features.every((feature) => feature.properties.adm_cd2.length === 5)
+      ? "시군구"
+      : boundary.features.some((feature) => feature.properties.adm_cd2.includes("_"))
+        ? "격자"
+        : "행정동";
+
   const projection = useMemo(() => {
     const positions = boundary.features.flatMap(collectPositions);
     const longitudes = positions.map(([lng]) => lng);
@@ -148,7 +160,7 @@ export function DemoMap({
         className="size-full touch-none select-none"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         role="img"
-        aria-label="경상남도 행정동 분석 지도"
+        aria-label={`경상남도 ${boundaryUnit} 분석 지도`}
       >
         <defs>
           <filter id="map-shadow" x="-20%" y="-20%" width="140%" height="140%">

@@ -12,6 +12,26 @@ export type ShareState = {
 
 const RADIUS_SET = new Set([1, 2, 3]);
 
+/**
+ * 공유 링크의 지역 값을 선택 코드로 푼다.
+ *
+ * 행정동(10자리·이름)은 스냅샷에서 찾는다. 시군구(5자리)는 스냅샷에 행이 없으므로
+ * 접두가 실재하는지 확인하고 그대로 쓴다 — 대표 동으로 바꾸면 공유받은 사람의
+ * 지도 강조(시군구)와 선택(동)이 어긋난다. 가짜 코드는 null로 버린다.
+ */
+export function resolveSharedRegionCode(
+  regions: readonly { adm_cd2: string; adm_nm: string }[],
+  token: string | undefined,
+): string | null {
+  if (!token) return null;
+  const hit = regions.find((region) => region.adm_cd2 === token || region.adm_nm.includes(token));
+  if (hit) return hit.adm_cd2;
+  if (/^\d{5}$/.test(token) && regions.some((region) => region.adm_cd2.startsWith(token))) {
+    return token;
+  }
+  return null;
+}
+
 export function parseShareState(search: string | URLSearchParams): ShareState {
   const params = typeof search === "string" ? new URLSearchParams(search) : search;
   const radiusRaw = Number(params.get("radius") ?? "");
@@ -39,8 +59,7 @@ export function buildShareSearch(state: ShareState): string {
   return text ? `?${text}` : "";
 }
 
-export function shareStateFromIntent(
-  intent: AnalysisIntent,
+export function shareStateFromIntent(  intent: AnalysisIntent,
   extras?: {
     region?: string | null;
     q?: string;

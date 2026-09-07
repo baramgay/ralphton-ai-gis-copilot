@@ -68,6 +68,7 @@ import {
   buildShareSearch,
   isFollowUpQuery,
   parseShareState,
+  resolveSharedRegionCode,
 } from "@/lib/analysis/share-state";
 import { executeAnalysisIntent } from "@/lib/analysis/tool-registry";
 import { FACILITY_TYPE_COLORS } from "@/lib/gis/facility-style";
@@ -1245,11 +1246,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           if (share.tab) setActiveTab(share.tab);
           if (share.q) setQuery(share.q);
           if (share.region) {
-            const hit = nextSnapshot.regions.find(
-              (region) =>
-                region.adm_cd2 === share.region || region.adm_nm.includes(share.region ?? ""),
-            );
-            if (hit) setSelectedRegionCode(hit.adm_cd2);
+            const code = resolveSharedRegionCode(nextSnapshot.regions, share.region);
+            if (code) setSelectedRegionCode(code);
           }
           /*
            * 질문이 실려 있으면 **그 질문을 다시 실행해** 복원한다. 도구 이름만 재생하지 않는다.
@@ -1489,6 +1487,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const [sggBoundary, setSggBoundary] = useState<BoundaryCollection | null>(null);
   const sggBoundaryRequestedRef = useRef(false);
+  const sggBoundaryFailedRef = useRef(false);
   useEffect(() => {
     if (adminLevel !== "sgg" || sggBoundary || sggBoundaryRequestedRef.current) return;
     sggBoundaryRequestedRef.current = true;
@@ -1500,8 +1499,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       .then(setSggBoundary)
       .catch(() => {
         sggBoundaryRequestedRef.current = false;
+        // 못 받으면 동 경계로 물러난다. 그 사실을 말하지 않으면 시군구 모드인데
+        // 동 선이 가득한 이유를 알 수 없다. 한 번만 말한다.
+        if (!sggBoundaryFailedRef.current) {
+          sggBoundaryFailedRef.current = true;
+          showToast("시군구 경계를 불러오지 못해 행정동 경계로 표시합니다.");
+        }
       });
-  }, [adminLevel, boundaryVersion, sggBoundary]);
+  }, [adminLevel, boundaryVersion, sggBoundary, showToast]);
   useEffect(() => {
     if (activeLayerId !== KCB_GRID_LAYER.id || gridBoundaryRequestedRef.current) return;
     gridBoundaryRequestedRef.current = true;
