@@ -454,7 +454,7 @@ function accessMetrics(record: AccessRecord, referenceMonth: string): MetricDesc
       "최근접 의료기관 직선거리",
       record.nearestDistanceKm,
       "km",
-      "행정동 내부 대표점과 가장 가까운 의료기관 사이의 Turf 대권거리",
+      "행정동 내부 대표점과 가장 가까운 의료기관 사이의 대권 직선거리",
       referenceMonth,
       "도로망 이동거리나 실제 소요시간이 아닌 직선거리입니다.",
     ),
@@ -1251,7 +1251,7 @@ export function nearestFacilityDistance(intent: AnalysisIntent, snapshot: Analys
         "최근접 의료기관 직선거리",
         distance,
         "km",
-        "행정동 내부 대표점과 가장 가까운 의료기관 사이의 Turf 대권거리",
+        "행정동 내부 대표점과 가장 가까운 의료기관 사이의 대권 직선거리",
         snapshot.referenceMonth,
         "도로망 이동거리나 실제 소요시간이 아닌 직선거리입니다.",
       ),
@@ -1266,7 +1266,7 @@ export function nearestFacilityDistance(intent: AnalysisIntent, snapshot: Analys
           "최근접 의료기관 직선거리",
           calculateNearestFacilityDistance(requested.representativePoint, facilities),
           "km",
-          "행정동 내부 대표점과 가장 가까운 의료기관 사이의 Turf 대권거리",
+          "행정동 내부 대표점과 가장 가까운 의료기관 사이의 대권 직선거리",
           snapshot.referenceMonth,
           "도로망 이동거리나 실제 소요시간이 아닌 직선거리입니다.",
         ),
@@ -1283,7 +1283,7 @@ export function nearestFacilityDistance(intent: AnalysisIntent, snapshot: Analys
     selectedRegion,
     filteredFacilities: facilities,
     legend: SINGLE_COLOR_LEGEND,
-    formulaNotes: ["약국은 명시적으로 요청한 경우에만 포함하며 Turf 대권거리를 km로 계산합니다."],
+    formulaNotes: ["약국은 명시적으로 요청한 경우에만 포함하며 대권 직선거리를 km로 계산합니다."],
   });
 }
 
@@ -1313,7 +1313,7 @@ export function countFacilitiesWithinRadius(intent: AnalysisIntent, snapshot: An
     selectedRegion: rankedRegions[0] ?? null,
     filteredFacilities: facilities,
     legend: SINGLE_COLOR_LEGEND,
-    formulaNotes: ["약국은 명시적으로 요청한 경우에만 포함하고 대표점 기준 Turf 대권거리를 사용합니다."],
+    formulaNotes: ["약국은 명시적으로 요청한 경우에만 포함하고 대표점 기준 대권 직선거리를 사용합니다."],
   });
 }
 

@@ -94,7 +94,7 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "data-geometry",
     title: "행정동 경계·대표점",
-    body: "경상남도 305개 행정동 경계를 사용합니다. 대표점은 pointOnFeature로 동 내부에 둡니다. 분석 거리는 대표점 기준 Turf 대권 직선거리입니다.",
+    body: "경상남도 305개 행정동 경계를 사용합니다. 대표점은 pointOnFeature로 동 내부에 둡니다. 분석 거리는 대표점 기준 대권 직선거리입니다.",
     tags: ["gis", "boundary", "geometry"],
     keywords: ["행정동", "경계", "대표점", "305", "경남", "직선거리", "turf"],
   },

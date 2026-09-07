@@ -415,7 +415,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
   {
     id: "filterFacilitiesByTypeAndHours",
     label: "시설 목록",
-    examples: ["종합병원 위치", "약국만 보여줘", "야간 진료 병원", "치과 어디 있어"],
+    examples: ["종합병원 위치", "치과 어디 있어", "의령군 보건소 어디"],
     domains: ["medical", "kakao"],
     metricCues: ["facilityList", "pharmacy", "night", "weekend", "medical"],
     spatialCues: ["map", "nearby"],

@@ -227,7 +227,16 @@ export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
   kind: "point",
   coverage: "gyeongnam",
   adminLevels: ["dong", "sgg"],
-  sourceNotes: ["HIRA 병원정보서비스 (경남 sido 380000)"],
+  /*
+   * 「sido 380000」은 만든 사람의 말이다 — 이 각주는 활용 데이터 화면에 그대로 나온다.
+   * 그리고 **없는 것을 적는 것이 있는 것을 적는 것만큼 중요하다**: 이 자료에는 약국이
+   * 없는데(전건 0곳) 제품이 약국을 물을 수 있는 것처럼 안내하고 있었다.
+   */
+  sourceNotes: [
+    "건강보험심사평가원 병원정보서비스(경상남도)",
+    "약국은 이 자료에 포함되지 않습니다.",
+    "진료과·운영시간은 제공되지 않는 곳이 있어, 그 조건으로는 답할 수 없습니다.",
+  ],
   metrics: [
     { key: "vulnerability", label: "의료 접근성 취약지수", unit: "점", aggregation: "weightedAvg", weightKey: "pop_total", formula: "공급35%+고령수요25%+최근접25%+2km무시설15%", limitation: "병원급 중심", triggers: ["의료취약지수", "의료 취약", "의료취약", "의료 사각", "취약지", "병원 부족", "병원부족", "의료 부족", "의료 공급", "병원 없", "의원 부족"] },
   ],
