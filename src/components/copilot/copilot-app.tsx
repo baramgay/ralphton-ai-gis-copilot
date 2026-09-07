@@ -760,18 +760,18 @@ const MAP_FACILITY_CAP = MAP_POINT_CAP;
 const RESULT_PAGE_STEP = 24;
 
 function dataSourceLabel(source: string): string {
-  if (source === "demo") return "출처: 로컬 데모";
-  if (source === "demo-fallback") return "출처: 데모(폴백)";
-  if (source === "supabase-cache") return "출처: 서버 캐시";
-  if (source === "loading") return "출처: 로딩 중";
+  if (source === "demo") return "출처: 시연 자료";
+  if (source === "demo-fallback") return "출처: 시연 자료(대체)";
+  if (source === "supabase-cache") return "출처: 서버 저장 자료";
+  if (source === "loading") return "출처: 불러오는 중";
   return `출처: ${source}`;
 }
 
 function mapEngineLabel(kakaoMapKey: string, mapEngine: "kakao" | "demo" | "unknown"): string {
   if (!kakaoMapKey) return "임시 지도";
   if (mapEngine === "demo") return "임시 지도(연결 실패)";
-  if (mapEngine === "kakao") return "카카오 지도";
-  return "카카오 지도 연결 중";
+  if (mapEngine === "kakao") return "온라인 지도";
+  return "지도 연결 중";
 }
 
 type AiLastOutcome =
@@ -780,7 +780,7 @@ type AiLastOutcome =
   | { state: "failed"; at: string; code: string };
 
 /**
- * 왜 안 되는지를 사람이 읽는 말로. "미설정"만 띄우면 설정은 다 돼 있는데 접속 주소가
+ * 왜 안 되는지를 사람이 읽는 말로. "사용 안 함"만 띄우면 설정은 다 돼 있는데 접속 주소가
  * 허용 목록 밖이라 매번 실패하던 상태를 구분할 수 없다(운영에서 실제로 그랬다).
  */
 function aiIssueLabel(code: string | null | undefined): string | null {
@@ -829,9 +829,9 @@ type CapabilityFlags = {
 function formatSyncStatusLabel(status: string | null | undefined): string {
   switch (status) {
     case "hybrid-live":
-      return "시설+인구 live";
+      return "시설+인구 실측";
     case "facilities-live":
-      return "시설 live";
+      return "시설 실측";
     case "demo-only":
       return "시연만";
     case "failed":
@@ -845,7 +845,9 @@ function formatSyncStatusLabel(status: string | null | undefined): string {
 
 function populationNoteFromSnapshot(notes: string[]): string | null {
   const hit = notes.find(
-    (note) => note.includes("인구") && (note.includes("live") || note.includes("스냅샷")),
+    (note) =>
+      note.includes("인구") &&
+      (note.includes("실측") || note.includes("합성") || note.includes("스냅샷") || note.includes("live")),
   );
   return hit ?? null;
 }
@@ -4324,7 +4326,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </p>
                 <p className="ui-body mt-1.5 opacity-90">
                   {snapshot.mode !== "live"
-                    ? "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 live 스냅샷으로 전환됩니다."
+                    ? "시연 합성 데이터입니다. 정책 판단·대외 수치 인용에 사용하지 마세요. 실데이터는 동기화 후 실측 자료로 전환됩니다."
                     : populationIsLive(snapshot.mode, snapshot.sourceNotes)
                       ? "기준월과 출처 노트를 함께 확인하세요. 시설·인구 원천이 다를 수 있습니다."
                       : "의료기관은 심평원 시설 자료입니다. 인구·세대·출생·사망은 합성값이라 대외 수치로 인용하지 마세요."}
@@ -4505,7 +4507,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   </p>
                   {publishedLive?.available ? (
                     <p className="ui-chip mt-1 font-semibold text-emerald-800">
-                      게시 live{" "}
+                      게시된 실측 자료{" "}
                       {publishedLive.facilityCount != null
                         ? `${publishedLive.facilityCount.toLocaleString("ko-KR")}곳`
                         : ""}
@@ -4515,7 +4517,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </p>
                   ) : (
                     <p className="ui-chip mt-1 text-amber-800">
-                      게시된 실데이터 스냅샷이 없습니다. 아래 동기화를 실행하세요.
+                      게시된 실측 자료가 없습니다. 아래 동기화를 실행하세요.
                     </p>
                   )}
                   {/* 갱신 권장 사유는 운영자용이다. 첫 화면 토스트에서 여기로 옮겼다. */}
@@ -4545,7 +4547,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
               {capabilities ? (
                 <details className="ui-details">
-                  <summary>연결 상태 · 기술 정보</summary>
+                  <summary>연결 상태</summary>
                   <div className="ui-details-body space-y-3">
                     <ul className="space-y-2 ui-body">
                       {(
@@ -4554,17 +4556,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                           ["장소 검색", capabilities.kakaoRest],
                           ["AI 질문 해석", capabilities.ai],
                           ["공공데이터", capabilities.publicData],
-                          ["인구 live 병합", Boolean(capabilities.populationLive)],
-                          ["RAG 원격 임베딩", Boolean(capabilities.ragRemoteEmbed)],
-                          ["원격 저장", capabilities.supabase],
-                          ["시설 동기화", capabilities.dataSync],
-                          ["cron 실패 알림", Boolean(capabilities.cronAlert)],
+                          ["인구 실측 병합", Boolean(capabilities.populationLive)],
+                          ["외부 지식 검색", Boolean(capabilities.ragRemoteEmbed)],
+                          ["서버 저장", capabilities.supabase],
+                          ["시설 자료 갱신", capabilities.dataSync],
+                          ["자동 갱신 알림", Boolean(capabilities.cronAlert)],
                         ] as const
                       ).map(([label, on]) => (
                         <li key={label} className="flex items-center justify-between gap-2">
                           <span className="text-slate-600">{label}</span>
                           <span className={`font-bold ${on ? "text-emerald-600" : "text-slate-400"}`}>
-                            {on ? "연결됨" : "미설정"}
+                            {on ? "사용 가능" : "사용 안 함"}
                           </span>
                         </li>
                       ))}
@@ -4589,7 +4591,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       </div>
                     ) : (
                       <p className="ui-body text-slate-500">
-                        게시된 실데이터 스냅샷이 없습니다.
+                        게시된 실측 자료가 없습니다.
                       </p>
                     )}
                     {publishedAt ? (
@@ -4598,7 +4600,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       </p>
                     ) : null}
                     <p className="ui-caption text-slate-400">
-                      경계 버전 {boundaryVersion} · {dataSourceLabel(dataSource)}
+                      지도 경계 {boundaryVersion} · {dataSourceLabel(dataSource)}
                     </p>
                   </div>
                 </details>

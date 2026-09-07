@@ -51,7 +51,7 @@ export const EVALUATOR_CRITERIA: EvaluatorCriterion[] = [
     id: "ops",
     title: "운영 가능성",
     weight: "중간",
-    lookFor: "health·동기화 상태·cron·키 없는 폴백",
+    lookFor: "연결 상태·자료 갱신 상태·설정 없는 대체",
     howToVerify: "데이터 탭 연결 상태 · /api/health · /evaluator 인쇄 · 키 제거 후 DemoMap",
   },
 ];

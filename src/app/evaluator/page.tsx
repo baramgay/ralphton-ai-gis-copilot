@@ -24,8 +24,8 @@ export default function EvaluatorPrintPage() {
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">평가자 한 장 요약</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          범위: 경상남도 행정동(약 305개) · 시설: HIRA 병원정보서비스 v2 ·
-          인구: 주민등록 기반 시연·live 병합 · 지도: Kakao Maps
+          범위: 경상남도 행정동(약 305개) · 시설: 건강보험심사평가원 병원정보서비스 v2 ·
+          인구: 주민등록 기반 시연·실측 병합 · 지도: 온라인 지도
         </p>
         <div className="mt-3 flex flex-wrap gap-2 print:hidden">
           <PrintButton />
@@ -84,11 +84,10 @@ export default function EvaluatorPrintPage() {
         <h2 className="text-sm font-bold text-slate-900">방법론 요약</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-800">{METHOD_SUMMARY}</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-700">
-          <li>시연 합성 데이터와 HIRA·인구 실데이터 구분이 헤더·출처 카드에 표시됩니다.</li>
-          <li>키 없이도 빠른 분석 8종·지도·순위·규칙 기반 자연어 질의가 동작합니다 (AI 파서만 키 필요).</li>
+          <li>시연 합성 데이터와 건강보험심사평가원·인구 실측 구분이 헤더·출처 카드에 표시됩니다.</li>
+          <li>별도 설정 없이도 빠른 분석 8종·지도·순위·규칙 기반 자연어 질의가 동작합니다 (AI 질문 해석만 별도 설정 필요).</li>
           <li>
-            운영: <code className="rounded bg-white px-1">/api/health</code> ·{" "}
-            <code className="rounded bg-white px-1">/api/data/sync</code> · cron 동기화.
+            운영: 상태 확인 · 자료 갱신 상태 · 자동 갱신.
           </li>
         </ul>
       </section>
@@ -99,7 +98,7 @@ export default function EvaluatorPrintPage() {
           <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-slate-700">
             <li>의료 취약 순위 · 구/시 비교 · 동 드릴다운</li>
             <li>자연어 질의 (규칙 우선 + 규칙이 놓친 표현만 AI)</li>
-            <li>Kakao 지도 색상·마커 연동</li>
+            <li>지도 색상·마커 연동</li>
             <li>CSV · 공유 링크 · 다크 모드</li>
           </ul>
         </div>
@@ -108,8 +107,8 @@ export default function EvaluatorPrintPage() {
           <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-slate-700">
             <li>거리 = 행정동 대표점 직선거리 (도로·대중교통 아님)</li>
             <li>자연증가 = 출생−사망 (전입·전출 제외)</li>
-            <li>병원 = HIRA 요양기관 기준 (약국 등 비포함 가능)</li>
-            <li>인구 live 병합은 키·API 한도에 의존</li>
+            <li>병원 = 건강보험심사평가원 요양기관 기준 (약국 등 비포함 가능)</li>
+            <li>인구 실측 병합은 제공 설정·제공 한도에 의존</li>
           </ul>
         </div>
       </section>

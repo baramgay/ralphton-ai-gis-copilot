@@ -8,9 +8,8 @@ import { UNIT_WORD_SOURCES } from "./unit-word-sources";
  * 사용자는 「읍면동」이라 적힌 버튼을 누르고 「행정동 305개」라는 답을 받았다 — 같은 것을
  * 말하는지 알 수 없다.
  *
- * 정본은 용어집 표제어인 「행정동」이다(표제어가 「행정동(읍면동)」이라 두 낱말을 잇는
- * 자리는 거기 하나뿐이다). 사용자 **입력**을 알아듣는 낱말 목록은 여기 대상이 아니다 —
- * 사람은 「읍면동」이라고도 친다.
+ * 정본은 용어집 표제어인 「행정동」이다. 사용자 **입력**을 알아듣는 낱말 목록은 여기
+ * 대상이 아니다 — 사람은 「읍면동」이라고도 친다.
  */
 describe("공간 단위 낱말", () => {
   test("화면 문구에 「읍면동」이 남아 있지 않다", () => {
@@ -19,8 +18,6 @@ describe("공간 단위 낱말", () => {
       const lines = readFileSync(file, "utf8").split("\n");
       lines.forEach((line, index) => {
         if (!line.includes("읍면동")) return;
-        // 용어집 표제어만 예외다.
-        if (line.includes('term: "행정동(읍면동)"')) return;
         stray.push(`${file}:${index + 1} ${line.trim().slice(0, 70)}`);
       });
     }

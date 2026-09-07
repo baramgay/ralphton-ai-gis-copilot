@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       {
         ok: false,
         places: [],
-        notice: "카카오 REST 키가 없어 실시간 장소 검색을 사용할 수 없습니다. 데모 스냅샷 시설로 분석해 주세요.",
+        notice: "실시간 장소 검색 제공 설정이 없어 사용할 수 없습니다. 시설 자료로 분석해 주세요.",
       },
       { status: 200 },
     );

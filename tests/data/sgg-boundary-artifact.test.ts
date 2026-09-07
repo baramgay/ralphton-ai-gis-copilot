@@ -12,7 +12,12 @@ import { describe, expect, test } from "vitest";
 const ROOT = process.cwd();
 const VERSION = "20260701";
 
-function readJson(relativePath: string) {
+type SggFeature = {
+  properties: { adm_cd2: string; adm_nm: string };
+  geometry: { type: string; coordinates: unknown[] };
+};
+
+function readJson(relativePath: string): { features: SggFeature[]; sgg: { featureCount: number; sha256: string } } {
   return JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));
 }
 
@@ -28,8 +33,7 @@ describe("시군구 경계 산출물", () => {
 
   test("시군구당 Feature 1개, 이름은 경상남도로 시작한다", () => {
     const sgg = readJson(`public/data/administrative-sgg-${VERSION}.geojson`);
-    for (const feature of sgg.features) {
-      expect(feature.geometry.type).toBe("MultiPolygon");
+    for (const feature of sgg.features) {      expect(feature.geometry.type).toBe("MultiPolygon");
       expect(feature.geometry.coordinates.length).toBeGreaterThan(0);
       expect(feature.properties.adm_nm.startsWith("경상남도 ")).toBe(true);
     }

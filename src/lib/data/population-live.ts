@@ -198,7 +198,7 @@ export async function fetchAndMergeRegionalPopulation(
       updatedCount: 0,
       month: null,
       notes: [
-        `인구 live 요청 ${failed}/${jobs.length}건 실패 — 인구·세대 시계열은 기준 스냅샷을 유지합니다.`,
+        `인구 실측 요청 ${failed}/${jobs.length}건 실패 — 인구·세대 시계열은 기준 스냅샷을 유지합니다.`,
       ],
     };
   }
@@ -217,7 +217,7 @@ export async function fetchAndMergeRegionalPopulation(
       updatedCount: 0,
       month: null,
       notes: [
-        `인구 live: ${missing.length}/${base.regions.length}개 동의 시계열이 불완전해 기준 스냅샷을 유지합니다(예: ${missing[0].adm_nm}).`,
+        `인구 실측: ${missing.length}/${base.regions.length}개 동의 시계열이 불완전해 기준 스냅샷을 유지합니다(예: ${missing[0].adm_nm}).`,
       ],
     };
   }
@@ -241,7 +241,7 @@ export async function fetchAndMergeRegionalPopulation(
     updatedCount: regions.length,
     month: base.months[base.months.length - 1],
     notes: [
-      `인구 live: 경남 ${regions.length}개 행정동의 인구·세대 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
+      `인구 실측: 경남 ${regions.length}개 행정동의 인구·세대 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
       `요청 ${jobs.length}건(동 ${base.regions.length} × 구간 ${windows.length}).`,
     ],
   };

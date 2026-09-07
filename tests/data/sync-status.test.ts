@@ -20,7 +20,7 @@ describe("computeStaleness", () => {
     const result = computeStaleness(null, base, Date.parse("2026-07-17T00:00:00Z"));
     expect(result.stale).toBe(true);
     expect(result.recommendSync).toBe(true);
-    expect(result.reason).toMatch(/스냅샷이 없습니다/);
+    expect(result.reason).toMatch(/실측 자료가 없습니다/);
   });
 
   it("flags publish older than recommended interval", () => {

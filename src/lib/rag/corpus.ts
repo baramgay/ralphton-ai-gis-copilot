@@ -87,7 +87,7 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "data-demo-live",
     title: "데모·실데이터 한계",
-    body: "기본 스냅샷은 시연용 합성 데이터일 수 있습니다. live 모드는 시설 API 보강이 가능하나 인구 시계열은 기준 스냅샷을 유지할 수 있습니다. 정책 최종 판단에는 원천 통계를 쓰세요.",
+    body: "기본 자료는 시연용 합성 데이터일 수 있습니다. 실측 연동은 시설 자료 보강이 가능하나 인구 시계열은 기준 자료를 유지할 수 있습니다. 정책 최종 판단에는 원천 통계를 쓰세요.",
     tags: ["data", "demo", "live", "caveat"],
     keywords: ["데모", "실데이터", "한계", "출처", "합성", "정책"],
   },
@@ -100,8 +100,8 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   },
   {
     id: "kakao-live",
-    title: "카카오 실시간 장소",
-    body: "근처·주변 질의는 스냅샷 시설과 카카오 로컬 REST 장소 검색을 함께 쓸 수 있습니다. JS 지도 키와 REST 키·웹 도메인 등록이 필요합니다.",
+    title: "실시간 장소 검색",
+    body: "근처·주변 질의는 시설 자료와 실시간 장소 검색을 함께 쓸 수 있습니다. 지도·검색 제공 설정과 웹 도메인 등록이 필요합니다.",
     tags: ["kakao", "nearby", "filterFacilitiesByTypeAndHours"],
     keywords: ["카카오", "근처", "주변", "실시간", "장소", "로컬"],
   },
@@ -129,7 +129,7 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "hira-hospitals",
     title: "HIRA 병원 데이터",
-    body: "의료시설 live 원천은 건강보험심사평가원 병원정보서비스 v2(getHospBasisList, XML)입니다. 시도코드 380000(경남). 약국·운영시간은 이 API에 없을 수 있습니다.",
+    body: "의료시설 실측 원천은 건강보험심사평가원 병원정보서비스 v2(getHospBasisList, XML)입니다. 시도코드 380000(경남). 약국·운영시간은 이 자료에 없을 수 있습니다.",
     tags: ["hira", "medical", "live"],
     keywords: ["HIRA", "심평원", "병원", "요양기관", "시설", "live"],
   },

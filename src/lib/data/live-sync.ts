@@ -206,9 +206,9 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
     const published = await readPublishedSnapshotMeta("live");
     if (published) {
       base = published.snapshot;
-      notes.push("기준 스냅샷을 게시된 live 스냅샷에서 이어받았습니다.");
+      notes.push("기준 자료를 게시된 실측 자료에서 이어받았습니다.");
     } else {
-      notes.push("게시된 live 스냅샷이 없어 데모 스냅샷에서 시작합니다.");
+      notes.push("게시된 실측 자료가 없어 시연 자료에서 시작합니다.");
     }
   }
   const populationKey =
@@ -216,7 +216,7 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
   const hiraKey = resolveHiraServiceKey(options.hiraServiceKey ?? options.serviceKey);
 
   if (!hiraKey) {
-    notes.push("HIRA/공공데이터 키가 없어 데모 스냅샷을 유지했습니다.");
+    notes.push("시설 자료 제공 설정이 없어 시연 자료를 유지했습니다.");
     const checksum = checksumOf(base);
     return {
       status: "demo-only",
@@ -269,9 +269,9 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
       populationUpdated = pop.updatedCount;
       notes.push(...pop.notes);
     } else if (wantPopulation && !populationKey) {
-      notes.push("인구 live는 DATA_GO_KR_SERVICE_KEY가 없어 생략했습니다.");
+      notes.push("인구 실측 제공 설정이 없어 생략했습니다.");
     } else if (!wantPopulation) {
-      notes.push("인구 live 병합이 비활성입니다(LIVE_POPULATION_DISABLED=1).");
+      notes.push("인구 실측 병합이 꺼져 있습니다.");
     }
 
     if (populationKey && datasets.includes("vitals")) {

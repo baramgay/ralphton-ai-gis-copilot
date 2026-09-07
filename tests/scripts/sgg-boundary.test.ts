@@ -44,9 +44,16 @@ const dongCollection = {
   ],
 };
 
+type BuiltSgg = {
+  features: {
+    properties: { adm_cd2: string; adm_nm: string };
+    geometry: { type: string; coordinates: unknown[] };
+  }[];
+};
+
 describe("buildSggCollection", () => {
   test("시군구당 Feature 1개(MultiPolygon)로 묶는다", () => {
-    const sgg = buildSggCollection(dongCollection);
+    const sgg: BuiltSgg = buildSggCollection(dongCollection);
     expect(sgg.features).toHaveLength(2);
     expect(sgg.features.map((feature) => feature.properties.adm_cd2)).toEqual(["48170", "48220"]);
     expect(sgg.features.map((feature) => feature.properties.adm_nm)).toEqual([
@@ -59,10 +66,11 @@ describe("buildSggCollection", () => {
   });
 
   test("맞닿은 동 사이 내부 경계를 지운다", () => {
-    const sgg = buildSggCollection(dongCollection);
+    const sgg: BuiltSgg = buildSggCollection(dongCollection);
     const merged = sgg.features.find((feature) => feature.properties.adm_cd2 === "48170");
+    expect(merged).toBeDefined();
     // 합쳐지지 않았으면 폴리곤이 2개로 남는다.
-    expect(merged.geometry.coordinates).toHaveLength(1);
+    expect(merged!.geometry.coordinates).toHaveLength(1);
   });
 
   test("입력이 깨지면 dissolve 전에 던진다", () => {

@@ -295,7 +295,7 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     return {
       kind: "intent",
       intent,
-      notice: "주변 장소를 스냅샷 시설과 카카오 실시간 검색으로 함께 확인합니다.",
+      notice: "주변 장소를 시설 자료와 실시간 장소 검색으로 함께 확인합니다.",
       score: 55,
       enrichment: buildEnrichment(signals),
     };

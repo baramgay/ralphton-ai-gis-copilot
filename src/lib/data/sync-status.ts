@@ -84,7 +84,7 @@ export function computeStaleness(
       hoursSincePublish: null,
       hoursSinceAttempt,
       recommendSync: Boolean(status.lastStatus),
-      reason: "게시된 live 스냅샷이 없습니다. 시설 동기화를 권장합니다.",
+      reason: "게시된 실측 자료가 없습니다. 시설 자료 갱신을 권장합니다.",
     };
   }
 

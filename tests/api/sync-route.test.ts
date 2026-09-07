@@ -55,7 +55,7 @@ describe("/api/data/sync", () => {
       hoursSincePublish: null,
       hoursSinceAttempt: null,
       recommendSync: true,
-      reason: "게시된 live 스냅샷이 없습니다.",
+      reason: "게시된 실측 자료가 없습니다.",
     });
 
     const response = await GET();

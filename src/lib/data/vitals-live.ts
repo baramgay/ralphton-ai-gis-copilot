@@ -119,7 +119,7 @@ export async function fetchAndMergeVitals(
       regions: base.regions,
       updatedCount: 0,
       notes: [
-        `출생·사망 live 요청 ${failed}/${jobs.length}건 실패 — 출생·사망 시계열은 기준 스냅샷을 유지합니다.`,
+        `출생·사망 실측 요청 ${failed}/${jobs.length}건 실패 — 출생·사망 시계열은 기준 스냅샷을 유지합니다.`,
       ],
     };
   }
@@ -143,7 +143,7 @@ export async function fetchAndMergeVitals(
     regions,
     updatedCount: regions.length,
     notes: [
-      `출생·사망 live: 경남 ${regions.length}개 행정동의 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
+      `출생·사망 실측: 경남 ${regions.length}개 행정동의 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
       `요청 ${jobs.length}건(동 ${base.regions.length} × 구간 ${windows.length} × 데이터셋 2).`,
     ],
   };

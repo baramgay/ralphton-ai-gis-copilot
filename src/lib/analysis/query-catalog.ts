@@ -245,7 +245,7 @@ export const TOOL_CATALOG: ToolCatalogEntry[] = [
     id: "rankHouseholdCount",
     supportsDistrictLevel: true,
     label: "세대 수",
-    examples: ["세대수 많은 동", "가구 수 많은 읍면동", "세대 많은 지역"],
+    examples: ["세대수 많은 동", "가구 수 많은 행정동", "세대 많은 지역"],
     domains: ["population"],
     metricCues: ["households"],
     spatialCues: ["rank"],
