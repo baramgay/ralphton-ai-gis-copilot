@@ -65,7 +65,6 @@ function run(file) {
 
 const results = [];
 for (const script of picked) {
-  // eslint-disable-next-line no-await-in-loop
   results.push(await run(script.file));
 }
 
