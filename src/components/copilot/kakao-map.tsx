@@ -87,10 +87,12 @@ function makeTooltipElement(name: string, value: string | null): HTMLDivElement 
   el.className = "kakao-map-tooltip";
   el.setAttribute("data-testid", "map-hover-chip");
   const nameEl = document.createElement("div");
+  nameEl.className = "kakao-map-tooltip-name";
   nameEl.textContent = name;
   el.append(nameEl);
   if (value) {
     const valueEl = document.createElement("div");
+    valueEl.className = "kakao-map-tooltip-value";
     valueEl.textContent = value;
     el.append(valueEl);
   }
@@ -714,7 +716,11 @@ export function KakaoMap({
         이었는데, 고대비 테마는 글자만 흰색으로 뒤집고 `bg-white/90` 은 열거에 없어 그대로
         흰색이었다 — 흰 바탕에 흰 글자, 1.02:1(실측). 토큰은 테마를 따라간다.
       */}
-      <div className="map-chip map-chip-topleft" data-testid="map-view-chip">
+      {/*
+        한 줄로 못박는다. 두 줄이 되면 칩 높이가 내용에 따라 달라지고, 그 아래로 자리를
+        잡은 질의창과 다시 겹친다. 잘린 말은 title 로 남긴다.
+      */}
+      <div className="map-chip map-chip-topleft" data-testid="map-view-chip" title={viewLabel ?? legendLabel}>
         {viewLabel ?? legendLabel}
       </div>
       {status ? (

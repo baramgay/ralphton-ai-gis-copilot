@@ -73,7 +73,19 @@ export function QueryHero({
           disabled={isParsing || !query.trim()}
           className="query-hero-submit"
         >
-          {isParsing ? "…" : "↑"}
+          {isParsing ? (
+            <span className="query-hero-spinner" aria-hidden="true" />
+          ) : (
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M10 16V4M10 4l-5 5M10 4l5 5"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
         </button>
       </form>
 

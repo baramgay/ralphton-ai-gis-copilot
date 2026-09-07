@@ -1268,10 +1268,19 @@ input:hover {
  * 있어야 한다 — 주기능이 패널 상태에 따라 사라지면 안 된다. z-index는 바텀시트(30)와
  * 시트가 열렸을 때의 float dock(40)보다 위다.
  */
+/*
+ * 질의창은 **칩 줄 아래**에서 시작한다.
+ *
+ * 이전에는 둘 다 위쪽 1rem 에 있었고, 왼쪽 칩이 좁으니 안 겹칠 것이라고 본 것이 전부였다.
+ * 레이어 이름이 길어지자(「안전 · 자동차 천대당 교통사고 · 시군구 · 2025-12」 249px) 칩이
+ * 가운데로 뻗어 질의창 밑으로 들어갔다 — 1300~1500px 전 구간에서 겹침(배포본 실측).
+ * 폭으로 피하려던 패치를 두 번 했고 두 번 다 다른 폭에서 다시 겹쳤다. 폭은 내용이
+ * 정하므로 폭으로는 못 막는다. 세로로 갈라 놓으면 칩이 아무리 길어도 겹치지 않는다.
+ */
 .query-hero {
   position: absolute;
   z-index: 50;
-  top: 1rem;
+  top: 3.5rem;
   left: 50%;
   width: min(38rem, calc(100% - 2rem));
   transform: translateX(-50%);
@@ -1312,7 +1321,7 @@ input:hover {
 
 .query-hero-submit {
   position: absolute;
-  top: 0.5rem;
+  top: 50%;
   right: 0.5rem;
   display: grid;
   place-items: center;
@@ -1320,22 +1329,55 @@ input:hover {
   height: var(--touch-min);
   min-width: var(--touch-min);
   min-height: var(--touch-min);
-  border-radius: 0.75rem;
+  border-radius: 999px;
   background: var(--accent);
-  font-size: var(--fs-body);
-  font-weight: 700;
   color: var(--background);
-  transition: background-color 140ms ease, filter var(--dur-press) ease-out;
+  transform: translateY(-50%);
+  transition: background-color 140ms ease, filter var(--dur-press) ease-out,
+    box-shadow var(--dur-ui) ease;
+}
+
+.query-hero-submit svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .query-hero-submit:hover:not(:disabled) {
   filter: brightness(1.08);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.query-hero-submit:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.94);
 }
 
 .query-hero-submit:disabled {
   background: var(--surface-3);
   color: var(--text-3);
   filter: none;
+  box-shadow: none;
+}
+
+/* 도는 고리. 「…」 글자는 멈춘 것인지 도는 것인지 구별되지 않았다. */
+.query-hero-spinner {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: query-hero-spin 0.7s linear infinite;
+}
+
+@keyframes query-hero-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .query-hero-spinner {
+    animation-duration: 2.4s;
+  }
 }
 
 .query-hero-status,
@@ -1531,12 +1573,16 @@ input:hover {
 .map-chip {
   position: absolute;
   z-index: 10;
+  max-width: calc(100% - 2rem);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   background: var(--glass-bg-strong);
   color: var(--glass-text);
   padding: 0.375rem 0.75rem;
-  font-size: var(--fs-caption);
+  font-size: var(--fs-chip);
   font-weight: 600;
   box-shadow: var(--glass-edge), var(--glass-shadow);
   -webkit-backdrop-filter: var(--glass-blur-sm);
@@ -1549,9 +1595,12 @@ input:hover {
   top: 1rem;
 }
 
+/* 지도 대신 도형을 그리는 상태를 알리는 문장. 라벨이 아니라 문장이라 줄바꿈을 허용한다. */
 .map-chip-fallback {
   left: 1rem;
   top: 3.5rem;
+  max-width: 18rem;
+  white-space: normal;
 }
 
 /* 첫 화면 시군구 이름. 행정동 305개를 다 쓰면 읽히지 않는다. */
@@ -1668,21 +1717,40 @@ input:hover {
   color: var(--background);
 }
 
+/*
+ * 카카오 CustomOverlay 는 내용을 **폭 0짜리 칸** 안에 넣는다. 그 안에서 `max-width` 만
+ * 걸면 shrink-to-fit 이 최소 폭(min-content)으로 접히고, 한글은 글자 사이 어디서나
+ * 끊기므로 「거제시 자동차 천대당 교통사고 5.7건/천대」가 **한 글자씩 세로로** 섰다
+ * (배포본 실측). 그래서 폭을 max-content 로 못박고 상한만 따로 준다.
+ */
 .kakao-map-tooltip {
-  padding: 6px 10px;
+  width: max-content;
+  max-width: min(18rem, 60vw);
+  padding: 0.4rem 0.65rem;
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
+  border-radius: 0.75rem;
   background: var(--glass-bg-strong);
   color: var(--glass-text);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.35;
+  line-height: var(--lh-tight);
   text-align: center;
-  white-space: normal;
-  max-width: 16rem;
   box-shadow: var(--glass-edge), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
   pointer-events: none;
   transform: translateY(-4px);
+}
+
+/* 이름과 값은 크기·굵기로 가른다. 색으로 가르면 최악의 타일에서 한쪽이 묻힌다. */
+.kakao-map-tooltip-name {
+  font-size: var(--fs-chip);
+  font-weight: 800;
+  letter-spacing: var(--ls-caption);
+}
+
+.kakao-map-tooltip-value {
+  margin-top: 0.15rem;
+  font-size: var(--fs-chip);
+  font-weight: 600;
 }
 
 .follow-card {
@@ -2949,19 +3017,6 @@ input:hover {
   .sheet-handle,
   .sheet-snap-bar {
     display: none;
-  }
-}
-
-/*
- * 아이패드 프로 12.9 가로(1366)는 3칸을 유지한다. 다만 접힌 왼쪽 때문에 지도가
- * 좁아져 질의창이 칩을 덮는다(배포본 실측). 시트는 열지 않고 칩만 내린다.
- */
-@media (min-width: 1281px) and (max-width: 1366px) {
-  .map-chip-topleft,
-  .map-chip-fallback {
-    top: 8rem;
-    left: 0.5rem;
-    max-width: min(18rem, calc(100% - 10rem));
   }
 }
 
