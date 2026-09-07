@@ -24,7 +24,7 @@ const SyncBodySchema = z
      * `maxDuration` 300초를 넘긴다. 단계로 나눠 돌리고, 두 번째 실행은 `baseFrom:"published"`로
      * 앞 단계 결과 위에 얹는다. 기본값은 인구 하나 — 예전 동작 그대로다.
      */
-    datasets: z.array(z.enum(["population", "vitals"])).min(1).optional(),
+    datasets: z.array(z.enum(["facilities", "population", "vitals"])).min(1).optional(),
     baseFrom: z.enum(["demo", "published"]).optional(),
   })
   .strict()

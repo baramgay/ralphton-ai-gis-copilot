@@ -52,7 +52,15 @@ const BoundaryCollectionSchema = z.object({
   features: z.array(BoundaryFeatureSchema).min(1),
 });
 
-export type LiveDataset = "population" | "vitals";
+/**
+ * 한 실행에서 무엇까지 실측으로 갈아 끼울지.
+ *
+ * "facilities" 는 **시설만** 갈아 끼우고 인구·출생사망 백필은 건너뛴다는 뜻이다.
+ * 인구 백필은 1,220회 호출이라 서버 상한 300초를 넘겨 통째로 실패한다 —
+ * 실제로 그래서 게시본이 51일 동안 갱신되지 못했다(2026-09-07 실측, 504).
+ * 시설 갱신과 각주 정정은 그것과 함께 죽을 이유가 없다.
+ */
+export type LiveDataset = "facilities" | "population" | "vitals";
 
 export type LiveSyncStatus =
   | "demo-only"
