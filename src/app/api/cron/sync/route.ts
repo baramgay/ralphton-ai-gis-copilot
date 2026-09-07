@@ -7,7 +7,13 @@ import { writeSyncStatus } from "@/lib/data/sync-status";
  * Vercel Cron entry: daily facility snapshot refresh.
  * Auth: Authorization Bearer CRON_SECRET (Vercel injects) or DATA_SYNC_SECRET / x-sync-secret.
  * Never echoes credentials.
+ *
+ * 야간 크론은 시설만 갱신한다. 인구(1,220회)·출생사망(2,440회) 백필을 함께 넣으면
+ * 실행 상한을 넘겨 통째로 실패하고, 시설 갱신까지 51일 멈춘 적이 있다.
+ * 인구·출생사망은 `/api/data/sync` 수동 단계 실행(`datasets`+`baseFrom:"published"`)으로
+ * 이어 붙인다 — 그 경로가 이미 있다.
  */
+export const maxDuration = 300;
 function authorized(request: Request): boolean {
   const cronSecret = process.env.CRON_SECRET?.trim();
   const syncSecret = process.env.DATA_SYNC_SECRET?.trim();
@@ -38,7 +44,7 @@ export async function GET(request: Request) {
   const attemptedAt = new Date().toISOString();
   await writeSyncStatus({ lastAttemptAt: attemptedAt, lastError: null });
 
-  const result = await runLiveSync({ publish: true });
+  const result = await runLiveSync({ publish: true, datasets: ["facilities"] });
 
   await writeSyncStatus({
     lastAttemptAt: attemptedAt,

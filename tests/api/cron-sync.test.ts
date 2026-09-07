@@ -13,7 +13,7 @@ vi.mock("@/lib/data/sync-status", () => ({
   writeSyncStatus: mocks.writeSyncStatus,
 }));
 
-import { GET } from "@/app/api/cron/sync/route";
+import { GET, maxDuration } from "@/app/api/cron/sync/route";
 
 describe("/api/cron/sync", () => {
   beforeEach(() => {
@@ -31,6 +31,11 @@ describe("/api/cron/sync", () => {
   it("rejects unauthorized", async () => {
     const response = await GET(new Request("http://localhost/api/cron/sync"));
     expect(response.status).toBe(401);
+  });
+
+  it("declares a 300s ceiling like the manual sync route", () => {
+    // 상한 선언이 없으면 기본 60초로 잘려 백필 전에 죽는다.
+    expect(maxDuration).toBe(300);
   });
 
   it("accepts Vercel CRON_SECRET bearer and publishes", async () => {
@@ -61,7 +66,7 @@ describe("/api/cron/sync", () => {
     expect(body.ok).toBe(true);
     expect(body.source).toBe("cron");
     expect(body.facilityCount).toBe(42);
-    expect(mocks.runLiveSync).toHaveBeenCalledWith({ publish: true });
+    expect(mocks.runLiveSync).toHaveBeenCalledWith({ publish: true, datasets: ["facilities"] });
     expect(JSON.stringify(body)).not.toMatch(/cron-secret|sync-secret/i);
   });
 });
