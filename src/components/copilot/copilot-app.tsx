@@ -1846,11 +1846,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const featureName = sggBoundary?.features.find(
       (feature) => feature.properties.adm_cd2 === selectedRegionCode,
     )?.properties.adm_nm;
-    const name =
-      row?.name ?? featureName?.replace(/^경상남도\s*/, "") ?? null;
+    /*
+     * 공유 링크로만 들어오면 순위도 시군구 경계도 아직 없다. 스냅샷 소속 동의
+     * 이름에서 시군구 부분을 잘라 쓴다 — 집계 sggName과 같은 자리다.
+     */
+    const memberName = snapshot?.regions
+      .find((region) => region.adm_cd2.startsWith(selectedRegionCode))
+      ?.adm_nm.replace(/^경상남도\s*/, "")
+      .split(/\s+/)[0];
+    const name = row?.name ?? featureName?.replace(/^경상남도\s*/, "") ?? memberName ?? null;
     if (!name) return null;
     return { code: selectedRegionCode, name };
-  }, [selectedRegion, selectedRegionCode, analysis, sggBoundary]);
+  }, [selectedRegion, selectedRegionCode, analysis, sggBoundary, snapshot]);
 
   /*
    * 지점 둘레 읽기.
