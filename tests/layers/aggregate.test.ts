@@ -51,6 +51,20 @@ describe("aggregateToSgg", () => {
     expect(sgg.cells[0].series.ratio).toEqual([null]);
   });
 
+  it("returns null for weighted average when a member weight is missing", () => {
+    // 값은 있고 가중치만 없는 동이 하나라도 있으면 남은 동만으로 평균을 내지 않는다.
+    // 실측: kcb-migration.move_out_sgg 3셀월.
+    const partial: LayerCube = {
+      ...dongCube,
+      cells: [
+        { code: "4812051000", name: "a", point: { lat: 0, lng: 0 }, areaKm2: 1, series: { pop: [100], ratio: [20] } },
+        { code: "4812052000", name: "b", point: { lat: 0, lng: 0 }, areaKm2: 1, series: { pop: [null], ratio: [40] } },
+      ],
+    };
+    const sgg = aggregateToSgg(partial, metrics);
+    expect(sgg.cells.find((c) => c.code === "48120")!.series.ratio).toEqual([null]);
+  });
+
   it("truncates sgg cell name to the first two tokens", () => {
     const longNames: LayerCube = {
       ...dongCube,

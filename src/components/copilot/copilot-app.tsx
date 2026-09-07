@@ -689,8 +689,13 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
   const ranked = source.map((region): RankedRegion => {
     const primaryMetric = region.metrics[0];
     const rawValue = region.score ?? primaryMetric?.value ?? null;
+    /*
+     * 값이 없으면 점수도 없다. 0을 박으면 최저색으로 칠해져 「가장 낮은 곳」으로
+     * 인쇄된다 — 목록은 "데이터 없음"이라 말하는데 지도는 꼴찌로 말한다.
+     * scores 메모·막대·결론은 null을 이미 처리한다.
+     */
     const mapScore =
-      rawValue === null ? 0 : finite.length <= 1 ? 50 : ((rawValue - minimum) / span) * 100;
+      rawValue === null ? null : finite.length <= 1 ? 50 : ((rawValue - minimum) / span) * 100;
     return {
       code: region.adm_cd2,
       name: region.adm_nm.replace(/^경상남도\s*/, ""),

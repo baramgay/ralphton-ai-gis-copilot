@@ -57,8 +57,15 @@ export function aggregateToSgg(cube: LayerCube, metrics: MetricDef[]): LayerCube
         let allSame = true;
         for (const m of members) {
           const v = m.series[metric.key]?.[i];
-          const w = weightKey ? (m.series[weightKey]?.[i] ?? 0) : 1;
           if (v == null) continue;
+          /*
+           * 값은 있고 가중치가 없으면 평균을 내지 않는다. 가중치 0으로 조용히
+           * 빼면 남은 동만으로 평균이 나와 구성이 바뀐 사실을 알 수 없다.
+           * 합계(sum)가 하나라도 비면 null을 내는 것과 같은 규칙이다.
+           * 실측: kcb-migration.move_out_sgg 3셀월이 이 경우다(전수 조사).
+           */
+          const w = weightKey ? m.series[weightKey]?.[i] : 1;
+          if (w == null || !Number.isFinite(w)) return null;
           if (only === null) only = v;
           else if (v !== only) allSame = false;
           weighted += v * w;

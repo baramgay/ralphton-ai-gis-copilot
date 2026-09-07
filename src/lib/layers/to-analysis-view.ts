@@ -14,7 +14,8 @@ export type LayerAnalysisRow = {
   code: string;
   name: string;
   district: string;
-  mapScore: number;
+  /** 지도 채색용. 값이 없으면 null이라 최저색으로 칠해지지 않는다. */
+  mapScore: number | null;
   valueLabel: string;
   note: string;
   metrics: LayerMetricDescriptor[];
@@ -82,7 +83,7 @@ export function layerCubeToAnalysisView(
     finiteValues.length <= 1 ? 50 : ((value - minimum) / span) * 100;
 
   const ranked: LayerAnalysisRow[] = view.ranking.map((row) => {
-    const mapScore = row.value === null ? 0 : normalize(row.value);
+    const mapScore = row.value === null ? null : normalize(row.value);
     const name = row.name.replace(/^경상남도\s*/, "");
     return {
       code: row.code,

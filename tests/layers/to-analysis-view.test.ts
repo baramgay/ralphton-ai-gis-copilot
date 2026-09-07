@@ -22,8 +22,8 @@ describe("layerCubeToAnalysisView - dong level", () => {
   it("produces one ranked row per dong cell, sorted descending by value", () => {
     expect(analysis.ranked).toHaveLength(305);
     for (let i = 1; i < analysis.ranked.length; i++) {
-      const prevScore = analysis.ranked[i - 1].mapScore;
-      const nextScore = analysis.ranked[i].mapScore;
+      const prevScore = analysis.ranked[i - 1].mapScore!;
+      const nextScore = analysis.ranked[i].mapScore!;
       expect(prevScore).toBeGreaterThanOrEqual(nextScore);
     }
   });
@@ -47,6 +47,27 @@ describe("layerCubeToAnalysisView - dong level", () => {
       expect(row.mapScore).toBeGreaterThanOrEqual(0);
       expect(row.mapScore).toBeLessThanOrEqual(100);
     }
+  });
+
+  it("missing values get null mapScore instead of the lowest color", () => {
+    // 값이 없는데 0점을 박으면 최저색으로 칠해져 「가장 낮은 곳」으로 인쇄된다.
+    // 목록은 "데이터 없음"이라 말하는데 지도는 꼴찌로 말하는 불일치다.
+    const sparse: LayerCube = {
+      ...loadCube(),
+      cells: [
+        {
+          code: "4817000001",
+          name: "경상남도 진주시 상대동",
+          point: { lat: 35.18, lng: 128.08 },
+          areaKm2: 1,
+          series: { living_total: [null] },
+        },
+      ],
+    };
+    const { analysis: sparseAnalysis } = layerCubeToAnalysisView(sparse, livingTotal, metrics, "dong");
+    expect(sparseAnalysis.ranked).toHaveLength(1);
+    expect(sparseAnalysis.ranked[0].mapScore).toBeNull();
+    expect(sparseAnalysis.ranked[0].valueLabel).toBe("데이터 없음");
   });
 
   it("scores map is keyed by the same 10-digit dong codes as the cube cells, one per cell", () => {
