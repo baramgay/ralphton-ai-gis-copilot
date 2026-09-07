@@ -124,6 +124,11 @@ function checksumOf(snapshot: AnalysisSnapshot): string {
 }
 
 const SYNTHETIC_NOTE_PREFIX = "인구·세대·출생·사망 값은 합성값";
+const FACILITY_SYNTHETIC_NOTE_PREFIX = "시설 위치는 행정동 내부 대표점 주변 PRNG 배치";
+const DEMO_WIDE_NOTE_PREFIX = "경상남도 행정동 경계를 기준으로 만든 결정론적 시연 데이터";
+const DEV_JARGON_NOTE_PREFIX = "진료과·운영시간 null은";
+/** 같은 사실을 쓰는 사람의 말로. 정본은 `scripts/lib/seed-core.mjs` 와 이 상수 둘뿐이다. */
+const FACILITY_HOURS_NOTE = "진료과·운영시간이 제공되지 않는 시설이 있습니다.";
 
 /**
  * 합성값 각주를 **남은 합성 항목만** 말하도록 다시 쓴다. 전부 실측이면 각주를 지운다.
@@ -131,11 +136,36 @@ const SYNTHETIC_NOTE_PREFIX = "인구·세대·출생·사망 값은 합성값";
  * 각주는 화면 배지(`populationIsLive`)가 읽는 정본이다. 사실이 바뀌었는데 문장이 그대로면
  * 배지가 거짓말을 한다 — `mode: "live"`인데 인구가 합성이던 사건이 정확히 그랬다.
  * 별도 필드를 두지 않는 이유도 같다: 두 벌이 되면 어긋나는 순간 어느 쪽이 참인지 모른다.
+ *
+ * 거짓말은 **양쪽으로** 난다. 인구 각주만 다시 쓰고 시설 각주를 그냥 넘겼더니, 심평원
+ * 실좌표 4,272곳을 실어 놓고 화면 출처 노트는 "실제 요양기관 좌표가 아닙니다"라고 적었다
+ * (배포본 실측 — 경상국립대학교병원 35.1760/128.0965 등 실제 위치와 일치). 자기 자료를
+ * 가짜라고 말하는 쪽도 가짜를 진짜라 말하는 것만큼 못 쓴다.
  */
 export function rewriteSyntheticNote(
   note: string,
-  live: { population: boolean; vitals: boolean },
+  live: { population: boolean; vitals: boolean; facilities?: boolean },
 ): string | null {
+  if (note.startsWith(DEV_JARGON_NOTE_PREFIX)) {
+    /*
+     * "null"·"UI"·"검증하기 위한"은 만든 사람의 말이다. 이 각주는 사용자 화면의 출처 노트에
+     * 그대로 나온다 — 읽는 사람에게 뜻이 없고, 실측으로 바뀐 뒤에는 사실도 아니다.
+     */
+    return FACILITY_HOURS_NOTE;
+  }
+  if (note.startsWith(FACILITY_SYNTHETIC_NOTE_PREFIX)) {
+    // 좌표를 실제로 교체했을 때만 지운다. 교체가 없었으면 그 문장은 여전히 사실이다.
+    return live.facilities ? null : note;
+  }
+  if (note.startsWith(DEMO_WIDE_NOTE_PREFIX)) {
+    /*
+     * 이 한 줄은 스냅샷 **전체**를 시연이라 부른다. 무엇 하나라도 실측이 되면 더는 참이
+     * 아니고, 무엇이 아직 합성인지는 다른 각주가 각자 말한다.
+     */
+    return live.population || live.vitals || live.facilities
+      ? "경상남도 행정동 경계를 기준으로 구성한 자료입니다."
+      : note;
+  }
   if (!note.startsWith(SYNTHETIC_NOTE_PREFIX)) return note;
   if (live.population && live.vitals) return null;
   if (live.population) return "출생·사망 값은 합성값이며 실제 주민등록 통계가 아닙니다.";
@@ -286,7 +316,17 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
        */
       sourceNotes: [
         ...base.sourceNotes
-          .map((note) => rewriteSyntheticNote(note, { population: populationLive, vitals: vitalsLive }))
+          .map((note) =>
+            /*
+             * 여기까지 왔다는 것은 HIRA 시설로 실제 교체했다는 뜻이다 — 매핑 결과가 비면
+             * 위에서 이미 데모로 돌아간다. 그러니 시설 각주는 사실이 아니게 되었다.
+             */
+            rewriteSyntheticNote(note, {
+              population: populationLive,
+              vitals: vitalsLive,
+              facilities: true,
+            }),
+          )
           .filter((note): note is string => note !== null),
         `HIRA 병원정보서비스(v2)로 경남 시설 ${facilities.length}곳을 갱신했습니다.`,
         populationLive
