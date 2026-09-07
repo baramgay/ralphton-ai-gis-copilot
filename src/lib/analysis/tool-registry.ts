@@ -1039,7 +1039,7 @@ export function filterFacilitiesByTypeAndHours(intent: AnalysisIntent, snapshot:
     filteredFacilities: facilities,
     legend: SINGLE_COLOR_LEGEND,
     formulaNotes: [
-      "시설 종류가 명시되지 않으면 약국을 제외한 모든 의료기관 유형을 대상으로 합니다.",
+      "시설 종류가 명시되지 않으면 자료에 있는 모든 의료기관 유형을 대상으로 합니다.",
       "운영시간·진료과 값이 없는 시설은 해당 조건에서 제외하며 추측하지 않습니다.",
     ],
   });
