@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 
-const URL = "https://ralphton-ai-gis-copilot.vercel.app";
+const URL = "https://gnbc.site";
 
 /**
  * 화면 1위가 큐브에서 독립 계산한 1위와 같은지 전 지표에서 확인한다.

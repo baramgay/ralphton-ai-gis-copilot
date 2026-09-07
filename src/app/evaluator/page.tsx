@@ -116,7 +116,7 @@ export default function EvaluatorPrintPage() {
 
       <footer className="mt-6 border-t border-slate-200 pt-3 text-xs text-slate-500 print:border-slate-400">
         <p>
-          프로덕션: https://ralphton-ai-gis-copilot.vercel.app · 본 페이지: /evaluator
+          프로덕션: https://gnbc.site · 본 페이지: /evaluator
         </p>
         <p className="mt-1">인쇄 시 배경·버튼은 숨김 · A4 세로 권장</p>
       </footer>

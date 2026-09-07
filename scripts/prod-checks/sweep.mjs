@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 
-const URL = "https://ralphton-ai-gis-copilot.vercel.app";
+const URL = "https://gnbc.site";
 /*
  * 산출물 경로는 한 사람의 임시 세션 폴더에 박혀 있었다. 그 폴더가 사라지자 스크립트가
  * 결과를 쓰다 죽었다 — 안전망이 자기가 만든 파일 자리 때문에 먼저 넘어졌다.

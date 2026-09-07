@@ -29,7 +29,7 @@ export async function GET(request: Request) {
         // Help Kakao domain checks when proxying from server
         Referer: process.env.VERCEL_PROJECT_PRODUCTION_URL
           ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/`
-          : "https://ralphton-ai-gis-copilot.vercel.app/",
+          : "https://gnbc.site/",
         "User-Agent": "ralphton-ai-gis-copilot/1.0",
       },
       // Revalidate hourly

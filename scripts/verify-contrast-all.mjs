@@ -21,7 +21,7 @@
  */
 import { chromium } from "@playwright/test";
 
-const URL = process.argv[2] ?? "https://ralphton-ai-gis-copilot.vercel.app/";
+const URL = process.argv[2] ?? "https://gnbc.site/";
 const TABS = [
   ["분석", "control"],
   ["이용", "help"],

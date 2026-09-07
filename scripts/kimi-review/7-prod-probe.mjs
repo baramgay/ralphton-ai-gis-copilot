@@ -8,7 +8,7 @@
  */
 import { chromium } from "playwright";
 
-const BASE = "https://ralphton-ai-gis-copilot.vercel.app/";
+const BASE = "https://gnbc.site/";
 
 const consoleErrors = [];
 const pageErrors = [];

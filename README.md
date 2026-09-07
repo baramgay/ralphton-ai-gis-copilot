@@ -2,7 +2,7 @@
 
 경상남도 행정동(약 305개, 22 시군구)의 의료·인구 접근성을 지도와 자연어로 탐색하는 Next.js 앱입니다. API 키가 없어도 결정론적 시연 데이터와 SVG `DemoMap`으로 전체 분석 흐름이 동작합니다.
 
-**프로덕션:** https://ralphton-ai-gis-copilot.vercel.app
+**프로덕션:** https://gnbc.site
 
 ## 가장 빠른 실행
 

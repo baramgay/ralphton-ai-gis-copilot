@@ -2,7 +2,7 @@
  * Production / staging smoke checks — core APIs + feature probes.
  * Usage: SMOKE_BASE_URL=https://... node scripts/smoke.mjs
  */
-const base = (process.env.SMOKE_BASE_URL || "https://ralphton-ai-gis-copilot.vercel.app").replace(
+const base = (process.env.SMOKE_BASE_URL || "https://gnbc.site").replace(
   /\/$/,
   "",
 );

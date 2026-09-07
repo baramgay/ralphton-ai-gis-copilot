@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 
-const URL = "https://ralphton-ai-gis-copilot.vercel.app";
+const URL = "https://gnbc.site";
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
 const errors = [];

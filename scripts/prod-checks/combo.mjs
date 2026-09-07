@@ -2,7 +2,7 @@ import { chromium } from "@playwright/test";
 await new Promise(r=>setTimeout(r, Number(process.env.WAIT_MS ?? 170000)));
 const b = await chromium.launch();
 const p = await (await b.newContext({viewport:{width:1400,height:900}})).newPage();
-await p.goto("https://ralphton-ai-gis-copilot.vercel.app");
+await p.goto("https://gnbc.site");
 await p.getByRole("heading",{name:/경남 AI GIS/i}).waitFor({timeout:90000});
 await p.getByRole("button",{name:"바로 시작"}).click().catch(()=>{});
 await p.waitForTimeout(4000);

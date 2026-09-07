@@ -16,7 +16,7 @@ page.on("console", (m) => {
 });
 page.on("pageerror", (e) => hits.push(`PAGEERR ${e.message}`));
 
-await page.goto("https://ralphton-ai-gis-copilot.vercel.app/", {
+await page.goto("https://gnbc.site/", {
   waitUntil: "domcontentloaded",
   timeout: 60_000,
 });

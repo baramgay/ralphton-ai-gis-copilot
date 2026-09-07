@@ -6,7 +6,7 @@ const logs = [];
 page.on("console", (m) => logs.push(`${m.type()}: ${m.text()}`));
 page.on("pageerror", (e) => logs.push(`ERR: ${e.message}`));
 
-await page.goto("https://ralphton-ai-gis-copilot.vercel.app/", {
+await page.goto("https://gnbc.site/", {
   waitUntil: "domcontentloaded",
   timeout: 60_000,
 });

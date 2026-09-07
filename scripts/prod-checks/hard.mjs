@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 
-const URL = "https://ralphton-ai-gis-copilot.vercel.app";
+const URL = "https://gnbc.site";
 
 const CASES = [
   // 역방향 — 낮은/적은을 물으면 뒤집혀야 한다

@@ -12,7 +12,7 @@
  */
 import { chromium } from "@playwright/test";
 
-const URL = process.argv[2] ?? "https://ralphton-ai-gis-copilot.vercel.app/";
+const URL = process.argv[2] ?? "https://gnbc.site/";
 const RUNS = Number(process.argv[3] ?? 5);
 
 /* 예산은 이전 측정에서 온 값이다. 넘으면 붉게 간다. */

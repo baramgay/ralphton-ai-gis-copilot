@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 
-const URL = "https://ralphton-ai-gis-copilot.vercel.app";
+const URL = "https://gnbc.site";
 const WAIT_MS = Number(process.env.WAIT_MS ?? 150_000);
 if (WAIT_MS > 0) {
   process.stdout.write(`배포 대기 ${WAIT_MS / 1000}초...\n`);
