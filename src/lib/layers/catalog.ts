@@ -216,8 +216,49 @@ export const KCB_GRID_LAYER: Omit<LayerDescriptor, "months"> = {
   ],
 };
 
-export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {
-  id: "medical",
+/**
+ * 경남빅데이터허브플랫폼 데이터마트 기업정보.
+ *
+ * 원자료가 **시군구까지만** 있으므로 모든 지표에 `scope: "sgg"`를 준다(KOSIS와
+ * 같은 이유). 집계는 `weightedAvg`(가중치 없음)라 복제된 동 값으로 되접으면
+ * 원래 값이 그대로 나온다.
+ *
+ * 연간 자료라 큐브의 월 축은 `YYYY-12`다. 2015–2019년 1회성이므로 최신값이
+ * 2019-12임을 한계에 밝힌다 — "최신"처럼 보이면 거짓말이다.
+ */
+export const GN_BUSINESS_LAYER: Omit<LayerDescriptor, "months"> = {
+  id: "gn-business",
+  label: "기업정보",
+  provider: "경남빅데이터허브",
+  kind: "choropleth",
+  coverage: "gyeongnam",
+  adminLevels: ["dong", "sgg"],
+  sourceNotes: ["경남빅데이터허브플랫폼 데이터마트 기업정보 (2015–2019, 시군구 단위)"],
+  metrics: [
+    {
+      key: "firm_count",
+      label: "기업체 수",
+      unit: "곳",
+      aggregation: "weightedAvg",
+      formula: "데이터마트 등록 기업체 수 합",
+      limitation:
+        "2015–2019년 자료로 2019년 이후 현행화 없음. 데이터마트 등록분이라 전수 사업체 통계와 다름. 원자료가 시군구 단위라 행정동으로는 같은 값이 반복된다. 연 1회 자료라 월 축은 연말(12월)",
+      triggers: ["기업체 수", "기업 수", "사업체 수", "기업 많은", "사업체 많은", "기업"],
+    },
+    {
+      key: "corp_share",
+      label: "법인 비중",
+      unit: "%",
+      aggregation: "weightedAvg",
+      formula: "법인(주식회사·유한회사·합자회사·합명회사·협동조합·영농조합·사단법인) 수 ÷ 전체 × 100",
+      limitation:
+        "2015–2019년 자료. 행정동 코드 없는 연 119~183건은 집계에서 제외. 원자료가 시군구 단위라 행정동으로는 같은 값이 반복된다",
+      triggers: ["법인 비중", "법인체 비중", "법인 많은", "법인"],
+    },
+  ],
+};
+
+export const MEDICAL_LAYER: Omit<LayerDescriptor, "months"> = {  id: "medical",
   /*
    * 「의료」 한 낱말이면 자료가 아니라 **분야**로 읽힌다 — 레이어 목록에서 큰 분류처럼
    * 서서 이 도구를 의료 도구로 보이게 했다. 이것은 의료기관 목록이라는 자료 하나다.
@@ -264,15 +305,17 @@ export const CUBE_LAYERS = [
   KCB_MIGRATION_LAYER,
   KCB_COMMUTE_LAYER,
   KCB_GRID_LAYER,
+  GN_BUSINESS_LAYER,
   ...KOSIS_LAYERS,
 ] as const;
 
 /**
  * 민간 제공기관(SKT·NH·KCB) 레이어. 「민간데이터 종합」 패널이 이 집합을 쓴다 —
  * KOSIS는 국가통계라 여기 들어오면 그 패널의 제목이 거짓말이 된다.
+ * 경남빅데이터허브(경상남도 공공데이터)도 같은 이유로 뺀다.
  */
 export const PRIVATE_LAYERS = CUBE_LAYERS.filter(
-  (layer) => layer.provider !== "공공" && layer.provider !== "KOSIS",
+  (layer) => layer.provider !== "공공" && layer.provider !== "KOSIS" && layer.provider !== "경남빅데이터허브",
 );
 
 /**

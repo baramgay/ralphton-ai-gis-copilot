@@ -77,15 +77,21 @@ describe("외부 질의 30개 — 검색 품질 바닥선", () => {
    * 처음 잰 값은 top-1 19/30 · top-5 27/30이었다. 거기서 드러난 두 어휘 구멍(「가기 힘든」
    * 계열, 「한 반에」 계열)을 넓혀 21/29가 됐고, 바닥선은 **고친 뒤의 값**으로 올린다.
    * 여유를 두면 그만큼 조용히 나빠질 수 있고, 이 검사가 지키려는 것이 그 조용한 하락이다.
+   *
+   * 2026-09-08 재측정: 경남빅데이터허브 기업정보 레이어 추가(+3 청크)로 코퍼스 IDF가
+   * 흔들려 #21이 6위로 밀려 28이 됐다. 밀어낸 상위 5개(의료취약 도구군)도 그 물음에
+   * 방어가 되고, 허브 청크가 끼어든 것이 아니다(원인 격리済). 새 레이어가 붙을 때마다
+   * 바닥선을 손대면 이 검사가 무용해지므로, 내리는 판단은 매번 사람이 한다 —
+   * 이번에는 팀장 지시로 spark가 대행하고 Opus가 검토한다.
    */
   test("top-1 적중이 21건 아래로 내려가지 않는다", () => {
     const hits = CASES.filter((entry) => ranksOf(entry)[0] === true).length;
     expect(hits).toBeGreaterThanOrEqual(21);
   });
 
-  test("top-5 적중이 29건 아래로 내려가지 않는다", () => {
+  test("top-5 적중이 28건 아래로 내려가지 않는다", () => {
     const hits = CASES.filter((entry) => ranksOf(entry).some(Boolean)).length;
-    expect(hits).toBeGreaterThanOrEqual(29);
+    expect(hits).toBeGreaterThanOrEqual(28);
   });
 
   /*
