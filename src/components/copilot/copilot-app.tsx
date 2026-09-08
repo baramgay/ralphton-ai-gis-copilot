@@ -4248,7 +4248,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     <li key={step.order}>
                       <details className="rounded-lg border border-slate-100 bg-slate-50/60">
                         <summary className="cursor-pointer px-3 py-2 ui-body font-bold text-slate-800">
-                          <span className="text-slate-400">{step.order}.</span> {step.title}
+                          <span className="text-slate-500">{step.order}.</span> {step.title}
                         </summary>
                         <div className="border-t border-slate-100 px-3 py-2.5">
                           <p className="ui-body text-slate-700">{step.what}</p>
