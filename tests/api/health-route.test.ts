@@ -60,4 +60,55 @@ describe("/api/health", () => {
     expect(body.syncOps.stale).toBe(true);
     expect(JSON.stringify(body)).not.toMatch(/public-key|serviceKey|apiKey/i);
   });
+
+  it("reports the serving build commit for deploy timing", async () => {
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abc123def456");
+    mocks.readPublishedSnapshotMeta.mockResolvedValueOnce(null);
+    mocks.readSyncStatus.mockResolvedValueOnce({
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastStatus: "idle",
+      lastFacilityCount: null,
+      lastError: null,
+      lastPublished: null,
+      recommendedIntervalHours: 24,
+    });
+    mocks.computeStaleness.mockReturnValueOnce({
+      stale: true,
+      recommendSync: true,
+      reason: "no live",
+      hoursSincePublish: null,
+      hoursSinceAttempt: null,
+    });
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(body.build.commitSha).toBe("abc123def456");
+  });
+
+  it("reports null commit when the build env is absent", async () => {
+    mocks.readPublishedSnapshotMeta.mockResolvedValueOnce(null);
+    mocks.readSyncStatus.mockResolvedValueOnce({
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastStatus: "idle",
+      lastFacilityCount: null,
+      lastError: null,
+      lastPublished: null,
+      recommendedIntervalHours: 24,
+    });
+    mocks.computeStaleness.mockReturnValueOnce({
+      stale: true,
+      recommendSync: true,
+      reason: "no live",
+      hoursSincePublish: null,
+      hoursSinceAttempt: null,
+    });
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(body.build.commitSha).toBeNull();
+  });
 });

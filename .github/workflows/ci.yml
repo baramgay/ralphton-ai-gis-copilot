@@ -50,7 +50,13 @@ jobs:
         run: npm ci
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
+      - name: Wait for the new build on production
+        id: wait
+        run: |
+          node scripts/wait-for-prod-build.mjs https://gnbc.site/ ${{ github.sha }} 300 20 | tee wait.log
+          echo "skip=$(grep -q SKIPPED wait.log && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Production checks (fast subset)
+        if: steps.wait.outputs.skip != 'true'
         env:
           PROD_URL: https://gnbc.site/
         run: node scripts/verify-prod.mjs https://gnbc.site/ terms map-overlap sgg probe

@@ -163,5 +163,13 @@ export async function GET() {
     publishedLive,
     syncOps,
     syncDetailSource,
+    /*
+     * 지금 떠 있는 빌드가 어떤 커밋인지. CI가 배포본을 잴 때 새 빌드가 올라왔는지
+     * 이 값으로 확인한다 — 기다리지 않으면 직전 빌드를 재고 초록불을 낸다.
+     * 커밋 해시는 공개 정보라 비밀 유출 검사를 피한다. 로컬·미설정에서는 null이다.
+     */
+    build: {
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA?.trim() || null,
+    },
   });
 }
