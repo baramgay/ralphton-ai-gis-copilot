@@ -36,7 +36,8 @@ export type MetricCue =
   | "pharmacy"
   | "night"
   | "weekend"
-  | "kakaoLive";
+  | "kakaoLive"
+  | "flow";
 
 export type QuerySignals = {
   raw: string;
@@ -612,6 +613,32 @@ export function extractQuerySignals(query: string): QuerySignals {
   }
   if (includesAny(text, ["실시간", "카카오", "로컬 검색", "장소 검색", "지금 근처"])) {
     metrics.add("kakaoLive");
+  }
+  /*
+   * 사람 흐름(어디서 오고 어디로 가나). 유입 총량("유입인구 많은 동")과는 다른 질문이다 —
+   * 총량은 이동인구 레이어가 답하고, 상대 지역은 시군구 흐름 자료에만 있다.
+   * "오는 곳"처럼 짧게 잡으면 "외지에서 많이 들어오는 곳"(유입 총량 질의)까지
+   * 끌고 오므로, 출발·도착을 묻는 말만 둔다.
+   */
+  if (
+    includesAny(text, [
+      "어디서 와",
+      "어디서 오",
+      "어디로 가",
+      "어디 살",
+      "어디에 살",
+      "어디서 살",
+      "살던 곳",
+      "살던",
+      "출신",
+      "거주지",
+      "어디에서 와",
+      "어디에서 오",
+      "어디서 왔",
+      "어디에서 왔",
+    ])
+  ) {
+    metrics.add("flow");
   }
 
   const includePharmacy = metrics.has("pharmacy");

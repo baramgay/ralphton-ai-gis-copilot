@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AnalysisIntentSchema } from '@/lib/analysis/intent-schema';
-import { parseIntentWithRules } from '@/lib/analysis/query-rules';
+import { parseIntentWithRules, resolveQueryWithRules } from '@/lib/analysis/query-rules';
 
 describe('parseIntentWithRules', () => {
   it.each([
@@ -113,6 +113,52 @@ describe('parseIntentWithRules', () => {
 
   it('returns null for an unrelated query', () => {
     expect(parseIntentWithRules('오늘 날씨 어때?')).toBeNull();
+  });
+});
+
+describe('resolveQueryWithRules 사람 흐름', () => {
+  /*
+   * 출발·도착 상대 지역을 묻는 말은 총량 순위로 답하면 안 된다 — 상대 지역은 시군구
+   * 흐름 자료에만 있다. 지역 1곳이 정해지면 그 지역 상세로 가서 사람 흐름 패널을 보여 준다.
+   */
+  it.each([
+    ['김해 사람들 어디서 와?', '김해시'],
+    ['양산으로 오는 사람은 어디서 와?', '양산시'],
+  ])('routes "%s" to region details', (query, region) => {
+    const resolved = resolveQueryWithRules(query);
+    expect(resolved.kind).toBe('intent');
+    if (resolved.kind !== 'intent') return;
+    expect(resolved.intent.tool).toBe('getRegionDetails');
+    expect(resolved.intent.filters.regions).toEqual([region]);
+    expect(resolved.notice).toContain('사람 흐름');
+  });
+
+  it('routes a dong flow query to the dong code', () => {
+    const resolved = resolveQueryWithRules('물금읍 사람들 어디서 와?');
+    expect(resolved.kind).toBe('intent');
+    if (resolved.kind !== 'intent') return;
+    expect(resolved.intent.tool).toBe('getRegionDetails');
+    expect(resolved.intent.filters.regions?.[0]).toMatch(/^\d{10}$/);
+  });
+
+  it('does not hijack inflow-total queries', () => {
+    // "외지에서 많이 들어오는 곳"에는 흐름 단서가 없다 — 기존 동작 그대로 둔다.
+    const resolved = resolveQueryWithRules('외지에서 많이 들어오는 곳');
+    expect(resolved.kind).toBe('unsupported');
+  });
+
+  it('does not hijack inflow ranking queries', () => {
+    const resolved = resolveQueryWithRules('유입인구 많은 동');
+    expect(resolved.kind).toBe('intent');
+    if (resolved.kind !== 'intent') return;
+    expect(resolved.intent.tool).toBe('rankPopulationGrowthPressure');
+  });
+
+  it('lets compare win over flow wording', () => {
+    const resolved = resolveQueryWithRules('창원 vs 김해 어디서 많이 와?');
+    expect(resolved.kind).toBe('intent');
+    if (resolved.kind !== 'intent') return;
+    expect(resolved.intent.tool).toBe('compareRegions');
   });
 });
 

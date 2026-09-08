@@ -194,11 +194,37 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     }
   }
 
+  /*
+   * 사람 흐름("김해 사람들 어디서 와?"). 출발·도착 상대 지역을 묻는 말이라 총량
+   * 순위(유입인구·총인구)로 답하면 물어본 것과 다른 답이 된다 — 상대 지역은 시군구
+   * 흐름 자료에만 있다. 지역 1곳이 정해지면 그 지역 상세로 가서 사람 흐름 패널을
+   * 보여 준다. 비교 질의는 비교가 먼저다.
+   */
+  if (signals.metrics.has("flow") && !signals.spatial.has("compare")) {
+    const flowTarget =
+      signals.dongs.length === 1
+        ? { token: signals.dongs[0].adm_cd2, name: signals.dongs[0].shortName }
+        : signals.districts.length === 1
+          ? { token: signals.districts[0], name: signals.districts[0] }
+          : null;
+    if (flowTarget) {
+      const intent = AnalysisIntentSchema.parse({
+        tool: "getRegionDetails",
+        filters: withLimit({ regions: [flowTarget.token] }, 50),
+      });
+      return {
+        kind: "intent",
+        intent,
+        notice: `${flowTarget.name} 사람 흐름을 표시합니다. 오는 곳·가는 곳 상위 지역은 결과 패널의 사람 흐름을 펼치세요.`,
+        score: 58,
+      };
+    }
+  }
+
   const ranked = TOOL_CATALOG.map((entry) => ({
     entry,
     score: scoreCatalogEntry(entry, signals),
   })).sort((a, b) => b.score - a.score);
-
   const best = ranked[0];
   const second = ranked[1];
 
