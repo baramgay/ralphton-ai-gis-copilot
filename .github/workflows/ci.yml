@@ -50,13 +50,26 @@ jobs:
         run: npm ci
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
+      # 파이프(`| tee`)를 걸면 앞 명령의 종료 코드가 tee 것으로 덮인다 — 대기 스크립트가
+      # 사용법 오류로 죽어도 초록이 되고, 그 뒤 검사가 옛 빌드를 잰다. 로그로 빼고
+      # 종료 코드를 직접 읽는다.
       - name: Wait for the new build on production
         id: wait
         run: |
-          node scripts/wait-for-prod-build.mjs https://gnbc.site/ ${{ github.sha }} 300 20 | tee wait.log
-          echo "skip=$(grep -q SKIPPED wait.log && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          status=0
+          node scripts/wait-for-prod-build.mjs https://gnbc.site/ ${{ github.sha }} 300 20 > wait.log 2>&1 || status=$?
+          cat wait.log
+          echo "WAIT_EXIT=$status"
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          if grep -q SKIPPED wait.log; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      # `if:` 를 쓰면 기본 조건(앞 단계 성공)이 사라진다. success() 를 같이 적지 않으면
+      # 대기 단계가 죽어도 이 단계가 돌아 **옛 빌드를 재게 된다** — 고치려던 바로 그 일이다.
       - name: Production checks (fast subset)
-        if: steps.wait.outputs.skip != 'true'
+        if: success() && steps.wait.outputs.skip != 'true'
         env:
           PROD_URL: https://gnbc.site/
         run: node scripts/verify-prod.mjs https://gnbc.site/ terms map-overlap sgg probe

@@ -30,6 +30,17 @@ function runPowerShell(script: string): string {
   ).trim();
 }
 
+/*
+ * PowerShell 을 실제로 띄워 스크립트 동작을 재는 검사 8건. 리눅스 CI 러너에는
+ * powershell 이 없어 `execFileSync` 가 ENOENT 로 죽는다 — 그래서 이 파일 때문에
+ * CI 가 상시 붉었고, 뒤따르는 배포본 검사(smoke-prod)가 **한 번도 실행되지 않았다**.
+ *
+ * 그래서 윈도우에서만 돌린다. 실행 환경이 곧 대상 환경이라 잃는 것이 없다:
+ * 개발자 기계(윈도우)의 게이트에서는 전부 돈다. 파일 내용만 읽는 나머지 15건은
+ * 플랫폼과 무관하므로 CI 에서도 그대로 돈다.
+ */
+const itWindows = process.platform === "win32" ? it : it.skip;
+
 describe("Windows launcher scripts", () => {
   it("requires Node.js >= 20.9.0", () => {
     const version = execSync("node --version", { encoding: "utf8" }).trim();
@@ -61,7 +72,7 @@ describe("Windows launcher scripts", () => {
     expect(script).toMatch(/Test-RalphtonOwnedServerProcess/iu);
   });
 
-  it("chooses no install only for a complete lockfile-backed node_modules tree", async () => {
+  itWindows("chooses no install only for a complete lockfile-backed node_modules tree", async () => {
     const script = await readScript("실행하기.ps1");
 
     expect(script).toMatch(
@@ -160,7 +171,7 @@ finally {
     expect(waitFunction).not.toMatch(/120/iu);
   });
 
-  it("rotates an app.log larger than 5MB into one app.previous.log generation", async () => {
+  itWindows("rotates an app.log larger than 5MB into one app.previous.log generation", async () => {
     const script = await readScript("실행하기.ps1");
 
     expect(script).toMatch(/function\s+Rotate-RalphtonLogIfOversized/iu);
@@ -230,7 +241,7 @@ finally {
     expect(script).not.toMatch(/['"]>>['"]\s*,?\s*\$logFile/iu);
   });
 
-  it("holds an exclusive project launch lock across startup", async () => {
+  itWindows("holds an exclusive project launch lock across startup", async () => {
     const launcher = await readScript("실행하기.ps1");
 
     expect(launcher).toMatch(/function\s+Enter-RalphtonLaunchLock/iu);
@@ -275,7 +286,7 @@ finally {
     });
   }, 30_000);
 
-  it("requires a live owned wrapper and owned listening port before health succeeds", async () => {
+  itWindows("requires a live owned wrapper and owned listening port before health succeeds", async () => {
     const launcher = await readScript("실행하기.ps1");
 
     expect(launcher).toMatch(
@@ -379,7 +390,7 @@ finally {
     expect(script).toMatch(/taskkill(?:\.exe)?\s+.*\/PID/iu);
   });
 
-  it("uses one strict project-owned wrapper identity for duplicate and shutdown decisions", async () => {
+  itWindows("uses one strict project-owned wrapper identity for duplicate and shutdown decisions", async () => {
     const launcher = await readScript("실행하기.ps1");
     const stopper = await readScript("종료하기.ps1");
 
@@ -469,7 +480,7 @@ $legacyNode = [pscustomobject]@{
     expect(removePidIndex).toBeGreaterThan(confirmationIndex);
   });
 
-  it("requires successful taskkill and a fully exited process-tree snapshot", async () => {
+  itWindows("requires successful taskkill and a fully exited process-tree snapshot", async () => {
     const stopper = await readScript("종료하기.ps1");
 
     expect(stopper).toMatch(/function\s+Get-RalphtonProcessTreeSnapshot/iu);
@@ -542,7 +553,7 @@ catch { }
     );
   });
 
-  it("captures child output separately from exit status and refuses destructive pre-cleaning", async () => {
+  itWindows("captures child output separately from exit status and refuses destructive pre-cleaning", async () => {
     const script = await readScript("scripts/verify-windows.ps1");
 
     expect(script).toMatch(
@@ -582,7 +593,7 @@ $failure = Invoke-RalphtonPowerShellFile -FilePath ${asPowerShellLiteral(fixture
     });
   }, 90_000);
 
-  it("binds verifier cleanup to the PID captured from its own launch", async () => {
+  itWindows("binds verifier cleanup to the PID captured from its own launch", async () => {
     const verifier = await readScript("scripts/verify-windows.ps1");
 
     expect(verifier).toMatch(/function\s+Confirm-RalphtonVerifierCleanupPid/iu);

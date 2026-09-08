@@ -932,12 +932,18 @@ describe("CopilotApp", () => {
     await screen.findByTestId("demo-map-badge");
 
     const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
+    /*
+     * 패널이 뜬 순간에 곧바로 읽으면 안 된다. 지표는 제공기관별로 **차례로** 채워져서,
+     * 껍데기가 먼저 뜨고(실측 「2개 지표」) NH·KCB가 뒤따른다. 그 틈에 읽으면 없는 것이
+     * 아니라 아직 안 온 것을 없다고 적는다 — 실제로 이 검사가 그렇게 간헐적으로 붉었다.
+     * 그릇이 아니라 **내용이 올 때까지** 기다린다.
+     */
     // 여러 제공기관의 지표가 한 패널에 모인다
-    expect(within(profile).getAllByText(/\[SKT\]/).length).toBeGreaterThan(0);
-    expect(within(profile).getAllByText(/\[NH\]/).length).toBeGreaterThan(0);
-    expect(within(profile).getAllByText(/\[KCB\]/).length).toBeGreaterThan(0);
+    expect((await within(profile).findAllByText(/\[SKT\]/, {}, { timeout: 15_000 })).length).toBeGreaterThan(0);
+    expect((await within(profile).findAllByText(/\[NH\]/, {}, { timeout: 15_000 })).length).toBeGreaterThan(0);
+    expect((await within(profile).findAllByText(/\[KCB\]/, {}, { timeout: 15_000 })).length).toBeGreaterThan(0);
     // 절대값만 보고 오판하지 않도록 백분위 기준을 명시한다
-    expect(within(profile).getByText(/백분위/)).toBeInTheDocument();
+    expect(await within(profile).findByText(/백분위/, {}, { timeout: 15_000 })).toBeInTheDocument();
   }, 30_000);
 
   test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {
