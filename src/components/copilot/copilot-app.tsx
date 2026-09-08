@@ -5691,7 +5691,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ["1인가구", currentOnePerson == null ? "없음" : currentOnePerson.toLocaleString("ko-KR")],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
-                    <p className="text-[9px] text-slate-400">{label}</p>
+                    <p className="text-[9px] text-slate-600">{label}</p>
                     <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
                   </div>
                 ))}
@@ -5740,7 +5740,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ["의료기관", String(selectedFacilities.length)],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
-                    <p className="text-[9px] text-slate-400">{label}</p>
+                    <p className="text-[9px] text-slate-600">{label}</p>
                     <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
                   </div>
                 ))}
