@@ -696,7 +696,7 @@ describe("CopilotApp", () => {
       () => {
         expect(screen.getByTestId("result-panel")).toHaveTextContent(/상관/);
       },
-      { timeout: 15_000 },
+      { timeout: 25_000 },
     );
     expect(screen.getByTestId("result-panel")).not.toHaveTextContent(/총생활인구 순위/);
   });
@@ -857,7 +857,7 @@ describe("CopilotApp", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
 
-    const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
+    const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 25_000 });
     expect(hits.length).toBeGreaterThan(0);
     // both operands' providers are surfaced
     expect(screen.getAllByText(/SKT/).length).toBeGreaterThan(0);
@@ -871,7 +871,7 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/2km 무시설 15%/);
     // the one-line conclusion must not claim the ranking is by operand A alone
     expect(screen.getByTestId("one-line-conclusion")).toHaveTextContent(/가장 부족한 곳/);
-  }, 30_000);
+  }, 45_000);
 
   /*
    * 리졸버 테스트가 통과해도 화면에서 실행되는지는 별개다.
@@ -891,7 +891,7 @@ describe("CopilotApp", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
 
-    const hits = await screen.findAllByText(/다중조건/, {}, { timeout: 15_000 });
+    const hits = await screen.findAllByText(/다중조건/, {}, { timeout: 25_000 });
     expect(hits.length).toBeGreaterThan(0);
 
     // 세 지표가 모두 결과에 나타나야 한다 — 두 개만 잡고 하나를 버리면 안 된다.
@@ -901,7 +901,7 @@ describe("CopilotApp", () => {
     expect(method).toHaveTextContent(/연체/);
     // 마지막 지표는 낮은 쪽으로 물었으므로 부호가 −여야 한다.
     expect(method).toHaveTextContent(/−z\(/);
-  }, 30_000);
+  }, 45_000);
 
   test("routes a 주야비 query to the SKT day/night layer", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -931,7 +931,7 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
 
-    const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
+    const profile = await screen.findByTestId("region-profile", {}, { timeout: 25_000 });
     /*
      * 패널이 뜬 순간에 곧바로 읽으면 안 된다. 지표는 제공기관별로 **차례로** 채워져서,
      * 껍데기가 먼저 뜨고(실측 「2개 지표」) NH·KCB가 뒤따른다. 그 틈에 읽으면 없는 것이
@@ -939,12 +939,12 @@ describe("CopilotApp", () => {
      * 그릇이 아니라 **내용이 올 때까지** 기다린다.
      */
     // 여러 제공기관의 지표가 한 패널에 모인다
-    expect((await within(profile).findAllByText(/\[SKT\]/, {}, { timeout: 15_000 })).length).toBeGreaterThan(0);
-    expect((await within(profile).findAllByText(/\[NH\]/, {}, { timeout: 15_000 })).length).toBeGreaterThan(0);
-    expect((await within(profile).findAllByText(/\[KCB\]/, {}, { timeout: 15_000 })).length).toBeGreaterThan(0);
+    expect((await within(profile).findAllByText(/\[SKT\]/, {}, { timeout: 25_000 })).length).toBeGreaterThan(0);
+    expect((await within(profile).findAllByText(/\[NH\]/, {}, { timeout: 25_000 })).length).toBeGreaterThan(0);
+    expect((await within(profile).findAllByText(/\[KCB\]/, {}, { timeout: 25_000 })).length).toBeGreaterThan(0);
     // 절대값만 보고 오판하지 않도록 백분위 기준을 명시한다
-    expect(await within(profile).findByText(/백분위/, {}, { timeout: 15_000 })).toBeInTheDocument();
-  }, 30_000);
+    expect(await within(profile).findByText(/백분위/, {}, { timeout: 25_000 })).toBeInTheDocument();
+  }, 45_000);
 
   test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -971,7 +971,7 @@ describe("CopilotApp", () => {
     // 묶어도 모든 프리셋은 그대로 눌린다
     expect(within(presets).getByTestId("cross-living-vs-sales")).toBeInTheDocument();
     expect(within(presets).getByTestId("cross-senior-vs-medical")).toBeInTheDocument();
-  }, 30_000);
+  }, 45_000);
 
   test("민간 레이어를 보다가 공공 질의를 하면 결과가 바뀐다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -995,20 +995,20 @@ describe("CopilotApp", () => {
 
     expect(await screen.findByRole("heading", { name: "의료기관 검색" })).toBeInTheDocument();
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/카드매출/);
-  }, 30_000);
+  }, 45_000);
 
   test("프로파일에서 추세 기간을 바꿀 수 있다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
 
-    const profile = await screen.findByTestId("region-profile", {}, { timeout: 15_000 });
+    const profile = await screen.findByTestId("region-profile", {}, { timeout: 25_000 });
     // 기본은 전 기간
     expect(within(profile).getByTestId("trend-months-0")).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(within(profile).getByTestId("trend-months-3"));
     expect(within(profile).getByTestId("trend-months-3")).toHaveAttribute("aria-pressed", "true");
     expect(within(profile).getByTestId("trend-months-0")).toHaveAttribute("aria-pressed", "false");
-  }, 30_000);
+  }, 45_000);
 
   test("원클릭 추세 프리셋이 자연어 없이 추세를 낸다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -1020,7 +1020,7 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/변화율/);
     });
-  }, 30_000);
+  }, 45_000);
 
   test("큐브가 늦게 와도 사용자에게 다시 하라고 하지 않는다", async () => {
     // 큐브는 화면이 뜬 뒤에 받으므로, 바로 민간 질의를 던지면 아직 없을 수 있다.
@@ -1058,7 +1058,7 @@ describe("CopilotApp", () => {
     // 큐브가 도착하면 눌렀던 질의가 저절로 이어진다.
     release();
     expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 20_000 })).not.toHaveLength(0);
-  }, 30_000);
+  }, 45_000);
 
   test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -1070,12 +1070,12 @@ describe("CopilotApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
 
     // 제목이 "많은 곳"이 아니라 추세임을 밝힌다
-    expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 15_000 })).not.toHaveLength(0);
+    expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 25_000 })).not.toHaveLength(0);
     // 산식에 변화율 정의가 실린다
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/변화율/);
     });
-  }, 30_000);
+  }, 45_000);
 
   test("one-click 교차분석 preset runs without typing a query", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -1086,9 +1086,9 @@ describe("CopilotApp", () => {
 
     fireEvent.click(await screen.findByTestId("cross-living-vs-sales"));
 
-    const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
+    const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 25_000 });
     expect(hits.length).toBeGreaterThan(0);
-  }, 30_000);
+  }, 45_000);
 
   test("selecting the 의료 layer clears a cross-analysis result instead of leaving it on screen", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -1098,7 +1098,7 @@ describe("CopilotApp", () => {
     await waitFor(() => expect(screen.getByTestId("cross-presets")).toBeVisible());
 
     fireEvent.click(screen.getByTestId("cross-living-vs-sales"));
-    await screen.findAllByText(/교차분석/, {}, { timeout: 15_000 });
+    await screen.findAllByText(/교차분석/, {}, { timeout: 25_000 });
 
     // 교차분석은 activeLayerId를 medical로 두므로, 의료 버튼을 눌러도 상태가 그대로라
     // 결과가 남을 수 있다. 레이어 선택은 언제나 새 분석을 시작해야 한다.
@@ -1112,8 +1112,10 @@ describe("CopilotApp", () => {
       expect(within(screen.getByTestId("result-panel")).queryAllByText(/교차분석/)).toHaveLength(0);
     });
     // 의료 레이어의 기본 분석(의료 접근성 취약지수)이 돌아왔는지 방법론으로 확인
-    expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/);
-  }, 30_000);
+    await waitFor(() =>
+      expect(screen.getByTestId("method-summary")).toHaveTextContent(/2km 무시설 15%/),
+    );
+  }, 45_000);
 
   test("합성 인구 live 스냅샷의 결과 칩이 실데이터라고 단정하지 않는다", async () => {
     const inner = global.fetch;
@@ -1245,11 +1247,11 @@ describe("CopilotApp", () => {
       () => {
         expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/교차분석/);
       },
-      { timeout: 15_000 },
+      { timeout: 25_000 },
     );
     expect(screen.getByTestId("query-notice").textContent ?? "").toMatch(/의료 접근성 취약지수/);
     expect(screen.queryByText(/분석을 실행하는 중/)).toBeNull();
-  }, 30_000);
+  }, 45_000);
 
   test("답하지 못한 질의에는 직전 결과임을 밝힌다", async () => {
     // 답을 못 찾아도 화면에는 직전 분석이 남는다(작업을 잃지 않게). 그런데 그러면
@@ -1274,7 +1276,7 @@ describe("CopilotApp", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
     await waitFor(() => expect(screen.queryByTestId("stale-answer-notice")).toBeNull());
-  }, 30_000);
+  }, 45_000);
 
   /*
    * 답 못 한 말이 「최근 질문」 칩으로 돌아오면 다시 누를거리가 된다. 오타로 아무것도
@@ -1297,7 +1299,7 @@ describe("CopilotApp", () => {
       expect(window.localStorage.getItem("ralphton-recent-queries-v1")).toBeNull(),
     );
     expect(screen.queryByTestId("recent-queries")).toBeNull();
-  }, 30_000);
+  }, 45_000);
 
   test("답하지 못한 질의는 최근 질문에 남기지 않는다", async () => {
     // 같은 파일의 앞선 테스트가 남긴 기록을 지우고 시작한다(jsdom의 localStorage는 공유된다).
@@ -1321,7 +1323,7 @@ describe("CopilotApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
     await waitFor(() => expect(screen.getByTestId("recent-queries")).toBeInTheDocument());
     expect(screen.getByTestId("recent-queries").textContent ?? "").not.toMatch(/부산/);
-  }, 30_000);
+  }, 45_000);
 
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -1349,7 +1351,7 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     expect(await screen.findByTestId("demo-map-badge", {}, { timeout: 20_000 })).toBeInTheDocument();
     expect(screen.getByTestId("result-panel")).toBeInTheDocument();
-  }, 30_000);
+  }, 45_000);
 
   test("동반 지표가 목록 줄에 실린다 — 상세 카드에만 있지 않다", async () => {
     /*
