@@ -70,6 +70,22 @@ for (const [name, theme] of [
 
   console.log(`\n── ${name} 테마`);
   const seen = await page.evaluate(() => {
+    /*
+     * 색은 캔버스로 읽는다. Tailwind v4 는 `lab()` 로도 돌려주는데, 숫자만 뽑아
+     * RGB 로 쓰면 거의 흰색이 어두운 붉은색이 된다 — 손잡이가 안 보여도 통과한다.
+     */
+    const swatch = document.createElement("canvas");
+    swatch.width = swatch.height = 1;
+    const swatchCtx = swatch.getContext("2d", { willReadFrequently: true });
+    swatchCtx.globalCompositeOperation = "copy";
+    const rgbaOf = (value) => {
+      if (!value) return value;
+      swatchCtx.fillStyle = "#000";
+      swatchCtx.fillStyle = value;
+      swatchCtx.fillRect(0, 0, 1, 1);
+      const d = swatchCtx.getImageData(0, 0, 1, 1).data;
+      return `rgba(${d[0]}, ${d[1]}, ${d[2]}, ${d[3] / 255})`;
+    };
     const out = [];
     for (const [label, sel] of [
       ["왼쪽 패널", ".copilot-panel-left .copilot-scroll"],
@@ -95,10 +111,12 @@ for (const [name, theme] of [
         overflows: el.scrollHeight > el.clientHeight + 1,
         clientH: el.clientHeight,
         // scrollbar-color 는 "손잡이 트랙" 두 값이다. 앞의 것이 손잡이.
-        thumb: cs.scrollbarColor.split(") ").length > 1
-          ? cs.scrollbarColor.slice(0, cs.scrollbarColor.indexOf(") ") + 1)
-          : cs.scrollbarColor.split(" ")[0],
-        panelBg: getComputedStyle(panel).backgroundColor,
+        thumb: rgbaOf(
+          cs.scrollbarColor.split(") ").length > 1
+            ? cs.scrollbarColor.slice(0, cs.scrollbarColor.indexOf(") ") + 1)
+            : cs.scrollbarColor.split(" ")[0],
+        ),
+        panelBg: rgbaOf(getComputedStyle(panel).backgroundColor),
       });
     }
     return out;

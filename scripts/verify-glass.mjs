@@ -92,6 +92,23 @@ for (const [name, attr] of THEMES) {
   await page.waitForTimeout(600);
 
   const probe = await page.evaluate(() => {
+    /*
+     * 색은 캔버스로 읽는다. Tailwind v4 는 `lab()` 로도 돌려주는데(배포본 라이트
+     * 테마의 `.ui-chip` 이 그렇다) 숫자만 뽑아 RGB 로 쓰면 거의 흰색이 어두운
+     * 붉은색이 된다 — 하필 결함만 골라서 못 보게 된다.
+     */
+    const swatch = document.createElement("canvas");
+    swatch.width = swatch.height = 1;
+    const swatchCtx = swatch.getContext("2d", { willReadFrequently: true });
+    swatchCtx.globalCompositeOperation = "copy";
+    const rgbaOf = (value) => {
+      if (!value) return value;
+      swatchCtx.fillStyle = "#000";
+      swatchCtx.fillStyle = value;
+      swatchCtx.fillRect(0, 0, 1, 1);
+      const d = swatchCtx.getImageData(0, 0, 1, 1).data;
+      return `rgba(${d[0]}, ${d[1]}, ${d[2]}, ${d[3] / 255})`;
+    };
     const read = (el, prop) => getComputedStyle(el).getPropertyValue(prop).trim();
     const root = document.documentElement;
     const tokens = Object.fromEntries(
@@ -108,7 +125,7 @@ for (const [name, attr] of THEMES) {
       const els = [...document.querySelectorAll(sel)];
       if (!els.length) return null;
       const lum = (css) => {
-        const n = css.match(/[\d.]+/g)?.map(Number) ?? [0, 0, 0];
+        const n = rgbaOf(css).match(/[\d.]+/g).map(Number);
         return 0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2];
       };
       const dark = document.documentElement.getAttribute("data-theme") === "dark";
@@ -120,8 +137,8 @@ for (const [name, attr] of THEMES) {
       });
       const cs = getComputedStyle(worst);
       return {
-        bg: cs.backgroundColor,
-        color: cs.color,
+        bg: rgbaOf(cs.backgroundColor),
+        color: rgbaOf(cs.color),
         weight: cs.fontWeight,
         filter: cs.backdropFilter || cs.webkitBackdropFilter || "none",
         cls: worst.className,
