@@ -546,6 +546,27 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/flows/nh-flow.json")) {
+          return new Response(
+            JSON.stringify({
+              months: ["2026-06"],
+              referenceMonth: "2026-06",
+              topN: 8,
+              regions: [
+                {
+                  code: "48121",
+                  name: "창원시 의창구",
+                  inflow: {
+                    totals: [12000],
+                    top: [[{ code: "48250", name: "김해시", value: 4000 }]],
+                    intra: [36000],
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
@@ -1001,6 +1022,34 @@ describe("CopilotApp", () => {
     /* 추정값이라는 사실과 출처가 함께 붙는다. */
     expect(within(flow).getByText(/이동통신 신호로 추정한 값/)).toBeInTheDocument();
     expect(within(flow).getByText(/경남빅데이터허브플랫폼/)).toBeInTheDocument();
+  }, 45_000);
+
+  /*
+   * 돈 흐름은 사람 흐름 옆에 나란히 산다. 유출 파일이 없어 들어오는 쪽만 있고,
+   * 관내(같은 시군구 거주자)는 값에서 빼고 비중의 분모에만 둔다.
+   */
+  test("선택 지역의 돈 흐름을 오는 곳 목록으로 보여준다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+
+    const money = await screen.findByTestId("money-flow", {}, { timeout: 25_000 });
+    const inbound = await within(money).findByTestId("money-flow-inbound", {}, { timeout: 25_000 });
+
+    expect(within(inbound).getByText("김해시")).toBeInTheDocument();
+    expect(within(inbound).getByText(/4,000백만원/)).toBeInTheDocument();
+    /* 비중은 관외 총합 대비다: 4000 / 12000 */
+    expect(within(inbound).getByText(/33\.3%/)).toBeInTheDocument();
+
+    /* 들어옴(관외) 12000 · 관내 36000 → 관외 비중 25%. */
+    expect(within(money).getByText(/들어옴\(관외\)/)).toBeInTheDocument();
+    expect(within(money).getByText(/12,000백만원/)).toBeInTheDocument();
+    expect(within(money).getByText(/25\.0%/)).toBeInTheDocument();
+    expect(
+      within(money).getByText(/같은 시군구 거주자가 쓴 돈은 빼고 셉니다/),
+    ).toBeInTheDocument();
+    /* 카드사 가맹점 기준 추정치라는 사실과 출처가 함께 붙는다. */
+    expect(within(money).getByText(/카드사 가맹점 기준 추정치/)).toBeInTheDocument();
+    expect(within(money).getByText(/경남빅데이터허브플랫폼/)).toBeInTheDocument();
   }, 45_000);
 
   test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {

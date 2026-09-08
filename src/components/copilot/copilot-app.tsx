@@ -41,7 +41,7 @@ import {
 import { becauseItIs, topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { DATA_INVENTORY, HUB_INVENTORY, INVENTORY_TOTALS } from "@/lib/analysis/data-inventory";
-import { selectRegionFlow, type FlowData } from "@/lib/analysis/region-flow";
+import { moneyFlowEntries, selectMoneyFlow, selectRegionFlow, type FlowData, type MoneyFlowData } from "@/lib/analysis/region-flow";
 import { withHubChannel } from "@/lib/layers/channel";
 import { GLOSSARY, GLOSSARY_GROUPS } from "@/lib/analysis/glossary";
 import { USAGE_GUIDE } from "@/lib/analysis/usage-guide";
@@ -679,6 +679,15 @@ function quickIntent(
 function formatFlowValue(value: number | null): string {
   if (value === null) return "자료 없음";
   return `${Math.round(value).toLocaleString("ko-KR")}명`;
+}
+
+/*
+ * 돈 흐름의 금액 표기(일평균 백만원). 카드매출 지표와 단위를 맞춰 값을 맞댈 수
+ * 있게 한다. 값이 없으면 0이 아니라 **없다고** 적는다(사람 흐름과 같은 이유).
+ */
+function formatMoneyValue(value: number | null): string {
+  if (value === null) return "자료 없음";
+  return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}백만원`;
 }
 
 function formatMetric(value: number | null, unit: string): string {
@@ -1489,9 +1498,47 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       });
   }, [selectedRegionCode]);
 
+  /*
+   * 돈 흐름 자료도 선택이 있어야 뜻이 있다. 사람 흐름과 같은 자리에서 받는다.
+   * 유출 파일이 없어 들어오는 쪽만 있다 — 없는 쪽을 빈 칸으로 두지 않고 칸 자체를
+   * 그리지 않는다(빈 칸은 「흐름 없음」으로 읽힌다).
+   */
+  const [moneyFlowData, setMoneyFlowData] = useState<MoneyFlowData | null>(null);
+  const [moneyFlowError, setMoneyFlowError] = useState<string | null>(null);
+  const moneyFlowRequestedRef = useRef(false);
+  useEffect(() => {
+    if (!selectedRegionCode || moneyFlowRequestedRef.current) return;
+    moneyFlowRequestedRef.current = true;
+    fetch("/data/flows/nh-flow.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("돈 흐름 자료를 불러오지 못했습니다.");
+        return response.json();
+      })
+      .then((raw: MoneyFlowData) => {
+        setMoneyFlowData(raw);
+        setMoneyFlowError(null);
+      })
+      .catch((error: unknown) => {
+        moneyFlowRequestedRef.current = false;
+        setMoneyFlowError(
+          error instanceof Error ? error.message : "돈 흐름 자료를 불러오지 못했습니다.",
+        );
+      });
+  }, [selectedRegionCode]);
+
   const regionFlow = useMemo(
     () => selectRegionFlow(flowData, selectedRegionCode),
     [flowData, selectedRegionCode],
+  );
+
+  const moneyFlow = useMemo(
+    () => selectMoneyFlow(moneyFlowData, selectedRegionCode),
+    [moneyFlowData, selectedRegionCode],
+  );
+
+  const moneyFlowTop = useMemo(
+    () => moneyFlowEntries(moneyFlowData, selectedRegionCode),
+    [moneyFlowData, selectedRegionCode],
   );
 
   const districtOptions = useMemo(
@@ -5210,6 +5257,75 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </p>
                     <p className="ui-caption mt-0.5 text-slate-500">
                       출처 · {providerSourceLabel("SKT")} 유입·유출인구
+                    </p>
+                  </>
+                )}
+              </div>
+            </details>
+          ) : null}
+          {/*
+            돈 흐름 — 카드매출이 어디서 와서 쓰이나.
+
+            들어오는 쪽만 있다. 유출 파일이 없어 나가는 쪽 칸을 그리지 않는다 —
+            빈 칸은 「흐름 없음」으로 읽힌다. 값은 관외 기준이라 관내(같은 시군구
+            거주자)는 목록에서 빼고, 비중의 분모에만 둔다.
+          */}
+          {selectedRegionCode ? (
+            <details className="mt-2.5 rounded-lg border border-slate-200 bg-white" data-testid="money-flow">
+              <summary className="cursor-pointer px-2.5 py-2 ui-body font-bold text-slate-800">
+                {moneyFlow ? moneyFlow.sggName : "선택 지역"} 돈 흐름{" "}
+                <span className="ui-caption font-semibold text-slate-500">어디서 와서 쓰나</span>
+              </summary>
+              <div className="border-t border-slate-100 px-2.5 py-2">
+                {moneyFlowError ? (
+                  <p className="ui-caption text-amber-700" data-testid="money-flow-error">
+                    {moneyFlowError}
+                  </p>
+                ) : !moneyFlowData ? (
+                  <p className="ui-caption text-slate-500">불러오는 중입니다.</p>
+                ) : !moneyFlow ? (
+                  <p className="ui-caption text-slate-500" data-testid="money-flow-missing">
+                    이 지역의 돈 흐름 자료가 없습니다.
+                  </p>
+                ) : (
+                  <>
+                    <p className="ui-caption text-slate-500">
+                      {moneyFlow.month} · 하루 평균 카드매출 · 시군구 단위 · 같은 시군구
+                      거주자가 쓴 돈은 빼고 셉니다
+                    </p>
+                    <p className="ui-body mt-1.5 font-bold text-slate-900">
+                      들어옴(관외) {formatMoneyValue(moneyFlow.outsideTotal)} · 관외 비중{" "}
+                      {moneyFlow.outsideShare === null
+                        ? "자료 없음"
+                        : `${moneyFlow.outsideShare.toFixed(1)}%`}
+                    </p>
+                    {moneyFlowTop.length === 0 ? (
+                      <p className="ui-caption mt-1 text-slate-500">이 달의 자료가 없습니다.</p>
+                    ) : (
+                      <ol className="mt-1 space-y-1" data-testid="money-flow-inbound">
+                        {moneyFlowTop.map((entry, index) => (
+                          <li
+                            key={entry.code}
+                            className="flex items-baseline justify-between gap-2 ui-caption"
+                          >
+                            <span className="text-slate-600">
+                              <span className="font-semibold text-slate-500">{index + 1}.</span>{" "}
+                              {entry.label}
+                            </span>
+                            <span className="shrink-0 font-bold text-slate-900">
+                              {formatMoneyValue(entry.value)}
+                              {entry.share === null ? "" : ` (${entry.share.toFixed(1)}%)`}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                    <p className="ui-caption mt-2 text-amber-700">
+                      ⚠ 카드사 가맹점 기준 추정치라 실제 소비와 다릅니다. 상위 5곳만
+                      보여 주므로 괄호 안 비중의 합은 100%가 되지 않습니다.
+                    </p>
+                    <p className="ui-caption mt-0.5 text-slate-500">
+                      출처 · {providerSourceLabel("NH")} 유입지별 카드매출
                     </p>
                   </>
                 )}

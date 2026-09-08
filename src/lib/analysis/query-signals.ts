@@ -37,7 +37,8 @@ export type MetricCue =
   | "night"
   | "weekend"
   | "kakaoLive"
-  | "flow";
+  | "flow"
+  | "money";
 
 export type QuerySignals = {
   raw: string;
@@ -639,6 +640,15 @@ export function extractQuerySignals(query: string): QuerySignals {
     ])
   ) {
     metrics.add("flow");
+  }
+  /*
+   * 돈 흐름(카드매출이 어디서 와서 쓰이나). 「돈은 어디서 오나」는 사람 흐름
+   * 단서("어디서 오")도 품고 있어서, 돈 분기를 사람 분기보다 먼저 본다.
+   * 「매출」「소비」 낱말은 레이어 트리거라 클라이언트에서 먼저 잡히므로,
+   * 여기에는 트리거에 없는 「돈」 말만 둔다.
+   */
+  if (includesAny(text, ["돈은 어디서", "돈이 어디서"])) {
+    metrics.add("money");
   }
 
   const includePharmacy = metrics.has("pharmacy");

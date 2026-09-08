@@ -44,6 +44,8 @@ const CORPUS: Array<[query: string, layerId: string, metricKey: string]> = [
   ["매출 높은 상권", "nh-consumption", "card_sales"],
   ["결제 건수 많은 동", "nh-consumption", "card_txns"],
   ["카드 이용건수 높은 곳", "nh-consumption", "card_txns"],
+  ["관외 매출 비중 높은 동", "nh-consumption", "outside_sales_share"],
+  ["외지 손님 비중 많은 곳", "nh-consumption", "outside_sales_share"],
   // NH 소비주체 — 매출 총액(nh-consumption)과 구별되어야 한다
   ["청년 소비 비중 높은 동", "nh-demographics", "youth_share"],
   ["젊은 층 소비 많은 곳", "nh-demographics", "youth_share"],

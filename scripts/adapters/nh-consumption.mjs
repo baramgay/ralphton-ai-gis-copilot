@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { area as turfArea } from "@turf/area";
 import { pointOnFeature } from "@turf/point-on-feature";
 
+import { readSggNameTable, resolveOriginCode, sggNameCsvPath } from "./_nh-origin.mjs";
+
 /**
  * NH 농협카드 소비(카드매출) → 소비 큐브.
  *
@@ -23,7 +25,7 @@ const DEFAULT_INPUT_DIR = "C:\\업무\\민간데이터\\NH 데이터";
 const INPUT_DIR = process.env.NH_DIR ?? DEFAULT_INPUT_DIR;
 
 // 헤더가 없으므로 컬럼은 고정 인덱스로 접근한다.
-export const COL = { dong: 0, txnAll: 9, amountAll: 10 };
+export const COL = { dong: 0, userSido: 5, userSgg: 6, txnAll: 9, amountAll: 10 };
 
 // --- pure helpers ---
 
@@ -33,10 +35,14 @@ export function cleanDongCode(raw) {
 }
 
 /**
- * acc: Map<dong, { sales:number, txns:number }>
- * 전체카드이용금액·건수를 동별로 누적한다.
+ * acc: Map<dong, { sales:number, txns:number, outside:number }>
+ * 전체카드이용금액·건수를 동별로 누적한다. resolveOrigin이 있으면(메인 실행)
+ * 관외(같은 시군구 외 거주자) 금액도 따로 누적해 관외 비중을 낸다.
+ * resolveOrigin이 없으면(기존 테스트 경로) sales/txns만 누적하고 outside는 0이다.
+ * 귀속 못 하는 출발지(세종·빈칸) 행은 sales에는 두되 outside에서는 뺀다 —
+ * sales 합계를 바꾸면 기존 지표 값이 달라진다. 어차피 월 0.02% 수준이다.
  */
-export function accumulateLine(acc, line) {
+export function accumulateLine(acc, line, resolveOrigin) {
   if (!line) return acc;
   const fields = line.split(",");
   const dong = cleanDongCode(fields[COL.dong]);
@@ -44,28 +50,32 @@ export function accumulateLine(acc, line) {
 
   const amount = Number(fields[COL.amountAll]);
   const txn = Number(fields[COL.txnAll]);
-  const entry = acc.get(dong) ?? { sales: 0, txns: 0 };
+  const entry = acc.get(dong) ?? { sales: 0, txns: 0, outside: 0 };
   if (Number.isFinite(amount)) entry.sales += amount;
   if (Number.isFinite(txn)) entry.txns += txn;
+  if (resolveOrigin && Number.isFinite(amount)) {
+    const origin = resolveOrigin(fields[COL.userSido], fields[COL.userSgg]);
+    if (origin !== null && origin !== dong.slice(0, 5)) entry.outside += amount;
+  }
   acc.set(dong, entry);
   return acc;
 }
 
-export function aggregateRows(lines) {
+export function aggregateRows(lines, resolveOrigin) {
   const acc = new Map();
-  for (const line of lines) accumulateLine(acc, line);
+  for (const line of lines) accumulateLine(acc, line, resolveOrigin);
   return acc;
 }
 
 // --- streaming aggregation ---
 
-async function aggregateMonthFile(filePath) {
+async function aggregateMonthFile(filePath, resolveOrigin) {
   const rl = readline.createInterface({
     input: createReadStream(filePath, "utf8"),
     crlfDelay: Infinity,
   });
   const acc = new Map();
-  for await (const line of rl) accumulateLine(acc, line);
+  for await (const line of rl) accumulateLine(acc, line, resolveOrigin);
   return acc;
 }
 
@@ -87,17 +97,21 @@ async function main() {
     perDong.set(feature.properties.adm_cd2, {
       card_sales: new Array(12).fill(null), // 백만원
       card_txns: new Array(12).fill(null), // 건
+      outside_sales_share: new Array(12).fill(null), // % (관외 카드매출 ÷ 전체)
     });
   }
+
+  const nameByCode = await readSggNameTable(sggNameCsvPath());
+  const resolveOrigin = (sido, sgg) => resolveOriginCode(sido, sgg, nameByCode);
 
   const unmatched = new Set();
   for (let month = 1; month <= 12; month += 1) {
     const yyyymm = `2025${String(month).padStart(2, "0")}`;
     monthLabels.push(`2025-${String(month).padStart(2, "0")}`);
     const filePath = path.join(INPUT_DIR, `경상남도_1_유입지별카드매출_${yyyymm}.csv`);
-    const stats = await aggregateMonthFile(filePath);
+    const stats = await aggregateMonthFile(filePath, resolveOrigin);
 
-    for (const [dong, { sales, txns }] of stats) {
+    for (const [dong, { sales, txns, outside }] of stats) {
       const series = perDong.get(dong);
       if (!series) {
         unmatched.add(dong);
@@ -105,6 +119,9 @@ async function main() {
       }
       series.card_sales[month - 1] = round(sales / 1_000_000, 1); // 원 → 백만원
       series.card_txns[month - 1] = round(txns, 0);
+      // 매출이 0이면 비중을 낼 수 없다. 0으로 채우면 「외지 손님이 없는 상권」으로 인쇄된다.
+      series.outside_sales_share[month - 1] =
+        sales > 0 ? round((outside / sales) * 100, 1) : null;
     }
     console.log(`${yyyymm} NH 카드매출 집계 완료 (${stats.size}개 동)`);
   }

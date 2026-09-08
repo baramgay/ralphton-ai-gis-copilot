@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, test } from "vitest";
 
-import { selectRegionFlow, sggCodeOf, type FlowData } from "@/lib/analysis/region-flow";
+import { moneyFlowEntries, selectMoneyFlow, selectRegionFlow, sggCodeOf, type FlowData, type MoneyFlowData } from "@/lib/analysis/region-flow";
 
 const SAMPLE: FlowData = {
   months: ["2025-11", "2025-12"],
@@ -124,6 +124,94 @@ describe("생성된 흐름 자료", () => {
     for (const region of data.regions) {
       const top = (region.inflow.top[index] ?? []).reduce((sum, entry) => sum + entry.value, 0);
       expect(region.inflow.totals[index]!).toBeGreaterThanOrEqual(top - 0.5);
+    }
+  });
+});
+
+describe("돈 흐름 보기", () => {
+  const SAMPLE: MoneyFlowData = {
+    months: ["2025-11", "2025-12"],
+    referenceMonth: "2025-12",
+    regions: [
+      {
+        code: "48250",
+        name: "김해시",
+        inflow: {
+          totals: [100, 200],
+          top: [[{ code: "26320", name: "부산광역시 북구", value: 120 }], [{ code: "26320", name: "부산광역시 북구", value: 120 }]],
+          intra: [900, 800],
+        },
+      },
+    ],
+  };
+
+  test("관외·관내·비중을 함께 낸다", () => {
+    const view = selectMoneyFlow(SAMPLE, "4825051000")!;
+    expect(view.month).toBe("2025-12");
+    expect(view.sggName).toBe("김해시");
+    expect(view.outsideTotal).toBe(200);
+    expect(view.intraTotal).toBe(800);
+    expect(view.outsideShare).toBeCloseTo(20, 6); // 200 / 1000
+  });
+
+  test("분모가 없으면 비중은 null이다", () => {
+    const empty: MoneyFlowData = {
+      ...SAMPLE,
+      regions: [
+        { code: "48250", name: "김해시", inflow: { totals: [null], top: [null], intra: [null] } },
+      ],
+      months: ["2025-12"],
+      referenceMonth: "2025-12",
+    };
+    const view = selectMoneyFlow(empty, "48250")!;
+    expect(view.outsideTotal).toBeNull();
+    expect(view.outsideShare).toBeNull();
+    expect(moneyFlowEntries(empty, "48250")).toEqual([]);
+  });
+
+  test("자료가 없으면 null이다", () => {
+    expect(selectMoneyFlow(SAMPLE, "48999")).toBeNull();
+    expect(selectMoneyFlow(null, "48250")).toBeNull();
+  });
+});
+
+describe("생성된 돈 흐름 자료", () => {
+  const file = path.join(process.cwd(), "public", "data", "flows", "nh-flow.json");
+  const data = JSON.parse(readFileSync(file, "utf8")) as MoneyFlowData;
+
+  test("경남 시군구 22곳 · 12개월 · 관내 합계가 있다", () => {
+    expect(data.regions).toHaveLength(22);
+    expect(data.months).toHaveLength(12);
+    expect(data.months.includes(data.referenceMonth)).toBe(true);
+    for (const region of data.regions) {
+      expect(region.inflow.intra).toHaveLength(12);
+    }
+  });
+
+  test("상대 지역 이름을 하나도 비우지 않는다", () => {
+    const missing = data.regions.flatMap((region) =>
+      region.inflow.top.flatMap((month) =>
+        (month ?? []).filter((partner) => !partner.name).map((partner) => partner.code),
+      ),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  test("관외 총합은 상위 목록의 합보다 크거나 같다", () => {
+    const index = data.months.indexOf(data.referenceMonth);
+    for (const region of data.regions) {
+      const top = (region.inflow.top[index] ?? []).reduce((sum, entry) => sum + entry.value, 0);
+      expect(region.inflow.totals[index]!).toBeGreaterThanOrEqual(top - 0.5);
+    }
+  });
+
+  test("관외 비중이 0~100 안에 든다", () => {
+    for (const region of data.regions) {
+      const view = selectMoneyFlow(data, region.code)!;
+      if (view.outsideShare !== null) {
+        expect(view.outsideShare).toBeGreaterThanOrEqual(0);
+        expect(view.outsideShare).toBeLessThanOrEqual(100);
+      }
     }
   });
 });

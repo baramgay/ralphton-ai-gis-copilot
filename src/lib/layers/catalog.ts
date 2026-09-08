@@ -77,6 +77,14 @@ export const NH_CONSUMPTION_LAYER: Omit<LayerDescriptor, "months"> = {
   metrics: [
     { key: "card_sales", label: "카드매출", unit: "백만원", aggregation: "sum", formula: "전체카드 이용금액 월 합계(전수화)", limitation: "가맹점 소재지 기준 상권 매출, 거주자 소비와 다름", triggers: ["카드매출", "소비매출", "상권매출", "카드소비", "장사 잘되", "장사가 잘", "돈 많이 쓰", "소비 활발", "상권", "매출", "소비"] },
     { key: "card_txns", label: "카드결제건수", unit: "건", aggregation: "sum", formula: "전체카드 이용건수 월 합계(전수화)", limitation: "2명 미만 레코드는 원자료에서 익명처리됨", triggers: ["결제건수", "결제 건수", "카드건수", "이용건수", "결제"] },
+    /*
+     * 관외 매출 비중. 파일 이름부터 「유입지별」인데 어댑터가 유입지 열을 읽지 않아
+     * 상권 총액만 있었다 — 사람 흐름(유입 73.2%가 관내)과 같은 모양의 발견이다.
+     * 같은 시군구 거주자 매출을 빼고, 남은 관외를 전체로 나눈다. 매출 0인 달은
+     * 비중을 낼 수 없어 null이다(0으로 채우면 외지 손님 없는 상권으로 인쇄된다).
+     * 시군구로 올릴 때는 카드매출 가중평균이라 가중치가 곧 분모다.
+     */
+    { key: "outside_sales_share", label: "관외 매출 비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "관외(같은 시군구 외 거주자) 카드매출 ÷ 전체 × 100", limitation: "가맹점 소재지 기준. 귀속 못 하는 출발지(세종 등)는 전체에만 두고 관외에서는 뺀다", triggers: ["관외 매출 비중", "외지 매출 비중", "외지 손님 비중", "외지 소비 비중"] },
   ],
 };
 

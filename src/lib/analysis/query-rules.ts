@@ -195,6 +195,57 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   }
 
   /*
+   * 나가는 돈은 자료가 없다. 유입지별 파일에 들어오는 쪽만 있어서, 「돈이 어디로
+   * 가」를 사람 흐름으로 답하면 돈 질문에 사람 답이 나간다. 없는 것은 없다고 말한다.
+   * (들어오는 돈은 아래 money 분기, 들어오는 사람은 flow 분기가 맡는다.)
+   */
+  if (
+    /돈|매출|소비|상권|카드/.test(signals.normalized) &&
+    /어디로|가는 곳/.test(signals.normalized) &&
+    !signals.spatial.has("compare")
+  ) {
+    // 레이어 지표 낱말(매출·소비·상권·카드)이 들어간 질의는 클라이언트에서
+    // 먼저 잡히므로, 여기까지 오는 것은 대체로 「돈」 말이다. 그래도 단정하지
+    // 않고 money 신호가 있을 때만 막는다 — 지표 순위 질의를 건드리면 안 된다.
+    if (signals.metrics.has("money") || /돈이 어디로|돈은 어디로/.test(signals.normalized)) {
+      return {
+        kind: "unsupported",
+        intent: null,
+        notice:
+          "나가는 돈(유출지별) 자료는 없습니다. 들어오는 돈은 지역을 정해서 물어보세요. 예: 「김해 돈은 어디서 와?」",
+        suggestions: topSuggestions(signals),
+      };
+    }
+  }
+
+  /*
+   * 돈 흐름("김해 돈은 어디서 와?"). 카드매출이 어디서 와서 쓰이는지를 묻는 말이라
+   * 총액 순위(카드매출 지표)로 답하면 물어본 것과 다른 답이 된다 — 상대 지역은
+   * 시군구 돈 흐름 자료에만 있다. 지역 1곳이 정해지면 그 지역 상세로 가서 돈 흐름
+   * 패널을 보여 준다. 사람 흐름 분기보다 먼저 본다("돈은 어디서 오나"는 사람 단서도 품는다).
+   */
+  if (signals.metrics.has("money") && !signals.spatial.has("compare")) {
+    const moneyTarget =
+      signals.dongs.length === 1
+        ? { token: signals.dongs[0].adm_cd2, name: signals.dongs[0].shortName }
+        : signals.districts.length === 1
+          ? { token: signals.districts[0], name: signals.districts[0] }
+          : null;
+    if (moneyTarget) {
+      const intent = AnalysisIntentSchema.parse({
+        tool: "getRegionDetails",
+        filters: withLimit({ regions: [moneyTarget.token] }, 50),
+      });
+      return {
+        kind: "intent",
+        intent,
+        notice: `${moneyTarget.name} 돈 흐름을 표시합니다. 돈이 오는 곳 상위 지역은 결과 패널의 돈 흐름을 펼치세요.`,
+        score: 58,
+      };
+    }
+  }
+
+  /*
    * 사람 흐름("김해 사람들 어디서 와?"). 출발·도착 상대 지역을 묻는 말이라 총량
    * 순위(유입인구·총인구)로 답하면 물어본 것과 다른 답이 된다 — 상대 지역은 시군구
    * 흐름 자료에만 있다. 지역 1곳이 정해지면 그 지역 상세로 가서 사람 흐름 패널을

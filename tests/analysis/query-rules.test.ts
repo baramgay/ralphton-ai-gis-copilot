@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { AnalysisIntentSchema } from '@/lib/analysis/intent-schema';
 import { parseIntentWithRules, resolveQueryWithRules } from '@/lib/analysis/query-rules';
+import { NL_LAYERS } from '@/lib/layers/catalog';
+import { resolveLayerQuery } from '@/lib/layers/resolve-layer-query';
 
 describe('parseIntentWithRules', () => {
   it.each([
@@ -159,6 +161,46 @@ describe('resolveQueryWithRules 사람 흐름', () => {
     expect(resolved.kind).toBe('intent');
     if (resolved.kind !== 'intent') return;
     expect(resolved.intent.tool).toBe('compareRegions');
+  });
+});
+
+describe('resolveQueryWithRules 돈 흐름', () => {
+  /*
+   * 카드매출이 어디서 와서 쓰이는지를 묻는 말은 총액 순위로 답하면 안 된다.
+   * 「돈」 말에는 레이어 트리거가 없어서 여기까지 온다(「매출」「소비」는
+   * 클라이언트에서 먼저 잡히므로 이 분기에 닿지 않는다).
+   */
+  it.each([
+    ['김해 돈은 어디서 와?', '김해시'],
+    ['양산 돈이 어디서 와?', '양산시'],
+  ])('routes "%s" to region details', (query, region) => {
+    const resolved = resolveQueryWithRules(query);
+    expect(resolved.kind).toBe('intent');
+    if (resolved.kind !== 'intent') return;
+    expect(resolved.intent.tool).toBe('getRegionDetails');
+    expect(resolved.intent.filters.regions).toEqual([region]);
+    expect(resolved.notice).toContain('돈 흐름');
+  });
+
+  it('does not hijack inflow ranking queries', () => {
+    // 「카드매출 많은 동」은 규칙 카탈로그에 카드 도구가 없어 unsupported다.
+    // 실제 화면에서는 클라이언트 레이어 경로가 먼저 잡는다. 여기서 중요한 것은
+    // 돈 분기가 가로채지 않는 것뿐이다.
+    const resolved = resolveQueryWithRules('카드매출 많은 동');
+    expect(resolved.kind).toBe('unsupported');
+  });
+
+  it('says honestly that outbound money data does not exist', () => {
+    const resolved = resolveQueryWithRules('김해 돈이 어디로 가?');
+    expect(resolved.kind).toBe('unsupported');
+    if (resolved.kind !== 'unsupported') return;
+    expect(resolved.notice).toContain('나가는 돈');
+  });
+
+  it('client layer resolvers do not grab money-origin wording first', () => {
+    // 서버 규칙 분기까지 닿아야 한다. 레이어 트리거에 걸리면 총액 순위로 간다.
+    expect(resolveLayerQuery('김해 돈은 어디서 와?', NL_LAYERS)).toBeNull();
+    expect(resolveLayerQuery('양산 돈이 어디서 와?', NL_LAYERS)).toBeNull();
   });
 });
 

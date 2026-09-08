@@ -64,7 +64,7 @@ const LAYERS: Array<{
     id: "nh-consumption",
     layer: NH_CONSUMPTION_LAYER,
     // 백만원 단위. 원 단위로 잘못 읽으면 1e6배가 되어 상한에 걸린다.
-    ranges: { card_sales: { min: 0, max: 1_000_000 }, card_txns: { min: 0, max: 50_000_000 } },
+    ranges: { card_sales: { min: 0, max: 1_000_000 }, card_txns: { min: 0, max: 50_000_000 }, outside_sales_share: { min: 0, max: 100 } },
   },
   {
     id: "nh-demographics",
