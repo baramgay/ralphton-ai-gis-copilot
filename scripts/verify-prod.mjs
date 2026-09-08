@@ -30,6 +30,7 @@ const SCRIPTS = [
   { name: "readable", file: "verify-readable.mjs" },
   { name: "hub", file: "verify-hub-attribution.mjs" },
   { name: "flow", file: "verify-region-flow.mjs" },
+  { name: "rank-row", file: "verify-rank-row.mjs" },
   { name: "perf", file: "verify-perf-prod.mjs" },
 ];
 
