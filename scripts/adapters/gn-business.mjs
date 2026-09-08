@@ -6,7 +6,7 @@ import { area as turfArea } from "@turf/area";
 import { pointOnFeature } from "@turf/point-on-feature";
 
 /**
- * 경남빅데이터허브플랫폼 데이터마트 기업정보 → 기업정보(business) 큐브.
+ * 경상남도 기업정보 → 기업정보(business) 큐브.
  *
  * 원천(data.go.kr 15123783, `경상남도_기업정보.zip`, cc-zero, 제공 경상남도):
  *   cp949 CSV. 행 = 기업 1곳. 열: 데이터기준일, 행정동코드, 인력그룹, 대표자연령,
@@ -148,7 +148,7 @@ async function main() {
   await mkdir(path.dirname(outputPath), { recursive: true });
   await writeFile(outputPath, JSON.stringify(cube));
   console.log(
-    `경남빅데이터허브 기업 큐브 생성 완료 (${outputPath}): ${cells.length}개 동, ${monthLabels.length}개년 [${monthLabels.join(",")}], 집계 제외 ${acc.skipped}행`,
+    `경상남도 기업 큐브 생성 완료 (${outputPath}): ${cells.length}개 동, ${monthLabels.length}개년 [${monthLabels.join(",")}], 집계 제외 ${acc.skipped}행`,
   );
 }
 

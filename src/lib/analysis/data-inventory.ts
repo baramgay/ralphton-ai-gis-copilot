@@ -14,7 +14,7 @@
 import { CUBE_LAYERS, MEDICAL_LAYER } from "@/lib/layers/catalog";
 import type { LayerDescriptor } from "@/lib/layers/types";
 
-export type ProviderKey = "공공" | "SKT" | "NH" | "KCB" | "KOSIS" | "경남빅데이터허브";
+export type ProviderKey = "공공" | "SKT" | "NH" | "KCB" | "KOSIS" | "경상남도";
 
 export type InventoryMetric = {
   label: string;
@@ -43,16 +43,16 @@ export type InventoryGroup = {
   metricCount: number;
 };
 
-const PROVIDER_ORDER: ProviderKey[] = ["SKT", "NH", "KCB", "공공", "KOSIS", "경남빅데이터허브"];
+const PROVIDER_ORDER: ProviderKey[] = ["SKT", "NH", "KCB", "공공", "KOSIS", "경상남도"];
 
 const PROVIDER_NOTE: Record<ProviderKey, string> = {
   SKT: "이동통신 기반 생활인구·이동. 이 도구의 중심 자료입니다.",
-  NH: "카드 결제 기반 소비·상권. 일부 카드사 가맹점 기준이라 전체 카드 시장의 일부입니다.",
+  NH: "카드 결제 기반 소비·상권. NH농협카드 기준이라 전체 카드 시장의 일부입니다.",
   KCB: "신용정보 기반 소득·신용·거주이동. 개인이 아니라 지역 단위로 집계된 값입니다.",
   공공: "주민등록 인구·세대와 의료기관 목록. 행정 기준 값입니다.",
   KOSIS: "국가통계포털 e-지방지표. 시군구까지만 제공되어 시군구 단위로 계산합니다.",
-  경남빅데이터허브:
-    "경남빅데이터허브플랫폼 데이터마트의 기업정보. 2015–2019년 시군구 단위라 행정동에는 같은 값이 반복됩니다.",
+  경상남도:
+    "경상남도가 공개한 기업정보. 2015–2019년 자료이고 시군구 단위라 행정동에는 같은 값이 반복됩니다.",
 };
 
 function unitLabelOf(layer: Omit<LayerDescriptor, "months">): string {

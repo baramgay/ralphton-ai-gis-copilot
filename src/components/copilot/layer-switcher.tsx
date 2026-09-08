@@ -66,7 +66,7 @@ export function filterLayersByQuery<T extends { id: string; label: string }>(
 const PRIVATE_PROVIDERS = ["SKT", "NH", "KCB"];
 
 /** 제공기관 표시 순서. 목록에 없는 기관은 뒤에 등장 순서대로 붙는다. */
-const PROVIDER_ORDER = ["SKT", "NH", "KCB", "공공", "KOSIS", "경남빅데이터허브"];
+const PROVIDER_ORDER = ["SKT", "NH", "KCB", "공공", "KOSIS", "경상남도"];
 
 export type ProviderGroup = { provider: string; layers: LayerOption[] };
 export type SourceGroup = { source: "민간" | "공공"; note: string; providers: ProviderGroup[] };

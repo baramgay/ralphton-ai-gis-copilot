@@ -55,7 +55,7 @@ export function dataModeTitle(mode: string, sourceNotes: readonly string[]): str
 export function providerSourceLabel(provider: string): string {
   if (provider === "KOSIS") return "KOSIS 국가통계";
   if (provider === "공공") return "공공데이터";
-  if (provider === "경남빅데이터허브") return "경남빅데이터허브 공공데이터";
+  if (provider === "경상남도") return "경상남도 공공데이터";
   return `${provider} 민간데이터`;
 }
 
