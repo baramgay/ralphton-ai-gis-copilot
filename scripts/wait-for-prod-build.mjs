@@ -37,6 +37,13 @@ async function readSha() {
   return typeof sha === "string" && sha.length > 0 ? sha : null;
 }
 
+/*
+ * 끝낼 때 `process.exit()`를 쓰지 않는다. 방금 `fetch`가 남긴 핸들이 닫히는 중에
+ * 강제 종료하면 윈도우 libuv가 `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)`
+ * 로 죽으면서 **종료 코드 127**을 낸다 — MATCHED 를 찍고도 실패로 끝났다(실측).
+ * CI 는 이 종료 코드로 판정하므로, 그대로 두면 새 빌드가 올라와 있는데도 검사를
+ * 건너뛴다. 반복문을 빠져나가 자연히 끝내면 종료 코드는 0이다.
+ */
 let attempt = 0;
 for (;;) {
   attempt += 1;
@@ -49,13 +56,13 @@ for (;;) {
   console.log(`[${attempt}회] 배포본 커밋: ${sha ?? "(읽기 실패)"} / 기대: ${WANT}`);
   if (sha === WANT) {
     console.log("MATCHED — 새 빌드가 올라와 있다. 검사를 진행한다.");
-    process.exit(0);
+    break;
   }
   if (Date.now() >= deadline) {
     console.log(
       `SKIPPED — ${LIMIT_S}초 안에 새 빌드가 안 올라왔다. 옛 빌드를 재지 않고 검사를 건너뜀.`,
     );
-    process.exit(0);
+    break;
   }
   await sleep(INTERVAL_S * 1000);
 }
