@@ -3456,6 +3456,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     /*
      * 로딩 화면에도 상단 바를 둔다.
      *
+     * 이 return보다 뒤에는 훅(useState·useMemo·useEffect·useCallback)을 두지
+     * 마라. 로딩 렌더와 완료 렌더의 훅 개수가 달라져 앱이 통째로 깨진다.
+     *
      * 이 화면이 뜨는 동안(실측 1.4초) 예전에는 회색 상자 하나뿐이었다 — 어느 도구에
      * 들어왔는지도 알 수 없었다. 상단 바는 스냅샷 없이도 그릴 수 있으므로 기다릴 이유가
      * 없다. 다만 h1이 여기서도 보이게 되었으므로 **h1은 더 이상 "앱이 준비됐다"는
@@ -3581,6 +3584,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           [...focusRegionCodes].map((code) => (code.length >= 10 ? code.slice(0, 5) : code)),
         )
       : focusRegionCodes;
+
+  /*
+   * 범례의 「자료 없음 n곳」. 순위 행 가운데 지도 점수가 없는(null) 행의 수다.
+   * 경계 전체에서 점 있는 곳을 빼는 식으로 세면, 상위 30곳만 칠하는 교차·추세
+   * 지도에서 순위 밖 275곳까지 「자료 없음」으로 둔갑한다 — 그곳은 값이 있어서
+   * 칠하지 않은 게 아니라 순위 표시에 안 든 것이다. 순위 행 기준으로만 센다.
+   *
+   * useMemo를 쓰지 않는다. 이 자리는 로딩 early return(위)보다 뒤라서 훅을 두면
+   * 로딩→완료 전환에서 훅 개수가 달라져 통째로 깨진다(실측). 300행 필터라 메모
+   * 없이도 싸다.
+   */
+  const noDataCount = (analysis?.ranked ?? []).filter((row) => row.mapScore === null).length;
 
   const shellStyle = {
     ...cssVars,
@@ -4682,6 +4697,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           showRadius={activeLayerId === "medical" && !customAnalysis}
           outlineMode={outlineMode}
           showSggLabels={showSggLabels}
+          noDataCount={noDataCount}
           probeMode={probeMode}
           probePoint={probePoint}
           probeRadiusKm={probeRadiusKm}

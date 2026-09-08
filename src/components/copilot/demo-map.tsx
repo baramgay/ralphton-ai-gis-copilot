@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
+import { buildScale, choroplethRamp, noDataColor } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import { pointKindColor } from "@/lib/gis/facility-style";
@@ -29,6 +29,8 @@ type DemoMapProps = {
   outlineMode?: boolean;
   showSggLabels?: boolean;
   hoverRows?: readonly HoverRow[];
+  /** 값이 없어 칠하지 못한 지역 수. 0보다 클 때만 범례에 한 줄을 얹는다. */
+  noDataCount?: number | null;
   legendLabel?: string;
   viewLabel?: string;
   onSelectRegion: (code: string) => void;
@@ -60,6 +62,7 @@ export function DemoMap({
   outlineMode = false,
   showSggLabels = false,
   hoverRows = [],
+  noDataCount = null,
   legendLabel = "상대 분석값",
   viewLabel,
   onSelectRegion,
@@ -342,6 +345,23 @@ export function DemoMap({
         <div className="map-legend-note flex justify-between">
           <span>5분위(같은 수의 동)</span><span>높음</span>
         </div>
+        {noDataCount != null && noDataCount > 0 ? (
+          <p className="map-legend-note" data-testid="map-legend-nodata">
+            <span
+              aria-hidden
+              style={{
+                display: "inline-block",
+                width: "0.75rem",
+                height: "0.75rem",
+                borderRadius: "0.25rem",
+                backgroundColor: noDataColor(choroplethTheme),
+                marginRight: "0.4rem",
+                verticalAlign: "-0.1rem",
+              }}
+            />
+            자료 없음 {noDataCount.toLocaleString("ko-KR")}곳
+          </p>
+        ) : null}
       </div>
       )}
     </div>

@@ -27,6 +27,8 @@ type MapCanvasProps = {
   outlineMode?: boolean;
   showSggLabels?: boolean;
   hoverRows?: readonly HoverRow[];
+  /** 값이 없어 칠하지 못한 지역 수. 0보다 클 때만 범례에 한 줄을 얹는다. */
+  noDataCount?: number | null;
   /** 지점 찍기 모드. Kakao 지도에서만 뜻이 있다(DemoMap은 좌표 클릭을 받지 못한다). */
   probeMode?: boolean;
   probePoint?: { lat: number; lng: number } | null;

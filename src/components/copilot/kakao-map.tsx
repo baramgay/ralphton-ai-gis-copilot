@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { buildScale, choroplethRamp } from "@/lib/gis/choropleth-scale";
+import { buildScale, choroplethRamp, noDataColor } from "@/lib/gis/choropleth-scale";
 import { useAppliedTheme } from "@/lib/ui/use-applied-theme";
 
 import { facilityMarkerImageDataUri } from "@/lib/gis/facility-style";
@@ -60,6 +60,8 @@ type KakaoMapProps = {
   showSggLabels?: boolean;
   /** 분석 결과 행. 호버에 시군·행정동·격자 값을 적는다. */
   hoverRows?: readonly HoverRow[];
+  /** 값이 없어 칠하지 못한 지역 수. 0보다 클 때만 범례에 한 줄을 얹는다. */
+  noDataCount?: number | null;
   /**
    * 지점 찍기 모드.
    *
@@ -193,6 +195,7 @@ export function KakaoMap({
   onProbePoint,
   legendLabel = "상대 분석값",
   viewLabel,
+  noDataCount = null,
   onSelectRegion,
   onSelectFacility,
   onSelectLivePlace,
@@ -753,6 +756,23 @@ export function KakaoMap({
         <p className="map-legend-note">
           5분위 채색(구간별 동 수 비슷) · 호버 시 이름·값
         </p>
+        {noDataCount != null && noDataCount > 0 ? (
+          <p className="map-legend-note" data-testid="map-legend-nodata">
+            <span
+              aria-hidden
+              style={{
+                display: "inline-block",
+                width: "0.75rem",
+                height: "0.75rem",
+                borderRadius: "0.25rem",
+                backgroundColor: noDataColor(choroplethTheme),
+                marginRight: "0.4rem",
+                verticalAlign: "-0.1rem",
+              }}
+            />
+            자료 없음 {noDataCount.toLocaleString("ko-KR")}곳
+          </p>
+        ) : null}
       </div>
       )}
     </div>
