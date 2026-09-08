@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 
 import { CROSS_CANDIDATE_LAYERS } from "@/lib/layers/catalog";
+import { HUB_PLATFORM } from "@/lib/layers/channel";
 
 export type LayerOption = { id: string; label: string; provider: string };
 
@@ -97,7 +98,7 @@ export function groupBySource(layers: LayerOption[]): SourceGroup[] {
     [
       {
         source: "민간" as const,
-        note: "이동통신·카드·신용 기반. 이 도구의 중심입니다.",
+        note: `이동통신·카드·신용 기반. ${HUB_PLATFORM}이 제공하는 이 도구의 중심 자료입니다.`,
         providers: pick(true),
       },
       {

@@ -40,7 +40,8 @@ import {
 } from "@/lib/analysis/evaluator-guide";
 import { becauseItIs, topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
-import { DATA_INVENTORY, INVENTORY_TOTALS } from "@/lib/analysis/data-inventory";
+import { DATA_INVENTORY, HUB_INVENTORY, INVENTORY_TOTALS } from "@/lib/analysis/data-inventory";
+import { withHubChannel } from "@/lib/layers/channel";
 import { GLOSSARY, GLOSSARY_GROUPS } from "@/lib/analysis/glossary";
 import { USAGE_GUIDE } from "@/lib/analysis/usage-guide";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
@@ -513,7 +514,10 @@ export function crossResultToView(
         a.referenceMonth === b.referenceMonth
           ? a.referenceMonth
           : `${a.referenceMonth} / ${b.referenceMonth}`,
-      source: `${a.provider} ${a.metric.label} × ${b.provider} ${b.metric.label}`,
+      source: withHubChannel(`${a.provider} ${a.metric.label} × ${b.provider} ${b.metric.label}`, [
+        a.provider,
+        b.provider,
+      ]),
     },
   };
 }
@@ -606,7 +610,10 @@ export function multiResultToView(
     totalCount: result.ranked.length,
     provenance: {
       referenceMonth: [...new Set(operands.map((operand) => operand.referenceMonth))].join(" / "),
-      source: operands.map((operand) => `${operand.provider} ${operand.metric.label}`).join(" × "),
+      source: withHubChannel(
+        operands.map((operand) => `${operand.provider} ${operand.metric.label}`).join(" × "),
+        operands.map((operand) => operand.provider),
+      ),
     },
   };
 }
@@ -2816,7 +2823,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         totalCount: result.comparable,
         provenance: {
           referenceMonth: cube.referenceMonth,
-          source: `${trendMatch.provider} ${trendMatch.metricLabel} 추세`,
+          source: withHubChannel(`${trendMatch.provider} ${trendMatch.metricLabel} 추세`, [
+            trendMatch.provider,
+          ]),
         },
       };
       setActiveLayerId("medical");
@@ -4386,6 +4395,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   ["시설", `${snapshot.facilities.length.toLocaleString("ko-KR")}곳`],
                   ["지도", mapEngineLabel(kakaoMapKey, mapEngine)],
                   ["의료기관 자료", "건강보험심사평가원"],
+                  ["민간데이터 창구", HUB_INVENTORY.platform],
                   ["지도 시설 상한", `${MAP_FACILITY_CAP.toLocaleString("ko-KR")}곳`],
                 ].map(([label, value]) => (
                   <div key={label} className="ui-stat-card">
@@ -4412,6 +4422,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   제공기관 {DATA_INVENTORY.length}곳 · 레이어 {INVENTORY_TOTALS.layers}개 · 지표{" "}
                   {INVENTORY_TOTALS.metrics}개
                 </p>
+                {/*
+                  기관 이름만 적어 두면 이 자료를 내준 창구가 화면 어디에도 남지 않는다.
+                  개수는 손으로 세지 않는다 — 레이어를 더하면 여기서 저절로 늘어난다.
+                */}
+                <p
+                  className="ui-caption mt-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-600"
+                  data-testid="hub-channel-summary"
+                >
+                  <span className="font-bold text-slate-800">{HUB_INVENTORY.platform}</span> 제공 ·
+                  레이어 {HUB_INVENTORY.layers}개 · 지표 {HUB_INVENTORY.metrics}개 (
+                  {HUB_INVENTORY.providers.join("·")})
+                  <span className="mt-0.5 block">{HUB_INVENTORY.note}</span>
+                </p>
                 {DATA_INVENTORY.map((group) => (
                   <details
                     key={group.provider}
@@ -4425,6 +4448,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </summary>
                     <div className="border-t border-slate-100 px-3 py-2.5">
                       <p className="ui-caption text-slate-600">{group.note}</p>
+                      {group.channel ? (
+                        <p className="ui-caption mt-0.5 font-semibold text-slate-700">
+                          제공 창구 · {group.channel}
+                        </p>
+                      ) : null}
                       {group.layers.map((layer) => (
                         <div key={layer.id} className="mt-2.5">
                           <p className="ui-body font-bold text-slate-900">
@@ -4853,7 +4881,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 <span className="font-bold">1.</span> 맨 위 질문창에 「생활인구 많은 동네」처럼 적습니다
               </li>
               <li>
-                <span className="font-bold">2.</span> SKT·NH·KCB 민간데이터가 지도에 칠해집니다
+                <span className="font-bold">2.</span> {HUB_INVENTORY.platform}이 제공한 SKT·NH·KCB
+                민간데이터가 지도에 칠해집니다
               </li>
               <li>
                 <span className="font-bold">3.</span> 결과 패널에서 순위·해석을 보고 보고서로 내보냅니다

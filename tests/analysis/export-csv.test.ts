@@ -28,7 +28,21 @@ describe("resolveExportProvenance", () => {
         ...snapshotArgs,
         activeLayer: { referenceMonth: "2025-12", provider: "NH", label: "카드소비" },
       }),
-    ).toEqual({ referenceMonth: "2025-12", source: "NH · 카드소비" });
+    ).toEqual({
+      referenceMonth: "2025-12",
+      // 출처 한 줄이 그대로 인용된다. 기관만 적으면 그 자료를 내준 창구가 사라진다.
+      source: "NH · 카드소비 · 경남빅데이터허브플랫폼",
+    });
+  });
+
+  /* 창구 없는 자료에는 붙지 않는다 — 안 온 곳을 적으면 출처가 틀린다. */
+  test("공공 레이어 출처에는 창구를 붙이지 않는다", () => {
+    expect(
+      resolveExportProvenance({
+        ...snapshotArgs,
+        activeLayer: { referenceMonth: "2025-12", provider: "공공", label: "인구" },
+      }),
+    ).toEqual({ referenceMonth: "2025-12", source: "공공 · 인구" });
   });
 
   test("the resolved source actually reaches the CSV meta block", () => {

@@ -12,6 +12,7 @@
  */
 
 import { CUBE_LAYERS, MEDICAL_LAYER } from "@/lib/layers/catalog";
+import { HUB_PLATFORM, HUB_PLATFORM_NOTE, isHubProvider } from "@/lib/layers/channel";
 import type { LayerDescriptor } from "@/lib/layers/types";
 
 export type ProviderKey = "공공" | "SKT" | "NH" | "KCB" | "KOSIS" | "경상남도";
@@ -39,6 +40,11 @@ export type InventoryGroup = {
   provider: ProviderKey;
   /** 이 제공기관이 무엇인지 한 줄. 약칭만 보고는 알 수 없다. */
   note: string;
+  /**
+   * 이 자료가 들어온 창구. 기관과 창구는 다른 것이라 따로 적는다
+   * (`@/lib/layers/channel`). 직접 받은 자료는 null이다.
+   */
+  channel: string | null;
   layers: InventoryLayer[];
   metricCount: number;
 };
@@ -91,6 +97,7 @@ export const DATA_INVENTORY: InventoryGroup[] = PROVIDER_ORDER.map((provider) =>
   return {
     provider,
     note: PROVIDER_NOTE[provider],
+    channel: isHubProvider(provider) ? HUB_PLATFORM : null,
     layers,
     metricCount: layers.reduce((sum, layer) => sum + layer.metrics.length, 0),
   };
@@ -99,4 +106,24 @@ export const DATA_INVENTORY: InventoryGroup[] = PROVIDER_ORDER.map((provider) =>
 export const INVENTORY_TOTALS = {
   layers: DATA_INVENTORY.reduce((sum, group) => sum + group.layers.length, 0),
   metrics: DATA_INVENTORY.reduce((sum, group) => sum + group.metricCount, 0),
+};
+
+/*
+ * 창구별 합계. 화면에 「경남빅데이터허브플랫폼 레이어 13개·지표 47개」처럼 한 줄로
+ * 적기 위한 값이다. 손으로 세면 레이어를 더할 때마다 틀린다 — 여기서 센다.
+ */
+export const HUB_INVENTORY = {
+  platform: HUB_PLATFORM,
+  note: HUB_PLATFORM_NOTE,
+  providers: DATA_INVENTORY.filter((group) => group.channel === HUB_PLATFORM).map(
+    (group) => group.provider,
+  ),
+  layers: DATA_INVENTORY.filter((group) => group.channel === HUB_PLATFORM).reduce(
+    (sum, group) => sum + group.layers.length,
+    0,
+  ),
+  metrics: DATA_INVENTORY.filter((group) => group.channel === HUB_PLATFORM).reduce(
+    (sum, group) => sum + group.metricCount,
+    0,
+  ),
 };

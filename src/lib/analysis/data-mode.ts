@@ -10,6 +10,8 @@
  * 공공기관 보고서에 옮겨지는 숫자다. 배지 한 낱말이 인구 통계의 출처를 규정한다.
  */
 
+import { HUB_PLATFORM, isHubProvider } from "@/lib/layers/channel";
+
 /** 인구·세대 계열이 실측인가. 스냅샷이 스스로 밝힌 각주로 판별한다. */
 export function populationIsLive(mode: string, sourceNotes: readonly string[]): boolean {
   if (mode !== "live") return false;
@@ -51,12 +53,16 @@ export function dataModeTitle(mode: string, sourceNotes: readonly string[]): str
 /**
  * 제공기관을 출처 문구로. 「SKT 민간데이터」와 「KOSIS 국가통계」는 성격이 다르므로
  * 한 낱말로 뭉뚱그리면 안 된다 — 공공기관 보고서에 그대로 인용되는 문장이다.
+ *
+ * 창구를 함께 적는다. 기관만 적으면 그 자료를 내준 플랫폼이 문장에서 사라진다.
+ * 창구가 없는 자료(주민등록·의료기관·국가통계)에는 붙이지 않는다 — 안 온 곳을
+ * 적으면 출처가 틀린다.
  */
 export function providerSourceLabel(provider: string): string {
   if (provider === "KOSIS") return "KOSIS 국가통계";
   if (provider === "공공") return "공공데이터";
-  if (provider === "경상남도") return "경상남도 공공데이터";
-  return `${provider} 민간데이터`;
+  const base = provider === "경상남도" ? "경상남도 공공데이터" : `${provider} 민간데이터`;
+  return isHubProvider(provider) ? `${base} · ${HUB_PLATFORM}` : base;
 }
 
 /** 화면 배너의 정본 문장. 인구 파생 순위를 내보낼 때 산출물에도 그대로 싣는다. */

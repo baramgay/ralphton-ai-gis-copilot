@@ -7,6 +7,7 @@ import {
   exportSourceLabel,
   populationCitationWarning,
 } from "@/lib/analysis/data-mode";
+import { withHubChannel } from "@/lib/layers/channel";
 
 export type CsvExportOptions = {
   sourceNotes?: readonly string[];
@@ -49,7 +50,9 @@ export function resolveExportProvenance(input: {
   if (input.activeLayer) {
     return {
       referenceMonth: input.activeLayer.referenceMonth,
-      source: `${input.activeLayer.provider} · ${input.activeLayer.label}`,
+      source: withHubChannel(`${input.activeLayer.provider} · ${input.activeLayer.label}`, [
+        input.activeLayer.provider,
+      ]),
     };
   }
   return { referenceMonth: input.snapshotReferenceMonth, source: input.snapshotSource };

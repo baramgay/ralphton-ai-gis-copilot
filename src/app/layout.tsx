@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     default: "누리맵 — 경남 공간데이터 분석",
     template: "%s · 누리맵",
   },
-  description: "경상남도 305개 행정동 공간데이터 분석 코파일럿 — 이동통신·카드소비·신용(SKT·NH·KCB)과 공공데이터를 자연어로",
+  description: "경상남도 305개 행정동 공간데이터 분석 코파일럿 — 경남빅데이터허브플랫폼이 제공하는 이동통신·카드소비·신용(SKT·NH·KCB) 민간데이터와 공공데이터를 자연어로",
   applicationName: "누리맵",
   icons: {
     icon: [

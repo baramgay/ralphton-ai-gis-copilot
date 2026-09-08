@@ -28,6 +28,7 @@ const SCRIPTS = [
   { name: "contrast-all", file: "verify-contrast-all.mjs" },
   { name: "glass", file: "verify-glass.mjs" },
   { name: "readable", file: "verify-readable.mjs" },
+  { name: "hub", file: "verify-hub-attribution.mjs" },
   { name: "perf", file: "verify-perf-prod.mjs" },
 ];
 
