@@ -41,6 +41,7 @@ import {
 import { becauseItIs, topicOf } from "@/lib/analysis/korean-particle";
 import { suggestMetrics } from "@/lib/layers/suggest-metric";
 import { DATA_INVENTORY, HUB_INVENTORY, INVENTORY_TOTALS } from "@/lib/analysis/data-inventory";
+import { selectRegionFlow, type FlowData } from "@/lib/analysis/region-flow";
 import { withHubChannel } from "@/lib/layers/channel";
 import { GLOSSARY, GLOSSARY_GROUPS } from "@/lib/analysis/glossary";
 import { USAGE_GUIDE } from "@/lib/analysis/usage-guide";
@@ -670,6 +671,16 @@ function quickIntent(
   return intents[id];
 }
 
+/**
+ * 사람 흐름의 인원 표기. 이동통신 신호로 추정한 값이라 소수 자리는 정밀도를 흉내낼 뿐이다.
+ * 값이 없으면 0이 아니라 **없다고** 적는다 — 0으로 적으면 자료 결손이 「아무도 안 온다」로
+ * 읽힌다.
+ */
+function formatFlowValue(value: number | null): string {
+  if (value === null) return "자료 없음";
+  return `${Math.round(value).toLocaleString("ko-KR")}명`;
+}
+
 function formatMetric(value: number | null, unit: string): string {
   if (value === null) return "데이터 없음";
   return `${value.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${unit}`;
@@ -1039,6 +1050,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   // 추세를 볼 기간. 0은 전 기간. 장기 추세와 최근 흐름이 갈리는 동이 14%라 바꿔 볼 수 있어야 한다.
   const [trendMonths, setTrendMonths] = useState<number>(0);
   const [remoteCubeErrors, setRemoteCubeErrors] = useState<Record<string, string | null>>({});
+  /*
+   * 지역 간 이동 흐름(어디서 오고 어디로 가나). 지도에 칠하는 큐브가 아니라 **지역 한 쌍**에
+   * 붙는 값이라 따로 받는다. 첫 화면과 함께 받으면 정작 화면을 띄울 자료가 밀리므로
+   * 지역을 고른 뒤에 한 번만 받는다.
+   */
+  const [flowData, setFlowData] = useState<FlowData | null>(null);
+  const [flowError, setFlowError] = useState<string | null>(null);
+  const flowRequestedRef = useRef(false);
   /*
    * 바텀시트 기본 높이. 72dvh이면 답을 받는 순간 지도가 거의 다 덮인다 — 지도가 이
    * 도구의 산출물인데 순위만 남는다. 절반(56)이면 한 줄 결론과 1~2위가 보이면서 지도도
@@ -1445,6 +1464,35 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     for (const layer of REMOTE_CUBE_LAYERS) loadCube(layer, controller.signal);
     return () => controller.abort();
   }, [snapshot, boundary, loadCube]);
+
+  /*
+   * 흐름 자료는 지역을 골랐을 때 처음 필요하다. 실패하면 다시 시도할 수 있도록 표시를
+   * 되돌린다 — 조용히 빈 칸으로 두면 「흐름이 없는 지역」으로 읽힌다.
+   */
+  useEffect(() => {
+    if (!selectedRegionCode || flowRequestedRef.current) return;
+    flowRequestedRef.current = true;
+    fetch("/data/flows/skt-flow.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("이동 흐름 자료를 불러오지 못했습니다.");
+        return response.json();
+      })
+      .then((raw: FlowData) => {
+        setFlowData(raw);
+        setFlowError(null);
+      })
+      .catch((error: unknown) => {
+        flowRequestedRef.current = false;
+        setFlowError(
+          error instanceof Error ? error.message : "이동 흐름 자료를 불러오지 못했습니다.",
+        );
+      });
+  }, [selectedRegionCode]);
+
+  const regionFlow = useMemo(
+    () => selectRegionFlow(flowData, selectedRegionCode),
+    [flowData, selectedRegionCode],
+  );
 
   const districtOptions = useMemo(
     () => (snapshot ? listDistricts(snapshot.regions) : [...DEFAULT_COMPARE]),
@@ -5073,6 +5121,98 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                     </li>
                   ))}
                 </ul>
+              </div>
+            </details>
+          ) : null}
+          {/*
+            사람 흐름 — 어디서 오고 어디로 가나.
+
+            원자료는 유입·유출의 **상대 지역**을 함께 주는데 지금까지 총량만 쓰고 그 열을
+            버렸다. 흐름은 지역 한 쌍에 붙는 값이라 지도 한 칸에 칠할 수 없어 목록으로 낸다.
+
+            값은 관외 기준이다. 같은 시군구에 사는 사람의 체류를 같이 세면(2025-12 실측으로
+            김해시는 그쪽이 일평균 541,525명, 다음 상대가 13,066명) 순위가 아니라 그 도시의
+            인구를 보게 된다.
+          */}
+          {selectedRegionCode ? (
+            <details className="mt-2.5 rounded-lg border border-slate-200 bg-white" data-testid="region-flow">
+              <summary className="cursor-pointer px-2.5 py-2 ui-body font-bold text-slate-800">
+                {regionFlow ? regionFlow.sggName : "선택 지역"} 사람 흐름{" "}
+                <span className="ui-caption font-semibold text-slate-500">어디서 오고 어디로 가나</span>
+              </summary>
+              <div className="border-t border-slate-100 px-2.5 py-2">
+                {flowError ? (
+                  <p className="ui-caption text-amber-700" data-testid="region-flow-error">
+                    {flowError}
+                  </p>
+                ) : !flowData ? (
+                  <p className="ui-caption text-slate-500">불러오는 중입니다.</p>
+                ) : !regionFlow ? (
+                  <p className="ui-caption text-slate-500" data-testid="region-flow-missing">
+                    이 지역의 사람 흐름 자료가 없습니다.
+                  </p>
+                ) : (
+                  <>
+                    <p className="ui-caption text-slate-500">
+                      {regionFlow.month} · 하루 평균 인원 · 시군구 단위 · 같은 시군구 안에서의 이동은
+                      빼고 셉니다
+                    </p>
+                    <p className="ui-body mt-1.5 font-bold text-slate-900">
+                      들어옴 {formatFlowValue(regionFlow.inflowTotal)} · 나감{" "}
+                      {formatFlowValue(regionFlow.outflowTotal)} ·{" "}
+                      <span
+                        className={
+                          regionFlow.netFlow === null
+                            ? "text-slate-500"
+                            : regionFlow.netFlow >= 0
+                              ? "text-rose-600"
+                              : "text-blue-600"
+                        }
+                      >
+                        순유입 {formatFlowValue(regionFlow.netFlow)}
+                      </span>
+                    </p>
+                    <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
+                      {[
+                        { key: "inbound" as const, title: "여기로 오는 사람의 거주지", entries: regionFlow.inbound },
+                        { key: "outbound" as const, title: "여기 사람이 가는 곳", entries: regionFlow.outbound },
+                      ].map((column) => (
+                        <div key={column.key} data-testid={`region-flow-${column.key}`}>
+                          <p className="ui-caption font-bold text-slate-700">{column.title}</p>
+                          {column.entries.length === 0 ? (
+                            <p className="ui-caption mt-1 text-slate-500">이 달의 자료가 없습니다.</p>
+                          ) : (
+                            <ol className="mt-1 space-y-1">
+                              {column.entries.map((entry, index) => (
+                                <li
+                                  key={entry.code}
+                                  className="flex items-baseline justify-between gap-2 ui-caption"
+                                >
+                                  <span className="text-slate-600">
+                                    <span className="font-semibold text-slate-500">{index + 1}.</span>{" "}
+                                    {entry.label}
+                                  </span>
+                                  <span className="shrink-0 font-bold text-slate-900">
+                                    {formatFlowValue(entry.value)}
+                                    {entry.share === null ? "" : ` (${entry.share.toFixed(1)}%)`}
+                                  </span>
+                                </li>
+                              ))}
+                            </ol>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="ui-caption mt-2 text-amber-700">
+                      ⚠ 이동통신 신호로 추정한 값이라 실제 인원과 다릅니다. 상위 {regionFlow.inbound.length}곳만
+                      보여 주므로 괄호 안 비중의 합은 100%가 되지 않습니다. 창원시의 다섯 구는 원자료가
+                      서로 다른 지역으로 주어 구를 넘는 이동이 흐름에 들어갑니다.
+                    </p>
+                    <p className="ui-caption mt-0.5 text-slate-500">
+                      출처 · {providerSourceLabel("SKT")} 유입·유출인구
+                    </p>
+                  </>
+                )}
               </div>
             </details>
           ) : null}

@@ -15,9 +15,24 @@ import { pointOnFeature } from "@turf/point-on-feature";
  *   유출: BASE_DATE|ADM_CD|RSDN_SGG_CD|M00..M80|F00..F80
  * ADM_CD(8자리) + "00" = adm_cd2(10자리). 성·연령 밴드의 합이 인원.
  *
- * 한 동의 하루 총 유입인구 = 그 날 모든 거주지-sgg 행의 밴드합. 월 대푯값은
+ * 한 동의 하루 총 유입인구 = 그 날 **관외** 거주지-sgg 행의 밴드합. 월 대푯값은
  * 동별 밴드 총합 ÷ 구분일수(distinct BASE_DATE) = 일평균 유입인구.
  * (생활인구 어댑터는 rows로 나눴지만, 유입/유출은 행 수가 거주지×일수라서 일수로 나눠야 함.)
+ *
+ * ## 관내 행을 왜 버리는가
+ *
+ * 원자료는 출발지를 **시군구까지만** 준다. 그래서 그 동이 속한 시군구에 사는 사람의
+ * 체류가 「유입」 행으로 같이 들어온다 — 실측(2025-12 동 파일) 결과 밴드합의 **73.2%**가
+ * 그 관내 행이었다. 그대로 더하면 「유입인구」라고 적어 놓고 사실상 생활인구 총량을
+ * 세게 되고, 순위는 밖에서 오는 사람이 아니라 도시 크기를 따라간다. 공공기관 보고서에
+ * 「유입인구 1위」로 인용되는 값이라 그 차이가 그대로 결론이 된다.
+ *
+ * 「타 지역에서 왔다」를 이 자료로 셀 수 있는 유일한 방식은 **거주지 시군구가 다른**
+ * 행만 세는 것이다. 관내 행에는 그 동 자신의 주민과 옆 동 주민이 섞여 있고 둘을 가를
+ * 열이 없다 — 가를 수 없는 것을 반만 넣지 않는다.
+ *
+ * 창원시의 다섯 구(48121·48123·48125·48127·48129)는 원자료가 서로 다른 코드로 주므로
+ * 구를 넘는 이동은 관외로 센다. 한계 문구에 그대로 적는다.
  */
 
 const DEFAULT_INPUT_DIR = "C:\\업무\\민간데이터\\SKT 데이터";
@@ -33,14 +48,22 @@ export function computeColumnIndices(columns) {
   const dateIdx = columns.indexOf("BASE_DATE");
   // 유입 파일은 목적지 동을 ADM_CD, 유출 파일은 거주지 동을 RSDN_ADM_CD로 표기한다.
   // 두 경우 모두 "그 동에 귀속되는 유입/유출 인구"의 기준 동 컬럼이다.
-  let admIdx = columns.indexOf("ADM_CD");
-  if (admIdx < 0) admIdx = columns.indexOf("RSDN_ADM_CD");
+  const inflow = columns.indexOf("ADM_CD") >= 0;
+  const admIdx = inflow ? columns.indexOf("ADM_CD") : columns.indexOf("RSDN_ADM_CD");
+  // 상대 지역 컬럼. 유입은 출발 거주지(RSDN_SGG_CD), 유출은 도착지(SGG_CD)다.
+  const partnerIdx = inflow ? columns.indexOf("RSDN_SGG_CD") : columns.indexOf("SGG_CD");
   if (dateIdx < 0) throw new Error("CSV 헤더에 BASE_DATE 컬럼이 없습니다.");
   if (admIdx < 0) throw new Error("CSV 헤더에 ADM_CD/RSDN_ADM_CD 컬럼이 없습니다.");
+  if (partnerIdx < 0) throw new Error("CSV 헤더에 RSDN_SGG_CD/SGG_CD 컬럼이 없습니다.");
   // 성·연령 밴드는 M00부터 시작한다(유입 RSDN_SGG_CD / 유출 SGG_CD 다음).
   const m00Idx = columns.indexOf("M00");
   const numericStart = m00Idx >= 0 ? m00Idx : admIdx + 2;
-  return { dateIdx, admIdx, numericStart };
+  return { dateIdx, admIdx, partnerIdx, numericStart };
+}
+
+/** 그 동이 속한 시군구에 사는 사람의 행인가. 참이면 「유입·유출」이 아니다. */
+export function isSameSgg(admCd, partnerSgg) {
+  return typeof admCd === "string" && typeof partnerSgg === "string" && admCd.slice(0, 5) === partnerSgg;
 }
 
 /**
@@ -53,6 +76,12 @@ export function accumulateLine(acc, line, indices) {
   const admCd = fields[indices.admIdx];
   if (!admCd) return acc;
 
+  /*
+   * 관내 행은 세지 않는다. 다만 **날짜는 남긴다** — 일수로 나눌 때 관외 행이 하루도 없는
+   * 날을 빼 버리면 분모가 줄어 일평균이 부풀려진다.
+   */
+  const sameSgg = isSameSgg(admCd, fields[indices.partnerIdx]);
+
   let sumBands = 0;
   for (let i = indices.numericStart; i < fields.length; i += 1) {
     const value = Number(fields[i]);
@@ -61,10 +90,13 @@ export function accumulateLine(acc, line, indices) {
 
   const entry = acc.get(admCd);
   if (entry) {
-    entry.sumBands += sumBands;
+    if (!sameSgg) entry.sumBands += sumBands;
     entry.dates.add(fields[indices.dateIdx]);
   } else {
-    acc.set(admCd, { sumBands, dates: new Set([fields[indices.dateIdx]]) });
+    acc.set(admCd, {
+      sumBands: sameSgg ? 0 : sumBands,
+      dates: new Set([fields[indices.dateIdx]]),
+    });
   }
   return acc;
 }

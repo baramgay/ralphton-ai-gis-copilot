@@ -517,6 +517,35 @@ describe("CopilotApp", () => {
             { status: 200 },
           );
         }
+        if (url.includes("/data/flows/skt-flow.json")) {
+          return new Response(
+            JSON.stringify({
+              months: ["2026-06"],
+              referenceMonth: "2026-06",
+              topN: 8,
+              regions: [
+                {
+                  code: "48121",
+                  name: "창원시 의창구",
+                  inflow: {
+                    totals: [1200],
+                    top: [
+                      [
+                        { code: "48250", name: "김해시", value: 400 },
+                        { code: "26320", name: "부산광역시 북구", value: 300 },
+                      ],
+                    ],
+                  },
+                  outflow: {
+                    totals: [900],
+                    top: [[{ code: "48250", name: "김해시", value: 500 }]],
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
@@ -944,6 +973,34 @@ describe("CopilotApp", () => {
     expect((await within(profile).findAllByText(/\[KCB\]/, {}, { timeout: 25_000 })).length).toBeGreaterThan(0);
     // 절대값만 보고 오판하지 않도록 백분위 기준을 명시한다
     expect(await within(profile).findByText(/백분위/, {}, { timeout: 25_000 })).toBeInTheDocument();
+  }, 45_000);
+
+  /*
+   * 사람 흐름은 지역 **한 쌍**에 붙는 값이라 지도에 칠할 수 없다. 목록이 비면 「흐름이 없는
+   * 지역」으로 읽히므로, 값이 실제로 채워지는지와 관내 제외를 밝히는지를 함께 본다.
+   */
+  test("선택 지역의 사람 흐름을 어디서·어디로 목록으로 보여준다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+
+    const flow = await screen.findByTestId("region-flow", {}, { timeout: 25_000 });
+    const inbound = await within(flow).findByTestId("region-flow-inbound", {}, { timeout: 25_000 });
+    const outbound = within(flow).getByTestId("region-flow-outbound");
+
+    expect(within(inbound).getByText("김해시")).toBeInTheDocument();
+    expect(within(inbound).getByText(/400명/)).toBeInTheDocument();
+    /* 비중은 관외 총합 대비다: 400 / 1,200 */
+    expect(within(inbound).getByText(/33\.3%/)).toBeInTheDocument();
+    expect(within(outbound).getByText(/500명/)).toBeInTheDocument();
+
+    /* 순유입 = 1,200 − 900. 관내를 뺀 값임을 화면이 스스로 밝혀야 한다. */
+    expect(within(flow).getByText(/순유입 300명/)).toBeInTheDocument();
+    expect(
+      within(flow).getByText(/같은 시군구 안에서의 이동은/),
+    ).toBeInTheDocument();
+    /* 추정값이라는 사실과 출처가 함께 붙는다. */
+    expect(within(flow).getByText(/이동통신 신호로 추정한 값/)).toBeInTheDocument();
+    expect(within(flow).getByText(/경남빅데이터허브플랫폼/)).toBeInTheDocument();
   }, 45_000);
 
   test("레이어와 프리셋이 각각 제공기관·정책영역으로 묶여 보인다", async () => {

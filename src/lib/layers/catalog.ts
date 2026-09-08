@@ -40,11 +40,14 @@ export const SKT_MOBILITY_LAYER: Omit<LayerDescriptor, "months"> = {
   kind: "choropleth",
   coverage: "gyeongnam",
   adminLevels: ["dong", "sgg"],
-  sourceNotes: ["이동통신 유입·유출 인구 (행정동, 거주지 시군구별 일평균 추정치)"],
+  sourceNotes: [
+    "이동통신 유입·유출 인구 (행정동, 거주지 시군구별 일평균 추정치)",
+    "같은 원자료의 출발지·도착지로 시군구별 사람 흐름(어디서 오고 어디로 가나)을 함께 제공",
+  ],
   metrics: [
-    { key: "inflow_total", label: "유입인구", unit: "명", aggregation: "sum", formula: "타 지역에서 유입된 일평균 생활인구", limitation: "SKT 추정치, 통근·방문 등 일시 체류 포함", triggers: ["유입인구", "유입 인구", "들어오는", "유입되는", "유입"] },
-    { key: "outflow_total", label: "유출인구", unit: "명", aggregation: "sum", formula: "타 지역으로 유출된 일평균 거주자", limitation: "SKT 추정치", triggers: ["유출인구", "유출 인구", "빠져나가는", "빠져나가", "유출"] },
-    { key: "net_flow", label: "순유입(유입−유출)", unit: "명", aggregation: "sum", formula: "유입인구 − 유출인구", limitation: "양수=순유입, 음수=순유출. SKT 추정치", triggers: ["순유입 인구", "순유입인구", "순유입", "순이동", "순인구이동"] },
+    { key: "inflow_total", label: "유입인구", unit: "명", aggregation: "sum", formula: "거주지가 다른 시군구인 사람의 일평균 체류 인구", limitation: "SKT 추정치. 같은 시군구에 사는 사람의 체류는 빼고 센다 — 원자료가 출발지를 시군구까지만 주어 그 동 주민과 옆 동 주민을 가를 수 없다. 통근·방문 등 일시 체류를 포함한다", triggers: ["유입인구", "유입 인구", "들어오는", "유입되는", "유입"] },
+    { key: "outflow_total", label: "유출인구", unit: "명", aggregation: "sum", formula: "다른 시군구로 나간 거주자의 일평균 인구", limitation: "SKT 추정치. 같은 시군구 안에서의 이동은 빼고 센다", triggers: ["유출인구", "유출 인구", "빠져나가는", "빠져나가", "유출"] },
+    { key: "net_flow", label: "순유입(유입−유출)", unit: "명", aggregation: "sum", formula: "유입인구 − 유출인구", limitation: "양수=순유입, 음수=순유출. SKT 추정치. 양쪽 모두 관외 기준이다", triggers: ["순유입 인구", "순유입인구", "순유입", "순이동", "순인구이동"] },
   ],
 };
 
