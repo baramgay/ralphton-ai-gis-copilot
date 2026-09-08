@@ -2784,7 +2784,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             code: row.code,
             name,
             district: name.split(/\s+/)[0] ?? "지역",
-            mapScore: result.scores.get(row.code) ?? 0,
+            /*
+             * scores는 ranked와 같은 행에서 만들므로 조회가 빗나가지 않는다.
+             * 그래도 0을 박지 않는다 — 언젠가 빗나가면 최저색으로 굳는다.
+             */
+            mapScore: result.scores.get(row.code) ?? null,
             valueLabel: `${rate > 0 ? "+" : ""}${rate.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`,
             note: describeTrend(row.trend, trendMatch.metricLabel, trendMatch.unit),
             metrics: [
@@ -2909,7 +2913,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             code: row.code,
             name,
             district: name.split(/\s+/)[0] ?? "지역",
-            mapScore: result.scores.get(row.code) ?? 0,
+            /*
+             * scores는 ranked와 같은 쌍에서 만들므로 조회가 빗나가지 않는다.
+             * 그래도 0을 박지 않는다 — 언젠가 빗나가면 최저색으로 굳는다.
+             */
+            mapScore: result.scores.get(row.code) ?? null,
             valueLabel: `${row.rateA > 0 ? "+" : ""}${row.rateA.toFixed(1)}% / ${row.rateB > 0 ? "+" : ""}${row.rateB.toFixed(1)}%`,
             note: `${match.a.metricLabel} ${row.rateA > 0 ? "+" : ""}${row.rateA.toFixed(1)}% · ${match.b.metricLabel} ${row.rateB > 0 ? "+" : ""}${row.rateB.toFixed(1)}%`,
             metrics: [
