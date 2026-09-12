@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import type { Facility } from "@/lib/domain/schemas";
-import { pointKindColor } from "@/lib/gis/facility-style";
+import { facilityTypeShort, pointKindColor } from "@/lib/gis/facility-style";
 import {
   MAP_POINT_CAP,
   capMapPoints,
@@ -49,5 +49,11 @@ describe("map-point", () => {
   test("모르는 지점 종류는 기본색이다", () => {
     expect(pointKindColor("대피소")).toBe("#64748b");
     expect(pointKindColor("약국")).toBe("#ea580c");
+  });
+
+  test("실시간 검색 결과는 시설 종류와 다른 색·짧은 글자다", () => {
+    expect(pointKindColor("실시간")).toBe("#64748b");
+    expect(pointKindColor("실시간")).not.toBe(pointKindColor("병원"));
+    expect(facilityTypeShort("실시간")).toBe("실");
   });
 });

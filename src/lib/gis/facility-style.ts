@@ -33,6 +33,7 @@ export function facilityTypeShort(type: Facility["type"] | string): string {
     한의원: "한",
     보건소: "보",
     약국: "약",
+    실시간: "실",
   };
   return map[type] ?? "?";
 }

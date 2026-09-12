@@ -264,6 +264,52 @@ describe("KakaoMap facility interactions", () => {
 
     expect(onSelectFacility).toHaveBeenCalledWith(points[1]);
   });
+
+  test("실시간 장소는 심평원 시설과 다른 점으로 그리고 범례에 밝힌다", async () => {
+    const markerRecords: Array<{ title?: string }> = [];
+    class Overlay implements KakaoOverlay {
+      setMap() {}
+    }
+    class Marker extends Overlay {
+      constructor(options: { title?: string }) {
+        super();
+        markerRecords.push({ title: options.title });
+      }
+    }
+    class MapInstance implements KakaoMapInstance {
+      setCenter() {}
+    }
+    const maps = {
+      load: (callback: () => void) => callback(),
+      LatLng: class {},
+      Map: MapInstance,
+      Polygon: Overlay,
+      Marker,
+      Circle: Overlay,
+      event: { addListener() {} },
+    } as unknown as KakaoMapsNamespace;
+    loadKakaoSdkMock.mockResolvedValue(maps);
+
+    render(
+      <KakaoMap
+        appKey="public-app-key"
+        boundary={boundary}
+        regions={regions}
+        facilities={points}
+        livePlaces={[{ id: "k1", name: "창원병원", lat: 35.22, lng: 128.68 }]}
+        scores={new Map([["4812125000", 73]])}
+        selectedRegionCode={null}
+        radiusKm={2}
+        showFacilities
+        legendLabel="의료기관 검색"
+        onSelectRegion={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(markerRecords.some((record) => record.title === "실시간 · 창원병원")).toBe(true));
+    expect(screen.getByTestId("map-live-legend")).toHaveTextContent("실시간 검색");
+  });
 });
 
 describe("MapCanvas SDK fallback", () => {

@@ -174,4 +174,27 @@ describe("rewriteSyntheticNote", () => {
     const other = "분석 거리는 행정동 대표점 기준 직선거리입니다.";
     expect(rewriteSyntheticNote(other, { population: true, vitals: true })).toBe(other);
   });
+
+  it("HIRA로 교체했으면 PRNG 좌표 각주를 지운다", () => {
+    const prng = "시설 위치는 행정동 내부 대표점 주변 PRNG 배치이며 실제 요양기관 좌표가 아닙니다.";
+    expect(rewriteSyntheticNote(prng, { population: false, vitals: false, facilities: true })).toBeNull();
+    expect(rewriteSyntheticNote(prng, { population: false, vitals: false, facilities: false })).toBe(prng);
+  });
+
+  it("실측이 하나라도 있으면 전체를 시연이라 부르지 않는다", () => {
+    const demo = "경상남도 행정동 경계를 기준으로 만든 결정론적 시연 데이터입니다.";
+    expect(rewriteSyntheticNote(demo, { population: false, vitals: false, facilities: true })).toBe(
+      "경상남도 행정동 경계를 기준으로 구성한 자료입니다.",
+    );
+    expect(rewriteSyntheticNote(demo, { population: false, vitals: false, facilities: false })).toBe(demo);
+  });
+
+  it("만든 사람 말투의 진료과 각주를 사실 문장으로 바꾼다", () => {
+    expect(
+      rewriteSyntheticNote(
+        "진료과·운영시간 null은 UI의 '데이터 없음' 처리를 검증하기 위한 의도적 값입니다.",
+        { population: false, vitals: false, facilities: true },
+      ),
+    ).toBe("진료과·운영시간이 제공되지 않는 시설이 있습니다.");
+  });
 });

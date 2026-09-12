@@ -631,9 +631,24 @@ export function KakaoMap({
     }
 
     for (const place of livePlaces.slice(0, 20)) {
+      let image: object | undefined;
+      if (typeof maps.MarkerImage === "function" && typeof maps.Size === "function") {
+        try {
+          image = new maps.MarkerImage(
+            facilityMarkerImageDataUri("실시간"),
+            new maps.Size(28, 28),
+            typeof maps.Point === "function"
+              ? { offset: new maps.Point(14, 14) }
+              : undefined,
+          );
+        } catch {
+          image = undefined;
+        }
+      }
       const marker = new maps.Marker({
         position: new maps.LatLng(place.lat, place.lng),
         title: `실시간 · ${place.name}`,
+        image,
         zIndex: 8,
       });
       maps.event.addListener(marker, "click", () => onSelectLivePlace?.(place));
@@ -756,6 +771,11 @@ export function KakaoMap({
         <p className="map-legend-note">
           5분위 채색(구간별 동 수 비슷) · 호버 시 이름·값
         </p>
+        {livePlaces.length > 0 ? (
+          <p className="map-legend-note" data-testid="map-live-legend">
+            회색 점 · 실시간 검색
+          </p>
+        ) : null}
         {noDataCount != null && noDataCount > 0 ? (
           <p className="map-legend-note" data-testid="map-legend-nodata">
             <span
