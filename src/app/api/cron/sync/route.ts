@@ -19,13 +19,10 @@ function authorized(request: Request): boolean {
   const syncSecret = process.env.DATA_SYNC_SECRET?.trim();
   const auth = request.headers.get("authorization")?.trim();
   const headerSecret = request.headers.get("x-sync-secret")?.trim();
-  const isVercelCron = request.headers.get("x-vercel-cron") === "1";
 
   if (cronSecret && auth === `Bearer ${cronSecret}`) return true;
   if (syncSecret && auth === `Bearer ${syncSecret}`) return true;
   if (syncSecret && headerSecret === syncSecret) return true;
-  // Vercel Cron 호출: CRON_SECRET 미설정 시 DATA_SYNC_SECRET만 있으면 허용
-  if (isVercelCron && syncSecret && !cronSecret) return true;
   return false;
 }
 
@@ -42,20 +39,27 @@ export async function GET(request: Request) {
   }
 
   const attemptedAt = new Date().toISOString();
-  await writeSyncStatus({ lastAttemptAt: attemptedAt, lastError: null });
+  await writeSyncStatus({ lastAttemptAt: attemptedAt, lastStatus: "running", lastPublished: false, lastError: null });
 
-  const result = await runLiveSync({ publish: true, datasets: ["facilities"] });
+  let result;
+  try {
+    result = await runLiveSync({ publish: true, datasets: ["facilities"], baseFrom: "published" });
+  } catch {
+    await writeSyncStatus({ lastStatus: "failed", lastPublished: false, lastError: "자료 갱신에 실패했습니다." });
+    return NextResponse.json({ ok: false, status: "failed", published: false, error: "자료 갱신에 실패했습니다." }, { status: 500 });
+  }
+  const succeeded = result.status !== "failed" && result.published;
 
   await writeSyncStatus({
     lastAttemptAt: attemptedAt,
-    lastStatus: result.status,
+    lastStatus: succeeded ? result.status : "failed",
     lastFacilityCount: result.facilityCount,
     lastPublished: result.published,
-    lastSuccessAt: result.status !== "failed" ? attemptedAt : undefined,
-    lastError: result.status === "failed" ? result.notes.join(" ") || "동기화 실패" : null,
+    ...(succeeded ? { lastSuccessAt: new Date().toISOString() } : {}),
+    lastError: succeeded ? null : "자료 갱신 또는 게시에 실패했습니다.",
   });
 
-  if (result.status === "failed") {
+  if (!succeeded) {
     const webhook = process.env.CRON_ALERT_WEBHOOK?.trim();
     if (webhook) {
       try {
@@ -77,7 +81,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    ok: result.status !== "failed",
+    ok: succeeded,
     source: "cron",
     status: result.status,
     facilityCount: result.facilityCount,
@@ -85,7 +89,7 @@ export async function GET(request: Request) {
     populationUpdated: result.populationUpdated ?? 0,
     referenceMonth: result.snapshot.referenceMonth,
     attemptedAt,
-    notes: result.notes,
+    notes: succeeded ? ["시설 자료를 갱신하고 게시했습니다."] : ["자료 갱신 또는 게시에 실패했습니다."],
   });
 }
 

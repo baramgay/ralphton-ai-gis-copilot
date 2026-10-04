@@ -79,10 +79,18 @@ export function isSnapshotPopulationRanking(input: {
   layerId?: string;
   title?: string;
   formulaNotes?: readonly string[];
+  metrics?: readonly { label: string; formula: string }[];
 }): boolean {
   if (input.isFacilityResult) return false;
   const layerId = input.layerId ?? "";
-  if (/^(skt-|nh-|kcb-|kosis)/.test(layerId) || layerId === "cross") return false;
+  if (/^(skt-|nh-|kcb-|kosis)/.test(layerId)) return false;
+  // 교차·의료 분석에도 공공 인구가 실제 입력이면 합성값 한계를 표시한다.
+  // 제공기관이 명시된 민간·국가통계 지표의 인구 수치는 스냅샷 인구가 아니다.
+  if (input.metrics?.some((metric) =>
+    !/\((?:SKT|NH|KCB|KOSIS|경상남도)\)/.test(metric.label) &&
+    /총인구|주민등록|고령인구|고령화율|고령비율|고령\s*수요|인구밀도|세대|1인.?가구|출생|사망|자연증가|자연감소/.test(`${metric.label} ${metric.formula}`),
+  )) return true;
+  if (layerId === "cross") return false;
   if (layerId === "population") return true;
   const text = `${input.title ?? ""} ${(input.formulaNotes ?? []).join(" ")}`;
   if (/취약지수|의료 접근성/.test(text)) return false;

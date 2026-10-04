@@ -1156,16 +1156,14 @@ input:hover {
 }
 
 /*
- * 첫 방문 안내. "맨 위 질문창에 적습니다"라고 말하는데 카드가 화면 아래에 있으면 눈이
- * 반대쪽을 본다. 히어로 바로 밑에 붙여 가리키는 곳과 읽는 곳을 맞춘다.
- * (좁은 화면은 아래쪽 그대로 — 위에 두면 히어로를 덮는다.)
+ * 짧은 첫 방문 안내는 지도 아래에 놓아 질문창과 지도 중심을 비워 둔다.
  */
 .onboard-card {
   position: absolute;
   z-index: 30;
   left: 50%;
-  top: 10.5rem;
-  width: min(92vw, 22rem);
+  bottom: 5.75rem;
+  width: min(92vw, 23rem);
   transform: translateX(-50%);
   border: 1px solid var(--glass-border);
   border-left: 3px solid var(--accent);
@@ -1181,10 +1179,6 @@ input:hover {
 
 .onboard-card h2 {
   color: var(--text-1);
-}
-
-.onboard-card ol {
-  font-weight: 600;
 }
 
 .onboard-card .ui-caption {
@@ -1213,7 +1207,7 @@ input:hover {
   border-color: var(--accent-line);
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1199px) {
   .onboard-card {
     /*
      * 조작·결과 시트 토글 바가 아래에 떠 있다. 예전 767px 분기는 폰 가로(844×390)를
@@ -1222,7 +1216,7 @@ input:hover {
      */
     /* 좁은 화면은 아래쪽 유지. top을 풀지 않으면 위아래가 다 묶여 카드가 늘어난다. */
     top: auto;
-    bottom: 9rem;
+    bottom: 5.75rem;
     left: 0.75rem;
     right: 0.75rem;
     width: auto;
@@ -2799,12 +2793,12 @@ input:hover {
 }
 
 /*
- * 1280px 이하는 바텀시트다. 예전 1100px은 아이패드 미니·에어·프로11 가로
- * (1133·1180·1194)를 3칸으로 밀어 지도를 잘랐다. 1366 노트북·프로 12.9 가로는
- * 그대로 3칸이다. JS의 matchMedia('(max-width: 1280px)') 와 같아야 한다 —
+ * 1199px 이하는 바텀시트다. 태블릿 가로(1133·1180·1194)는 시트를 유지하고
+ * 1200px부터 지도와 결과를 나란히 보여 준다.
+ * JS의 matchMedia('(max-width: 1199px)') 와 같아야 한다 —
  * 어긋나면 버튼이 빈 구간이 생긴다.
  */
-@media (max-width: 1280px) {
+@media (max-width: 1199px) {
   .copilot-shell {
     /* 좁은 화면에서는 세로가 아까우므로 상단 바를 낮춘다. */
     --topbar-h: 2.75rem;
@@ -3031,18 +3025,18 @@ input:hover {
   }
 
   /*
-   * 범례는 아래 오른쪽에 있어 조작 줄을 덮었다. 칩과 같은 높이에 오른쪽으로 옮긴다.
+   * 범례는 질문·최근 질문 아래로 내려 지도 하단 버튼 위에 둔다.
    */
   .map-legend {
-    top: 7.25rem;
+    top: auto;
     right: 0.5rem;
-    bottom: auto;
+    bottom: 5.25rem;
     width: 8.5rem;
     padding: 0.5rem;
   }
 }
 
-@media (min-width: 1281px) {
+@media (min-width: 1200px) {
   .sheet-handle,
   .sheet-snap-bar {
     display: none;
@@ -3050,7 +3044,7 @@ input:hover {
 }
 
 /* 태블릿: 질의창·칩을 조금 더 키운다. 세로는 시트, 가로는 아직 시트다. */
-@media (min-width: 600px) and (max-width: 1280px) {
+@media (min-width: 600px) and (max-width: 1199px) {
   .query-hero {
     width: min(42rem, calc(100% - 2.5rem));
   }
@@ -3069,6 +3063,10 @@ input:hover {
 @media (max-width: 600px) {
   .map-float-dock {
     bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .onboard-card {
+    bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -3403,7 +3401,12 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
   box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1199px) {
+  .map-error-card {
+    top: 7.25rem;
+    max-width: calc(100% - 2rem);
+  }
+
   .probe-card,
   .probe-hint {
     top: auto;
@@ -3421,7 +3424,7 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
  * 올라온다(844×390 실측). 부가 요소를 접고 시트 높이를 낮춘다.
  * 폭 조건이 없으면 짧은 데스크톱 창에서 옆 패널이 52dvh로 잘린다.
  */
-@media (max-width: 1280px) and (max-height: 520px) {
+@media (max-width: 1199px) and (max-height: 520px) {
   .onboard-card,
   .map-legend,
   .query-hero-chips {
@@ -3436,5 +3439,20 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
 
   .copilot-panel {
     max-height: 52dvh;
+  }
+}
+
+@media (max-width: 1199px) {
+  .copilot-shell[data-sheet="left"] .map-legend,
+  .copilot-shell[data-sheet="right"] .map-legend,
+  .copilot-map:has(.onboard-card) .map-legend {
+    display: none;
+  }
+  .query-hero:has([data-testid="recent-queries"]) [aria-label="추천 질문"] {
+    display: none;
+  }
+  .query-hero-notice {
+    max-height: 5rem;
+    overflow-y: auto;
   }
 }

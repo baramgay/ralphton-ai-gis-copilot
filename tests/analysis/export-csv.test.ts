@@ -9,6 +9,14 @@ import {
 } from "@/lib/analysis/export-csv";
 
 describe("resolveExportProvenance", () => {
+  test("uses actual metric months in mixed analyses instead of a stale provenance stamp", () => {
+    expect(resolveExportProvenance({
+      analysisProvenance: { referenceMonth: "2026-06", source: "SKT × NH" },
+      metricReferenceMonths: ["2025-12", "2025-11", "2025-12"],
+      snapshotReferenceMonth: "2026-06",
+      snapshotSource: "공공 스냅샷",
+    })).toEqual({ referenceMonth: "2025-12 / 2025-11", source: "SKT × NH" });
+  });
   const snapshotArgs = {
     snapshotReferenceMonth: "2026-06",
     snapshotSource: "공공 스냅샷",

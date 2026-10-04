@@ -40,22 +40,27 @@ export type CsvFacilityRow = {
  * 기준월·출처가 다르므로, 스냅샷 값을 그대로 찍으면 보고서에 잘못된 기준월이 실린다.
  * 우선순위: 결과 자체의 provenance > 활성 큐브 레이어 > 공공 스냅샷.
  */
-export function resolveExportProvenance(input: {
+export type ExportProvenanceInput = {
   analysisProvenance?: { referenceMonth: string; source: string };
   activeLayer?: { referenceMonth: string; provider: string; label: string } | null;
+  metricReferenceMonths?: readonly string[];
   snapshotReferenceMonth: string;
   snapshotSource: string;
-}): { referenceMonth: string; source: string } {
-  if (input.analysisProvenance) return input.analysisProvenance;
+};
+
+export function resolveExportProvenance(input: ExportProvenanceInput): { referenceMonth: string; source: string } {
+  const metricMonths = [...new Set(input.metricReferenceMonths?.filter(Boolean) ?? [])];
+  const referenceMonth = metricMonths.length > 0 ? metricMonths.join(" / ") : undefined;
+  if (input.analysisProvenance) return { ...input.analysisProvenance, referenceMonth: referenceMonth ?? input.analysisProvenance.referenceMonth };
   if (input.activeLayer) {
     return {
-      referenceMonth: input.activeLayer.referenceMonth,
+      referenceMonth: referenceMonth ?? input.activeLayer.referenceMonth,
       source: withHubChannel(`${input.activeLayer.provider} · ${input.activeLayer.label}`, [
         input.activeLayer.provider,
       ]),
     };
   }
-  return { referenceMonth: input.snapshotReferenceMonth, source: input.snapshotSource };
+  return { referenceMonth: referenceMonth ?? input.snapshotReferenceMonth, source: input.snapshotSource };
 }
 
 /**

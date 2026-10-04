@@ -47,12 +47,12 @@ test.describe("mobile sheet", () => {
     await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
 
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "조작" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "분석 설정" })).toBeVisible();
     await expect(page.getByRole("button", { name: "결과" })).toBeVisible();
 
     await page.getByRole("button", { name: "결과" }).click({ force: true });
     await expect(page.getByTestId("result-panel")).toBeVisible();
-    await expect(page.getByTestId("one-line-conclusion")).toBeVisible();
+    await expect(page.getByTestId("analysis-empty-state")).toBeVisible();
   });
 
   /*
@@ -103,7 +103,7 @@ test.describe("mobile sheet", () => {
     // 첫 방문자에게 뜨는 카드가 조작·결과 버튼 위에 겹쳐 있었다.
     await expect(page.getByTestId("onboard-card")).toBeVisible();
 
-    expect(await isReachable(page, "조작")).toBe(true);
+    expect(await isReachable(page, "분석 설정")).toBe(true);
     expect(await isReachable(page, "결과")).toBe(true);
   });
 
@@ -131,7 +131,7 @@ test.describe("mobile sheet", () => {
     expect(rows.rows).toBe(1);
 
     // 줄 안의 버튼은 모두 눌려야 한다. 화면 밖으로 나가도 접히지는 않기 때문이다.
-    for (const label of ["조작", "결과"]) {
+    for (const label of ["분석 설정", "결과"]) {
       expect(await isReachable(page, label)).toBe(true);
     }
   });
@@ -147,13 +147,13 @@ test.describe("mobile sheet", () => {
     await page.getByRole("button", { name: "바로 시작" }).click();
 
     // 조작을 연 상태에서 결과 버튼이 시트에 가려 눌리지 않아 한쪽에 갇히곤 했다.
-    await page.getByRole("button", { name: "조작", exact: true }).click();
+    await page.getByRole("button", { name: "분석 설정", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
     expect(await isReachable(page, "결과")).toBe(true);
 
     await page.getByRole("button", { name: "결과", exact: true }).click();
     await expect(page.locator(".copilot-panel-right")).toHaveClass(/sheet-open/);
-    expect(await isReachable(page, "조작")).toBe(true);
+    expect(await isReachable(page, "분석 설정")).toBe(true);
   });
 });
 
@@ -165,11 +165,11 @@ test.describe("tablet sheet", () => {
     await page.goto("/");
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "조작" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "분석 설정" })).toBeVisible();
     await expect(page.getByRole("button", { name: "결과" })).toBeVisible();
 
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
-    await page.getByRole("button", { name: "조작", exact: true }).click();
+    await page.getByRole("button", { name: "분석 설정", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
     await expect(page.getByText("민간 자료")).toBeVisible();
     await expect(page.getByRole("button", { name: "생활인구 SKT" })).toBeVisible();
@@ -193,7 +193,7 @@ test.describe("tablet landscape sheet", () => {
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
 
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
-    await page.getByRole("button", { name: "조작", exact: true }).click();
+    await page.getByRole("button", { name: "분석 설정", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
     await expect(page.getByText("민간 자료")).toBeVisible();
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
@@ -208,7 +208,7 @@ test.describe("phone landscape", () => {
     await page.goto("/");
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
-    expect(await isReachable(page, "조작")).toBe(true);
+    expect(await isReachable(page, "분석 설정")).toBe(true);
     expect(await isReachable(page, "결과")).toBe(true);
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
 

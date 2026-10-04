@@ -96,6 +96,26 @@ describe('lazy optional Supabase clients', () => {
 });
 
 describe('Supabase cache operations', () => {
+  it('distinguishes no published row from query and validation failures for sync callers', async () => {
+    const query = {
+      select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(),
+      maybeSingle: vi.fn()
+        .mockResolvedValueOnce({ data: null, error: null })
+        .mockResolvedValueOnce({ data: null, error: { message: 'private-key upstream' } })
+        .mockResolvedValueOnce({ data: { payload: { mode: 'live' } }, error: null })
+        .mockResolvedValueOnce({ data: null, error: { message: 'private-key upstream' } }),
+    };
+    for (const method of [query.select, query.eq, query.order, query.limit]) method.mockReturnValue(query);
+    supabaseMocks.createClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) });
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'fixture-anon-value');
+    const { readPublishedSnapshotMetaOrThrow, readPublishedSnapshotMeta } = await import('@/lib/supabase/public');
+    await expect(readPublishedSnapshotMetaOrThrow('live')).resolves.toBeNull();
+    await expect(readPublishedSnapshotMetaOrThrow('live')).rejects.toThrow('게시 자료');
+    await expect(readPublishedSnapshotMetaOrThrow('live')).rejects.toThrow('게시 자료');
+    await expect(readPublishedSnapshotMeta('live')).resolves.toBeNull();
+  });
+
   beforeEach(() => {
     vi.resetModules();
     supabaseMocks.createClient.mockReset();
@@ -128,6 +148,8 @@ describe('Supabase cache operations', () => {
     expect(client.from).toHaveBeenCalledWith('data_snapshots');
     expect(query.eq).toHaveBeenCalledWith('is_published', true);
     expect(query.eq).toHaveBeenCalledWith('mode', 'live');
+    expect(query.select).toHaveBeenCalledWith('payload, created_at, updated_at, source, checksum');
+    expect(query.order).toHaveBeenCalledWith('updated_at', { ascending: false });
   });
 
   it('rejects malformed cached payloads and recovers from cache query failures', async () => {

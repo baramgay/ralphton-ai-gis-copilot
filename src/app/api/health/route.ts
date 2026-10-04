@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 type PublishedLive = {
   available: boolean;
   createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
   source?: string;
   referenceMonth?: string | null;
   facilityCount?: number;
@@ -122,13 +124,15 @@ export async function GET() {
       readSyncStatus(),
     ]);
 
-    const publishedAt = live?.createdAt ?? local.lastSuccessAt;
+    const publishedAt = live?.updatedAt ?? live?.createdAt;
     const staleness = computeStaleness(publishedAt, local);
 
     publishedLive = live
       ? {
           available: true,
           createdAt: live.createdAt ?? undefined,
+          updatedAt: live.updatedAt ?? undefined,
+          publishedAt: publishedAt ?? undefined,
           source: live.source ?? undefined,
           referenceMonth: live.snapshot.referenceMonth,
           facilityCount: live.snapshot.facilities.length,
@@ -141,7 +145,7 @@ export async function GET() {
       lastSuccessAt: local.lastSuccessAt,
       lastStatus: local.lastStatus,
       lastFacilityCount: local.lastFacilityCount,
-      lastError: local.lastError,
+      lastError: local.lastError ? "최근 동기화가 완료되지 않았습니다." : null,
       lastPublished: local.lastPublished,
       recommendedIntervalHours: local.recommendedIntervalHours,
       stale: staleness.stale,

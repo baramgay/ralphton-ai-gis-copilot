@@ -79,6 +79,30 @@ describe("/api/data/sync", () => {
     expect(response.status).toBe(401);
   });
 
+  it("persists incomplete start and records an ordinary throw as failed", async () => {
+    syncMocks.runLiveSync.mockRejectedValueOnce(new Error("private-key upstream"));
+    const response = await POST(new Request("http://localhost/api/data/sync", {
+      method: "POST", headers: { "x-sync-secret": "test-secret" }, body: "{}",
+    }));
+    expect(syncMocks.writeSyncStatus.mock.calls[0]?.[0]).toMatchObject({ lastStatus: "running", lastPublished: false });
+    expect(syncMocks.writeSyncStatus.mock.calls.at(-1)?.[0]).toMatchObject({ lastStatus: "failed", lastPublished: false });
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("private-key");
+  });
+
+  it("reports a requested publication failure without advancing success", async () => {
+    syncMocks.runLiveSync.mockResolvedValueOnce({
+      status: "facilities-live", published: false, facilityCount: 42,
+      snapshot: { mode: "live", referenceMonth: "2026-06" }, checksum: "a".repeat(64), notes: [],
+    });
+    const response = await POST(new Request("http://localhost/api/data/sync", {
+      method: "POST", headers: { "x-sync-secret": "test-secret" }, body: "{}",
+    }));
+    expect((await response.json()).ok).toBe(false);
+    expect(syncMocks.writeSyncStatus.mock.calls.at(-1)?.[0]).toMatchObject({ lastStatus: "failed", lastPublished: false });
+    expect(syncMocks.writeSyncStatus.mock.calls.at(-1)?.[0]).not.toHaveProperty("lastSuccessAt");
+  });
+
   it("runs sync with valid secret, records status, omits credentials", async () => {
     syncMocks.runLiveSync.mockResolvedValueOnce({
       status: "demo-only",
@@ -112,6 +136,7 @@ describe("/api/data/sync", () => {
     expect(body.ok).toBe(true);
     expect(body.facilityCount).toBe(10);
     expect(syncMocks.writeSyncStatus).toHaveBeenCalled();
+    expect(syncMocks.writeSyncStatus.mock.calls.at(-1)?.[0]).not.toHaveProperty("lastSuccessAt");
     expect(JSON.stringify(body)).not.toMatch(/test-secret|serviceKey|apiKey/i);
   });
 });

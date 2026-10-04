@@ -20,6 +20,7 @@ import {
   dataModeLabel,
   dataModeTitle,
   exportModeLabel,
+  exportSourceLabel,
   isSnapshotPopulationRanking,
   populationIsLive,
   providerSourceLabel,
@@ -856,6 +857,8 @@ type CapabilityFlags = {
 
 function formatSyncStatusLabel(status: string | null | undefined): string {
   switch (status) {
+    case "running":
+      return "실행 중";
     case "hybrid-live":
       return "시설+인구 실측";
     case "facilities-live":
@@ -883,6 +886,8 @@ function populationNoteFromSnapshot(notes: string[]): string | null {
 type PublishedLiveInfo = {
   available: boolean;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
   source?: string | null;
   referenceMonth?: string;
   facilityCount?: number;
@@ -962,6 +967,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [sheetMode, setSheetMode] = useState<"left" | "right" | "none">("none");
   const [livePlaces, setLivePlaces] = useState<LivePlace[]>([]);
   const [livePlacesNotice, setLivePlacesNotice] = useState<string | null>(null);
+  const [livePlacesLoading, setLivePlacesLoading] = useState(false);
   const [mapEngine, setMapEngine] = useState<"kakao" | "demo" | "unknown">(
     kakaoMapKey ? "kakao" : "demo",
   );
@@ -1332,9 +1338,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         if (districts.length >= 2) {
           setComparePair((current) => normalizeComparePair(current[0], current[1], districts));
         }
-
-        const initial = executeQuickAnalysis(nextSnapshot, "scarcity", 2, DEFAULT_COMPARE);
-        setSelectedRegionCode((current) => current ?? initial.ranked[0]?.code ?? nextSnapshot.regions[0]?.adm_cd2 ?? null);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -1799,8 +1802,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       legend: [],
       formulaNotes: analysis.formulaNotes,
     };
-    return interpretAnalysisResult(result, snapshot, { selectedRegionCode });
-  }, [snapshot, analysis, selectedRegionCode]);
+    return interpretAnalysisResult(result, snapshot, {
+      selectedRegionCode,
+      ascending: analysis.rankDirection === "asc",
+      layerId: analysis.id,
+      analysisProvenance: analysis.provenance,
+      snapshotSource: dataSource,
+      activeLayer: activeLayerId !== "medical" && activeCube
+        ? { referenceMonth: activeCube.referenceMonth, provider: activeLayerProvider, label: LAYER_OPTIONS.find((layer) => layer.id === activeLayerId)?.label ?? activeLayerId }
+        : null,
+    });
+  }, [snapshot, analysis, selectedRegionCode, activeCube, activeLayerId, activeLayerProvider, dataSource]);
 
   const scores = useMemo(() => {
     if (!analysisRequested) return new Map<string, number>();
@@ -2159,6 +2171,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLivePlacesNotice(null);
       return;
     }
+    setLivePlacesLoading(true);
+    setLivePlacesNotice(null);
     try {
       const params = new URLSearchParams({
         q: keyword,
@@ -2173,11 +2187,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         notice?: string;
         ok?: boolean;
       };
+      if (!response.ok || data.ok === false) throw new Error("places unavailable");
       setLivePlaces(data.places ?? []);
-      setLivePlacesNotice(data.notice ?? null);
     } catch {
       setLivePlaces([]);
-      setLivePlacesNotice("실시간 장소 검색을 불러오지 못했습니다.");
+      setLivePlacesNotice("주변 장소를 불러오지 못했습니다. 새로고침으로 다시 시도하거나 다른 지역을 선택하세요.");
+    } finally {
+      setLivePlacesLoading(false);
     }
   }, []);
 
@@ -2206,7 +2222,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const isNarrowNow = () =>
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 1280px)").matches;
+    window.matchMedia("(max-width: 1199px)").matches;
 
   const toggleControls = useCallback(() => {
     if (isNarrowNow()) setSheetMode((mode) => (mode === "left" ? "none" : "left"));
@@ -2399,6 +2415,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               label: LAYER_OPTIONS.find((layer) => layer.id === activeLayerId)?.label ?? activeLayerId,
             }
           : null,
+      metricReferenceMonths: analysis.ranked.flatMap((row) => row.metrics.map((metric) => metric.referenceMonth)),
       snapshotReferenceMonth: snapshot.referenceMonth,
       snapshotSource: dataSource,
     });
@@ -2410,6 +2427,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const csvOptions = {
       sourceNotes: snapshot.sourceNotes,
       populationDerived: isSnapshotPopulationRanking({
+        metrics: analysis.ranked.flatMap((row) => row.metrics),
         isFacilityResult: analysis.isFacilityResult,
         layerId: analysis.id,
         title: analysis.title,
@@ -2471,6 +2489,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       mode: snapshot.mode,
       sourceNotes: snapshot.sourceNotes,
       populationDerived: isSnapshotPopulationRanking({
+        metrics: analysis.ranked.flatMap((row) => row.metrics),
         isFacilityResult: analysis.isFacilityResult,
         layerId: analysis.id,
         title: analysis.title,
@@ -2626,29 +2645,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       };
 
       let view: StatsView;
-      // 점수가 없는 결과라 해석문이 대신 말할 값. 상관이면 A축, 이상치면 그 지표다.
-      let statsMetric: { label: string; unit: string; formula: string; referenceMonth: string };
+      let referenceMonths: string[];
       if (stats.kind === "correlation") {
         const a = refFor(stats.a.layerId, stats.a.metricKey);
         const b = refFor(stats.b.layerId, stats.b.metricKey);
         if (!a || !b) return false;
         view = correlationView(stats, a, b, { asksCausation: asksCausation(query) });
-        statsMetric = {
-          label: stats.a.metricLabel,
-          unit: a.metric.unit,
-          formula: a.metric.formula,
-          referenceMonth: a.cube.referenceMonth,
-        };
+        referenceMonths = [a.cube.referenceMonth, b.cube.referenceMonth];
       } else {
         const ref = refFor(stats.ref.layerId, stats.ref.metricKey);
         if (!ref) return false;
         view = outlierView(stats, ref);
-        statsMetric = {
-          label: stats.ref.metricLabel,
-          unit: ref.metric.unit,
-          formula: ref.metric.formula,
-          referenceMonth: ref.cube.referenceMonth,
-        };
+        referenceMonths = [ref.cube.referenceMonth];
       }
 
       /*
@@ -2669,20 +2677,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             mapScore: null,
             valueLabel: row.detail,
             note: "",
-            /*
-             * 점수가 없으니 해석문이 대신 말할 값을 준다. 상관이면 A축 값, 이상치면 그
-             * 지표 값이다 — 「1위 창원시(30.6%)」처럼 실제로 잰 것이 나온다.
-             */
-            metrics: [
-              {
-                label: statsMetric.label,
-                value: row.score,
-                unit: statsMetric.unit,
-                formula: statsMetric.formula,
-                referenceMonth: statsMetric.referenceMonth,
-                limitation: view.notes[0] ?? "",
-              },
-            ],
+            metrics: row.metrics,
           };
         }),
         filteredFacilities: [],
@@ -2692,6 +2687,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         isFacilityResult: false,
         // 없으면 화면이 활성 레이어 기준으로 단위를 추측해 시군구 결과를 「행정동」이라 적는다.
         unitWord: view.unitWord,
+        provenance: {
+          referenceMonth: [...new Set(view.rows.length > 0
+            ? view.rows.flatMap((row) => row.metrics.map((metric) => metric.referenceMonth))
+            : referenceMonths)].join(" / "),
+          source: withHubChannel(
+            stats.kind === "correlation"
+              ? `${stats.a.provider} ${stats.a.metricLabel} × ${stats.b.provider} ${stats.b.metricLabel}`
+              : `${stats.ref.provider} ${stats.ref.metricLabel}`,
+            stats.kind === "correlation" ? [stats.a.provider, stats.b.provider] : [stats.ref.provider],
+          ),
+        },
       });
       setActiveTab("control");
       if (stats.adminLevel !== adminLevel) setAdminLevel(stats.adminLevel);
@@ -2818,12 +2824,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const runCrossPreset = useCallback(
     (presetQuery: string) => {
       const cross = resolveCrossQuery(presetQuery, CROSS_LAYERS, { adminLevelFallback: adminLevel });
-      if (!cross || !runCross(cross)) {
-        setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      if (!cross) return;
+      setAnalysisRequested(true);
+      setQuery(presetQuery);
+      dismissOnboard();
+      if (!runCross(cross)) {
+        setParseStage("analyze");
+        setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 준비되면 분석이 이어집니다.");
         setQueryNoticeTone("neutral");
+        requestCubesAndRetry([cross.a.layerId, cross.b.layerId], { kind: "cross", match: cross });
       }
     },
-    [adminLevel, runCross],
+    [adminLevel, dismissOnboard, requestCubesAndRetry, runCross],
   );
 
   /**
@@ -3617,8 +3629,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       : analysis && analysis.formulaNotes.length > 0
         ? analysis.formulaNotes.join(" · ")
         : METHOD_SUMMARY;
-  const referenceMonthLabel =
-    activeLayerId !== "medical" && activeCube ? activeCube.referenceMonth : snapshot.referenceMonth;
+  const referenceMonthLabel = analysisRequested && exportProvenance
+    ? exportProvenance.referenceMonth
+    : snapshot.referenceMonth;
+  const analysisSourceLabel = analysisRequested && exportProvenance
+    ? exportSourceLabel(exportProvenance.source) ?? "공공데이터"
+    : activeLayerProvider;
   const activeLayerLabel =
     LAYER_OPTIONS.find((layer) => layer.id === activeLayerId)?.label ?? activeLayerId;
   const activeMetricLabel =
@@ -3629,10 +3645,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const showSggLabels =
     outlineMode ||
     (analysisRequested && adminLevel === "sgg" && activeLayerId !== KCB_GRID_LAYER.id);
-  const mapViewLabel = outlineMode
+  const mapViewLabel = !analysisRequested
     ? "경상남도 · 시군구 경계"
-    : `${pickerSummary} · ${referenceMonthLabel}`;
+    : `${isCrossView ? analysis.title : pickerSummary} · ${referenceMonthLabel} · ${analysisSourceLabel}`;
 
+  const displayPublishedAt = publishedLive?.publishedAt ?? publishedLive?.updatedAt ?? publishedLive?.createdAt;
   const latestIndex = snapshot.months.length - 1;
   const currentPopulation = selectedRegion?.population[latestIndex] ?? 0;
   const currentElderly = selectedRegion?.elderlyPopulation[latestIndex] ?? 0;
@@ -3709,7 +3726,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   return (
     <main className="copilot-shell" style={shellStyle} data-sheet={sheetMode} data-testid="copilot-shell">
       <a href="#left-panel" className="skip-link">
-        분석 조작 패널로 건너뛰기
+        분석 설정 패널로 건너뛰기
       </a>
 
       {/*
@@ -3735,7 +3752,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         className={`copilot-panel copilot-panel-left ${sheetMode === "left" ? "sheet-open" : ""} ${
           layout.leftCollapsed ? "is-collapsed" : ""
         }`}
-        aria-label="분석 조작 패널"
+        aria-label="분석 설정 패널"
         /*
           접근성 트리에서 빼는 기준은 "정말 안 보이는가"다. 좁은 화면에서는 시트가 열려
           있으면 보이는 것이므로, 접힘 상태(leftCollapsed)만 보고 숨기면 시트를 열어도
@@ -4359,7 +4376,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </section>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3.5">
-                <p className="ui-body font-bold text-slate-900">자주 쓰는 조작</p>
+                <p className="ui-body font-bold text-slate-900">지도와 패널 사용법</p>
                 <ul className="mt-2 space-y-2 ui-body text-slate-600">
                   <li>
                     <span className="kbd">/</span> 질문 입력으로 이동
@@ -4669,8 +4686,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       {publishedLive.facilityCount != null
                         ? `${publishedLive.facilityCount.toLocaleString("ko-KR")}곳`
                         : ""}
-                      {publishedLive.createdAt
-                        ? ` · ${new Date(publishedLive.createdAt).toLocaleString("ko-KR")}`
+                      {displayPublishedAt
+                        ? ` · ${new Date(displayPublishedAt).toLocaleString("ko-KR")}`
                         : ""}
                     </p>
                   ) : (
@@ -4741,8 +4758,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         <p className="mt-1">기준월 {publishedLive.referenceMonth ?? "—"}</p>
                         <p>
                           갱신{" "}
-                          {publishedLive.createdAt
-                            ? new Date(publishedLive.createdAt).toLocaleString("ko-KR")
+                          {displayPublishedAt
+                            ? new Date(displayPublishedAt).toLocaleString("ko-KR")
                             : "시각 없음"}
                         </p>
                         <p>시설 {publishedLive.facilityCount?.toLocaleString("ko-KR") ?? "—"}곳</p>
@@ -4919,7 +4936,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               aria-pressed={sheetMode === "left" || !layout.leftCollapsed}
               onClick={toggleControls}
             >
-              조작
+              분석 설정
             </button>
             <button
               type="button"
@@ -4961,29 +4978,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         {showOnboard ? (
           <div
             className="onboard-card"
-            role="dialog"
-            aria-modal="true"
+            role="region"
             aria-labelledby="onboard-title"
             data-testid="onboard-card"
           >
-            <p className="ui-caption font-bold">30초 시작</p>
-            <h2 id="onboard-title" className="ui-title mt-1">
-              이렇게 써 보세요
-            </h2>
-            <ol className="mt-3 space-y-2 ui-body">
-              {/* 질의창이 지도 위 맨 위로 올라갔다. 어디를 보라는 말인지 맞춰 둔다. */}
-              <li>
-                <span className="font-bold">1.</span> 맨 위 질문창에 「생활인구 많은 동네」처럼 적습니다
-              </li>
-              <li>
-                <span className="font-bold">2.</span> {HUB_INVENTORY.platform}이 제공한 SKT·NH·KCB
-                민간데이터가 지도에 칠해집니다
-              </li>
-              <li>
-                <span className="font-bold">3.</span> 결과 패널에서 순위·해석을 보고 보고서로 내보냅니다
-              </li>
-            </ol>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <h2 id="onboard-title" className="ui-title">질문 한 번으로 경남을 살펴보세요</h2>
+            <p className="mt-2 ui-body">추천 질문을 누르면 지도와 지역 순위를 함께 볼 수 있습니다.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 className="onboard-btn-primary px-3.5 py-2 ui-chip font-bold"
@@ -5084,7 +5085,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               방금 질문에는 답하지 못했습니다. 아래는 직전 분석 결과입니다.
             </p>
           ) : null}
-          {oneLineConclusion ? (
+          {analysis.id !== "idle" && oneLineConclusion ? (
             <div className="result-conclusion mt-2.5" data-testid="one-line-conclusion">
               <div className="mb-0.5 flex items-center justify-between gap-2">
                 <span className="result-conclusion-label !mb-0">한 줄 결론</span>
@@ -5332,7 +5333,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </div>
             </details>
           ) : null}
-          {methodSummaryText.trim() ? (
+          {analysis.id !== "idle" && methodSummaryText.trim() ? (
             <p
               className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"
               data-testid="method-summary"
@@ -5341,7 +5342,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               {methodSummaryText}
             </p>
           ) : null}
-          <div
+          {analysis.id !== "idle" ? <div
             className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
               snapshot.mode === "live"
                 ? "border-emerald-100 bg-emerald-50 text-emerald-900"
@@ -5354,6 +5355,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 snapshot.mode,
                 snapshot.sourceNotes,
                 isSnapshotPopulationRanking({
+                  metrics: analysis.ranked.flatMap((row) => row.metrics),
                   isFacilityResult: analysis.isFacilityResult,
                   layerId: analysis.id,
                   title: analysis.title,
@@ -5362,19 +5364,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               )}
             </span>
             {" · "}기준월 {referenceMonthLabel}
-            {" · "}{activeLayerProvider}
+            {" · "}{analysisSourceLabel}
             {snapshot.mode === "demo" ? " · 정책 판단용 아님" : ""}
-          </div>
+          </div> : null}
           {/*
             읽을 것(몇 개인가·선택은 몇 위인가)과 할 것(내보내기)이 한 칩 구름에 섞여 있어
             무엇이 눌리는지 구분되지 않았다. 사실은 문장으로, 동작만 버튼으로 나눈다.
           */}
-          <p className="ui-caption mt-2.5 text-slate-500" data-testid="result-meta">
+          {analysis.id !== "idle" ? <p className="ui-caption mt-2.5 text-slate-500" data-testid="result-meta">
             {analysis.isFacilityResult
               ? `${filteredFacilitiesList.length.toLocaleString("ko-KR")}개 시설`
               : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${analysis.unitWord ?? unitWordOf(activeLayerId, adminLevel)}`}
             {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
-          </p>
+          </p> : null}
+          {analysis.ranked.length > 0 || analysis.filteredFacilities.length > 0 ? (
           <div className="export-actions mt-1.5" role="group" aria-label="내보내기">
             <button
               type="button"
@@ -5410,6 +5413,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               공유
             </button>
           </div>
+          ) : null}
           {shareNotice ? (
             <p className="ui-chip mt-2 font-semibold text-emerald-700" role="status">
               {shareNotice}
@@ -5418,6 +5422,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         </header>
 
         <div className="copilot-scroll space-y-4 px-3 pb-8 pt-3">
+          {analysis.id === "idle" ? (
+            <section className="empty-state" data-testid="analysis-empty-state">
+              <p className="ui-body-lg font-bold">추천 질문으로 분석을 시작하세요</p>
+              <p className="ui-body mt-1.5">질문을 실행하면 지도와 순위가 나타납니다. 지도에서 지역을 선택하면 상세 자료를 볼 수 있습니다.</p>
+              <button type="button" className="onboard-btn-primary mt-3 px-3.5 py-2 ui-chip font-bold" onClick={runOnboardExample}>생활인구 분석 시작</button>
+            </section>
+          ) : null}
           {isLayerCubeLoading ? (
             <section className="empty-state" data-testid="layer-cube-loading">
               <p className="ui-body-lg font-bold text-slate-800">{analysis.summary}</p>
@@ -5451,7 +5462,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </section>
           ) : null}
 
-          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {analysis.id !== "idle" ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-3.5 py-2.5">
               <div className="flex items-center justify-between gap-2">
                 <p className="ui-caption font-bold text-slate-500">
@@ -5635,9 +5646,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </ul>
               </details>
             ) : null}
-          </section>
+          </section> : null}
 
-          {interpretation ? <InterpretationCard interpretation={interpretation} /> : null}
+          {analysis.id !== "idle" && interpretation ? <InterpretationCard interpretation={interpretation} /> : null}
 
           {selectedRegion ? (
             <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
@@ -5683,6 +5694,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </div>
               ) : null}
 
+              {!populationIsLive(snapshot.mode, snapshot.sourceNotes) ? (
+                <p className="ui-caption mt-3 font-semibold text-amber-700" data-testid="selected-population-note">인구·가구·자연증가·추세는 시연용 합성값이며 실제 주민등록 통계가 아닙니다. 의료기관 수와 민간 지표는 각 출처를 확인하세요.</p>
+              ) : null}
               <div className="mt-3 grid grid-cols-2 gap-1.5">
                 {[
                   ["총인구", currentPopulation.toLocaleString("ko-KR")],
@@ -5751,7 +5765,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          {selectedRegion && analysis.isFacilityResult ? <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-[10px] font-bold text-slate-600">실시간 주변 장소</p>
@@ -5759,19 +5773,22 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </div>
               <button
                 type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-600"
+                className="min-h-11 rounded-lg border border-slate-200 px-3 py-2 ui-caption font-semibold text-slate-600"
                 onClick={() => void loadLivePlacesNearSelection(selectedRegion, "병원")}
+                disabled={livePlacesLoading}
               >
                 새로고침
               </button>
             </div>
-            {livePlacesNotice ? (
-              <p className="mt-2 text-[10px] leading-5 text-slate-500">{livePlacesNotice}</p>
+            {livePlacesLoading ? (
+              <p className="ui-caption mt-2" role="status">주변 장소를 찾는 중입니다…</p>
+            ) : livePlacesNotice ? (
+              <p className="ui-caption mt-2" role="status">{livePlacesNotice}</p>
             ) : null}
             <div className="mt-2 divide-y divide-slate-100">
-              {livePlaces.length === 0 ? (
-                <p className="py-3 text-[11px] text-slate-500">
-                  표시할 실시간 장소가 없습니다. REST 키·도메인 설정을 확인하세요.
+              {livePlaces.length === 0 && !livePlacesLoading && !livePlacesNotice ? (
+                <p className="py-3 ui-caption text-slate-500">
+                  선택 동 대표점 반경 2km에서 병원을 찾지 못했습니다. 다른 지역을 선택하거나 위 의료기관 목록을 확인하세요.
                 </p>
               ) : (
                 livePlaces.map((place) => (
@@ -5793,7 +5810,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 ))
               )}
             </div>
-          </section>
+          </section> : null}
         </div>
       </aside>
 
@@ -5801,8 +5818,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       <button
         type="button"
         className="panel-edge-toggle panel-edge-toggle-left"
-        title={layout.leftCollapsed ? "조작 패널 열기 ( [ )" : "조작 패널 접기 ( [ )"}
-        aria-label={layout.leftCollapsed ? "조작 패널 열기" : "조작 패널 접기"}
+        title={layout.leftCollapsed ? "분석 설정 패널 열기 ( [ )" : "분석 설정 패널 접기 ( [ )"}
+        aria-label={layout.leftCollapsed ? "분석 설정 패널 열기" : "분석 설정 패널 접기"}
         aria-pressed={!layout.leftCollapsed}
         onClick={toggleLeft}
       >

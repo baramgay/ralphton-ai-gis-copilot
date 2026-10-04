@@ -14,7 +14,7 @@ import { CopilotApp } from "@/components/copilot/copilot-app";
 function openControls() {
   // 배치는 localStorage에 남는다. 앞 테스트가 열어 둔 채로 끝나면 여기서 무조건 누를 때
   // 오히려 닫힌다 — 실제로 그 순서 의존 때문에 두 테스트가 깨졌다. 열려 있으면 놔둔다.
-  const toggle = screen.getByRole("button", { name: "조작" });
+  const toggle = screen.getByRole("button", { name: "분석 설정" });
   if (toggle.getAttribute("aria-pressed") === "true") return;
   fireEvent.click(toggle);
 }
@@ -572,6 +572,42 @@ describe("CopilotApp", () => {
     );
   });
 
+  test("분석 전 임의 지역과 빈 내보내기를 보여주지 않는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    expect(screen.queryByText("선택한 행정동")).toBeNull();
+    expect(screen.queryByRole("group", { name: "내보내기" })).toBeNull();
+    expect(screen.queryByTestId("data-provenance")).toBeNull();
+    expect(screen.queryByTestId("method-summary")).toBeNull();
+    expect(screen.queryByTestId("copy-conclusion")).toBeNull();
+    expect(screen.queryByTestId("result-meta")).toBeNull();
+    expect(screen.getByText("추천 질문으로 분석을 시작하세요")).toBeInTheDocument();
+  });
+
+  test("선택 지역의 합성 인구 통계와 추세 곁에 시연 자료를 표시한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
+    expect(await screen.findByTestId("selected-population-note")).toHaveTextContent(/인구·가구·자연증가·추세.*시연/);
+  });
+
+  test("주변 장소 실패는 설정 오류 대신 다시 시도할 방법을 안내한다", async () => {
+    const base = fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/api/kakao/places")) {
+        return new Response(JSON.stringify({ ok: false, notice: "REST 키 설정 필요" }), { status: 503 });
+      }
+      return base(input);
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
+    fireEvent.click(screen.getByRole("button", { name: "의료기관 목록" }));
+    fireEvent.click(screen.getByRole("button", { name: /^새로고침$/ }));
+    expect(await screen.findByText(/주변 장소를 불러오지 못했습니다.*다시 시도/)).toBeInTheDocument();
+    expect(screen.queryByText(/REST 키/)).toBeNull();
+  });
+
   test(
     "renders the eight quick analyses and a keyless demo map",
     async () => {
@@ -657,7 +693,7 @@ describe("CopilotApp", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((queryText: string) => ({
-        matches: queryText.includes("max-width: 1280px"),
+        matches: queryText.includes("max-width: 1199px"),
         media: queryText,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -671,8 +707,8 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
 
-    fireEvent.click(screen.getByRole("button", { name: "조작" }));
-    expect(screen.getByLabelText("분석 조작 패널").className).toMatch(/sheet-open/);
+    fireEvent.click(screen.getByRole("button", { name: "분석 설정" }));
+    expect(screen.getByLabelText("분석 설정 패널").className).toMatch(/sheet-open/);
 
     fireEvent.click(screen.getByRole("button", { name: "결과" }));
     expect(screen.getByTestId("result-panel").className).toMatch(/sheet-open/);
@@ -721,6 +757,7 @@ describe("CopilotApp", () => {
   test("copy conclusion button appears after analysis", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
+    selectMedicalLayer();
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("copy-conclusion")).toBeInTheDocument();
   });
@@ -751,9 +788,32 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("result-panel")).not.toHaveTextContent(/총생활인구 순위/);
   });
 
+  test("혼합 기준월과 출처는 활성 생활인구가 아니라 실제 상관 자료를 따른다", async () => {
+    const base = fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const response = await base(input);
+      if (!String(input).includes("/data/layers/kosis-housing.json")) return response;
+      const cube = await response.json();
+      return new Response(JSON.stringify({ ...cube, referenceMonth: "2023-12", months: ["2023-12"] }));
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
+      target: { value: "재정자립도와 빈집 비율의 상관관계" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent(/스피어만/));
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2024-12 / 2023-12");
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("KOSIS");
+    expect(screen.getByTestId("data-provenance")).not.toHaveTextContent("SKT");
+    expect(screen.getByTestId("demo-map-badge")).toHaveTextContent("2024-12 / 2023-12");
+    expect(screen.getByTestId("demo-map-badge")).not.toHaveTextContent("SKT");
+  });
+
   test("help tab shows evaluator guide and method summary on results", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
+    selectMedicalLayer();
     expect(await screen.findByTestId("method-summary")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "이용" }));
     expect(await screen.findByTestId("evaluator-guide")).toBeInTheDocument();
@@ -969,6 +1029,7 @@ describe("CopilotApp", () => {
   test("내려받기는 표·보고서·공유 셋이다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
     expect(await screen.findByTestId("export-report")).toHaveTextContent("보고서");
     expect(screen.getByTestId("export-csv")).toHaveTextContent("표");
     expect(screen.getByTestId("export-share")).toHaveTextContent("공유");
@@ -980,6 +1041,7 @@ describe("CopilotApp", () => {
   test("선택 지역의 민간데이터 종합 프로파일을 백분위와 함께 보여준다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
 
     const profile = await screen.findByTestId("region-profile", {}, { timeout: 25_000 });
     /*
@@ -1003,6 +1065,7 @@ describe("CopilotApp", () => {
   test("선택 지역의 사람 흐름을 어디서·어디로 목록으로 보여준다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
 
     const flow = await screen.findByTestId("region-flow", {}, { timeout: 25_000 });
     const inbound = await within(flow).findByTestId("region-flow-inbound", {}, { timeout: 25_000 });
@@ -1031,6 +1094,7 @@ describe("CopilotApp", () => {
   test("선택 지역의 돈 흐름을 오는 곳 목록으로 보여준다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
 
     const money = await screen.findByTestId("money-flow", {}, { timeout: 25_000 });
     const inbound = await within(money).findByTestId("money-flow-inbound", {}, { timeout: 25_000 });
@@ -1106,6 +1170,7 @@ describe("CopilotApp", () => {
   test("프로파일에서 추세 기간을 바꿀 수 있다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
 
     const profile = await screen.findByTestId("region-profile", {}, { timeout: 25_000 });
     // 기본은 전 기간
@@ -1195,6 +1260,25 @@ describe("CopilotApp", () => {
     const hits = await screen.findAllByText(/교차분석/, {}, { timeout: 25_000 });
     expect(hits.length).toBeGreaterThan(0);
   }, 45_000);
+
+  test("교차분석 추천은 자료가 늦어도 한 번 누른 뒤 자동 실행된다", async () => {
+    const base = fetch;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/data/layers/nh-consumption.json")) await gate;
+      return base(input);
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(screen.getByText("더 많은 분석"));
+    fireEvent.click(screen.getByTestId("cross-living-vs-sales"));
+    expect(screen.queryByText(/다시 시도해 주세요/)).toBeNull();
+    release();
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent(/교차분석.*총생활인구.*카드매출/));
+    expect(screen.getByTestId("demo-map")).toHaveAttribute("data-outline", "0");
+  });
 
   test("selecting the 의료 layer clears a cross-analysis result instead of leaving it on screen", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
@@ -1434,6 +1518,7 @@ describe("CopilotApp", () => {
   test("shows one-line conclusion in the result panel", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
     expect(await screen.findByTestId("one-line-conclusion")).toBeInTheDocument();
     expect(screen.getByTestId("one-line-conclusion").textContent).toMatch(/한 줄 결론/);
   });

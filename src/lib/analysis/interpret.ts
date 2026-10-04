@@ -1,6 +1,8 @@
 import { subjectOf } from "@/lib/analysis/korean-particle";
 import type { AnalysisResult } from "@/lib/analysis/result";
 import { stripSido } from "@/lib/analysis/scope";
+import { exportSourceLabel, isSnapshotPopulationRanking, populationCitationWarning } from "@/lib/analysis/data-mode";
+import { resolveExportProvenance, type ExportProvenanceInput } from "@/lib/analysis/export-csv";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
 import { enrichInterpretationWithRag } from "@/lib/rag/augment";
 
@@ -12,6 +14,15 @@ export type Interpretation = {
   ragCitations?: Array<{ id: string; title: string }>;
 };
 
+type InterpretationOptions = {
+  selectedRegionCode?: string | null;
+  ascending?: boolean;
+  layerId?: string;
+  snapshotSource?: string;
+  analysisProvenance?: ExportProvenanceInput["analysisProvenance"];
+  activeLayer?: ExportProvenanceInput["activeLayer"];
+};
+
 function formatValue(value: number | null, unit: string): string {
   if (value === null || !Number.isFinite(value)) {
     return "데이터 없음";
@@ -21,6 +32,13 @@ function formatValue(value: number | null, unit: string): string {
 
 function shortName(admNm: string): string {
   return stripSido(admNm);
+}
+
+function rankAscending(result: AnalysisResult, explicit?: boolean): boolean {
+  const firstValue = result.rankedRegions[0]?.metrics[0]?.value;
+  const lastValue = result.rankedRegions.at(-1)?.metrics[0]?.value;
+  return explicit ?? (result.rankedRegions.length >= 3 &&
+    typeof firstValue === "number" && typeof lastValue === "number" && firstValue < lastValue);
 }
 
 /**
@@ -48,18 +66,11 @@ export function buildOneLineConclusion(
      * 낮은 쪽을 물었으면 "상위"라고 쓰면 안 된다 — 같은 문장이 정반대로 읽힌다.
      * 방향을 따로 넘겨받는 대신 순위 자체에서 읽는다(1위 값이 꼴찌보다 작으면 오름차순).
      */
-    const firstValue = top[0]?.metrics[0]?.value;
-    const lastValue = result.rankedRegions[result.rankedRegions.length - 1]?.metrics[0]?.value;
     // 두세 곳뿐인 결과(지역 비교 등)는 정렬이 아니라 나열이라 방향을 읽으면 안 된다.
     // "진주 vs 사천 비교"가 "가장 낮은 2곳"으로 나왔다.
     // 호출부가 방향을 알면 그것을 쓴다. 값에서 역추론하는 것은 최후 수단이다 —
     // 격자처럼 metrics 구성이 다른 뷰에서는 못 알아본다(prod 실측).
-    const ascending =
-      options?.ascending ??
-      (result.rankedRegions.length >= 3 &&
-        typeof firstValue === "number" &&
-        typeof lastValue === "number" &&
-        firstValue < lastValue);
+    const ascending = rankAscending(result, options?.ascending);
     const rankWord = ascending ? "가장 낮은" : "상위";
     return `${metricHint}${rankWord} ${names.length}곳은 ${names.join(" · ")}입니다.${selectedHint}`;
   }
@@ -84,28 +95,42 @@ export function buildOneLineConclusion(
 export function interpretAnalysisResult(
   result: AnalysisResult,
   snapshot: AnalysisSnapshot,
-  options?: { selectedRegionCode?: string | null; ascending?: boolean },
+  options?: InterpretationOptions,
 ): Interpretation {
   const top = result.rankedRegions.slice(0, 3);
   const selected =
     result.rankedRegions.find((region) => region.adm_cd2 === options?.selectedRegionCode) ??
     result.selectedRegion;
   const medicalFacilities = result.filteredFacilities.filter((facility) => facility.type !== "약국");
-  const modeLabel = snapshot.mode === "live" ? "실데이터 혼합" : "데모 샘플";
-  const conclusion = buildOneLineConclusion(result, options);
+  const metrics = result.rankedRegions.flatMap((region) => region.metrics);
+  const metricMonths = [...new Set(metrics.map((metric) => metric.referenceMonth).filter(Boolean))];
+  const provenance = resolveExportProvenance({
+    analysisProvenance: options?.analysisProvenance,
+    activeLayer: options?.activeLayer,
+    metricReferenceMonths: metricMonths,
+    snapshotReferenceMonth: snapshot.referenceMonth,
+    snapshotSource: options?.snapshotSource ?? "",
+  });
+  const populationDerived = isSnapshotPopulationRanking({
+    layerId: options?.layerId,
+    isFacilityResult: result.rankedRegions.length === 0 && medicalFacilities.length > 0,
+    title: result.title,
+    formulaNotes: result.formulaNotes,
+    metrics,
+  });
+  const populationWarning = populationCitationWarning(snapshot.mode, snapshot.sourceNotes, populationDerived);
+  const ascending = rankAscending(result, options?.ascending);
+  const conclusion = buildOneLineConclusion(result, { ...options, ascending });
 
   const insights: string[] = [conclusion];
   if (top.length > 0) {
     insights.push(
-      `상위 지역: ${top
+      `${ascending ? "낮은 순" : "상위"} 지역: ${top
         .map((region, index) => {
           const metric = region.metrics[0];
-          const scoreLabel =
-            region.score !== null
-              ? formatValue(region.score, "점")
-              : metric
-                ? formatValue(metric.value, metric.unit)
-                : "—";
+          const scoreLabel = metric
+            ? `${metric.label} ${formatValue(metric.value, metric.unit)}`
+            : region.score !== null ? formatValue(region.score, "점") : "—";
           return `${index + 1}위 ${shortName(region.adm_nm)}(${scoreLabel})`;
         })
         .join(", ")}.`,
@@ -127,7 +152,12 @@ export function interpretAnalysisResult(
     );
   }
 
-  insights.push(`기준월 ${snapshot.referenceMonth} · 데이터 모드 ${modeLabel}.`);
+  const monthLabel = metricMonths.length > 1
+    ? [...new Set(metrics.map((metric) => `${metric.label} ${metric.referenceMonth}`))].join(" · ")
+    : provenance.referenceMonth;
+  const source = exportSourceLabel(provenance.source);
+  insights.push(`기준월 ${monthLabel}${source ? ` · 출처 ${source}` : ""}.`);
+  if (populationWarning) insights.push(`시연 자료: ${populationWarning}`);
 
   const suggestions: string[] = [
     "빠른 분석 ‘고령 × 의료’와 ‘주변 접근’을 교차 확인해 수요·공급 격차를 비교하세요.",
@@ -140,12 +170,11 @@ export function interpretAnalysisResult(
   }
 
   const caveats = [
+    ...(populationWarning ? [populationWarning] : []),
+    ...(metricMonths.length > 1 ? ["기준월이 서로 다른 자료를 함께 분석했습니다. 지표별 기준월을 확인하세요."] : []),
     ...result.formulaNotes.slice(0, 3),
     "거리는 대표점 기준 직선거리이며 도로·대중교통 접근성과 다를 수 있습니다.",
     "출생−사망은 자연증가만 포함하며 전입·전출은 반영하지 않습니다.",
-    snapshot.mode === "demo"
-      ? "현재 화면은 시연용 합성 데이터일 수 있어 정책 판단에 직접 사용하지 마세요."
-      : "실데이터 시설과 검증 스냅샷 인구가 혼합될 수 있습니다. 출처 탭에서 한계를 확인하세요.",
   ];
 
   const base: Interpretation = {

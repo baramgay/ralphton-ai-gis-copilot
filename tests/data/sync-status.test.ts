@@ -16,6 +16,17 @@ const base: SyncStatusRecord = {
 };
 
 describe("computeStaleness", () => {
+  it("recognizes running attempts expired beyond the 300 second execution ceiling", () => {
+    const now = Date.parse("2026-10-04T00:00:00Z");
+    const status = { ...base, lastStatus: "running", lastAttemptAt: new Date(now - 301_000).toISOString() };
+    const result = computeStaleness(new Date(now - 3600_000).toISOString(), status, now);
+    expect(result.stale).toBe(true);
+    expect(result.recommendSync).toBe(true);
+    expect(result.reason).toMatch(/완료되지/);
+  });
+  it.each([null, "invalid"])("never reports freshness without a valid published time: %s", (publishedAt) => {
+    expect(computeStaleness(publishedAt, { ...base, lastStatus: "demo-only" }).stale).toBe(true);
+  });
   it("flags idle without published snapshot", () => {
     const result = computeStaleness(null, base, Date.parse("2026-07-17T00:00:00Z"));
     expect(result.stale).toBe(true);

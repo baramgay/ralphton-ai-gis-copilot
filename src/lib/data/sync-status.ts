@@ -1,10 +1,13 @@
 /**
  * Lightweight sync status store for ops UI (last attempt / success / staleness).
- * File-backed when writable; in-memory fallback for serverless.
+ * Supabase is shared across instances; local storage is an offline fallback.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
+
+import { getServiceSupabaseClient } from "@/lib/supabase/server";
 
 export type SyncStatusRecord = {
   lastAttemptAt: string | null;
@@ -28,11 +31,35 @@ const DEFAULT: SyncStatusRecord = {
 
 let memory: SyncStatusRecord = { ...DEFAULT };
 
+const StatusSchema = z.object({
+  lastAttemptAt: z.string().nullable(),
+  lastSuccessAt: z.string().nullable(),
+  lastStatus: z.string(),
+  lastFacilityCount: z.number().nullable(),
+  lastError: z.string().nullable(),
+  lastPublished: z.boolean().nullable(),
+  recommendedIntervalHours: z.number().positive(),
+});
+
 function storePath(): string {
   return path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "sync-status.json");
 }
 
 export async function readSyncStatus(): Promise<SyncStatusRecord> {
+  try {
+    const client = getServiceSupabaseClient();
+    if (client) {
+      const { data, error } = await client.from("nurimap_sync_status")
+        .select("payload").eq("id", "default").maybeSingle();
+      const parsed = StatusSchema.safeParse(data?.payload);
+      if (!error && parsed.success) {
+        memory = parsed.data;
+        return { ...memory };
+      }
+    }
+  } catch {
+    // Missing migration or unavailable database: retain offline operation.
+  }
   try {
     const text = await readFile(storePath(), "utf8");
     const parsed = JSON.parse(text) as Partial<SyncStatusRecord>;
@@ -46,7 +73,20 @@ export async function readSyncStatus(): Promise<SyncStatusRecord> {
 export async function writeSyncStatus(
   patch: Partial<SyncStatusRecord>,
 ): Promise<SyncStatusRecord> {
-  memory = { ...memory, ...patch };
+  const previous = await readSyncStatus();
+  const definedPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+  memory = { ...previous, ...definedPatch };
+  try {
+    const client = getServiceSupabaseClient();
+    if (client) {
+      const { error } = await client.from("nurimap_sync_status").upsert({
+        id: "default", payload: memory, updated_at: new Date().toISOString(),
+      });
+      if (!error) return { ...memory };
+    }
+  } catch {
+    // Offline fallback below.
+  }
   try {
     const dir = path.dirname(storePath());
     await mkdir(dir, { recursive: true });
@@ -78,13 +118,21 @@ export function computeStaleness(
     ? (now - attemptMs) / 3600_000
     : null;
 
-  if (!publishedAt && status.lastStatus === "idle") {
+  if (!Number.isFinite(publishMs)) {
     return {
       stale: true,
       hoursSincePublish: null,
       hoursSinceAttempt,
       recommendSync: Boolean(status.lastStatus),
       reason: "게시된 실측 자료가 없습니다. 시설 자료 갱신을 권장합니다.",
+    };
+  }
+
+  if (status.lastStatus === "running" &&
+      (!Number.isFinite(attemptMs) || now - attemptMs > 300_000)) {
+    return {
+      stale: true, hoursSincePublish, hoursSinceAttempt, recommendSync: true,
+      reason: "최근 동기화가 실행 시간 내에 완료되지 않았습니다.",
     };
   }
 
@@ -104,7 +152,7 @@ export function computeStaleness(
       hoursSincePublish,
       hoursSinceAttempt,
       recommendSync: true,
-      reason: status.lastError ?? "최근 동기화가 실패했습니다.",
+      reason: "최근 동기화가 실패했습니다.",
     };
   }
 

@@ -18,6 +18,20 @@ vi.mock("@/lib/data/sync-status", () => ({
 import { GET } from "@/app/api/health/route";
 
 describe("/api/health", () => {
+  it("uses refresh time for freshness while retaining creation time and hides internal errors", async () => {
+    mocks.readPublishedSnapshotMeta.mockResolvedValueOnce({
+      createdAt: "2026-07-18T00:00:00Z", updatedAt: "2026-09-07T00:00:00Z",
+      source: "fixture", snapshot: { referenceMonth: "2026-06", mode: "live", facilities: [] },
+    });
+    mocks.readSyncStatus.mockResolvedValueOnce({ lastStatus: "failed", lastError: "https://upstream?serviceKey=private-key" });
+    mocks.computeStaleness.mockReturnValueOnce({ stale: true, recommendSync: true, reason: "최근 동기화가 실패했습니다." });
+    const body = await (await GET()).json();
+    expect(mocks.computeStaleness).toHaveBeenCalledWith("2026-09-07T00:00:00Z", expect.any(Object));
+    expect(body.publishedLive.createdAt).toBe("2026-07-18T00:00:00Z");
+    expect(body.publishedLive.updatedAt).toBe("2026-09-07T00:00:00Z");
+    expect(JSON.stringify(body)).not.toContain("private-key");
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     mocks.readPublishedSnapshotMeta.mockReset();

@@ -58,7 +58,7 @@ export async function GET() {
   const { readPublishedSnapshotMeta } = await import("@/lib/supabase/public");
   const live = await readPublishedSnapshotMeta("live");
   const local = await readSyncStatus();
-  const publishedAt = live?.createdAt ?? local.lastSuccessAt;
+  const publishedAt = live?.updatedAt ?? live?.createdAt;
   const staleness = computeStaleness(publishedAt, local);
 
   return NextResponse.json({
@@ -70,6 +70,8 @@ export async function GET() {
       ? {
           available: true,
           createdAt: live.createdAt,
+          updatedAt: live.updatedAt,
+          publishedAt,
           source: live.source,
           referenceMonth: live.snapshot.referenceMonth,
           facilityCount: live.snapshot.facilities.length,
@@ -81,7 +83,7 @@ export async function GET() {
       lastSuccessAt: local.lastSuccessAt,
       lastStatus: local.lastStatus,
       lastFacilityCount: local.lastFacilityCount,
-      lastError: local.lastError,
+      lastError: local.lastError ? "최근 동기화가 완료되지 않았습니다." : null,
       lastPublished: local.lastPublished,
       recommendedIntervalHours: local.recommendedIntervalHours,
       stale: staleness.stale,
@@ -136,34 +138,44 @@ export async function POST(request: Request) {
   const attemptedAt = new Date().toISOString();
   await writeSyncStatus({
     lastAttemptAt: attemptedAt,
+    lastStatus: "running",
+    lastPublished: false,
     lastError: null,
   });
 
-  const result = await runLiveSync({
-    publish: parsed.data?.publish,
-    boundaryVersion: parsed.data?.boundaryVersion,
-    datasets: parsed.data?.datasets,
-    baseFrom: parsed.data?.baseFrom,
-  });
+  let result;
+  try {
+    result = await runLiveSync({
+      publish: parsed.data?.publish,
+      boundaryVersion: parsed.data?.boundaryVersion,
+      datasets: parsed.data?.datasets,
+      baseFrom: parsed.data?.baseFrom,
+    });
+  } catch {
+    await writeSyncStatus({ lastStatus: "failed", lastPublished: false, lastError: "자료 갱신에 실패했습니다." });
+    return NextResponse.json({ ok: false, status: "failed", published: false, error: "자료 갱신에 실패했습니다." }, { status: 500 });
+  }
+  const completed = result.status !== "failed" &&
+    (parsed.data?.publish === false || result.published);
 
   await writeSyncStatus({
     lastAttemptAt: attemptedAt,
-    lastStatus: result.status,
+    lastStatus: completed ? result.status : "failed",
     lastFacilityCount: result.facilityCount,
     lastPublished: result.published,
-    lastSuccessAt: result.status !== "failed" ? attemptedAt : undefined,
-    lastError: result.status === "failed" ? result.notes.join(" ") || "동기화 실패" : null,
+    ...(result.status !== "failed" && result.published ? { lastSuccessAt: new Date().toISOString() } : {}),
+    lastError: completed ? null : "자료 갱신 또는 게시에 실패했습니다.",
   });
 
   return NextResponse.json({
-    ok: result.status !== "failed",
+    ok: completed,
     status: result.status,
     mode: result.snapshot.mode,
     referenceMonth: result.snapshot.referenceMonth,
     facilityCount: result.facilityCount,
     published: result.published,
     checksum: result.checksum,
-    notes: result.notes,
+    notes: !completed ? ["자료 갱신 또는 게시에 실패했습니다."] : [result.published ? "자료를 갱신하고 게시했습니다." : "자료를 게시하지 않았습니다."],
     attemptedAt,
   });
 }

@@ -74,6 +74,19 @@ const match = (unit: "dong" | "sgg") =>
   });
 
 describe("correlationView", () => {
+  test("retains each axis value, provider and actual observation month when latest cube month is missing", () => {
+    const olderB = { ...refB, cube: {
+      ...refB.cube,
+      referenceMonth: "2026-06",
+      months: ["2025-11", "2026-06"],
+      cells: refB.cube.cells.map(cell => ({ ...cell, series: { b: [cell.series.b[0], null] } })),
+    } };
+    const view = correlationView(match("dong"), refA, olderB);
+    expect(view.rows[0].metrics).toEqual([
+      { label: "지표A (KOSIS)", value: 60, unit: "%", formula: "지표A 산식", referenceMonth: "2025-12", limitation: "" },
+      { label: "지표B (KOSIS)", value: 59, unit: "%", formula: "지표B 산식", referenceMonth: "2025-11", limitation: "" },
+    ]);
+  });
   test("시군구 단위로 내면 표본은 시군구 수다", () => {
     const view = correlationView(match("sgg"), refA, refB);
     expect(view.notes.join(" ")).toContain("표본 6개 시군구");
@@ -133,6 +146,17 @@ describe("outlierView", () => {
     unit: "sgg" as const,
     regionFilters: [],
   };
+
+  test("retains the actual observation month and value for an outlier", () => {
+    const sample = cube("layer-a", "a", { ...A, "48121": 1000 });
+    const older = { ...refA, cube: { ...sample, referenceMonth: "2026-06", months: ["2025-11", "2026-06"],
+      cells: sample.cells.map(cell => ({ ...cell, series: { a: [cell.series.a[0], null] } })),
+    } };
+    const view = outlierView(outlierMatch, older);
+    expect(view.rows[0].metrics).toEqual([
+      { label: "지표A (KOSIS)", value: 1000, unit: "%", formula: "지표A 산식", referenceMonth: "2025-11", limitation: "" },
+    ]);
+  });
 
   test("크게 튄 시군구를 집는다", () => {
     const ref = (() => {

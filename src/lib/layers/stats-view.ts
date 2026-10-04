@@ -5,6 +5,7 @@ import {
   type CorrelationUnit,
 } from "@/lib/analysis/statistics";
 import { topicOf } from "@/lib/analysis/korean-particle";
+import type { MetricDescriptor } from "@/lib/analysis/result";
 import { aggregateToSgg } from "@/lib/layers/aggregate";
 import {
   collapseReplicatedDistricts,
@@ -19,6 +20,7 @@ export type StatsRow = {
   name: string;
   score: number;
   detail: string;
+  metrics: MetricDescriptor[];
   /** 같은 값을 나눠 가져 한 줄로 접힌 지역 수(창원 5개 구 등). */
   sharedCount?: number;
 };
@@ -156,6 +158,12 @@ export function correlationView(
         code: row.code,
         name: displayName(row.name, shared),
         score: row.a as number,
+        metrics: [
+          { label: `${match.a.metricLabel} (${match.a.provider})`, value: row.a, unit: a.metric.unit,
+            formula: a.metric.formula, referenceMonth: row.monthA!, limitation: a.metric.limitation },
+          { label: `${match.b.metricLabel} (${match.b.provider})`, value: row.b, unit: b.metric.unit,
+            formula: b.metric.formula, referenceMonth: row.monthB!, limitation: b.metric.limitation },
+        ],
         detail: withSharedNote(
           `${match.a.metricLabel} ${formatValue(row.a as number, a.metric.unit)} · ${match.b.metricLabel} ${formatValue(row.b as number, b.metric.unit)}`,
           shared,
@@ -322,6 +330,12 @@ export function outlierView(match: OutlierQueryMatch, ref: CubeRef): StatsView {
         code: row.code,
         name: displayName(row.name, shared),
         score: row.value,
+        metrics: [{
+          label: `${match.ref.metricLabel} (${match.ref.provider})`, value: row.value,
+          unit: ref.metric.unit, formula: ref.metric.formula,
+          referenceMonth: grouped.items.find(item => item.code === row.code)!.month!,
+          limitation: ref.metric.limitation,
+        }],
         detail: withSharedNote(
           `${formatValue(row.value, ref.metric.unit)} · 중앙값에서 ${Math.abs(row.score).toFixed(1)}배(${row.side === "high" ? "위" : "아래"})`,
           shared,

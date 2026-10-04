@@ -52,6 +52,7 @@ function snapshotResponse(
   snapshot: { mode?: string; referenceMonth?: string; facilities?: unknown[]; regions?: unknown[] },
   source: 'supabase-cache' | 'demo' | 'demo-fallback',
   publishedAt?: string | null,
+  createdAt?: string | null,
 ) {
   return NextResponse.json(snapshot, {
     headers: {
@@ -62,6 +63,7 @@ function snapshotResponse(
       'X-Facility-Count': String(snapshot.facilities?.length ?? 0),
       'X-Region-Count': String(snapshot.regions?.length ?? 0),
       ...(publishedAt ? { 'X-Published-At': publishedAt } : {}),
+      ...(createdAt ? { 'X-Snapshot-Created-At': createdAt } : {}),
     },
   });
 }
@@ -90,7 +92,7 @@ export async function GET(request: Request) {
     validatedCache.success &&
     (mode.data === 'auto' || validatedCache.data.mode === mode.data)
   ) {
-    return snapshotResponse(validatedCache.data, 'supabase-cache', cachedMeta?.createdAt);
+    return snapshotResponse(validatedCache.data, 'supabase-cache', cachedMeta?.updatedAt ?? cachedMeta?.createdAt, cachedMeta?.createdAt);
   }
 
   return snapshotResponse(await loadDemoSnapshot(), 'demo-fallback');

@@ -74,6 +74,7 @@ describe('/api/data/snapshot', () => {
         sourceNotes: ['fixture'],
       },
       createdAt: '2026-07-17T00:00:00.000Z',
+      updatedAt: '2026-09-07T00:00:00.000Z',
       source: 'fixture',
       checksum: 'a'.repeat(64),
     });
@@ -83,7 +84,8 @@ describe('/api/data/snapshot', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('x-data-source')).toBe('supabase-cache');
-    expect(response.headers.get('x-published-at')).toBe('2026-07-17T00:00:00.000Z');
+    expect(response.headers.get('x-published-at')).toBe('2026-09-07T00:00:00.000Z');
+    expect(response.headers.get('x-snapshot-created-at')).toBe('2026-07-17T00:00:00.000Z');
     expect(body.mode).toBe('live');
     expect(cacheMocks.readPublishedSnapshotMeta).toHaveBeenCalledWith('live');
   });

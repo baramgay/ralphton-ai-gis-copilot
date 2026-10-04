@@ -202,8 +202,17 @@ export async function runLiveSync(options: LiveSyncOptions = {}): Promise<LiveSy
    */
   let base = await loadDemo();
   if (options.baseFrom === "published") {
-    const { readPublishedSnapshotMeta } = await import("@/lib/supabase/public");
-    const published = await readPublishedSnapshotMeta("live");
+    const { readPublishedSnapshotMetaOrThrow } = await import("@/lib/supabase/public");
+    let published;
+    try {
+      published = await readPublishedSnapshotMetaOrThrow("live");
+    } catch {
+      return {
+        status: "failed", snapshot: base, checksum: checksumOf(base),
+        facilityCount: base.facilities.length, published: false, populationUpdated: 0,
+        notes: ["게시 자료를 확인하지 못해 갱신을 중단했습니다."],
+      };
+    }
     if (published) {
       base = published.snapshot;
       notes.push("기준 자료를 게시된 실측 자료에서 이어받았습니다.");

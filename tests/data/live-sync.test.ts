@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { rewriteSyntheticNote, runLiveSync } from "@/lib/data/live-sync";
 import type { AnalysisSnapshot } from "@/lib/domain/schemas";
 
+const publishedMocks = vi.hoisted(() => ({
+  readPublishedSnapshotMeta: vi.fn().mockResolvedValue(null),
+  readPublishedSnapshotMetaOrThrow: vi.fn(),
+}));
+vi.mock("@/lib/supabase/public", () => publishedMocks);
+
 const baseSnapshot: AnalysisSnapshot = {
   mode: "demo",
   referenceMonth: "2026-06",
@@ -70,6 +76,24 @@ const hiraXml = `<?xml version="1.0" encoding="UTF-8"?>
 </response>`;
 
 describe("runLiveSync", () => {
+  it("never publishes over an existing base when its lookup fails", async () => {
+    publishedMocks.readPublishedSnapshotMetaOrThrow.mockRejectedValueOnce(new Error("lookup failed"));
+    const upsert = vi.fn().mockResolvedValue(true);
+    const result = await runLiveSync({
+      baseFrom: "published", serviceKey: "fixture-key", hiraServiceKey: "fixture-key",
+      datasets: ["facilities"], includePopulation: false,
+      fetch: vi.fn(async () => ({ ok: true, text: async () => hiraXml })) as unknown as typeof fetch,
+      loadBoundary: async () => [{
+        adm_cd2: "4812125000", adm_nm: "경상남도 창원시 의창구 동읍",
+        geometry: { type: "Polygon", coordinates: [[[129.03,35.09],[129.05,35.09],[129.05,35.11],[129.03,35.11],[129.03,35.09]]] },
+      }],
+      loadDemoSnapshot: async () => baseSnapshot, upsert,
+    });
+    expect(result.status).toBe("failed");
+    expect(result.published).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("keeps demo snapshot when service key is absent", async () => {
     const result = await runLiveSync({
       serviceKey: "",

@@ -10,18 +10,18 @@ import { expect, type Page, test } from "@playwright/test";
  * 이 배려가 없으면 닫힌 패널 안의 요소를 만지게 되는데, Playwright가 강제로 스크롤해
  * 좌표는 맞춰 놓고 정작 그 자리에는 다른 것이 있어 클릭이 가로채인다.
  */
-async function openSheet(page: Page, name: "조작" | "결과") {
+async function openSheet(page: Page, name: "분석 설정" | "결과") {
   const toggle = page.getByRole("button", { name, exact: true });
   if (!(await toggle.isVisible().catch(() => false))) return;
 
-  const side = name === "조작" ? "left" : "right";
+  const side = name === "분석 설정" ? "left" : "right";
   const panel = page.locator(`.copilot-panel-${side}`);
   const isOpen = () =>
     panel.evaluate(
       (el) => !el.classList.contains("is-collapsed") || el.classList.contains("sheet-open"),
     );
 
-  const narrow = await page.evaluate(() => window.matchMedia("(max-width: 1280px)").matches);
+  const narrow = await page.evaluate(() => window.matchMedia("(max-width: 1199px)").matches);
   if (narrow) {
     if (await panel.evaluate((el) => el.classList.contains("sheet-open"))) return;
     await toggle.click({ force: true });
@@ -45,23 +45,24 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await openSheet(page, "결과");
-    await expect(page.getByTestId("interpretation-card")).toBeVisible();
+    await expect(page.getByTestId("analysis-empty-state")).toBeVisible();
+    await expect(page.getByTestId("interpretation-card")).toHaveCount(0);
     await expect(page.getByTestId("result-panel")).toBeVisible();
 
-    await openSheet(page, "조작");
+    await openSheet(page, "분석 설정");
     await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
     await page.getByTestId("quick-elderly").click();
     await openSheet(page, "결과");
     await expect(page.getByTestId("interpretation-card")).toBeVisible();
 
-    await openSheet(page, "조작");
+    await openSheet(page, "분석 설정");
     await page.getByTestId("quick-radius").click();
     await openSheet(page, "결과");
     await expect(page.getByTestId("interpretation-card")).toContainText(
       /기준월|해석|반경|접근|의료/,
     );
 
-    await openSheet(page, "조작");
+    await openSheet(page, "분석 설정");
     await page.getByRole("tab", { name: "이용" }).click();
     await expect(page.getByRole("tab", { name: "이용" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("usage-guide")).toBeVisible();
@@ -101,7 +102,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await expect(page.getByRole("heading", { name: /누리맵/ })).toBeVisible();
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
-    await openSheet(page, "조작");
+    await openSheet(page, "분석 설정");
 
     const tall = await page.evaluate(() => {
       const items = [...document.querySelectorAll(".layer-switcher-item")];
@@ -177,7 +178,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await page.goto("/");
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
-    await openSheet(page, "조작");
+    await openSheet(page, "분석 설정");
 
     const chip = page.locator(".map-chip-topleft");
     await expect(chip).toContainText("시군구 경계");

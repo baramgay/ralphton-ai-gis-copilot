@@ -44,7 +44,6 @@ type MapCanvasProps = {
 
 export function MapCanvas(props: MapCanvasProps) {
   const [kakaoFailed, setKakaoFailed] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   // DemoMap은 Kakao 전용 카메라 제어 속성을 받지 않는다. 여기서 갈라 둔다.
   const {
@@ -62,8 +61,7 @@ export function MapCanvas(props: MapCanvasProps) {
   } = props;
 
   const handleError = useCallback(
-    (message: string) => {
-      setErrorMessage(message);
+    () => {
       setKakaoFailed(true);
       onEngineChange?.("demo");
     },
@@ -71,7 +69,6 @@ export function MapCanvas(props: MapCanvasProps) {
   );
 
   const handleReady = useCallback(() => {
-    setErrorMessage(null);
     setKakaoFailed(false);
     onEngineChange?.("kakao");
   }, [onEngineChange]);
@@ -83,7 +80,6 @@ export function MapCanvas(props: MapCanvasProps) {
 
   const retryKakao = () => {
     resetKakaoSdkCache();
-    setErrorMessage(null);
     setKakaoFailed(false);
     setRetryToken((value) => value + 1);
   };
@@ -115,8 +111,7 @@ export function MapCanvas(props: MapCanvasProps) {
         <div className="map-error-card">
           <p>지도를 불러오지 못했습니다 · 임시 지도로 표시 중</p>
           <p className="mt-1">
-            {errorMessage ??
-              "지도 서비스 연결에 문제가 있습니다. 잠시 뒤 다시 시도해 주세요."}
+            경계 지도에서 지역 선택과 분석을 계속할 수 있습니다. 기본 지도는 잠시 뒤 다시 불러와 주세요.
           </p>
           <button type="button" onClick={retryKakao}>
             지도 다시 불러오기

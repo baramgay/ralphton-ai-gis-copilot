@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -15,6 +15,22 @@ beforeAll(async () => {
 });
 
 describe('AI GIS snapshot migration security contract', () => {
+  it('keeps sync status private to the server role with RLS', async () => {
+    const dir = path.join(process.cwd(), 'supabase/migrations');
+    const name = (await readdir(dir)).find((file) => file.endsWith('_nurimap_sync_status.sql'));
+    expect(name).toBeDefined();
+    const statusSql = (await readFile(path.join(dir, name!), 'utf8')).toLowerCase().replace(/\s+/g, ' ');
+    expect(statusSql).toContain('alter table public.nurimap_sync_status enable row level security');
+    expect(statusSql).toContain('revoke all on table public.nurimap_sync_status from public, anon, authenticated');
+    expect(statusSql).toContain('grant select, insert, update on table public.nurimap_sync_status to service_role');
+    expect(statusSql).not.toContain('create policy');
+    expect(statusSql).not.toMatch(/alter table public\.(?!nurimap_sync_status)/);
+    const followup = (await readdir(dir)).find((file) => file.endsWith('_nurimap_sync_status_service_privileges.sql'));
+    expect(followup).toBeDefined();
+    const privilegesSql = (await readFile(path.join(dir, followup!), 'utf8')).toLowerCase().replace(/\s+/g, ' ');
+    expect(privilegesSql).toContain('revoke all on table public.nurimap_sync_status from service_role');
+    expect(privilegesSql).toContain('grant select, insert, update on table public.nurimap_sync_status to service_role');
+  });
   it.each(['data_snapshots', 'region_metrics', 'ai_gis_facilities'])(
     'creates %s with RLS enabled',
     (table) => {
