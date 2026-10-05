@@ -709,6 +709,8 @@ html[data-theme="contrast"] .copilot-shell .map-float-btn.is-active,
 html[data-theme="contrast"] .copilot-shell .map-float-btn.is-active *,
 html[data-theme="contrast"] .copilot-shell .rank-row.is-selected,
 html[data-theme="contrast"] .copilot-shell .rank-row.is-selected *,
+html[data-theme="contrast"] .copilot-shell .choice-btn[aria-pressed="true"],
+html[data-theme="contrast"] .copilot-shell .choice-btn[aria-pressed="true"] *,
 html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"],
 html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"] * {
   background-color: #fff !important;

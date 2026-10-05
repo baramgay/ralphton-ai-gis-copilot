@@ -5016,7 +5016,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                       ).map(([label, on]) => (
                         <li key={label} className="flex items-center justify-between gap-2">
                           <span className="text-slate-600">{label}</span>
-                          <span className={`font-bold ${on ? "text-emerald-600" : "text-slate-400"}`}>
+                          <span className={`font-bold ${on ? "text-emerald-700" : "text-slate-600"}`}>
                             {on ? "사용 가능" : "사용 안 함"}
                           </span>
                         </li>
@@ -5742,7 +5742,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   <p className="text-[10px] font-bold text-slate-600">13개월 인구</p>
                   <p
                     className={`text-[10px] font-bold ${
-                      currentNaturalChange >= 0 ? "text-emerald-600" : "text-rose-600"
+                      currentNaturalChange >= 0 ? "text-emerald-700" : "text-rose-600"
                     }`}
                   >
                     {populationIsLive(snapshot.mode, snapshot.sourceNotes) ? "출생등록−사망말소" : "자연증가"} {currentNaturalChange >= 0 ? "+" : ""}
