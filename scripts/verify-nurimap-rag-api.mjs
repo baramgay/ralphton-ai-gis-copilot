@@ -5,6 +5,9 @@ const baseURL = process.argv[2] ?? "http://127.0.0.1:3110";
 const cases = JSON.parse(await readFile("tests/fixtures/rag-korean-qa.json", "utf8"));
 // These acceptance questions were selected separately from the implementation benchmark.
 const acceptance = [
+  { id: "heldout-living-quantity", query: "김해시 총생활인구 높은 동", kind: "relevant", expectedTop1: "metric-skt-living-living_total" },
+  { id: "heldout-night-quantity", query: "야간인구 규모 순위", kind: "relevant", expectedTop1: "metric-skt-daynight-night_population" },
+  { id: "heldout-inflow-quantity", query: "관외 방문 유입인구 순위", kind: "relevant", expectedTop1: "metric-skt-mobility-inflow_total" },
   { id: "heldout-income", query: "경남 평균소득 자료의 산출 기준", kind: "relevant", expectedTags: ["kcb-credit"] },
   { id: "heldout-fire", query: "경남 주민 만명당 화재 발생 건수", kind: "relevant", expectedTags: ["kosis-safety"] },
   { id: "heldout-night", query: "낮보다 밤에 사람이 모이는 상권", kind: "relevant", expectedTags: ["skt-daynight", "nh-hourly"] },
@@ -33,7 +36,7 @@ for (const entry of [...cases, ...acceptance]) {
   const expectedIds = entry.expectedIds ?? [];
   const expectedTags = entry.expectedTags ?? [];
   const matched = entry.kind === "relevant"
-    ? hits.some((hit) => expectedIds.includes(hit.id) || expectedTags.some((tag) => hit.tags?.includes(tag)))
+    ? entry.expectedTop1 ? hits[0]?.id === entry.expectedTop1 : hits.some((hit) => expectedIds.includes(hit.id) || expectedTags.some((tag) => hit.tags?.includes(tag)))
     : hits.length === 0 && citations.length === 0 && context === "";
   const lineage = citations.every((citation) => context.includes(`[${citation.id}]`) && hits.some((hit) => hit.id === citation.id && hit.inContext))
     && hits.every((hit) => hit.inContext === context.includes(`[${hit.id}]`))

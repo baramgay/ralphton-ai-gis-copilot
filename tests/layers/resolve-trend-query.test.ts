@@ -4,6 +4,12 @@ import { PRIVATE_LAYERS } from "@/lib/layers/catalog";
 import { resolveTrendQuery } from "@/lib/layers/resolve-trend-query";
 
 describe("resolveTrendQuery", () => {
+  test("preserves explicit city and named-dong scope together with requested calendar window", () => {
+    expect(resolveTrendQuery("진주시 최근 3개월 카드매출 증가하는 동", PRIVATE_LAYERS)?.regionFilters).toEqual(["진주시"]);
+    const named = resolveTrendQuery("수곡면 최근 6개월 카드매출 증가", PRIVATE_LAYERS, { dongNames: ["수곡면"] });
+    expect(named?.regionFilters).toEqual(["수곡면"]);
+    expect(named?.months).toBe(6);
+  });
   test.each([
     ["카드매출 늘어나는 동", "nh-consumption", "card_sales", "rising"],
     ["카드매출 증가하는 지역", "nh-consumption", "card_sales", "rising"],

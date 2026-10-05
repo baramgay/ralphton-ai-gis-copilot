@@ -140,9 +140,16 @@ describe("읍면동 지정", () => {
     expect(detectRegionFilter("진영읍 카드매출 높은 곳", dongs)).toBe("진영읍");
   });
 
-  test("시군구 바로 뒤에 읍면동이 붙으면 좁은 쪽만 남긴다", () => {
+  test("시군구 바로 뒤 읍면동은 시군구를 포함한 한 범위로 유지한다", () => {
     // 둘 다 남기면 어느 하나라도 맞으면 통과라 양산 전체로 넓어진다.
-    expect(detectRegionFilters("양산시 물금읍 생활인구", dongs)).toEqual(["물금읍"]);
+    expect(detectRegionFilters("양산시 물금읍 생활인구", dongs)).toEqual(["양산시 물금읍"]);
+  });
+
+  test("동명이인 동은 지정한 시군구와 결합하고 별도 시군구는 유지한다", () => {
+    expect(detectRegionFilters("진주시 중앙동 카드매출", ["중앙동"])).toEqual(["진주시 중앙동"]);
+    expect(detectRegionFilters("진주의 중앙동 카드매출", ["중앙동"])).toEqual(["진주시 중앙동"]);
+    expect(detectRegionFilters("진주시 중앙동과 김해시 중앙동 카드매출", ["중앙동"])).toEqual(["진주시 중앙동", "김해시 중앙동"]);
+    expect(detectRegionFilters("진주시와 중앙동 카드매출", ["중앙동"])).toEqual(["진주시", "중앙동"]);
   });
 
   test("떨어져 있는 두 지역은 둘 다 살린다", () => {

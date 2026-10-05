@@ -20,6 +20,15 @@ it("keeps local evidence on ordinary remote exceptions", async () => {
   expect(await retrieveRagChunksWithRemote(options, deps)).toEqual({ hits: retrieveRagChunks(options), remote: false });
 });
 
+it("remote vector similarity cannot replace an explicitly named registered subject", async () => {
+  mocks.rerankWithRemoteEmbeddings.mockResolvedValueOnce(new Map([
+    ["metric-skt-living-elderly_ratio", 1], ["metric-skt-living-living_total", 0],
+  ]));
+  const result = await retrieveRagChunksWithRemote({ query: "김해시 총생활인구 높은 동", limit: 5 }, deps);
+  expect(result.remote).toBe(true);
+  expect(result.hits[0]?.chunk.id).toBe("metric-skt-living-living_total");
+});
+
 it("returns local evidence within two seconds when remote embedding stalls", async () => {
   vi.useFakeTimers();
   mocks.rerankWithRemoteEmbeddings.mockImplementationOnce(() => new Promise(() => {}));

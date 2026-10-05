@@ -1,0 +1,467 @@
+{
+  "numerics": {
+    "checkedAt": "2026-10-05T03:29:50.923Z",
+    "snapshotURL": "https://gnbc.site/api/data/snapshot",
+    "publishedAt": "2026-10-04T15:42:29.14+00:00",
+    "referenceMonth": "2026-06",
+    "assertions": 336002,
+    "layers": [
+      {
+        "file": "gn-business.json",
+        "regions": 305,
+        "observations": 3050,
+        "missing": 0
+      },
+      {
+        "file": "kcb-commute.json",
+        "regions": 305,
+        "observations": 3660,
+        "missing": 0
+      },
+      {
+        "file": "kcb-credit.json",
+        "regions": 305,
+        "observations": 25620,
+        "missing": 0
+      },
+      {
+        "file": "kcb-grid-500m.json",
+        "regions": 1750,
+        "observations": 110619,
+        "missing": 36381
+      },
+      {
+        "file": "kcb-migration.json",
+        "regions": 305,
+        "observations": 2437,
+        "missing": 3
+      },
+      {
+        "file": "kosis-education.json",
+        "regions": 305,
+        "observations": 3660,
+        "missing": 0
+      },
+      {
+        "file": "kosis-environment.json",
+        "regions": 305,
+        "observations": 4575,
+        "missing": 0
+      },
+      {
+        "file": "kosis-finance.json",
+        "regions": 305,
+        "observations": 3660,
+        "missing": 0
+      },
+      {
+        "file": "kosis-health.json",
+        "regions": 305,
+        "observations": 3050,
+        "missing": 0
+      },
+      {
+        "file": "kosis-housing.json",
+        "regions": 305,
+        "observations": 3660,
+        "missing": 0
+      },
+      {
+        "file": "kosis-safety.json",
+        "regions": 305,
+        "observations": 6014,
+        "missing": 86
+      },
+      {
+        "file": "kosis-transport.json",
+        "regions": 305,
+        "observations": 3050,
+        "missing": 0
+      },
+      {
+        "file": "kosis-welfare.json",
+        "regions": 305,
+        "observations": 4575,
+        "missing": 0
+      },
+      {
+        "file": "nh-consumption.json",
+        "regions": 305,
+        "observations": 10980,
+        "missing": 0
+      },
+      {
+        "file": "nh-demographics.json",
+        "regions": 305,
+        "observations": 47482,
+        "missing": 98
+      },
+      {
+        "file": "nh-hourly.json",
+        "regions": 305,
+        "observations": 18280,
+        "missing": 20
+      },
+      {
+        "file": "nh-industry.json",
+        "regions": 305,
+        "observations": 21960,
+        "missing": 0
+      },
+      {
+        "file": "nh-storetype.json",
+        "regions": 305,
+        "observations": 25620,
+        "missing": 0
+      },
+      {
+        "file": "skt-daynight.json",
+        "regions": 305,
+        "observations": 10980,
+        "missing": 0
+      },
+      {
+        "file": "skt-living.json",
+        "regions": 305,
+        "observations": 7320,
+        "missing": 0
+      },
+      {
+        "file": "skt-mobility.json",
+        "regions": 305,
+        "observations": 10980,
+        "missing": 0
+      }
+    ],
+    "densityDistricts": 22,
+    "failures": []
+  },
+  "weightedAverages": {
+    "checkedAt": "2026-10-05T03:31:45.907Z",
+    "checked": 8096,
+    "failures": []
+  },
+  "sourceDecimal": {
+    "passed": true,
+    "sourceRows": 22373472,
+    "checkedValues": 32940,
+    "parts": [
+      {
+        "file": "경상남도_2_성연령별카드매출_202501.csv",
+        "bytes": 74867256,
+        "rows": 913101
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202502.csv",
+        "bytes": 68207637,
+        "rows": 831763
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202503.csv",
+        "bytes": 78936795,
+        "rows": 962231
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202504.csv",
+        "bytes": 79670601,
+        "rows": 970754
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202505.csv",
+        "bytes": 82364781,
+        "rows": 1003550
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202506.csv",
+        "bytes": 78981738,
+        "rows": 962211
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202507.csv",
+        "bytes": 83371809,
+        "rows": 1015106
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202508.csv",
+        "bytes": 84317164,
+        "rows": 1026600
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202509.csv",
+        "bytes": 79758231,
+        "rows": 970864
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202510.csv",
+        "bytes": 81279523,
+        "rows": 989788
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202511.csv",
+        "bytes": 78444078,
+        "rows": 955136
+      },
+      {
+        "file": "경상남도_2_성연령별카드매출_202512.csv",
+        "bytes": 78577315,
+        "rows": 956680
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202501.csv",
+        "bytes": 59203765,
+        "rows": 846727
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202502.csv",
+        "bytes": 54083686,
+        "rows": 773887
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202503.csv",
+        "bytes": 62578791,
+        "rows": 895377
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202504.csv",
+        "bytes": 63342888,
+        "rows": 906177
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202505.csv",
+        "bytes": 66026383,
+        "rows": 944499
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202506.csv",
+        "bytes": 63463251,
+        "rows": 907960
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202507.csv",
+        "bytes": 66943582,
+        "rows": 957390
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202508.csv",
+        "bytes": 67305353,
+        "rows": 962502
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202509.csv",
+        "bytes": 63866121,
+        "rows": 913444
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202510.csv",
+        "bytes": 64729330,
+        "rows": 925674
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202511.csv",
+        "bytes": 62143593,
+        "rows": 888768
+      },
+      {
+        "file": "경상남도_3_시간대별카드매출_202512.csv",
+        "bytes": 62473424,
+        "rows": 893283
+      }
+    ],
+    "elapsedSeconds": 109.34376931190491,
+    "toleranceMillionKRW": "0.00000001"
+  },
+  "productionHashes": {
+    "checkedAt": "2026-10-05T03:30:21.258Z",
+    "checks": [
+      {
+        "file": "gn-business.json",
+        "status": 200,
+        "localBytes": 88166,
+        "productionBytes": 88166,
+        "localSha": "0825588e853f8d04bc7dc87b5fb05472ab227edc9e7a805530bd3e137ca51514",
+        "productionSha": "0825588e853f8d04bc7dc87b5fb05472ab227edc9e7a805530bd3e137ca51514",
+        "match": true
+      },
+      {
+        "file": "kcb-commute.json",
+        "status": 200,
+        "localBytes": 81817,
+        "productionBytes": 81817,
+        "localSha": "737f77cc29f629c1d1e93ac6657c3983be4b0d795103af994507b6bde95cbc61",
+        "productionSha": "737f77cc29f629c1d1e93ac6657c3983be4b0d795103af994507b6bde95cbc61",
+        "match": true
+      },
+      {
+        "file": "kcb-credit.json",
+        "status": 200,
+        "localBytes": 207638,
+        "productionBytes": 207638,
+        "localSha": "00b1be8925c93f2ddd693826b9926d04a19b0845d41eba44b55bb6114dcf2327",
+        "productionSha": "00b1be8925c93f2ddd693826b9926d04a19b0845d41eba44b55bb6114dcf2327",
+        "match": true
+      },
+      {
+        "file": "kcb-grid-500m.json",
+        "status": 200,
+        "localBytes": 1116159,
+        "productionBytes": 1116159,
+        "localSha": "d672f82fa202492ccf31f454849b016f58cdca74c5ced29eaa6642820ca1adfc",
+        "productionSha": "d672f82fa202492ccf31f454849b016f58cdca74c5ced29eaa6642820ca1adfc",
+        "match": true
+      },
+      {
+        "file": "kcb-migration.json",
+        "status": 200,
+        "localBytes": 70448,
+        "productionBytes": 70448,
+        "localSha": "e34c03da27cf47b9367b3af4f3ee39d67047b589a86127bb66d436ef3e4511a6",
+        "productionSha": "e34c03da27cf47b9367b3af4f3ee39d67047b589a86127bb66d436ef3e4511a6",
+        "match": true
+      },
+      {
+        "file": "kosis-education.json",
+        "status": 200,
+        "localBytes": 78968,
+        "productionBytes": 78968,
+        "localSha": "757292ccbb34c219566715eea318ed32bef57c55889eb02ee21193bcc4b9196e",
+        "productionSha": "757292ccbb34c219566715eea318ed32bef57c55889eb02ee21193bcc4b9196e",
+        "match": true
+      },
+      {
+        "file": "kosis-environment.json",
+        "status": 200,
+        "localBytes": 85296,
+        "productionBytes": 85296,
+        "localSha": "c88e4f9ed2c020d660e0698871852e5030939f3bb403959208c33f797f80fb3c",
+        "productionSha": "c88e4f9ed2c020d660e0698871852e5030939f3bb403959208c33f797f80fb3c",
+        "match": true
+      },
+      {
+        "file": "kosis-finance.json",
+        "status": 200,
+        "localBytes": 92992,
+        "productionBytes": 92992,
+        "localSha": "b5115ccad030146870d8fb06da2945caf427ae0efa636c7a5db145a443a1cbb8",
+        "productionSha": "b5115ccad030146870d8fb06da2945caf427ae0efa636c7a5db145a443a1cbb8",
+        "match": true
+      },
+      {
+        "file": "kosis-health.json",
+        "status": 200,
+        "localBytes": 69579,
+        "productionBytes": 69579,
+        "localSha": "8c48d03c157027e81f34757a0325e4eea0290f389c159113706a8231da172fe0",
+        "productionSha": "8c48d03c157027e81f34757a0325e4eea0290f389c159113706a8231da172fe0",
+        "match": true
+      },
+      {
+        "file": "kosis-housing.json",
+        "status": 200,
+        "localBytes": 79850,
+        "productionBytes": 79850,
+        "localSha": "265d9e82d47b808b836ee1c017c3c3d05be623a5668a1eb0fa1edbe2c1d30142",
+        "productionSha": "265d9e82d47b808b836ee1c017c3c3d05be623a5668a1eb0fa1edbe2c1d30142",
+        "match": true
+      },
+      {
+        "file": "kosis-safety.json",
+        "status": 200,
+        "localBytes": 93730,
+        "productionBytes": 93730,
+        "localSha": "1076174fb180bb020d66c6b617548bd73a2e74a3a9c6a1265c41bf38fc02b31c",
+        "productionSha": "1076174fb180bb020d66c6b617548bd73a2e74a3a9c6a1265c41bf38fc02b31c",
+        "match": true
+      },
+      {
+        "file": "kosis-transport.json",
+        "status": 200,
+        "localBytes": 73820,
+        "productionBytes": 73820,
+        "localSha": "7b6ca3749c49edc634a507d98268658e8b5fcee6387d3661d405db835096c6c7",
+        "productionSha": "7b6ca3749c49edc634a507d98268658e8b5fcee6387d3661d405db835096c6c7",
+        "match": true
+      },
+      {
+        "file": "kosis-welfare.json",
+        "status": 200,
+        "localBytes": 99042,
+        "productionBytes": 99042,
+        "localSha": "21259d88bfb9599b7c37f3f02f5ab2cbe205a02d0aae0eb5f57396e5e85691bb",
+        "productionSha": "21259d88bfb9599b7c37f3f02f5ab2cbe205a02d0aae0eb5f57396e5e85691bb",
+        "match": true
+      },
+      {
+        "file": "nh-consumption.json",
+        "status": 200,
+        "localBytes": 126501,
+        "productionBytes": 126501,
+        "localSha": "a967ad87e3c174f170f4da0db40b36536e46b3bad38e275f54798027027f5ede",
+        "productionSha": "a967ad87e3c174f170f4da0db40b36536e46b3bad38e275f54798027027f5ede",
+        "match": true
+      },
+      {
+        "file": "nh-demographics.json",
+        "status": 200,
+        "localBytes": 664988,
+        "productionBytes": 664988,
+        "localSha": "53ab9fa043a01589c2ed867925b904a06bbacc18e9cd730cd9c1ff276ae97cea",
+        "productionSha": "53ab9fa043a01589c2ed867925b904a06bbacc18e9cd730cd9c1ff276ae97cea",
+        "match": true
+      },
+      {
+        "file": "nh-hourly.json",
+        "status": 200,
+        "localBytes": 237530,
+        "productionBytes": 237530,
+        "localSha": "a97b6e3c3fda4b95cb5bdf3bd45438375e8e5fea186b0cc08705272194abe3ea",
+        "productionSha": "a97b6e3c3fda4b95cb5bdf3bd45438375e8e5fea186b0cc08705272194abe3ea",
+        "match": true
+      },
+      {
+        "file": "nh-industry.json",
+        "status": 200,
+        "localBytes": 174968,
+        "productionBytes": 174968,
+        "localSha": "1e161f34f3f68be15bbdfe447806ba2390137bd101ab4f1d335a6fa0def8cd12",
+        "productionSha": "1e161f34f3f68be15bbdfe447806ba2390137bd101ab4f1d335a6fa0def8cd12",
+        "match": true
+      },
+      {
+        "file": "nh-storetype.json",
+        "status": 200,
+        "localBytes": 198294,
+        "productionBytes": 198294,
+        "localSha": "5794875bf0900c23a71bb535493858b1ab94d81fcdc51ee5de9dda1fb1e3ec38",
+        "productionSha": "5794875bf0900c23a71bb535493858b1ab94d81fcdc51ee5de9dda1fb1e3ec38",
+        "match": true
+      },
+      {
+        "file": "skt-daynight.json",
+        "status": 200,
+        "localBytes": 141018,
+        "productionBytes": 141018,
+        "localSha": "846f0a53b39af5ff839429bda09c056af859d7176985201a06e83887b72279bf",
+        "productionSha": "846f0a53b39af5ff839429bda09c056af859d7176985201a06e83887b72279bf",
+        "match": true
+      },
+      {
+        "file": "skt-living.json",
+        "status": 200,
+        "localBytes": 108614,
+        "productionBytes": 108614,
+        "localSha": "2652538016edaa3fe8af8210c2292015064b65b449eb36f2584f963ea5cda988",
+        "productionSha": "2652538016edaa3fe8af8210c2292015064b65b449eb36f2584f963ea5cda988",
+        "match": true
+      },
+      {
+        "file": "skt-mobility.json",
+        "status": 200,
+        "localBytes": 135258,
+        "productionBytes": 135258,
+        "localSha": "94aad14fed139d4a4716b9384ec0412c4f2eaf7c03db0ea7f204cabe00460835",
+        "productionSha": "94aad14fed139d4a4716b9384ec0412c4f2eaf7c03db0ea7f204cabe00460835",
+        "match": true
+      }
+    ]
+  }
+}

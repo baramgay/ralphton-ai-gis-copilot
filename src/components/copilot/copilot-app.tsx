@@ -2977,8 +2977,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         trendMatch.direction,
         trendMatch.adminLevel,
         months,
+        trendMatch.regionFilters,
       );
       const directionLabel = trendMatch.direction === "rising" ? "증가" : "감소";
+      const regionLabel = trendMatch.regionFilters.length ? `${trendMatch.regionFilters.join("·")} 안 ` : "";
       // 화면마다 기준이 다르면 혼란스러우므로 프로파일과 같은 기간을 쓰고, 그 사실을 밝힌다.
       const periodLabel = months > 0 ? ` (최근 ${months}개월)` : "";
       const view: AnalysisView = {
@@ -3040,6 +3042,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         }),
         filteredFacilities: [],
         formulaNotes: [
+          ...(regionLabel ? [`분석 범위: ${trendMatch.regionFilters.join("·")}`] : []),
           `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100${periodLabel}`,
           ...(result.ranked[0] ? [`첫 결과의 관측 기간: ${describeTrend(result.ranked[0].trend, trendMatch.metricLabel, trendMatch.unit)}`] : []),
           `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
@@ -3065,7 +3068,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setLastIntent(null);
       setParseStage("done");
       setQueryNotice(
-        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — 비교 가능 ${result.comparable}개 ${unitWordOf(trendMatch.layerId, trendMatch.adminLevel)}`,
+        `${trendMatch.metricLabel}(${trendMatch.provider}) ${directionLabel} 추세 — ${regionLabel}비교 가능 ${result.comparable}개 ${unitWordOf(trendMatch.layerId, trendMatch.adminLevel)}`,
       );
       setQueryNoticeTone("success");
       setQuerySuggestions([]);
@@ -3082,6 +3085,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (presetQuery: string) => {
       const match = resolveTrendQuery(presetQuery, PRIVATE_NL_LAYERS, {
         adminLevelFallback: adminLevel,
+        dongNames: dongNamesForQuery,
       });
       if (!match) return;
       resetResultFilters();
@@ -3097,7 +3101,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         setQueryNoticeTone("neutral");
       }
     },
-    [adminLevel, dismissOnboard, requestCubesAndRetry, resetResultFilters, runTrend],
+    [adminLevel, dismissOnboard, dongNamesForQuery, requestCubesAndRetry, resetResultFilters, runTrend],
   );
 
 
@@ -3387,6 +3391,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     // 표현이므로 단일 시점 라우팅으로 넘기면 "많은 곳"과 구별되지 않는다.
     const trendMatch = publicFirst ? null : resolveTrendQuery(trimmed, PRIVATE_NL_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
+      dongNames: dongNamesForQuery,
     });
     if (trendMatch) {
       rememberQuery(trimmed);

@@ -113,13 +113,15 @@ export function detectRegionFilters(query: string, dongNames: readonly string[] 
   for (const name of dongNames) {
     const key = name.replace(/\s+/g, "");
     if (key.length < 2) continue;
-    const at = compact.indexOf(key);
-    if (at >= 0) found.push({ at, length: key.length, filter: key, kind: "dong" });
+    for (let at = compact.indexOf(key); at >= 0; at = compact.indexOf(key, at + key.length)) {
+      found.push({ at, length: key.length, filter: key, kind: "dong" });
+    }
   }
   for (const { match, filter } of REGION_TOKENS) {
     if (match.length < 2) continue;
-    const at = compact.indexOf(match);
-    if (at >= 0) found.push({ at, length: match.length, filter, kind: "sgg" });
+    for (let at = compact.indexOf(match); at >= 0; at = compact.indexOf(match, at + match.length)) {
+      found.push({ at, length: match.length, filter, kind: "sgg" });
+    }
   }
 
   // 같은 자리를 여러 이름이 물면 긴 쪽만 남긴다("물금읍"이 "양산시"를, "창원시성산구"가
@@ -135,13 +137,19 @@ export function detectRegionFilters(query: string, dongNames: readonly string[] 
   /*
    * "양산시 물금읍"처럼 시군구 바로 뒤에 읍면동이 붙으면 한 곳을 가리키는 말이다.
    * 둘 다 남기면 어느 하나라도 맞으면 통과라 양산 전체로 넓어진다 — 물어본 것보다 넓다.
-   * 붙어 있는 경우만 좁은 쪽을 남긴다("창원과 김해"처럼 떨어져 있으면 둘 다 살린다).
+   * 동명이인이 다른 시군구에 있을 수 있으므로 시군구와 읍면동을 결합한 한 범위를 남긴다.
+   * 붙어 있거나 ‘의’로 이어진 경우만 결합한다. 떨어진 지역은 각각 유지한다.
    */
-  const narrowed = kept.filter(
-    (item) =>
-      item.kind === "dong" ||
-      !kept.some((other) => other.kind === "dong" && Math.abs(other.at - (item.at + item.length)) <= 1),
-  );
+  const consumed = new Set<(typeof found)[number]>();
+  const qualified = kept.map((item) => {
+    if (item.kind !== "dong") return item;
+    const parent = kept.find((other) => other.kind === "sgg" && other.at + other.length <= item.at &&
+      /^의?$/.test(compact.slice(other.at + other.length, item.at)));
+    if (!parent) return item;
+    consumed.add(parent);
+    return { ...item, filter: `${parent.filter} ${item.filter}` };
+  });
+  const narrowed = qualified.filter((item) => !consumed.has(item));
 
   const seen = new Set<string>();
   return narrowed

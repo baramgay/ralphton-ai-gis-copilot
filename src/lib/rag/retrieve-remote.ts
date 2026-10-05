@@ -49,7 +49,7 @@ export async function retrieveRagChunksWithRemote(
         vectorScore: remote,
       };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => (b.subjectMatchLength ?? 0) - (a.subjectMatchLength ?? 0) || b.score - a.score);
 
   return { hits: fused.slice(0, options.limit ?? 4), remote: true };
 }

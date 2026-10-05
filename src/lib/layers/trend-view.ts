@@ -52,12 +52,15 @@ export function buildTrendRanking(
   adminLevel: AdminLevel,
   /** 추세를 볼 기간(개월). 없으면 전 기간. 프로파일 패널과 같은 기준을 쓴다. */
   trendMonths?: number,
+  regionFilters: readonly string[] = [],
 ): TrendRankResult {
   const source = adminLevel === "sgg" ? aggregateToSgg(cube, metrics) : cube;
+  const compactFilters = regionFilters.map(filter => filter.replace(/\s+/g, "")).filter(Boolean);
 
   const rows: TrendRow[] = [];
   let excluded = 0;
   for (const cell of source.cells) {
+    if (compactFilters.length > 0 && !compactFilters.some(filter => cell.name.replace(/\s+/g, "").includes(filter))) continue;
     const trend = computeTrend(
       sliceRecentMonths(cell.series[metric.key] ?? [], source.months, trendMonths),
       sliceRecentMonths(source.months, source.months, trendMonths),

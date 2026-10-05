@@ -60,12 +60,14 @@ export async function POST(request: Request) {
 
   const { hits: includedHits, context } = buildRagContext(rawHits);
   const includedIds = new Set(includedHits.map((hit) => hit.chunk.id));
+  // Registered subject priority precedes the hybrid score. Clients must preserve this returned order.
   const hits = rawHits.map((hit) => ({
     id: hit.chunk.id,
     title: hit.chunk.title,
     body: hit.chunk.body,
     tags: hit.chunk.tags,
     score: Number(hit.score.toFixed(3)),
+    subjectMatchLength: hit.subjectMatchLength ?? 0,
     lexicalScore:
       hit.lexicalScore !== undefined ? Number(hit.lexicalScore.toFixed(3)) : undefined,
     vectorScore:

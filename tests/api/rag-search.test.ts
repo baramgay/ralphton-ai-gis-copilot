@@ -18,6 +18,7 @@ it("marks candidates outside the context and cites only included evidence", asyn
   expect(body.citations.map((citation: { id: string }) => citation.id)).toEqual(contextIds);
   expect(body.context.length).toBeLessThanOrEqual(1200);
   expect(body.mode).toBe("hybrid-bm25-hash-embed");
+  expect(body.hits.every((hit: { subjectMatchLength?: number }) => typeof hit.subjectMatchLength === "number")).toBe(true);
 });
 
 it("returns empty evidence rather than fabricated support", async () => {

@@ -1536,6 +1536,42 @@ describe("CopilotApp", () => {
     expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 20_000 })).not.toHaveLength(0);
   }, 45_000);
 
+  test.each(["진주시", "진주시 중앙동"])("%s 추세의 화면·CSV·보고서는 해당 지역만 포함한다", async (region) => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init);
+      if (String(input).includes("/api/data/snapshot")) {
+        const data = await response.json();
+        data.regions[0].adm_nm = "경상남도 진주시 중앙동";
+        return new Response(JSON.stringify(data), { status: 200 });
+      }
+      if (!String(input).includes("/data/layers/nh-consumption.json")) return response;
+      const cube = await response.json();
+      const template = cube.cells[0];
+      cube.cells = [
+        { ...template, code: "4817010100", name: "진주시 중앙동", series: { card_sales: cube.months.map((_: string, i: number) => 100 + i * 10) } },
+        { ...template, code: "4825010100", name: "김해시 중앙동", series: { card_sales: cube.months.map((_: string, i: number) => 100 + i * 1000) } },
+      ];
+      return new Response(JSON.stringify(cube), { status: 200 });
+    }) as typeof fetch;
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: `${region} 최근 3개월 카드매출 증가하는 동` } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    const panel = screen.getByTestId("result-panel");
+    expect(panel).toHaveTextContent("진주시 중앙동");
+    expect(panel).not.toHaveTextContent("김해시 중앙동");
+    fireEvent.click(screen.getByTestId("export-csv"));
+    const csv = vi.mocked(downloadTextFile).mock.calls.at(-1)![1];
+    expect(csv).toContain("진주시 중앙동");
+    expect(csv).not.toContain("김해시 중앙동");
+    fireEvent.click(screen.getByTestId("export-report"));
+    const report = vi.mocked(openHtmlForPrint).mock.calls.at(-1)![0];
+    expect(report).toContain("진주시 중앙동");
+    expect(report).not.toContain("김해시 중앙동");
+  });
+
   test("감소 추세 보고서는 원래 낮은 변화율 순으로 정렬됨을 표시한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");

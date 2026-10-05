@@ -4,6 +4,27 @@ import { augmentQueryWithRag } from "@/lib/rag/augment";
 import { retrieveRagChunks, formatRagContext } from "@/lib/rag/retrieve";
 
 describe("independently labeled Korean evidence cases", () => {
+  it.each([
+    ["김해시 총생활인구 높은 동", "metric-skt-living-living_total"],
+    ["야간인구 규모 순위", "metric-skt-daynight-night_population"],
+    ["관외 방문 유입인구 순위", "metric-skt-mobility-inflow_total"],
+  ])("prioritizes the named quantity over a related ratio or contrasting observation: %s", (query, id) => {
+    expect(retrieveRagChunks({ query, limit: 5 })[0]?.chunk.id).toBe(id);
+  });
+
+  it.each(["달빛인구 많은 곳", "달빛 규모 많은 곳"])("registered title or keywords outrank incidental body mentions: %s", (query) => {
+    const corpus = [
+      { id: "ratio", title: "별빛비율", keywords: ["별빛비율"], tags: [], body: "달빛인구 달빛인구 달빛인구와 다른 비율이며 달빛인구 규모가 아닙니다." },
+      { id: "quantity", title: "달빛인구", keywords: ["달빛 규모"], tags: [], body: "관측한 사람 수입니다." },
+    ];
+    const vectors = new Map([["ratio", [1, 0]], ["quantity", [0, 1]]]);
+    expect(retrieveRagChunks({ query, corpus, queryVector: [1, 0], chunkVectors: vectors, lexicalWeight: 0.05, vectorWeight: 0.95 })[0]?.chunk.id).toBe("quantity");
+    expect(retrieveRagChunks({ query: "qzxvbnm", corpus })).toEqual([]);
+  });
+
+  it("a tag boost does not replace an explicitly named quantity with a related ratio", () => {
+    expect(retrieveRagChunks({ query: "김해시 총생활인구 높은 동", boostTags: ["elderly_ratio"] })[0]?.chunk.id).toBe("metric-skt-living-living_total");
+  });
   it.each(cases.filter((entry) => entry.kind !== "relevant"))("$id has no supporting GIS evidence", ({ query }) => {
     expect(retrieveRagChunks({ query, limit: 5 })).toEqual([]);
     expect(augmentQueryWithRag(query).citations).toEqual([]);

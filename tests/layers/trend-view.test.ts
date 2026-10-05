@@ -30,6 +30,39 @@ function cube(values: Record<string, Array<number | null>>): LayerCube {
 }
 
 describe("buildTrendRanking", () => {
+  test("requested city excludes outside extremes and missing rows while retaining actual observation months", () => {
+    const scoped = cube({
+      "4817051000": [100, 110, 120],
+      "4817052000": [0, null, 5],
+      "4872051000": [1, 100, 1000],
+      "4872052000": [null, null, null],
+    });
+    scoped.cells[0].name = "경상남도 진주시 수곡면";
+    scoped.cells[1].name = "경상남도 진주시 대곡면";
+    scoped.cells[2].name = "경상남도 의령군 봉수면";
+    scoped.cells[3].name = "경상남도 의령군 정곡면";
+    const result = buildTrendRanking(scoped, metric, [metric], "rising", "dong", 3, ["진주시"]);
+    expect(result.ranked.map(row => row.code)).toEqual(["4817051000"]);
+    expect(result.comparable).toBe(1);
+    expect(result.excluded).toBe(1);
+    expect(result.scores.has("4872051000")).toBe(false);
+    expect(result.ranked[0].trend.changeRate).toBe(20);
+    expect(result.ranked[0].trend.firstMonth).toBe("2025-01");
+    expect(result.ranked[0].trend.lastMonth).toBe("2025-03");
+    expect(scoped.cells).toHaveLength(4);
+  });
+
+  test("district scope applies after summing member dongs rather than restricting the city total to one dong", () => {
+    const scoped = cube({ "4817051000": [100, 100, 100], "4817052000": [100, 120, 140], "4872051000": [1, 100, 1000] });
+    scoped.cells[0].name = "경상남도 진주시 수곡면";
+    scoped.cells[1].name = "경상남도 진주시 대곡면";
+    scoped.cells[2].name = "경상남도 의령군 봉수면";
+    const result = buildTrendRanking(scoped, metric, [metric], "rising", "sgg", 3, ["진주시"]);
+    expect(result.ranked.map(row => row.code)).toEqual(["48170"]);
+    expect(result.ranked[0].trend.changeRate).toBe(20);
+    expect(result.ranked[0].trend.first).toBe(200);
+    expect(result.ranked[0].trend.last).toBe(240);
+  });
   const sample = cube({
     "4811100000": [100, 110, 130], // +30%
     "4811200000": [100, 100, 100], // 0%

@@ -11,6 +11,8 @@ export type RagHit = {
   reasons: string[];
   lexicalScore?: number;
   vectorScore?: number;
+  /** Explicit registered subject match; body mentions do not set this priority. */
+  subjectMatchLength?: number;
 };
 
 export type RetrieveOptions = {
@@ -107,7 +109,11 @@ const DEFAULT_IDF = buildIdf(RAG_CORPUS);
 function indexChunk(chunk: RagChunk) {
   const text = `${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`;
   const tokens = tokenize(text);
-  return { chunk, text, tokens, tf: termFrequency(tokens), words: new Set(tokenizeWords(text)) };
+  const subjects = [chunk.title, ...chunk.keywords].map((subject) => ({
+    phrase: subject.toLowerCase().replace(/\s+/g, ""), words: tokenizeWords(subject),
+  }));
+  const subjectWords = new Set(subjects.flatMap((subject) => subject.words));
+  return { chunk, text, tokens, tf: termFrequency(tokens), words: new Set(tokenizeWords(text)), subjects, subjectWords };
 }
 
 const DEFAULT_INDEX = RAG_CORPUS.map(indexChunk);
@@ -195,6 +201,7 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
   if (!documents.some((doc) => queryWords.some((word) => doc.words.has(word)))) return [];
   const boostTags = new Set(options.boostTags ?? []);
   const queryLower = options.query.toLowerCase();
+  const queryCompact = queryLower.replace(/\s+/g, "");
   const lw = options.lexicalWeight ?? 0.55;
   const vw = options.vectorWeight ?? 0.45;
 
@@ -210,9 +217,13 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
           ]),
         ));
 
-  const raw = documents.map(({ chunk, text: docText, tokens: docTokens, tf, words }) => {
+  const raw = documents.map(({ chunk, text: docText, tokens: docTokens, tf, words, subjects, subjectWords }) => {
     let lexical = bm25LiteScore(queryTokens, tf, docTokens.length, idf, corpus.length);
     const hasEvidence = lexical > 0 && queryWords.some((word) => words.has(word));
+    const subjectCoverage = queryWords.filter((word) => subjectWords.has(word)).length;
+    const subjectMatchLength = Math.max(0, ...subjects.filter(({ phrase, words: subjectWords }) =>
+      queryCompact.includes(phrase) && subjectWords.some((word) => !QUERY_STRUCTURE_WORDS.has(word) && !PLACE_WORDS.has(word)),
+    ).map(({ phrase }) => phrase.length));
     const reasons: string[] = [];
 
     if (lexical > 0) reasons.push("lexical");
@@ -240,11 +251,13 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
     const vector = cosineSimilarity(queryHash, docVec);
     if (vector > 0.05) reasons.push("vector");
 
-    return { chunk, lexical, vector, hasEvidence, reasons: [...new Set(reasons)] };
+    if (subjectMatchLength > 0 && hasEvidence) reasons.push("registered-subject");
+    return { chunk, lexical, vector, hasEvidence, subjectMatchLength, subjectCoverage, reasons: [...new Set(reasons)] };
   });
 
   const lexNorm = normalizeScores(raw.map((row) => row.lexical));
   const vecNorm = normalizeScores(raw.map((row) => row.vector));
+  const maxSubjectCoverage = Math.max(0, ...raw.map((row) => row.subjectCoverage));
 
   const hits: RagHit[] = raw.map((row, index) => {
     /*
@@ -270,12 +283,14 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
       reasons: row.reasons,
       lexicalScore: row.lexical,
       vectorScore: row.vector,
+      // A broad one-word topic must not displace a document covering the question's combined subjects.
+      subjectMatchLength: row.subjectCoverage === maxSubjectCoverage ? row.subjectMatchLength : 0,
     };
   });
 
   return hits
     .filter((hit) => hit.score > 0.08)
-    .sort((a, b) => b.score - a.score || a.chunk.id.localeCompare(b.chunk.id))
+    .sort((a, b) => (b.subjectMatchLength ?? 0) - (a.subjectMatchLength ?? 0) || b.score - a.score || a.chunk.id.localeCompare(b.chunk.id))
     .slice(0, limit);
 }
 

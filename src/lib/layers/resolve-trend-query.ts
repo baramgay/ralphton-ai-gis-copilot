@@ -1,5 +1,5 @@
 import { neutralizeNegatedDirection } from "@/lib/analysis/query-catalog-meta";
-import { detectAdminLevel } from "@/lib/layers/resolve-layer-query";
+import { detectAdminLevel, detectRegionFilters } from "@/lib/layers/resolve-layer-query";
 import type { AdminLevel, LayerDescriptor } from "@/lib/layers/types";
 
 type LayerLike = Omit<LayerDescriptor, "months"> | LayerDescriptor;
@@ -16,6 +16,7 @@ export type TrendQueryMatch = {
   adminLevel: AdminLevel;
   /** 질의에 적힌 기간(개월). 없으면 null이고 화면의 기간 설정을 그대로 쓴다. */
   months: number | null;
+  regionFilters: string[];
 };
 
 /**
@@ -69,7 +70,7 @@ function bestTriggerMatch(text: string, triggers: readonly string[]): string | n
 export function resolveTrendQuery(
   query: string,
   layers: readonly LayerLike[],
-  options: { adminLevelFallback?: AdminLevel } = {},
+  options: { adminLevelFallback?: AdminLevel; dongNames?: readonly string[] } = {},
 ): TrendQueryMatch | null {
   const text = neutralizeNegatedDirection(query.replace(/\s+/g, " ").trim());
   if (!text) return null;
@@ -97,6 +98,7 @@ export function resolveTrendQuery(
               ? "sgg"
               : detectAdminLevel(text, options.adminLevelFallback ?? "dong"),
           months: detectTrendMonths(text),
+          regionFilters: detectRegionFilters(text, options.dongNames ?? []),
           triggerLength: trigger.length,
         };
       }
