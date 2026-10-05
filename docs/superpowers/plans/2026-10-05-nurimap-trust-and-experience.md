@@ -14,9 +14,13 @@
 
 ## 단계와 확인 기준
 
-- [ ] RAG 담당: 고정 24개 사례를 보존하고 의역·대조·부정 사례를 추가한다. 실패 재현 후 수정하며 `node scripts/verify-rag.mjs trust-upgrade`와 관련 Vitest에서 품질·무근거 차단을 확인한다.
-- [ ] 데이터 담당: 공식 자료와 기준 기간·지역 코드를 확보하여 기존 통계 파이프라인에 연결한다. 원자료 합계·비율·결측을 독립 검증하고 관련 데이터 테스트를 실행한다. 접근할 수 없는 지표는 명시적으로 미완료로 남긴다.
-- [ ] UI 담당: 운영의 데스크톱·모바일 화면을 인식하고 사용자 흐름 중심의 구조를 설계한다. 질문, 결과, 지도, 비교, 공유, 내보내기를 전면 재구성하고 관련 컴포넌트 및 E2E와 화면 캡처로 확인한다.
-- [ ] Root: 원격 응답·캐시의 잘못된 순서, 비정상 수치, 모델·제공자 변경, 코퍼스 변경과 배치 제한을 실패 테스트로 재현해 수정한다. 같은 평가로 로컬·원격 비교하는 스크립트와 운영 회귀 작업을 추가한다.
-- [ ] 통합: `npm test -- --maxWorkers=4`, `npm run typecheck`, `npm run lint`, `npm run build`, `npx playwright test --output logs/nurimap-trust-e2e-output`, `node scripts/verify-nurimap-numerics.mjs public/data/official-snapshot.json`를 실행하고 보고서를 확인한다. 테스트 실패는 원인과 사용자 동작을 기준으로 해결한다.
+- [x] RAG 담당: 고정 24개 사례를 보존하고 의역·대조·부정 사례를 추가한다. 실패 재현 후 수정하며 `node scripts/verify-rag.mjs trust-upgrade`와 관련 Vitest에서 품질·무근거 차단을 확인한다.
+- [x] 데이터 담당: 공식 자료와 기준 기간·지역 코드를 확보하여 기존 통계 파이프라인에 연결한다. 원자료 합계·비율·결측을 독립 검증하고 관련 데이터 테스트를 실행한다. 접근할 수 없는 지표는 명시적으로 미완료로 남긴다.
+- [x] UI 담당: 운영의 데스크톱·모바일 화면을 인식하고 사용자 흐름 중심의 구조를 설계한다. 질문, 결과, 지도, 비교, 공유, 내보내기를 전면 재구성하고 관련 컴포넌트 및 E2E와 화면 캡처로 확인한다.
+- [x] Root: 원격 응답·캐시의 잘못된 순서, 비정상 수치, 모델·제공자 변경, 코퍼스 변경과 배치 제한을 실패 테스트로 재현해 수정한다. 같은 평가로 로컬·원격 비교하는 스크립트와 운영 회귀 작업을 추가한다.
+- [x] 통합: `npm test -- --maxWorkers=4`, `npm run typecheck`, `npm run lint`, `npm run build`, `npx playwright test --output logs/nurimap-trust-e2e-output`, `node scripts/verify-nurimap-numerics.mjs public/data/official-snapshot.json`를 실행하고 보고서를 확인한다. 테스트 실패는 원인과 사용자 동작을 기준으로 해결한다.
 - [ ] 출시: 검증한 변경만 commit·push하고 운영 설정으로 도메인 연결을 보류한 배포를 검사한다. 성공한 배포를 승격한 다음 운영 검색·파서·네 화면 크기·실데이터·공유·내보내기를 재검증하고 소스 SHA와 배포 ID를 기록한다.
+
+## 실제 원격 검증
+
+- [ ] 사용자 Gateway 계정 인증 또는 EMBED_* 설정 후 실제 원격 품질·지연 비교. 현재 실제 요청은 403 customer_verification_required이며 fallback 성공으로 처리하지 않았다. [그록봇 지시서](../../nurimap-grokbot-instructions.md)를 따른다.

@@ -39,6 +39,18 @@ function selectMedicalLayer() {
   );
 }
 
+/** 큐브가 늦게 도착하는 회선을 재현한다. 실제 네트워크나 환경 변수는 사용하지 않는다. */
+function deferLayerFixture(path: string) {
+  const baseFetch = fetch;
+  let release = () => {};
+  const ready = new Promise<void>((resolve) => { release = resolve; });
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).includes(path)) await ready;
+    return baseFetch(input, init);
+  }));
+  return release;
+}
+
 const snapshot = {
   mode: "demo" as const,
   referenceMonth: "2026-06",
@@ -1150,9 +1162,9 @@ describe("CopilotApp", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
     await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent(/스피어만/));
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2024-12 / 2023-12");
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("KOSIS");
-    expect(screen.getByTestId("data-provenance")).not.toHaveTextContent("SKT");
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("2024-12 / 2023-12"));
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("KOSIS"));
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).not.toHaveTextContent("SKT"));
     expect(screen.getByTestId("demo-map-badge")).toHaveTextContent("2024-12 / 2023-12");
     expect(screen.getByTestId("demo-map-badge")).not.toHaveTextContent("SKT");
   });
@@ -1203,7 +1215,7 @@ describe("CopilotApp", () => {
     expect(screen.getByTestId("method-summary")).toHaveTextContent(/총인구/);
     expect(screen.getByTestId("method-summary")).not.toHaveTextContent(/2km 무시설 15%/);
     // Reference-month/provider badge is sourced from the active layer, not left dangling.
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("공공");
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("공공"));
   });
 
   test("공공 도구 질의는 그 질의의 산식을 방법론에 보여 준다", async () => {
@@ -1259,10 +1271,11 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/생활인구/);
     });
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT"));
   });
 
   test("routes a 유입인구 natural-language query to the SKT mobility layer", async () => {
+    const releaseLayer = deferLayerFixture("/data/layers/skt-mobility.json");
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
 
@@ -1274,10 +1287,15 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/유입인구/);
     });
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
+    // 지표 이름은 선택 즉시 표시되므로 큐브 도착을 의미하지 않는다. 실제 출처를 기다린다.
+    releaseLayer();
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT"));
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2026-06");
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
   });
 
   test("routes a 카드매출 query to the NH consumption layer", async () => {
+    const releaseLayer = deferLayerFixture("/data/layers/nh-consumption.json");
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -1287,10 +1305,15 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/카드매출/);
     });
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("NH");
+    // 지표 이름은 선택 즉시 표시되므로 큐브 도착을 의미하지 않는다. 실제 출처를 기다린다.
+    releaseLayer();
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("NH"));
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2026-06");
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
   });
 
   test("routes a 평균소득 query to the KCB credit layer", async () => {
+    const releaseLayer = deferLayerFixture("/data/layers/kcb-credit.json");
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
     fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), {
@@ -1300,7 +1323,11 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/평균소득/);
     });
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("KCB");
+    // 지표 이름은 선택 즉시 표시되므로 큐브 도착을 의미하지 않는다. 실제 출처를 기다린다.
+    releaseLayer();
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("KCB"));
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2026-06");
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
   });
 
   test("runs a 민간×민간 교차분석 for '생활인구 대비 카드매출'", async () => {
@@ -1370,7 +1397,7 @@ describe("CopilotApp", () => {
     await waitFor(() => {
       expect(screen.getByTestId("method-summary")).toHaveTextContent(/주야비/);
     });
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT");
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("SKT"));
   });
 
   test("내려받기는 표·보고서·공유 셋이다", async () => {
@@ -1668,7 +1695,7 @@ describe("CopilotApp", () => {
     fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구는 늘고 카드매출은 줄어드는 동" } });
     fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
     await screen.findByTestId("export-csv");
-    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2025-09 / 2025-12");
+    await waitFor(() => expect(screen.getByTestId("data-provenance")).toHaveTextContent("2025-09 / 2025-12"));
     fireEvent.click(screen.getByTestId("export-csv"));
     expect(vi.mocked(downloadTextFile).mock.calls.at(-1)![1]).toContain("기준월,2025-09 / 2025-12");
   });
