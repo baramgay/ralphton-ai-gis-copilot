@@ -34,7 +34,7 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
     title: "고령 수요 대비 의료 공급",
     body: "고령 인구 비중과 의료 공급 지표를 함께 볼 때 rankElderlyUnderserved를 사용합니다. 노인·어르신·고령화 + 병원 부족 질의에 적합합니다.",
     tags: ["rankElderlyUnderserved", "elderly", "medical"],
-    keywords: ["고령", "노인", "어르신", "고령화", "의료 부족"],
+    keywords: ["고령", "고령 인구", "노인", "어르신", "고령화", "의료 부족", "병원 부족"],
   },
   {
     id: "tool-death-birth",

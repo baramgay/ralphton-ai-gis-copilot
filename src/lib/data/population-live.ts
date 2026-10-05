@@ -23,7 +23,7 @@ function asAdmCode(row: Record<string, unknown>): string | null {
     row.stdgCd ??
     row.tongBanCd ??
     row.emdCd;
-  if (raw == null) return null;
+  if (raw == null || String(raw).trim() === "") return null;
   const digits = String(raw).replace(/\D/g, "");
   if (digits.length >= 10) return digits.slice(0, 10);
   if (digits.length === 8) return `${digits}00`; // some feeds omit tong/ban
@@ -37,14 +37,14 @@ function asPopulation(row: Record<string, unknown>): number | null {
      * 인구를 못 읽고 0행으로 취급하고 있었다(docs/POPULATION-API-FINDINGS.md).
      */
     row.totNmprCnt ?? row.population ?? row.totNmpr ?? row.totPpltn ?? row.ppltnCnt ?? row.totPop;
-  if (raw == null) return null;
+  if (raw == null || String(raw).trim() === "") return null;
   const n = typeof raw === "number" ? raw : Number(String(raw).replaceAll(",", ""));
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 }
 
 function asHouseholds(row: Record<string, unknown>): number | null {
   const raw = row.households ?? row.hhCnt ?? row.totHhcnt ?? row.hhldCnt;
-  if (raw == null) return null;
+  if (raw == null || String(raw).trim() === "") return null;
   const n = typeof raw === "number" ? raw : Number(String(raw).replaceAll(",", ""));
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 }
@@ -106,7 +106,8 @@ export function sumRowsByDongMonth(
     const households = asHouseholds(row);
     totals.set(key, {
       population: (prev?.population ?? 0) + population,
-      households: households === null ? prev?.households ?? null : (prev?.households ?? 0) + households,
+      households: households === null || (prev && prev.households === null)
+        ? null : (prev?.households ?? 0) + households,
     });
   }
   return totals;
@@ -209,7 +210,10 @@ export async function fetchAndMergeRegionalPopulation(
 
   // 한 칸이라도 비면 그 지역은 못 쓴다 — 섞인 시계열은 추세를 거짓말하게 만든다.
   const missing = base.regions.filter((region) =>
-    base.months.some((month) => !totals.has(`${region.adm_cd2}|${month}`)),
+    base.months.some((month) => {
+      const total = totals.get(`${region.adm_cd2}|${month}`);
+      return !total || total.households === null;
+    }),
   );
   if (missing.length > 0) {
     return {
@@ -226,10 +230,7 @@ export async function fetchAndMergeRegionalPopulation(
     const population = base.months.map(
       (month) => totals.get(`${region.adm_cd2}|${month}`)!.population,
     );
-    const households = base.months.map((month, index) => {
-      const hit = totals.get(`${region.adm_cd2}|${month}`)!.households;
-      return hit === null ? region.households[index] : hit;
-    });
+    const households = base.months.map((month) => totals.get(`${region.adm_cd2}|${month}`)!.households!);
     const populationDensity = population.map((value, index) =>
       region.areaSquareKm > 0 ? value / region.areaSquareKm : region.populationDensity[index],
     );
@@ -242,6 +243,8 @@ export async function fetchAndMergeRegionalPopulation(
     month: base.months[base.months.length - 1],
     notes: [
       `인구 실측: 경남 ${regions.length}개 행정동의 인구·세대 ${base.months.length}개월 시계열을 실데이터로 교체했습니다.`,
+      ...(base.mode === "demo" || base.sourceNotes.some((note) => /인구|세대/.test(note) && /합성/.test(note))
+        ? ["연령별 인구·1인세대 값은 이 API로 갱신하지 않아 합성값을 유지합니다."] : []),
       `요청 ${jobs.length}건(동 ${base.regions.length} × 구간 ${windows.length}).`,
     ],
   };

@@ -1,5 +1,5 @@
 import { regionUnitLabel } from "@/lib/analysis/export-csv";
-import { rankWordOf, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
+import { rankWordOf, toNounEnding, reportPopulationNotes, reportSourceLabel, type ReportInput } from "@/lib/analysis/export-report";
 
 /**
  * 분석 결과를 발표용 슬라이드 HTML로 만든다.
@@ -43,7 +43,8 @@ const SLIDE_STYLE = `
 export function buildSlideHtml(input: ReportInput): string {
   const top = input.rows.slice(0, input.topCount ?? 8);
   const totalCount = input.totalCount ?? input.rows.length;
-  const foot = `${escapeHtml(input.source)} · 기준월 ${escapeHtml(input.referenceMonth)}`;
+  const source = reportSourceLabel(input.source);
+  const foot = `${source ? `${escapeHtml(source)} · ` : ""}기준월 ${escapeHtml(input.referenceMonth)}`;
   const slides: string[] = [];
 
   slides.push(`
@@ -74,7 +75,8 @@ export function buildSlideHtml(input: ReportInput): string {
       <p class="foot">대상 ${regionUnitLabel(input.rows.map((row) => row.code))} ${totalCount.toLocaleString("ko-KR")}개 중 ${rankWordOf(input.rows)} ${top.length}개 · ${foot}</p>
     </section>`);
 
-  const notes = input.formulaNotes.map((note) => `<li>${escapeHtml(note)}</li>`).join("");
+  const notes = [...input.formulaNotes, ...reportPopulationNotes(input)]
+    .map((note) => `<li>${escapeHtml(note)}</li>`).join("");
   slides.push(`
     <section class="slide">
       <h2>산식 및 해석 기준</h2>

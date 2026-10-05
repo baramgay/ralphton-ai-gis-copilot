@@ -21,18 +21,7 @@ export type QueryHeroProps = {
   onClearRecent: () => void;
 };
 
-/**
- * 자연어 질의를 지도 위 히어로로 올린다.
- *
- * 이 도구의 주기능은 민간데이터를 자연어로 분석하는 것인데, 질의창이 왼쪽 패널의 레이어
- * 버튼 14개 **아래**에 묻혀 있었다. 모바일에서는 더 나빠서, 결과 시트가 첫 화면부터 열려
- * 질의창을 아예 덮었다 — Playwright가 `질의 실행` 버튼을 20회 재시도 끝에 포기했다
- * (`result-panel subtree intercepts pointer events`). 주기능이 도달 불가였다.
- *
- * 그래서 질의창은 어느 패널에도 속하지 않는다. 지도 위 최상단에 떠 있어 좌우 패널·바텀
- * 시트가 어떤 상태든 늘 닿는다. 안내·되묻기도 함께 올린다 — 왼쪽 패널이 접혀 있을 때
- * "혹시 카드매출인가요?"를 못 보면 되묻는 의미가 없다.
- */
+/** 질문 입력과 진행·복구 안내. 지도 밖 작업 영역에서 항상 접근할 수 있다. */
 export function QueryHero({
   query,
   onQueryChange,
@@ -73,19 +62,8 @@ export function QueryHero({
           disabled={isParsing || !query.trim()}
           className="query-hero-submit"
         >
-          {isParsing ? (
-            <span className="query-hero-spinner" aria-hidden="true" />
-          ) : (
-            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path
-                d="M10 16V4M10 4l-5 5M10 4l5 5"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
+          {isParsing ? <span className="query-hero-spinner" aria-hidden="true" /> : null}
+          <span>{isParsing ? "분석 중" : "분석하기"}</span>
         </button>
       </form>
 
@@ -103,7 +81,7 @@ export function QueryHero({
           data-testid="query-notice"
           className={`query-hero-notice is-${noticeTone}`}
         >
-          {notice}
+          {noticeTone === "success" ? <><span>분석 완료 · 결과와 지도를 확인하세요</span><span className="sr-only">{notice}</span></> : notice}
         </p>
       ) : null}
 

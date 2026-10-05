@@ -1,0 +1,11 @@
+[
+  { "id": "elderly-relative-supply", "query": "고령 인구에 비해 병원이 부족한 곳", "kind": "relevant", "expectedIds": ["tool-elderly-medical"] },
+  { "id": "elderly-supply-description", "query": "고령 인구 대비 의료 공급이 부족한 동", "kind": "relevant", "expectedIds": ["tool-elderly-medical"] },
+  { "id": "temporary-stay-description", "query": "다른 시군구 주민이 일시 체류하는 규모", "kind": "relevant", "expectedIds": ["metric-skt-mobility-inflow_total"] },
+  { "id": "outside-residence-description", "query": "거주지가 다른 시군구인 사람의 체류 인구", "kind": "relevant", "expectedIds": ["metric-skt-mobility-inflow_total"] },
+  { "id": "residence-change-description", "query": "거주지를 옮겨 이사 온 전입인구", "kind": "relevant", "expectedIds": ["metric-kcb-migration-move_in"] },
+  { "id": "residence-and-stay-comparison", "query": "전입인구와 유입인구 비교", "kind": "combined", "expectedIds": ["metric-kcb-migration-move_in", "metric-skt-mobility-inflow_total"] },
+  { "id": "resident-noise-recipe", "query": "주민 qzxvbnm 레시피", "kind": "irrelevant", "expectedIds": [] },
+  { "id": "crypto-elderly-topic", "query": "비트코인 고령 인구 수요", "kind": "unsupported", "expectedIds": [] },
+  { "id": "outside-temporary-stay", "query": "서울 주민 일시 체류 규모", "kind": "out-of-scope", "expectedIds": [] }
+]

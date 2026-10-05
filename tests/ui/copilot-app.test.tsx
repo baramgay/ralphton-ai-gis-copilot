@@ -585,6 +585,47 @@ describe("CopilotApp", () => {
     );
   });
 
+  test("질문 작업 영역은 지도 밖에 있고 실행 동작을 글자로 설명한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    const workspace = screen.getByRole("region", { name: "질문과 분석 작업" });
+    expect(workspace.contains(screen.getByRole("textbox", { name: "분석 질의" }))).toBe(true);
+    expect(workspace.closest(".copilot-map")).toBeNull();
+    expect(screen.getByRole("button", { name: "질의 실행" })).toHaveTextContent("분석하기");
+    expect(within(workspace).getByRole("button", { name: "지역 비교" })).toBeVisible();
+  });
+
+  test("순위를 먼저 보여주고 선택 지역·분석 근거 탭은 키보드로 이동한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.click(screen.getByRole("button", { name: "생활인구 분석 시작" }));
+    await screen.findByTestId("export-csv");
+    const rank = screen.getByRole("tab", { name: "순위" });
+    expect(rank).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "순위" })).toBeVisible();
+    fireEvent.keyDown(rank, { key: "ArrowRight" });
+    const detail = screen.getByRole("tab", { name: "선택 지역" });
+    expect(detail).toHaveFocus();
+    expect(detail).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "선택 지역" })).toHaveTextContent("선택한 행정동");
+    fireEvent.keyDown(detail, { key: "End" });
+    expect(screen.getByRole("tab", { name: "분석 근거" })).toHaveFocus();
+    expect(screen.getByRole("tabpanel", { name: "분석 근거" })).toHaveTextContent("방법론");
+    expect(screen.getByTestId("export-csv")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "지역 비교" }));
+    expect(rank).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("지역 비교는 작업 영역에서 바로 실행하고 대상을 결과에서 바꾼다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.click(screen.getByRole("button", { name: "지역 비교" }));
+    const results = screen.getByTestId("result-panel");
+    expect(within(results).getByRole("combobox", { name: "비교할 지역 A" })).toBeVisible();
+    expect(within(results).getByRole("combobox", { name: "비교할 지역 B" })).toBeVisible();
+    expect(screen.getByRole("group", { name: "내보내기" })).toBeVisible();
+  });
+
   test("분석 전 방향키는 지역 수치를 선택하지 않는다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
@@ -751,7 +792,7 @@ describe("CopilotApp", () => {
       expect(right).toHaveAttribute("aria-hidden", "true");
       fireEvent.click(screen.getByRole("button", { name: "분석 설정" }));
       expect(left).not.toHaveAttribute("inert");
-      screen.getByRole("tab", { name: "분석" }).focus();
+      screen.getByRole("tab", { name: /^분석$/ }).focus();
       fireEvent.keyDown(document.activeElement!, { key: "Escape" });
       expect(screen.getByRole("button", { name: "분석 설정" })).toHaveFocus();
       expect(left).toHaveAttribute("inert");
@@ -908,6 +949,7 @@ describe("CopilotApp", () => {
     await screen.findByTestId("demo-map-badge");
     selectMedicalLayer();
     fireEvent.click(screen.getByRole("button", { name: "의료기관 목록" }));
+    fireEvent.click(screen.getByRole("tab", { name: "선택 지역" }));
     fireEvent.click(screen.getByRole("button", { name: /^새로고침$/ }));
     expect(await screen.findByText(/주변 장소를 불러오지 못했습니다.*다시 시도/)).toBeInTheDocument();
     expect(screen.queryByText(/REST 키/)).toBeNull();
@@ -926,7 +968,7 @@ describe("CopilotApp", () => {
         "인구 증가",
         "최근접 의료기관",
         "반경 내 의료기관",
-        "지역 비교",
+        "지역 비교 분석",
         "의료기관 목록",
         "초기화",
       ]) {
@@ -1015,7 +1057,7 @@ describe("CopilotApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "분석 설정" }));
     expect(screen.getByLabelText("분석 설정 패널").className).toMatch(/sheet-open/);
 
-    fireEvent.click(screen.getByRole("button", { name: "결과" }));
+    fireEvent.click(screen.getByTestId("workspace-results-toggle"));
     expect(screen.getByTestId("result-panel").className).toMatch(/sheet-open/);
 
     vi.unstubAllGlobals();
@@ -1041,7 +1083,7 @@ describe("CopilotApp", () => {
     await screen.findByTestId("demo-map-badge", {}, { timeout: 10_000 });
 
     openControls();
-    await fireEvent.click(screen.getByRole("tab", { name: "분석" }));
+    await fireEvent.click(screen.getByRole("tab", { name: /^분석$/ }));
     // Open settings details
     const details = screen.getByText("화면 설정");
     fireEvent.click(details);
@@ -1336,8 +1378,8 @@ describe("CopilotApp", () => {
     await screen.findByTestId("demo-map-badge");
     selectMedicalLayer();
     expect(await screen.findByTestId("export-report")).toHaveTextContent("보고서");
-    expect(screen.getByTestId("export-csv")).toHaveTextContent("표");
-    expect(screen.getByTestId("export-share")).toHaveTextContent("공유");
+    expect(screen.getByTestId("export-csv")).toHaveTextContent("CSV 저장");
+    expect(screen.getByTestId("export-share")).toHaveTextContent("링크 복사");
     expect(screen.queryByTestId("export-hwp")).not.toBeInTheDocument();
     expect(screen.queryByTestId("export-a4")).not.toBeInTheDocument();
     expect(screen.queryByTestId("export-slides")).not.toBeInTheDocument();

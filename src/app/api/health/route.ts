@@ -1,6 +1,7 @@
 import { describeEndpoint } from "@/lib/ai/llm";
 import { readAiLastOutcome } from "@/lib/ai/last-outcome";
 import { NextResponse } from "next/server";
+import { loadOfficialResidentsManifest } from "@/lib/data/official-residents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ const DEFAULT_SYNC_OPS: SyncOps = {
  * Heavy modules load only behind try/catch so /api/health never 500s.
  */
 export async function GET() {
+  const official = await loadOfficialResidentsManifest().catch(() => null);
   const aiEndpoint = describeEndpoint(process.env.DEEPSEEK_BASE_URL);
   const base = {
     status: "ok" as const,
@@ -74,9 +76,7 @@ export async function GET() {
       ),
       dataSync: Boolean(process.env.DATA_SYNC_SECRET?.trim()),
       cronAlert: Boolean(process.env.CRON_ALERT_WEBHOOK?.trim()),
-      populationLive:
-        Boolean(process.env.DATA_GO_KR_SERVICE_KEY?.trim()) &&
-        process.env.LIVE_POPULATION_DISABLED?.trim() !== "1",
+      populationLive: Boolean(official),
       /*
        * 원격 임베딩은 채팅 제공자와 다른 곳이다(현재 채팅 제공자에는 임베딩이 없다).
        * 켜짐으로 적으려면 그 전용 자격증명이 실제로 있어야 한다.
@@ -164,6 +164,11 @@ export async function GET() {
 
   return NextResponse.json({
     ...base,
+    populationData: official ? {
+      source: "행정안전부 주민등록 인구통계", fromMonth: official.months[0],
+      referenceMonth: official.months.at(-1), regionCount: official.regions,
+      acquiredAt: official.acquiredAt, refreshMode: "bundled-monthly",
+    } : null,
     publishedLive,
     syncOps,
     syncDetailSource,

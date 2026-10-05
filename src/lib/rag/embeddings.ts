@@ -14,6 +14,14 @@ export type EmbeddingClientDeps = LlmClientDeps & {
 };
 
 const DEFAULT_EMBED_MODEL = "text-embedding-v3";
+// DashScope-compatible providers accept at most ten texts per embedding request.
+const EMBEDDING_BATCH_SIZE = 10;
+
+export function isValidEmbeddingVector(value: unknown): value is number[] {
+  return Array.isArray(value) && value.length > 0 &&
+    value.every((part) => typeof part === "number" && Number.isFinite(part)) &&
+    value.some((part) => part !== 0);
+}
 
 function embeddingUrl(baseUrl: string): string {
   const url = new URL(baseUrl.trim());
@@ -39,40 +47,49 @@ export async function createTextEmbeddings(
   try {
     const url = embeddingUrl(baseUrl);
     const fetchImpl = deps.fetch ?? fetch;
-    const response = await fetchImpl(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: deps.model?.trim() || DEFAULT_EMBED_MODEL,
-        input: texts,
-      }),
-      signal: deps.signal
-        ? AbortSignal.any([deps.signal, AbortSignal.timeout(15_000)])
-        : AbortSignal.timeout(15_000),
-    });
+    const signal = deps.signal
+      ? AbortSignal.any([deps.signal, AbortSignal.timeout(15_000)])
+      : AbortSignal.timeout(15_000);
+    const vectors: number[][] = [];
+    let dimension: number | undefined;
+    for (let offset = 0; offset < texts.length; offset += EMBEDDING_BATCH_SIZE) {
+      const batch = texts.slice(offset, offset + EMBEDDING_BATCH_SIZE);
+      const response = await fetchImpl(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: deps.model?.trim() || DEFAULT_EMBED_MODEL,
+          input: batch,
+        }),
+        signal,
+      });
 
-    if (!response.ok) return null;
-    const data = (await response.json()) as {
-      data?: Array<{ embedding?: number[]; index?: number }>;
-    };
-    if (!Array.isArray(data.data) || data.data.length === 0) return null;
-
-    const ordered = [...data.data].sort(
-      (a, b) => (a.index ?? 0) - (b.index ?? 0),
-    );
-    const vectors = ordered.map((row) => row.embedding).filter(Array.isArray) as number[][];
-    return vectors.length === texts.length ? vectors : null;
+      if (!response.ok) return null;
+      const data = (await response.json()) as {
+        data?: Array<{ embedding?: unknown; index?: number }>;
+      };
+      if (!Array.isArray(data.data) || data.data.length !== batch.length) return null;
+      const ordered = [...data.data].sort((a, b) => (a?.index ?? -1) - (b?.index ?? -1));
+      for (let index = 0; index < ordered.length; index++) {
+        const row = ordered[index];
+        if (row?.index !== index || !isValidEmbeddingVector(row.embedding)) return null;
+        dimension ??= row.embedding.length;
+        if (row.embedding.length !== dimension) return null;
+        vectors.push(row.embedding);
+      }
+    }
+    return vectors;
   } catch {
     return null;
   }
 }
 
 export function cosine(a: number[], b: number[]): number {
-  const n = Math.min(a.length, b.length);
-  if (n === 0) return 0;
+  if (a.length !== b.length || !isValidEmbeddingVector(a) || !isValidEmbeddingVector(b)) return 0;
+  const n = a.length;
   let dot = 0;
   let na = 0;
   let nb = 0;
@@ -82,5 +99,5 @@ export function cosine(a: number[], b: number[]): number {
     nb += b[i] * b[i];
   }
   const denom = Math.sqrt(na) * Math.sqrt(nb);
-  return denom === 0 ? 0 : dot / denom;
+  return !Number.isFinite(denom) || denom === 0 || !Number.isFinite(dot) ? 0 : dot / denom;
 }

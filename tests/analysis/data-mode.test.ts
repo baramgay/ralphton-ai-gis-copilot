@@ -84,6 +84,7 @@ describe("산출물에 실릴 출처 말", () => {
   });
 
   test("사람이 읽는 출처는 그대로 둔다", () => {
+    expect(exportSourceLabel("official-residents")).toBe("행정안전부 주민등록 인구통계");
     expect(exportSourceLabel("KOSIS 국가통계")).toBe("KOSIS 국가통계");
     expect(exportSourceLabel("NH · 카드소비")).toBe("NH · 카드소비");
   });

@@ -2,6 +2,7 @@ import { downloadTextFile, regionUnitLabel } from "@/lib/analysis/export-csv";
 import {
   rankWordOf,
   reportCitationWarning,
+  reportPopulationNotes,
   reportModeLabel,
   reportSourceLabel,
   toNounEnding,
@@ -159,6 +160,7 @@ export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions)
   const citation = reportCitationWarning(input);
   const notes = [
     ...(citation ? [`<li>${escapeHtml(citation)}</li>`] : []),
+    ...reportPopulationNotes(input).map((note) => `<li>${escapeHtml(note)}</li>`),
     ...input.formulaNotes.map((note) => `<li>${escapeHtml(note)}</li>`),
   ].join("\n");
   const source = reportSourceLabel(input.source);

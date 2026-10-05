@@ -1,0 +1,39 @@
+name: Production quality
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+concurrency:
+  group: nurimap-production-quality
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Public RAG, parser and evidence checks
+        run: node scripts/verify-nurimap-rag-api.mjs https://gnbc.site
+      - name: Four viewports, shared results and exports
+        if: ${{ !cancelled() }}
+        run: node scripts/verify-nurimap-upgrade.mjs https://gnbc.site
+      - name: Preserve production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-quality-${{ github.run_id }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: warn

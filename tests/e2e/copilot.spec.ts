@@ -11,7 +11,7 @@ import { expect, type Page, test } from "@playwright/test";
  * 좌표는 맞춰 놓고 정작 그 자리에는 다른 것이 있어 클릭이 가로채인다.
  */
 async function openSheet(page: Page, name: "분석 설정" | "결과") {
-  const toggle = page.getByRole("button", { name, exact: true });
+  const toggle = name === "결과" ? page.getByTestId("workspace-results-toggle") : page.getByRole("button", { name, exact: true });
   if (!(await toggle.isVisible().catch(() => false))) return;
 
   const side = name === "분석 설정" ? "left" : "right";
@@ -49,6 +49,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
     await page.getByTestId("quick-elderly").click();
     await openSheet(page, "결과");
+    await page.getByRole("tab", { name: "분석 근거", exact: true }).click();
     await expect(page.getByTestId("interpretation-card")).toBeVisible();
 
     await openSheet(page, "분석 설정");
@@ -71,7 +72,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("data-mode-banner")).toBeVisible();
     await expect(page.getByTestId("data-mode-banner")).toContainText(/시연|실데이터/);
 
-    await page.getByRole("tab", { name: "분석" }).click();
+    await page.getByRole("tab", { name: /^분석$/ }).click();
     await page.getByText("화면 설정").click();
     await expect(page.getByTestId("theme-dark")).toBeVisible();
     await expect(page.getByTestId("theme-system")).toBeVisible();
@@ -146,6 +147,7 @@ test.describe("AI GIS Copilot core journey", () => {
     const topName = ((await page.locator(".rank-row .rank-name").first().textContent()) ?? "").trim();
     expect(topName.length).toBeGreaterThan(0);
 
+    await page.getByRole("tab", { name: "선택 지역", exact: true }).click();
     const profile = page.getByTestId("region-profile");
     if (await profile.isVisible().catch(() => false)) {
       // 프로파일이 가리키는 지역이 1위와 같아야 한다.
@@ -167,6 +169,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await page.getByRole("button", { name: "질의 실행" }).click();
     await openSheet(page, "결과");
     await expect(page.getByTestId("result-panel")).toBeVisible();
+    await page.getByRole("tab", { name: "분석 근거", exact: true }).click();
     await expect(page.getByTestId("interpretation-card")).toBeVisible({ timeout: 30_000 });
   });
 
@@ -207,14 +210,10 @@ test("closed panels do not receive keyboard focus and comparison shares restore 
       expect(await page.evaluate(() => Boolean(document.activeElement?.closest("aside[inert]")))).toBe(false);
     }
   }
-  await openSheet(page, "분석 설정");
-  await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
-  await page.getByTestId("quick-compare").click();
-  await openSheet(page, "분석 설정");
-  await page.getByText("더 많은 분석", { exact: true }).click();
-  await page.getByLabel("비교 지역 A").selectOption({ label: "진주시" });
-  await openSheet(page, "분석 설정");
-  await page.getByLabel("비교 지역 B").selectOption({ label: "거제시" });
+  await page.getByRole("button", { name: "지역 비교", exact: true }).click();
+  await openSheet(page, "결과");
+  await page.getByLabel("비교할 지역 A").selectOption({ label: "진주시" });
+  await page.getByLabel("비교할 지역 B").selectOption({ label: "거제시" });
   await page.getByRole("textbox", { name: "분석 질의" }).fill("실행하지 않은 질문");
   await openSheet(page, "결과");
   await page.getByTestId("export-share").click();

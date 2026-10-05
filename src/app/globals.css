@@ -3456,3 +3456,119 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
     overflow-y: auto;
   }
 }
+
+
+/* 질문 → 지도와 결과: 작업 영역은 지도와 겹치지 않는다. */
+.copilot-shell {
+  grid-template-rows: var(--topbar-h) auto minmax(0, 1fr);
+  --workspace-h: 160px;
+}
+.copilot-topbar { grid-row: 1; background: var(--surface-1); backdrop-filter: none; }
+.query-workspace {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  z-index: 40;
+  min-width: 0;
+  padding: 12px 20px 10px;
+  border-bottom: 1px solid var(--border-1);
+  background: var(--surface-1);
+  color: var(--text-1);
+  display: grid;
+  grid-template-columns: minmax(0, 760px) auto;
+  gap: 6px 24px;
+  align-items: center;
+}
+.workspace-heading { grid-column: 1 / -1; font-size: 14px; font-weight: 700; color: var(--text-2); }
+.query-workspace .query-hero {
+  position: static; width: 100%; max-width: none;
+  transform: none; gap: 6px; min-width: 0;
+}
+.query-workspace .query-hero-form {
+  border: 1px solid var(--border-2, var(--border-1)); border-radius: 12px;
+  background: var(--surface-0); box-shadow: none; backdrop-filter: none;
+}
+.query-workspace .query-hero-input { min-width: 0; height: 48px; font-size: 15px; color: var(--text-1); }
+.query-workspace .query-hero-submit { width: auto; min-width: 86px; padding: 0 14px; border-radius: 9px; display: flex; gap: 8px; font-size: 14px; font-weight: 700; }
+.query-workspace .query-hero-notice, .query-workspace .query-hero-status { padding: 4px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--text-2); font-size: 13px; }
+.query-workspace .query-hero-notice.is-error, .query-workspace .query-hero-notice.is-warn { color: var(--accent-warm); }
+.query-workspace .query-hero-chips { flex-wrap: nowrap; overflow-x: auto; padding: 0; gap: 6px; }
+.query-workspace .query-hero-chip { flex-shrink: 0; background: var(--surface-1); border-color: var(--border-1); color: var(--text-2); font-size: 13px; box-shadow: none; }
+.workspace-action-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+.workspace-action-bar .mobile-panel-btn { border-radius: 8px; background: var(--surface-1); color: var(--text-1); border: 1px solid var(--border-1); font-size: 14px; padding: 8px 14px; }
+.workspace-action-bar .mobile-panel-btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.copilot-panel-left { grid-row: 3; grid-column: 1; }
+.copilot-map { grid-row: 3; grid-column: 3; }
+.panel-resizer-left { grid-row: 3; grid-column: 2; }
+.panel-resizer-right { grid-row: 3; grid-column: 4; }
+.copilot-panel-right { grid-row: 3; grid-column: 5; }
+.copilot-panel-right > .result-header { flex-shrink: 0; max-height: none; overflow: visible; padding: 16px; background: var(--surface-1); }
+.result-header .ui-display { font-size: 20px; line-height: 1.35; letter-spacing: -0.03em; }
+.result-header .result-conclusion { padding: 10px 12px; font-size: 14px; background: var(--surface-2); border-color: var(--border-1); color: var(--text-1); box-shadow: none; }
+.result-header [data-testid="data-provenance"] { border: none; padding: 0; background: transparent; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.result-header [data-testid="result-meta"] { margin-top: 6px; }
+.result-header .export-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
+.result-header .export-action { border-radius: 8px; padding: 8px 4px; font-size: 13px; background: var(--surface-1); color: var(--text-1); border: 1px solid var(--border-1); }
+.result-tabs { flex-shrink: 0; display: flex; padding: 0 12px; gap: 6px; background: var(--surface-1); border-bottom: 1px solid var(--border-1); }
+.result-tabs button { flex: 1; padding: 8px 4px; border-bottom: 3px solid transparent; font-size: 14px; font-weight: 600; color: var(--text-2); }
+.result-tabs button[aria-selected="true"] { color: var(--accent); border-color: var(--accent); }
+.result-view[hidden] { display: none; }
+.result-view { min-width: 0; font-size: 14px; }
+.result-view [data-testid="region-profile"], .result-view [data-testid="region-flow"], .result-view [data-testid="money-flow"] { margin-top: 0; }
+.result-compare { padding: 12px; border: 1px solid var(--border-1); border-radius: 12px; background: var(--surface-1); }
+.compare-scope { display: flex; gap: 8px; margin-bottom: 10px; }
+.compare-scope button { padding: 6px 12px; color: var(--text-2); border: 1px solid var(--border-1); border-radius: 8px; }
+.compare-scope button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+.compare-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.compare-selects label { min-width: 0; font-size: 13px; color: var(--text-2); font-weight: 600; }
+.compare-selects select { width: 100%; min-height: 44px; margin-top: 4px; border: 1px solid var(--border-1); border-radius: 8px; padding: 6px; background: var(--surface-1); color: var(--text-1); font-size: 14px; }
+.copilot-panel { background: var(--surface-1); backdrop-filter: none; }
+@media (max-width: 1199px) {
+  .copilot-shell { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .query-workspace { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .workspace-heading { font-size: 13px; }
+  .workspace-actions { width: 100%; }
+  .workspace-action-bar { flex-wrap: nowrap; gap: 6px; overflow-x: auto; }
+  .workspace-action-bar .mobile-panel-btn { flex: 1; flex-shrink: 0; padding: 6px 8px; white-space: nowrap; font-size: 13px; }
+  .copilot-map { position: relative; inset: auto; grid-column: 1; height: 100%; min-height: 0; }
+  .copilot-panel { max-height: calc(100dvh - var(--topbar-h) - var(--workspace-h) - 8px); background: var(--surface-1); backdrop-filter: none; border-color: var(--border-1); }
+  .copilot-panel-right > .result-header { padding: 10px 14px; }
+  .result-header .section-label { display: none; }
+  .result-header .ui-display { font-size: 18px; }
+  .result-header .result-conclusion { margin-top: 6px; padding: 6px 10px; font-size: 13px; }
+  .result-conclusion-label, .result-conclusion [data-testid="copy-conclusion"] { display: none; }
+  .result-header [data-testid="result-meta"] { display: none; }
+  .result-header .export-actions { margin-top: 6px; }
+  .copilot-panel-right .sheet-snap-bar { display: none; }
+  .result-tabs { padding: 0 10px; }
+  .map-context-badge { bottom: 18px; }
+  .onboard-card { bottom: 24px; max-width: min(360px, calc(100% - 24px)); }
+}
+
+.copilot-shell > .panel-resizer { grid-row: 3; }
+.copilot-shell > .panel-resizer:nth-of-type(1) { grid-column: 2; }
+.copilot-shell > .panel-resizer:nth-of-type(2) { grid-column: 4; }
+
+.workspace-more { position: relative; }
+.workspace-more summary { display: flex; min-height: 44px; align-items: center; justify-content: center; padding: 6px 12px; cursor: pointer; font-size: 13px; color: var(--text-2); }
+.workspace-more[open] > button { position: absolute; top: 100%; right: 0; width: 120px; z-index: 50; box-shadow: 0 6px 20px rgb(0 0 0 / 12%); }
+.workspace-action-bar [data-testid="workspace-results-toggle"] { font-weight: 700; }
+.workspace-action-bar [data-testid="workspace-results-toggle"][aria-pressed="true"] { background: var(--accent); color: var(--surface-1); }
+.query-workspace .query-hero-chips { scrollbar-width: thin; }
+.query-workspace .query-hero-chips.is-optional { mask-image: linear-gradient(to right, black 92%, transparent); }
+.result-view [data-testid="selected-population-note"] + div p:first-child { font-size: 12px; }
+
+/* 결과의 고정 영역은 판단과 저장에 필요한 항목만 남긴다. */
+.result-header .section-label, .result-header .result-conclusion-label,
+.result-header [data-testid="copy-conclusion"], .result-header [data-testid="result-meta"] { display: none; }
+.result-header .result-conclusion { padding: 8px 10px; font-size: 14px; line-height: 1.5; }
+
+.workspace-more[open] > button { position: static; display: block; margin-top: 4px !important; width: auto; box-shadow: none; }
+@media (max-width: 1199px) and (max-height: 600px) {
+  .workspace-heading, .query-workspace .query-hero-chips.is-optional { display: none; }
+  .query-workspace { padding: 6px 10px; }
+  .onboard-card { bottom: 12px; padding: 12px; }
+}
+
+@media (max-width: 1199px) { .query-workspace .query-hero-input { font-size: 16px; } }
+
+.result-view [class~="text-[9px]"], .result-view [class~="text-[10px]"] { font-size: 12px; }

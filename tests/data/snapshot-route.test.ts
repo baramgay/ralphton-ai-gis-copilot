@@ -36,15 +36,18 @@ describe('/api/data/snapshot', () => {
     expect(cacheMocks.readPublishedSnapshotMeta).not.toHaveBeenCalled();
   });
 
-  it('falls back to the demo snapshot when optional cache is unavailable', async () => {
+  it('serves all official population months and bundled HIRA facilities when cache is unavailable', async () => {
     cacheMocks.readPublishedSnapshotMeta.mockResolvedValueOnce(null);
 
     const response = await GET(request('auto'));
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get('x-data-source')).toBe('demo-fallback');
-    expect(body.mode).toBe('demo');
+    expect(response.headers.get('x-data-source')).toBe('official-residents');
+    expect(body.mode).toBe('live');
+    expect(body.referenceMonth).toBe('2026-09');
+    expect(body.facilities).toHaveLength(4254);
+    expect(body.regions.find((r: { adm_cd2: string }) => r.adm_cd2 === '4833025300').population.at(-1)).toBe(117251);
     expect(cacheMocks.readPublishedSnapshotMeta).toHaveBeenCalledWith('live');
   });
 
@@ -87,6 +90,8 @@ describe('/api/data/snapshot', () => {
     expect(response.headers.get('x-published-at')).toBe('2026-09-07T00:00:00.000Z');
     expect(response.headers.get('x-snapshot-created-at')).toBe('2026-07-17T00:00:00.000Z');
     expect(body.mode).toBe('live');
+    expect(body.referenceMonth).toBe('2026-09');
+    expect(body.regions).toHaveLength(305);
     expect(cacheMocks.readPublishedSnapshotMeta).toHaveBeenCalledWith('live');
   });
 

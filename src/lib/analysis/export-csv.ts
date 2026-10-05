@@ -6,6 +6,7 @@ import {
   exportModeLabel,
   exportSourceLabel,
   populationCitationWarning,
+  officialPopulationNotes,
 } from "@/lib/analysis/data-mode";
 import { withHubChannel } from "@/lib/layers/channel";
 
@@ -114,6 +115,7 @@ function csvMeta(
   if (source) meta.push(["출처", source]);
   const warning = populationCitationWarning(mode, notes, derived);
   if (warning) meta.push(["주의", warning]);
+  for (const note of officialPopulationNotes(mode, notes, derived)) meta.push(["자료정의", note]);
   meta.push(["내보낸시각", new Date().toISOString()]);
   return meta;
 }

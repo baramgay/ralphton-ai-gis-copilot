@@ -117,6 +117,7 @@ export function exportModeLabel(
 
 /** 산출물에 내부 저장소 이름을 싣지 않는다. 없으면 그 줄을 뺀다. */
 export function exportSourceLabel(source: string): string | null {
+  if (source === "official-residents") return "행정안전부 주민등록 인구통계";
   if (source === "supabase-cache" || source === "loading") return null;
   if (source === "demo" || source === "demo-fallback") return "시연 자료";
   return source;
@@ -130,4 +131,17 @@ export function populationCitationWarning(
   if (!populationDerived) return null;
   if (populationIsLive(mode, sourceNotes)) return null;
   return POPULATION_CITATION_WARNING;
+}
+
+/** Official definitions travel with population results, independently of their cache storage. */
+export function officialPopulationNotes(
+  mode: string,
+  sourceNotes: readonly string[],
+  populationDerived: boolean,
+): string[] {
+  if (!populationDerived || !populationIsLive(mode, sourceNotes) ||
+    !sourceNotes.some((note) => /행정안전부.*공식 CSV/.test(note))) return [];
+  return [...new Set(sourceNotes.filter((note) =>
+    /행정안전부.*공식 CSV|공식 출처:.*jumin\.mois\.go\.kr|주민등록 인구는|출생등록.*사망말소|1인세대|출장소/.test(note),
+  ))];
 }

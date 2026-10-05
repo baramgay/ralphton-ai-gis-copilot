@@ -2,6 +2,7 @@ import {
   exportModeLabel,
   exportSourceLabel,
   populationCitationWarning,
+  officialPopulationNotes,
 } from "@/lib/analysis/data-mode";
 import { regionUnitLabel } from "@/lib/analysis/export-csv";
 
@@ -52,6 +53,12 @@ export function reportCitationWarning(
   input: Pick<ReportInput, "mode" | "sourceNotes" | "populationDerived">,
 ): string | null {
   return populationCitationWarning(input.mode, input.sourceNotes ?? [], input.populationDerived === true);
+}
+
+export function reportPopulationNotes(
+  input: Pick<ReportInput, "mode" | "sourceNotes" | "populationDerived">,
+): string[] {
+  return officialPopulationNotes(input.mode, input.sourceNotes ?? [], input.populationDerived === true);
 }
 
 function escapePipes(value: string): string {
@@ -154,6 +161,7 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push("");
   const citation = reportCitationWarning(input);
   if (citation) lines.push(`- ${citation}`);
+  for (const note of reportPopulationNotes(input)) lines.push(`- ${note}`);
   if (facilities) {
     lines.push("- 시설 목록은 현재 검색 조건과 정렬을 적용한 결과이며 최신 운영 여부 확인 필요");
   } else {

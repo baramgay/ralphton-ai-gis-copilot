@@ -126,6 +126,18 @@ describe("sumRowsByDongMonth", () => {
 });
 
 describe("fetchAndMergeRegionalPopulation", () => {
+  it("세대수가 없는 통반이 있으면 부분합이나 합성 세대를 실측으로 게시하지 않는다", async () => {
+    const { fetchImpl } = fakeApi();
+    const incomplete = (async (url: string) => {
+      const response = await fetchImpl(url);
+      const body = await response.json();
+      delete body.Response.items.item[0].hhCnt;
+      return Response.json(body);
+    }) as unknown as typeof fetch;
+    const result = await fetchAndMergeRegionalPopulation(base, "key", { fetch: incomplete });
+    expect(result.updatedCount).toBe(0);
+    expect(result.regions).toBe(base.regions);
+  });
   it("동마다 4개월 창으로 나눠 묻는다", async () => {
     const { fetchImpl, asked } = fakeApi();
     await fetchAndMergeRegionalPopulation(base, "key", { fetch: fetchImpl });
@@ -159,6 +171,7 @@ describe("fetchAndMergeRegionalPopulation", () => {
     const result = await fetchAndMergeRegionalPopulation(base, "key", { fetch: fetchImpl });
     expect(result.notes.join(" ")).toMatch(/실데이터로 교체/);
     expect(result.notes.join(" ")).not.toMatch(/기준 스냅샷/);
+    expect(result.notes.join(" ")).toMatch(/연령별 인구·1인세대.*합성/);
   });
 
   it("한 동의 한 달만 비어도 전부 기준 스냅샷을 유지한다", async () => {

@@ -790,6 +790,7 @@ function dataSourceLabel(source: string): string {
   if (source === "demo") return "출처: 시연 자료";
   if (source === "demo-fallback") return "출처: 시연 자료(대체)";
   if (source === "supabase-cache") return "출처: 서버 저장 자료";
+  if (source === "official-residents") return "출처: 행정안전부 주민등록 통계";
   if (source === "loading") return "출처: 불러오는 중";
   return `출처: ${source}`;
 }
@@ -986,6 +987,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const [resultSearch, setResultSearch] = useState("");
+  const [resultTab, setResultTab] = useState<"rank" | "region" | "evidence">("rank");
   const [lastExecutedQuery, setLastExecutedQuery] = useState<string | null>(null);
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
   /* "상위 10%"는 전체 행 수를 알아야 개수가 나온다. 분석이 끝난 뒤 렌더에서 환산한다. */
@@ -1010,6 +1012,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setPendingCubeQuery(null);
     setIsParsing(false);
     setResultSearch("");
+    setResultTab("rank");
     setResultLimit(RESULT_PAGE_STEP);
     setExplicitCount(null);
     setPercentLimit(null);
@@ -1017,6 +1020,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }, []);
   const [reloadToken, setReloadToken] = useState(0);
   const densityHydratedRef = useRef(false);
+  const workspaceRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    const measure = () => workspace.closest<HTMLElement>(".copilot-shell")?.style.setProperty("--workspace-h", `${workspace.getBoundingClientRect().height}px`);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(workspace);
+    return () => observer.disconnect();
+  }, [snapshot]);
   const queryInputRef = useRef<HTMLInputElement>(null);
   const controlsToggleRef = useRef<HTMLButtonElement>(null);
   const resultsToggleRef = useRef<HTMLButtonElement>(null);
@@ -1102,12 +1116,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [flowData, setFlowData] = useState<FlowData | null>(null);
   const [flowError, setFlowError] = useState<string | null>(null);
   const flowRequestedRef = useRef(false);
-  /*
-   * 바텀시트 기본 높이. 72dvh이면 답을 받는 순간 지도가 거의 다 덮인다 — 지도가 이
-   * 도구의 산출물인데 순위만 남는다. 절반(56)이면 한 줄 결론과 1~2위가 보이면서 지도도
-   * 남는다. 더 보고 싶으면 손잡이를 끌거나 "높게"를 누르면 된다.
-   */
-  const [sheetHeight, setSheetHeight] = useState(56);
+  // 질문 영역 아래에서 첫 두 순위와 지도 전환을 함께 볼 수 있는 기본 높이.
+  const [sheetHeight, setSheetHeight] = useState(68);
   const sheetDragRef = useRef<{ startY: number; startH: number } | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -3255,6 +3265,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     setIsParsing(false);
     const applyQueryState = () => {
       setAnalysisRequested(true);
+      setResultTab("rank");
       setResultSearch("");
       setLastExecutedQuery(trimmed);
       setAnsweredLastQuery(true);
@@ -3901,6 +3912,96 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         }}
       />
 
+      <section ref={workspaceRef} className="query-workspace" aria-label="질문과 분석 작업" data-testid="query-workspace">
+        <p className="workspace-heading">경남의 변화를 질문하세요</p>
+        <QueryHero
+          query={query}
+          onQueryChange={setQuery}
+          onSubmit={submitQuery}
+          inputRef={queryInputRef}
+          isParsing={isParsing}
+          parseStage={parseStage}
+          notice={queryNotice}
+          noticeTone={queryNoticeTone}
+          caveat={queryCaveat}
+          suggestions={querySuggestions}
+          onPickSuggestion={(value) => {
+            setQuery(value);
+            setQuerySuggestions([]);
+            queryInputRef.current?.focus();
+          }}
+          examples={QUERY_SUGGESTIONS}
+          recentQueries={recentQueries}
+          onClearRecent={clearRecentQueries}
+        />
+        <div className="workspace-actions">
+          {/*
+            레이아웃 프리셋 5개(지도 넓게·분석 넓게·결과 넓게·균형·레이아웃)가 지도의 알짜
+            공간을 두 줄로 차지하고 있었다. 패널을 여닫는 일은 조작·결과 두 버튼과 가장자리
+            토글로 충분하다. 프리셋은 왼쪽 패널 '화면 설정'과 단축키에 남아 있다.
+          */}
+          <div className="workspace-action-bar">
+            <button
+              type="button"
+              className="mobile-panel-btn !m-0 !shadow-none"
+              /*
+                좁은 화면에서는 leftCollapsed가 늘 참(기본값)이라 sheetMode만 남고,
+                넓은 화면에서는 sheetMode가 늘 "none"이라 접힘 상태만 남는다. 한 식으로
+                두 모델을 다 읽는다.
+              */
+              aria-pressed={isNarrow ? sheetMode === "left" : !layout.leftCollapsed}
+              ref={controlsToggleRef}
+              onClick={toggleControls}
+            >
+              분석 설정
+            </button>
+            <button
+              type="button"
+              className="mobile-panel-btn !m-0 !shadow-none"
+              aria-pressed={isNarrow ? sheetMode === "right" : !layout.rightCollapsed}
+              data-testid="workspace-results-toggle"
+              ref={resultsToggleRef}
+              onClick={toggleResults}
+            >
+              {isNarrow ? sheetMode === "right" ? "지도 보기" : "결과 보기" : "결과"}
+            </button>
+            <button type="button" className="mobile-panel-btn !m-0 !shadow-none" onClick={() => {
+              dismissOnboard();
+              runQuick("compare");
+              if (!isNarrowNow() && layout.rightCollapsed) toggleRight();
+            }}>지역 비교</button>
+            {/*
+              임시 지도(DemoMap)는 클릭 좌표를 주지 못한다. 버튼을 그려 두고 눌러도 아무 일이 없으면
+              사용자는 자기가 잘못 누른 줄 안다 — 못 하는 자리에서는 버튼을 감춘다.
+
+              경계가 아직 안 왔을 때도 마찬가지다. Kakao 지도는 떠 있지만 면이 하나도 안
+              그려진 동안에는 지도 클릭이 올라오지 않는다 — 배포본에서 **6번 눌러 6번 다
+              아무 일도 없었고**, 면이 그려진 뒤에는 6번 다 찍혔다(실측). 엔진만 보고
+              내보내면 켜자마자 누른 사람에게는 이 기능이 고장 난 것으로 보인다.
+            */}
+            {mapEngine === "kakao" && boundary ? (
+              <details className="workspace-more"><summary>더 보기</summary>
+              <button
+                type="button"
+                className="mobile-panel-btn !m-0 !shadow-none"
+                data-testid="probe-toggle"
+                aria-pressed={probeMode}
+                onClick={() => {
+                  setProbeMode((on) => {
+                    // 모드를 끄면 찍힌 지점도 지운다. 원만 남으면 무엇의 반경인지 모른다.
+                    if (on) setProbePoint(null);
+                    return !on;
+                  });
+                }}
+              >
+                지점 분석
+              </button>
+              </details>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
       {/* LEFT: controls only */}
       <aside
         id="left-panel"
@@ -3927,6 +4028,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           aria-valuemin={36}
           aria-valuemax={92}
           aria-valuenow={Math.round(sheetHeight)}
+          tabIndex={0}
+          onKeyDown={(event) => {
+            const next = event.key === "ArrowUp" ? sheetHeight + 8 : event.key === "ArrowDown" ? sheetHeight - 8
+              : event.key === "Home" ? 36 : event.key === "End" ? 92 : null;
+            if (next === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setSheetHeight(Math.max(36, Math.min(92, next)));
+          }}
         >
           <span className="sheet-handle-bar" />
         </div>
@@ -4106,7 +4216,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                         key={item.id}
                         type="button"
                         data-testid={`quick-${item.id}`}
-                        aria-label={item.label}
+                        aria-label={item.id === "compare" ? "지역 비교 분석" : item.label}
                         aria-pressed={activeQuick === item.id && item.id !== "reset"}
                         onPointerDown={() => runQuick(item.id)}
                         onClick={(event) => {
@@ -5016,26 +5126,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           onEngineChange={setMapEngine}
         />
 
-        <QueryHero
-          query={query}
-          onQueryChange={setQuery}
-          onSubmit={submitQuery}
-          inputRef={queryInputRef}
-          isParsing={isParsing}
-          parseStage={parseStage}
-          notice={queryNotice}
-          noticeTone={queryNoticeTone}
-          caveat={queryCaveat}
-          suggestions={querySuggestions}
-          onPickSuggestion={(value) => {
-            setQuery(value);
-            setQuerySuggestions([]);
-            queryInputRef.current?.focus();
-          }}
-          examples={QUERY_SUGGESTIONS}
-          recentQueries={recentQueries}
-          onClearRecent={clearRecentQueries}
-        />
+
 
         {/*
           무엇을 보고 있는지 알려 주는 배지. 히어로가 상단 가운데를 쓰므로 왼쪽 아래로
@@ -5084,64 +5175,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           </div>
         ) : null}
 
-        <div className="map-float-dock absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2">
-          {/*
-            레이아웃 프리셋 5개(지도 넓게·분석 넓게·결과 넓게·균형·레이아웃)가 지도의 알짜
-            공간을 두 줄로 차지하고 있었다. 패널을 여닫는 일은 조작·결과 두 버튼과 가장자리
-            토글로 충분하다. 프리셋은 왼쪽 패널 '화면 설정'과 단축키에 남아 있다.
-          */}
-          <div className="map-float-bar">
-            <button
-              type="button"
-              className="mobile-panel-btn !m-0 !shadow-none"
-              /*
-                좁은 화면에서는 leftCollapsed가 늘 참(기본값)이라 sheetMode만 남고,
-                넓은 화면에서는 sheetMode가 늘 "none"이라 접힘 상태만 남는다. 한 식으로
-                두 모델을 다 읽는다.
-              */
-              aria-pressed={sheetMode === "left" || !layout.leftCollapsed}
-              ref={controlsToggleRef}
-              onClick={toggleControls}
-            >
-              분석 설정
-            </button>
-            <button
-              type="button"
-              className="mobile-panel-btn !m-0 !shadow-none"
-              aria-pressed={sheetMode === "right" || !layout.rightCollapsed}
-              ref={resultsToggleRef}
-              onClick={toggleResults}
-            >
-              결과
-            </button>
-            {/*
-              임시 지도(DemoMap)는 클릭 좌표를 주지 못한다. 버튼을 그려 두고 눌러도 아무 일이 없으면
-              사용자는 자기가 잘못 누른 줄 안다 — 못 하는 자리에서는 버튼을 감춘다.
 
-              경계가 아직 안 왔을 때도 마찬가지다. Kakao 지도는 떠 있지만 면이 하나도 안
-              그려진 동안에는 지도 클릭이 올라오지 않는다 — 배포본에서 **6번 눌러 6번 다
-              아무 일도 없었고**, 면이 그려진 뒤에는 6번 다 찍혔다(실측). 엔진만 보고
-              내보내면 켜자마자 누른 사람에게는 이 기능이 고장 난 것으로 보인다.
-            */}
-            {mapEngine === "kakao" && boundary ? (
-              <button
-                type="button"
-                className="mobile-panel-btn !m-0 !shadow-none"
-                data-testid="probe-toggle"
-                aria-pressed={probeMode}
-                onClick={() => {
-                  setProbeMode((on) => {
-                    // 모드를 끄면 찍힌 지점도 지운다. 원만 남으면 무엇의 반경인지 모른다.
-                    if (on) setProbePoint(null);
-                    return !on;
-                  });
-                }}
-              >
-                지점 분석
-              </button>
-            ) : null}
-          </div>
-        </div>
 
         {showOnboard ? (
           <div
@@ -5151,7 +5185,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
             data-testid="onboard-card"
           >
             <h2 id="onboard-title" className="ui-title">질문 한 번으로 경남을 살펴보세요</h2>
-            <p className="mt-2 ui-body">추천 질문을 누르면 지도와 지역 순위를 함께 볼 수 있습니다.</p>
+            <p className="mt-2 ui-body">추천 질문을 고르고 분석하기를 누르면 지도와 지역 순위를 함께 볼 수 있습니다.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -5204,6 +5238,15 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           aria-valuemin={36}
           aria-valuemax={92}
           aria-valuenow={Math.round(sheetHeight)}
+          tabIndex={0}
+          onKeyDown={(event) => {
+            const next = event.key === "ArrowUp" ? sheetHeight + 8 : event.key === "ArrowDown" ? sheetHeight - 8
+              : event.key === "Home" ? 36 : event.key === "End" ? 92 : null;
+            if (next === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setSheetHeight(Math.max(36, Math.min(92, next)));
+          }}
         >
           <span className="sheet-handle-bar" />
         </div>
@@ -5227,7 +5270,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           ))}
         </div>
         <header className="result-header">
-          <p className="section-label !mb-1">결과</p>
+          <p className="section-label !mb-1">분석 결과</p>
           <h2 className="ui-display">{analysis.title}</h2>
           {drillTrail.length > 0 ? (
             <div className="mt-2 flex flex-wrap items-center gap-1.5 ui-chip" data-testid="drill-trail">
@@ -5245,7 +5288,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               ))}
             </div>
           ) : null}
-          <p className="ui-body mt-1.5 ui-soft">{analysis.summary}</p>
           {!answeredLastQuery ? (
             <p
               className="stale-notice ui-body"
@@ -5272,6 +5314,529 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </p>
             </div>
           ) : null}
+          {analysis.id !== "idle" ? <div
+            className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
+              snapshot.mode === "live"
+                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
+                : "border-amber-100 bg-amber-50 text-amber-900"
+            }`}
+            data-testid="data-provenance"
+          >
+            <span className="font-bold">
+              {exportModeLabel(
+                snapshot.mode,
+                snapshot.sourceNotes,
+                isSnapshotPopulationRanking({
+                  metrics: analysis.ranked.flatMap((row) => row.metrics),
+                  isFacilityResult: analysis.isFacilityResult,
+                  layerId: analysis.id,
+                  title: analysis.title,
+                  formulaNotes: analysis.formulaNotes,
+                }),
+              )}
+            </span>
+            {" · "}기준월 {referenceMonthLabel}
+            {" · "}{analysisSourceLabel}
+            {snapshot.mode === "demo" ? " · 정책 판단용 아님" : ""}
+          </div> : null}
+          {/*
+            읽을 것(몇 개인가·선택은 몇 위인가)과 할 것(내보내기)이 한 칩 구름에 섞여 있어
+            무엇이 눌리는지 구분되지 않았다. 사실은 문장으로, 동작만 버튼으로 나눈다.
+          */}
+          {analysis.id !== "idle" ? <p className="ui-caption mt-2.5 text-slate-500" data-testid="result-meta">
+            {analysis.isFacilityResult
+              ? `${filteredFacilitiesList.length.toLocaleString("ko-KR")}개 시설`
+              : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${analysis.unitWord ?? unitWordOf(activeLayerId, adminLevel)}`}
+            {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
+          </p> : null}
+          {hasExportRows && !isParsing && !pendingCubeQuery ? (
+          <div className="export-actions mt-1.5" role="group" aria-label="내보내기">
+            <button
+              type="button"
+              data-testid="export-csv"
+              className="export-action"
+              onClick={exportCurrentCsv}
+            >
+              CSV 저장
+            </button>
+            <button
+              type="button"
+              data-testid="export-report"
+              className="export-action"
+              onClick={exportCurrentReport}
+            >
+              PDF 보고서
+            </button>
+            <button
+              type="button"
+              data-testid="export-share"
+              className="export-action"
+              onClick={() => {
+                /*
+                 * 민간 레이어·교차·추세 결과는 공공 도구가 아니라 lastIntent가 null이다.
+                 * 여기서 의료 도구를 기본값으로 채워 넣으면 링크를 열었을 때 그 도구가
+                 * 먼저 실행돼 원래 결과가 사라진다(prod 실측). 그럴 땐 질문만 싣고,
+                 * 복원 쪽에서 같은 경로로 다시 태운다.
+                 */
+                pushShareUrl(lastIntent, selectedRegionCode, lastExecutedQuery ?? undefined);
+                void copyShareLink();
+              }}
+            >
+              링크 복사
+            </button>
+          </div>
+          ) : null}
+          {shareNotice ? (
+            <p className="ui-chip mt-2 font-semibold text-emerald-700" role="status">
+              {shareNotice}
+            </p>
+          ) : null}
+        </header>
+
+        <div className="result-tabs" role="tablist" aria-label="분석 결과 보기">
+          {([
+            ["rank", "순위"], ["region", "선택 지역"], ["evidence", "분석 근거"],
+          ] as const).map(([id, label], index, all) => (
+            <button key={id} type="button" role="tab" id={`result-tab-${id}`}
+              aria-controls={`result-view-${id}`} aria-selected={resultTab === id}
+              tabIndex={resultTab === id ? 0 : -1}
+              onClick={() => setResultTab(id)}
+              onKeyDown={(event) => {
+                const next = event.key === "ArrowRight" ? (index + 1) % all.length
+                  : event.key === "ArrowLeft" ? (index + all.length - 1) % all.length
+                  : event.key === "Home" ? 0 : event.key === "End" ? all.length - 1 : null;
+                if (next === null) return;
+                event.preventDefault();
+                setResultTab(all[next][0]);
+                document.getElementById(`result-tab-${all[next][0]}`)?.focus();
+              }}>{label}</button>
+          ))}
+        </div>
+
+        <div className="copilot-scroll space-y-4 px-3 pb-8 pt-3">
+          <div role="tabpanel" id="result-view-rank" aria-labelledby="result-tab-rank" hidden={resultTab !== "rank"} tabIndex={0} className="result-view space-y-4">
+            {isCompareView ? <section className="result-compare" aria-label="지역 비교 대상">
+              <div className="compare-scope" role="group" aria-label="비교 단위">
+                {([ ["gu", "구·군"], ["dong", "행정동"] ] as const).map(([scope, label]) => <button type="button" key={scope} aria-pressed={compareScope === scope} onClick={() => {
+                  const pool = scope === "dong" ? listDongLabels(snapshot.regions) : listDistricts(snapshot.regions);
+                  const pair = normalizeComparePair(comparePair[0], comparePair[1], pool);
+                  applyComparePair(pair[0], pair[1], scope);
+                }}>{label}</button>)}
+              </div>
+              <div className="compare-selects">
+                {([0, 1] as const).map((axis) => <label key={axis}>지역 {axis === 0 ? "A" : "B"}<select aria-label={`비교할 지역 ${axis === 0 ? "A" : "B"}`} value={compareOptions.includes(comparePair[axis]) ? comparePair[axis] : compareOptions[axis] ?? ""} onChange={(event) => applyComparePair(axis === 0 ? event.target.value : comparePair[0], axis === 1 ? event.target.value : comparePair[1], compareScope)}>{compareOptions.map((name) => <option key={name} value={name}>{name}</option>)}</select></label>)}
+              </div>
+            </section> : null}
+
+          {analysis.id === "idle" ? (
+            <section className="empty-state" data-testid="analysis-empty-state">
+              <p className="ui-body-lg font-bold">추천 질문으로 분석을 시작하세요</p>
+              <p className="ui-body mt-1.5">질문을 실행하면 지도와 순위가 나타납니다. 지도에서 지역을 선택하면 상세 자료를 볼 수 있습니다.</p>
+              <button type="button" className="onboard-btn-primary mt-3 px-3.5 py-2 ui-chip font-bold" onClick={runOnboardExample}>생활인구 분석 시작</button>
+            </section>
+          ) : null}
+          {isLayerCubeLoading ? (
+            <section className="empty-state" data-testid="layer-cube-loading">
+              <p className="ui-body-lg font-bold text-slate-800">{analysis.summary}</p>
+              <p className="ui-body mt-1.5 text-slate-500">
+                잠시 후 순위와 지도가 자동으로 갱신됩니다.
+              </p>
+            </section>
+          ) : null}
+          {emptyResult ? (
+            <section className="empty-state">
+              <p className="ui-body-lg font-bold text-slate-800">표시할 결과가 없습니다</p>
+              <p className="ui-body mt-1.5 text-slate-500">
+                없는 값은 추정하지 않습니다. 아래 분석으로 다시 시작해 보세요.
+              </p>
+              <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+                {(["scarcity", "elderly", "radius"] as QuickId[]).map((id) => {
+                  const item = QUICK_ANALYSES.find((quick) => quick.id === id);
+                  if (!item) return null;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className="ui-chip rounded-full bg-slate-900 px-3.5 py-1.5 font-bold text-white"
+                      onClick={() => runQuick(id)}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {analysis.id !== "idle" ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-3.5 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="ui-caption font-bold text-slate-500">
+                  {analysis.isFacilityResult ? "시설 목록" : "상위 순위 · 지도와 연동"}
+                </p>
+                <p className="ui-caption text-slate-400">
+                  {analysis.isFacilityResult
+                    ? `${Math.min(effectiveLimit, filteredFacilitiesList.length)}/${filteredFacilitiesList.length}`
+                    : `${Math.min(effectiveLimit, filteredRanked.length)}/${filteredRanked.length}`}
+                </p>
+              </div>
+              <label className="mt-2 block">
+                <span className="sr-only">결과 검색</span>
+                <input
+                  type="search"
+                  value={resultSearch}
+                  onChange={(event) => {
+                    setResultSearch(event.target.value);
+                    setResultLimit(RESULT_PAGE_STEP);
+                  }}
+                  placeholder={
+                    analysis.isFacilityResult
+                      ? "시설명·지역·유형 검색"
+                      : "동·구·시 이름 검색"
+                  }
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 ui-body outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                  data-testid="result-search"
+                />
+              </label>
+              {resultSearch.trim() ? (
+                <button type="button" className="mt-2 min-h-11 ui-caption font-bold text-blue-700" onClick={() => { setResultSearch(""); setResultLimit(RESULT_PAGE_STEP); }}>검색 지우기</button>
+              ) : null}
+              {analysis.isFacilityResult ? (
+                <div className="mt-2 flex gap-1" role="group" aria-label="시설 정렬">
+                  {(
+                    [
+                      ["name", "이름순"],
+                      ["type", "유형순"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      data-testid={`facility-sort-${id}`}
+                      aria-pressed={facilitySort === id}
+                      className={`flex-1 rounded-lg py-1.5 ui-caption font-bold ${
+                        facilitySort === id
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                      onClick={() => setFacilitySort(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="divide-y divide-slate-100">
+              {analysis.isFacilityResult
+                ? visibleFacilities.map((facility) => (
+                    <button
+                      key={facility.id}
+                      type="button"
+                      className={`rank-row flex w-full items-center gap-2.5 px-3.5 py-3 text-left ${
+                        facility.id === selectedFacilityId ? "is-selected" : ""
+                      }`}
+                      onPointerDown={() => selectFacility(facility)}
+                      onClick={(event) => {
+                        if (event.detail === 0) selectFacility(facility);
+                      }}
+                    >
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: FACILITY_TYPE_COLORS[facility.type] ?? "#64748b" }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="rank-name block truncate">{facility.name}</span>
+                        <span className="rank-note mt-0.5 block">
+                          {facility.type} · {facility.adm_nm.replace(/^경상남도\s*/, "")}
+                        </span>
+                      </span>
+                    </button>
+                  ))
+                : visibleRanked.map((row, index) => (
+                    <div
+                      key={row.code}
+                      className={`rank-row flex w-full flex-col gap-1.5 px-3.5 py-3 ${
+                        row.code === selectedRegionCode ? "is-selected" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="flex w-full flex-wrap items-center gap-2.5 text-left"
+                        /*
+                         * 이름과 값 사이에 읽을 구분이 없으면 붙어서 읽힌다. 격자 이름은
+                         * 숫자로 끝나므로("…500m격자 6") 값과 이어지면 "격자 612,893명"이
+                         * 된다 — 스크린리더에게도, 화면 텍스트를 읽는 검증 스크립트에게도
+                         * 없는 숫자가 생긴다.
+                         */
+                        aria-label={`${
+                          analysis.ranked.findIndex((item) => item.code === row.code) + 1 || index + 1
+                        }위 ${row.name}, ${row.valueLabel}`}
+                        onPointerDown={() => selectRegion(row.code)}
+                        onClick={(event) => {
+                          if (event.detail === 0) selectRegion(row.code);
+                        }}
+                      >
+                        <span
+                          className={`grid size-7 shrink-0 place-items-center rounded-full ui-chip font-black ${
+                            (analysis.ranked.findIndex((item) => item.code === row.code) < 3
+                              ? "bg-slate-900 text-white"
+                              : "bg-slate-100 text-slate-600")
+                          }`}
+                          title={`표시 ${index + 1} · 전체 순위 ${analysis.ranked.findIndex((item) => item.code === row.code) + 1}`}
+                        >
+                          {analysis.ranked.findIndex((item) => item.code === row.code) + 1 ||
+                            index + 1}
+                        </span>
+                        <span className="rank-main">
+                          <span className="rank-name block truncate">{row.name}</span>
+                          {/*
+                            note가 "총생활인구 · 97,787.3명"이면 오른쪽 값(97,787.3명)과
+                            패널 제목(총생활인구 순위)을 합친 것과 같아, 한 줄에 같은 숫자가
+                            두 번 찍혔다. 교차·추세 결과처럼 note가 다른 것을 말할 때만 남긴다.
+                          */}
+                          {row.note && !row.note.endsWith(row.valueLabel) ? (
+                            <span className="rank-note mt-0.5 block">{row.note}</span>
+                          ) : null}
+                        </span>
+                        <span className="rank-value">{row.valueLabel}</span>
+                      </button>
+                      {/* 점수가 없는 결과(상관·이상치)는 막대를 그리지 않는다. 길이가 곧
+                          "이만큼"이라는 주장이라, 없는 점수로 그리면 거짓을 그린다. */}
+                      {row.mapScore === null ? null : (
+                        <span className="score-bar ml-9" aria-hidden>
+                          <span style={{ width: `${Math.max(6, Math.min(100, row.mapScore))}%` }} />
+                        </span>
+                      )}
+                      {isCompareView ? (
+                        <button
+                          type="button"
+                          className="ui-chip ml-9 self-start rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-bold text-blue-800"
+                          onClick={() => drillIntoDistrict(row.name)}
+                        >
+                          동 순위 보기
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+              {(analysis.isFacilityResult
+                ? filteredFacilitiesList.length > effectiveLimit
+                : filteredRanked.length > effectiveLimit) ? (
+                <button
+                  type="button"
+                  className="w-full border-t border-slate-100 py-2.5 ui-body font-bold text-blue-700 hover:bg-slate-50"
+                  data-testid="result-load-more"
+                  onClick={() => setResultLimit((value) => value + RESULT_PAGE_STEP)}
+                >
+                  더 보기 (
+                  {(analysis.isFacilityResult
+                    ? filteredFacilitiesList.length
+                    : filteredRanked.length) - effectiveLimit}
+                  개 남음)
+                </button>
+              ) : null}
+              {!isLayerCubeLoading && !analysis.isFacilityResult && filteredRanked.length === 0 ? (
+                <p className="px-3.5 py-4 ui-body text-slate-500" role="status">{resultSearch.trim() ? `「${resultSearch}」과 일치하는 결과가 없습니다. 검색을 지우면 전체 결과를 볼 수 있습니다.` : "조건에 맞는 결과가 없습니다."}</p>
+              ) : null}
+              {!isLayerCubeLoading && analysis.isFacilityResult && filteredFacilitiesList.length === 0 ? (
+                <p className="px-3.5 py-4 ui-body text-slate-500" role="status">{resultSearch.trim() ? `「${resultSearch}」과 일치하는 결과가 없습니다. 검색을 지우면 전체 결과를 볼 수 있습니다.` : "조건에 맞는 결과가 없습니다."}</p>
+              ) : null}
+            </div>
+
+          </section> : null}
+
+          </div>
+          <div role="tabpanel" id="result-view-evidence" aria-labelledby="result-tab-evidence" hidden={resultTab !== "evidence"} tabIndex={0} className="result-view space-y-4">
+            <p className="ui-body ui-soft">{analysis.summary}</p>
+            {oneLineConclusion && analysis.id !== "idle" ? <button type="button" className="choice-btn" onClick={() => void copyOneLineConclusion()}>한 줄 결론 복사</button> : null}
+          {analysis.id !== "idle" && methodSummaryText.trim() ? (
+            <p
+              className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"
+              data-testid="method-summary"
+            >
+              <span className="font-bold text-slate-800">방법론 · </span>
+              {methodSummaryText}
+            </p>
+          ) : null}
+            {analysis.formulaNotes.length ? (
+              <details className="border-t border-slate-100 px-3.5 py-2.5">
+                <summary className="ui-chip cursor-pointer font-bold text-slate-600">
+                  산식 · 해석 기준
+                </summary>
+                <ul className="mt-2 space-y-1.5 ui-chip text-slate-500">
+                  {analysis.formulaNotes.map((note) => (
+                    <li key={note}>· {note}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          {analysis.id !== "idle" && interpretation ? <InterpretationCard interpretation={interpretation} /> : null}
+          </div>
+          <div role="tabpanel" id="result-view-region" aria-labelledby="result-tab-region" hidden={resultTab !== "region"} tabIndex={0} className="result-view space-y-4">
+            {!selectedRegion && !selectedSgg ? <section className="empty-state"><p className="ui-body-lg font-bold">지역을 선택하세요</p><p className="ui-body mt-2">순위의 지역 이름이나 지도에서 관심 지역을 선택하면 상세 자료와 흐름을 볼 수 있습니다.</p><button type="button" className="choice-btn mt-3" onClick={() => setResultTab("rank")}>순위에서 선택하기</button></section> : null}
+          {selectedRegion ? (
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+              <p className="ui-caption font-bold text-blue-600">선택한 행정동</p>
+              <h3 className="ui-title mt-1 text-slate-950">{compactName(selectedRegion)}</h3>
+
+              {selectedFacility ? (
+                <article className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 ui-body text-slate-700">
+                  <p className="font-bold text-cyan-900">{selectedFacility.name}</p>
+                  <p className="mt-1">{selectedFacility.type}</p>
+                  <p className="mt-1">{selectedFacility.address ?? selectedFacility.adm_nm}</p>
+                  <p className="mt-1">전화 {selectedFacility.phone ?? "데이터 없음"}</p>
+                </article>
+              ) : null}
+
+              {selectedLivePlace ? (
+                <article className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 p-3 ui-body text-slate-700">
+                  <p className="ui-caption font-bold text-violet-700">실시간 장소</p>
+                  <p className="mt-1 font-bold text-violet-900">{selectedLivePlace.name}</p>
+                  <p className="mt-1">{selectedLivePlace.categoryName}</p>
+                  <p className="mt-1">
+                    {selectedLivePlace.roadAddress ?? selectedLivePlace.address ?? "주소 없음"}
+                  </p>
+                  <p className="mt-1">
+                    전화 {selectedLivePlace.phone ?? "데이터 없음"}
+                    {selectedLivePlace.distanceMeters != null
+                      ? ` · ${selectedLivePlace.distanceMeters}m`
+                      : ""}
+                  </p>
+                </article>
+              ) : null}
+
+              {!analysis.isFacilityResult && selectedAnalysisRegion?.metrics.length ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
+                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2.5">
+                      <p className="ui-caption font-semibold text-blue-700">{metric.label}</p>
+                      <p className="mt-1 ui-body-lg font-black tabular-nums text-slate-950">
+                        {formatMetric(metric.value, metric.unit)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {!populationIsLive(snapshot.mode, snapshot.sourceNotes) ? (
+                <p className="ui-caption mt-3 font-semibold text-amber-700" data-testid="selected-population-note">인구·가구·자연증가·추세는 시연용 합성값이며 실제 주민등록 통계가 아닙니다. 의료기관 수와 민간 지표는 각 출처를 확인하세요.</p>
+              ) : null}
+              {populationIsLive(snapshot.mode, snapshot.sourceNotes) ? <p className="ui-caption mt-3 ui-soft" data-testid="selected-population-source">주민등록 통계 · {snapshot.referenceMonth} · 행정안전부. 1인세대는 주민등록상 한 사람으로 구성된 세대입니다.</p> : null}
+              <div className="mt-3 grid grid-cols-2 gap-1.5">
+                {[
+                  ["총인구", currentPopulation.toLocaleString("ko-KR")],
+                  ["고령", currentElderly.toLocaleString("ko-KR")],
+                  [snapshot.mode === "live" ? "의료기관 · 심평원" : "의료기관 · 시연", String(selectedFacilities.length)],
+                  ["1인세대", currentOnePerson == null ? "없음" : currentOnePerson.toLocaleString("ko-KR")],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
+                    <p className="text-[9px] text-slate-600">{label}</p>
+                    <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-slate-600">13개월 인구</p>
+                  <p
+                    className={`text-[10px] font-bold ${
+                      currentNaturalChange >= 0 ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {populationIsLive(snapshot.mode, snapshot.sourceNotes) ? "출생등록−사망말소" : "자연증가"} {currentNaturalChange >= 0 ? "+" : ""}
+                    {currentNaturalChange}
+                  </p>
+                </div>
+                <TrendChart values={selectedRegion.population} labels={selectedRegion.months} />
+              </div>
+            </section>
+          ) : selectedSgg ? (
+            /*
+             * 시군구 선택 칸. 동 단위 하류(인구 추세·민간 프로파일)는 5자리 코드를
+             * 못 찾으므로, 분석 행의 값과 소속 시설 수만 보여 준다. 없는 칸을
+             * 0으로 메우지 않는다 — 총인구·1인가구 칸 자체를 내지 않는다.
+             */
+            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+              <p className="ui-caption font-bold text-blue-600">선택한 시군구</p>
+              <h3 className="ui-title mt-1 text-slate-950">{selectedSgg.name}</h3>
+
+              {!analysis?.isFacilityResult && selectedAnalysisRegion && selectedAnalysisRegion.metrics.length > 0 ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
+                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2.5">
+                      <p className="ui-caption font-semibold text-blue-700">{metric.label}</p>
+                      <p className="mt-1 ui-body-lg font-black tabular-nums text-slate-950">
+                        {formatMetric(metric.value, metric.unit)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-3 grid grid-cols-2 gap-1.5">
+                {[
+                  [snapshot.mode === "live" ? "의료기관 · 심평원" : "의료기관 · 시연", String(selectedFacilities.length)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
+                    <p className="text-[9px] text-slate-600">{label}</p>
+                    <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="ui-caption mt-2.5 text-slate-500">
+                인구 추세·민간데이터 종합은 행정동 단위로만 있습니다. 행정동을 고르면 나타납니다.
+              </p>
+            </section>
+          ) : null}
+
+          {selectedRegion && analysis.isFacilityResult ? <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-bold text-slate-600">실시간 주변 장소</p>
+                <p className="ui-caption">선택 동 대표점 기준 주변 장소</p>
+              </div>
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-slate-200 px-3 py-2 ui-caption font-semibold text-slate-600"
+                onClick={() => void loadLivePlacesNearSelection(selectedRegion, "병원")}
+                disabled={livePlacesLoading}
+              >
+                새로고침
+              </button>
+            </div>
+            {livePlacesLoading ? (
+              <p className="ui-caption mt-2" role="status">주변 장소를 찾는 중입니다…</p>
+            ) : livePlacesNotice ? (
+              <p className="ui-caption mt-2" role="status">{livePlacesNotice}</p>
+            ) : null}
+            <div className="mt-2 divide-y divide-slate-100">
+              {livePlaces.length === 0 && !livePlacesLoading && !livePlacesNotice ? (
+                <p className="py-3 ui-caption text-slate-500">
+                  선택 동 대표점 반경 2km에서 병원을 찾지 못했습니다. 다른 지역을 선택하거나 위 의료기관 목록을 확인하세요.
+                </p>
+              ) : (
+                livePlaces.map((place) => (
+                  <button
+                    key={place.id}
+                    type="button"
+                    className={`w-full py-2 text-left hover:bg-slate-50 ${
+                      selectedLivePlace?.id === place.id ? "bg-violet-50" : ""
+                    }`}
+                    onClick={() => selectLivePlace(place)}
+                  >
+                    <p className="text-xs font-bold text-slate-800">{place.name}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      {place.categoryName ? `${place.categoryName} · ` : ""}
+                      {place.roadAddress ?? place.address ?? "주소 없음"}
+                      {place.distanceMeters != null ? ` · ${place.distanceMeters}m` : ""}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
+          </section> : null}
           {profileMissingForDistrict ? (
             <p className="ui-caption mt-2.5 text-slate-500" data-testid="region-profile-unavailable">
               민간데이터 종합은 행정동 단위로만 있습니다. 시군구로 합친 결과에서는 볼 수 없어, 행정동을
@@ -5502,487 +6067,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               </div>
             </details>
           ) : null}
-          {analysis.id !== "idle" && methodSummaryText.trim() ? (
-            <p
-              className="ui-caption mt-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-slate-600"
-              data-testid="method-summary"
-            >
-              <span className="font-bold text-slate-800">방법론 · </span>
-              {methodSummaryText}
-            </p>
-          ) : null}
-          {analysis.id !== "idle" ? <div
-            className={`mt-2.5 rounded-lg border px-3 py-2 ui-chip ${
-              snapshot.mode === "live"
-                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
-                : "border-amber-100 bg-amber-50 text-amber-900"
-            }`}
-            data-testid="data-provenance"
-          >
-            <span className="font-bold">
-              {exportModeLabel(
-                snapshot.mode,
-                snapshot.sourceNotes,
-                isSnapshotPopulationRanking({
-                  metrics: analysis.ranked.flatMap((row) => row.metrics),
-                  isFacilityResult: analysis.isFacilityResult,
-                  layerId: analysis.id,
-                  title: analysis.title,
-                  formulaNotes: analysis.formulaNotes,
-                }),
-              )}
-            </span>
-            {" · "}기준월 {referenceMonthLabel}
-            {" · "}{analysisSourceLabel}
-            {snapshot.mode === "demo" ? " · 정책 판단용 아님" : ""}
-          </div> : null}
-          {/*
-            읽을 것(몇 개인가·선택은 몇 위인가)과 할 것(내보내기)이 한 칩 구름에 섞여 있어
-            무엇이 눌리는지 구분되지 않았다. 사실은 문장으로, 동작만 버튼으로 나눈다.
-          */}
-          {analysis.id !== "idle" ? <p className="ui-caption mt-2.5 text-slate-500" data-testid="result-meta">
-            {analysis.isFacilityResult
-              ? `${filteredFacilitiesList.length.toLocaleString("ko-KR")}개 시설`
-              : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${analysis.unitWord ?? unitWordOf(activeLayerId, adminLevel)}`}
-            {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
-          </p> : null}
-          {hasExportRows && !isParsing && !pendingCubeQuery ? (
-          <div className="export-actions mt-1.5" role="group" aria-label="내보내기">
-            <button
-              type="button"
-              data-testid="export-csv"
-              className="export-action"
-              onClick={exportCurrentCsv}
-            >
-              표
-            </button>
-            <button
-              type="button"
-              data-testid="export-report"
-              className="export-action"
-              onClick={exportCurrentReport}
-            >
-              보고서
-            </button>
-            <button
-              type="button"
-              data-testid="export-share"
-              className="export-action"
-              onClick={() => {
-                /*
-                 * 민간 레이어·교차·추세 결과는 공공 도구가 아니라 lastIntent가 null이다.
-                 * 여기서 의료 도구를 기본값으로 채워 넣으면 링크를 열었을 때 그 도구가
-                 * 먼저 실행돼 원래 결과가 사라진다(prod 실측). 그럴 땐 질문만 싣고,
-                 * 복원 쪽에서 같은 경로로 다시 태운다.
-                 */
-                pushShareUrl(lastIntent, selectedRegionCode, lastExecutedQuery ?? undefined);
-                void copyShareLink();
-              }}
-            >
-              공유
-            </button>
+
+
           </div>
-          ) : null}
-          {shareNotice ? (
-            <p className="ui-chip mt-2 font-semibold text-emerald-700" role="status">
-              {shareNotice}
-            </p>
-          ) : null}
-        </header>
-
-        <div className="copilot-scroll space-y-4 px-3 pb-8 pt-3">
-          {analysis.id === "idle" ? (
-            <section className="empty-state" data-testid="analysis-empty-state">
-              <p className="ui-body-lg font-bold">추천 질문으로 분석을 시작하세요</p>
-              <p className="ui-body mt-1.5">질문을 실행하면 지도와 순위가 나타납니다. 지도에서 지역을 선택하면 상세 자료를 볼 수 있습니다.</p>
-              <button type="button" className="onboard-btn-primary mt-3 px-3.5 py-2 ui-chip font-bold" onClick={runOnboardExample}>생활인구 분석 시작</button>
-            </section>
-          ) : null}
-          {isLayerCubeLoading ? (
-            <section className="empty-state" data-testid="layer-cube-loading">
-              <p className="ui-body-lg font-bold text-slate-800">{analysis.summary}</p>
-              <p className="ui-body mt-1.5 text-slate-500">
-                잠시 후 순위와 지도가 자동으로 갱신됩니다.
-              </p>
-            </section>
-          ) : null}
-          {emptyResult ? (
-            <section className="empty-state">
-              <p className="ui-body-lg font-bold text-slate-800">표시할 결과가 없습니다</p>
-              <p className="ui-body mt-1.5 text-slate-500">
-                없는 값은 추정하지 않습니다. 아래 분석으로 다시 시작해 보세요.
-              </p>
-              <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                {(["scarcity", "elderly", "radius"] as QuickId[]).map((id) => {
-                  const item = QUICK_ANALYSES.find((quick) => quick.id === id);
-                  if (!item) return null;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className="ui-chip rounded-full bg-slate-900 px-3.5 py-1.5 font-bold text-white"
-                      onClick={() => runQuick(id)}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          ) : null}
-
-          {analysis.id !== "idle" ? <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-3.5 py-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="ui-caption font-bold text-slate-500">
-                  {analysis.isFacilityResult ? "시설 목록" : "상위 순위 · 지도와 연동"}
-                </p>
-                <p className="ui-caption text-slate-400">
-                  {analysis.isFacilityResult
-                    ? `${Math.min(effectiveLimit, filteredFacilitiesList.length)}/${filteredFacilitiesList.length}`
-                    : `${Math.min(effectiveLimit, filteredRanked.length)}/${filteredRanked.length}`}
-                </p>
-              </div>
-              <label className="mt-2 block">
-                <span className="sr-only">결과 검색</span>
-                <input
-                  type="search"
-                  value={resultSearch}
-                  onChange={(event) => {
-                    setResultSearch(event.target.value);
-                    setResultLimit(RESULT_PAGE_STEP);
-                  }}
-                  placeholder={
-                    analysis.isFacilityResult
-                      ? "시설명·지역·유형 검색"
-                      : "동·구·시 이름 검색"
-                  }
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 ui-body outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
-                  data-testid="result-search"
-                />
-              </label>
-              {resultSearch.trim() ? (
-                <button type="button" className="mt-2 min-h-11 ui-caption font-bold text-blue-700" onClick={() => { setResultSearch(""); setResultLimit(RESULT_PAGE_STEP); }}>검색 지우기</button>
-              ) : null}
-              {analysis.isFacilityResult ? (
-                <div className="mt-2 flex gap-1" role="group" aria-label="시설 정렬">
-                  {(
-                    [
-                      ["name", "이름순"],
-                      ["type", "유형순"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      data-testid={`facility-sort-${id}`}
-                      aria-pressed={facilitySort === id}
-                      className={`flex-1 rounded-lg py-1.5 ui-caption font-bold ${
-                        facilitySort === id
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                      onClick={() => setFacilitySort(id)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className="divide-y divide-slate-100">
-              {analysis.isFacilityResult
-                ? visibleFacilities.map((facility) => (
-                    <button
-                      key={facility.id}
-                      type="button"
-                      className={`rank-row flex w-full items-center gap-2.5 px-3.5 py-3 text-left ${
-                        facility.id === selectedFacilityId ? "is-selected" : ""
-                      }`}
-                      onPointerDown={() => selectFacility(facility)}
-                      onClick={(event) => {
-                        if (event.detail === 0) selectFacility(facility);
-                      }}
-                    >
-                      <span
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: FACILITY_TYPE_COLORS[facility.type] ?? "#64748b" }}
-                        aria-hidden
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="rank-name block truncate">{facility.name}</span>
-                        <span className="rank-note mt-0.5 block">
-                          {facility.type} · {facility.adm_nm.replace(/^경상남도\s*/, "")}
-                        </span>
-                      </span>
-                    </button>
-                  ))
-                : visibleRanked.map((row, index) => (
-                    <div
-                      key={row.code}
-                      className={`rank-row flex w-full flex-col gap-1.5 px-3.5 py-3 ${
-                        row.code === selectedRegionCode ? "is-selected" : ""
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        className="flex w-full flex-wrap items-center gap-2.5 text-left"
-                        /*
-                         * 이름과 값 사이에 읽을 구분이 없으면 붙어서 읽힌다. 격자 이름은
-                         * 숫자로 끝나므로("…500m격자 6") 값과 이어지면 "격자 612,893명"이
-                         * 된다 — 스크린리더에게도, 화면 텍스트를 읽는 검증 스크립트에게도
-                         * 없는 숫자가 생긴다.
-                         */
-                        aria-label={`${
-                          analysis.ranked.findIndex((item) => item.code === row.code) + 1 || index + 1
-                        }위 ${row.name}, ${row.valueLabel}`}
-                        onPointerDown={() => selectRegion(row.code)}
-                        onClick={(event) => {
-                          if (event.detail === 0) selectRegion(row.code);
-                        }}
-                      >
-                        <span
-                          className={`grid size-7 shrink-0 place-items-center rounded-full ui-chip font-black ${
-                            (analysis.ranked.findIndex((item) => item.code === row.code) < 3
-                              ? "bg-slate-900 text-white"
-                              : "bg-slate-100 text-slate-600")
-                          }`}
-                          title={`표시 ${index + 1} · 전체 순위 ${analysis.ranked.findIndex((item) => item.code === row.code) + 1}`}
-                        >
-                          {analysis.ranked.findIndex((item) => item.code === row.code) + 1 ||
-                            index + 1}
-                        </span>
-                        <span className="rank-main">
-                          <span className="rank-name block truncate">{row.name}</span>
-                          {/*
-                            note가 "총생활인구 · 97,787.3명"이면 오른쪽 값(97,787.3명)과
-                            패널 제목(총생활인구 순위)을 합친 것과 같아, 한 줄에 같은 숫자가
-                            두 번 찍혔다. 교차·추세 결과처럼 note가 다른 것을 말할 때만 남긴다.
-                          */}
-                          {row.note && !row.note.endsWith(row.valueLabel) ? (
-                            <span className="rank-note mt-0.5 block">{row.note}</span>
-                          ) : null}
-                        </span>
-                        <span className="rank-value">{row.valueLabel}</span>
-                      </button>
-                      {/* 점수가 없는 결과(상관·이상치)는 막대를 그리지 않는다. 길이가 곧
-                          "이만큼"이라는 주장이라, 없는 점수로 그리면 거짓을 그린다. */}
-                      {row.mapScore === null ? null : (
-                        <span className="score-bar ml-9" aria-hidden>
-                          <span style={{ width: `${Math.max(6, Math.min(100, row.mapScore))}%` }} />
-                        </span>
-                      )}
-                      {isCompareView ? (
-                        <button
-                          type="button"
-                          className="ui-chip ml-9 self-start rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 font-bold text-blue-800"
-                          onClick={() => drillIntoDistrict(row.name)}
-                        >
-                          동 순위 보기
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-              {(analysis.isFacilityResult
-                ? filteredFacilitiesList.length > effectiveLimit
-                : filteredRanked.length > effectiveLimit) ? (
-                <button
-                  type="button"
-                  className="w-full border-t border-slate-100 py-2.5 ui-body font-bold text-blue-700 hover:bg-slate-50"
-                  data-testid="result-load-more"
-                  onClick={() => setResultLimit((value) => value + RESULT_PAGE_STEP)}
-                >
-                  더 보기 (
-                  {(analysis.isFacilityResult
-                    ? filteredFacilitiesList.length
-                    : filteredRanked.length) - effectiveLimit}
-                  개 남음)
-                </button>
-              ) : null}
-              {!isLayerCubeLoading && !analysis.isFacilityResult && filteredRanked.length === 0 ? (
-                <p className="px-3.5 py-4 ui-body text-slate-500" role="status">{resultSearch.trim() ? `「${resultSearch}」과 일치하는 결과가 없습니다. 검색을 지우면 전체 결과를 볼 수 있습니다.` : "조건에 맞는 결과가 없습니다."}</p>
-              ) : null}
-              {!isLayerCubeLoading && analysis.isFacilityResult && filteredFacilitiesList.length === 0 ? (
-                <p className="px-3.5 py-4 ui-body text-slate-500" role="status">{resultSearch.trim() ? `「${resultSearch}」과 일치하는 결과가 없습니다. 검색을 지우면 전체 결과를 볼 수 있습니다.` : "조건에 맞는 결과가 없습니다."}</p>
-              ) : null}
-            </div>
-            {analysis.formulaNotes.length ? (
-              <details className="border-t border-slate-100 px-3.5 py-2.5">
-                <summary className="ui-chip cursor-pointer font-bold text-slate-600">
-                  산식 · 해석 기준
-                </summary>
-                <ul className="mt-2 space-y-1.5 ui-chip text-slate-500">
-                  {analysis.formulaNotes.map((note) => (
-                    <li key={note}>· {note}</li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-          </section> : null}
-
-          {analysis.id !== "idle" && interpretation ? <InterpretationCard interpretation={interpretation} /> : null}
-
-          {selectedRegion ? (
-            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
-              <p className="ui-caption font-bold text-blue-600">선택한 행정동</p>
-              <h3 className="ui-title mt-1 text-slate-950">{compactName(selectedRegion)}</h3>
-
-              {selectedFacility ? (
-                <article className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3 ui-body text-slate-700">
-                  <p className="font-bold text-cyan-900">{selectedFacility.name}</p>
-                  <p className="mt-1">{selectedFacility.type}</p>
-                  <p className="mt-1">{selectedFacility.address ?? selectedFacility.adm_nm}</p>
-                  <p className="mt-1">전화 {selectedFacility.phone ?? "데이터 없음"}</p>
-                </article>
-              ) : null}
-
-              {selectedLivePlace ? (
-                <article className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 p-3 ui-body text-slate-700">
-                  <p className="ui-caption font-bold text-violet-700">실시간 장소</p>
-                  <p className="mt-1 font-bold text-violet-900">{selectedLivePlace.name}</p>
-                  <p className="mt-1">{selectedLivePlace.categoryName}</p>
-                  <p className="mt-1">
-                    {selectedLivePlace.roadAddress ?? selectedLivePlace.address ?? "주소 없음"}
-                  </p>
-                  <p className="mt-1">
-                    전화 {selectedLivePlace.phone ?? "데이터 없음"}
-                    {selectedLivePlace.distanceMeters != null
-                      ? ` · ${selectedLivePlace.distanceMeters}m`
-                      : ""}
-                  </p>
-                </article>
-              ) : null}
-
-              {!analysis.isFacilityResult && selectedAnalysisRegion?.metrics.length ? (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
-                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2.5">
-                      <p className="ui-caption font-semibold text-blue-700">{metric.label}</p>
-                      <p className="mt-1 ui-body-lg font-black tabular-nums text-slate-950">
-                        {formatMetric(metric.value, metric.unit)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              {!populationIsLive(snapshot.mode, snapshot.sourceNotes) ? (
-                <p className="ui-caption mt-3 font-semibold text-amber-700" data-testid="selected-population-note">인구·가구·자연증가·추세는 시연용 합성값이며 실제 주민등록 통계가 아닙니다. 의료기관 수와 민간 지표는 각 출처를 확인하세요.</p>
-              ) : null}
-              <div className="mt-3 grid grid-cols-2 gap-1.5">
-                {[
-                  ["총인구", currentPopulation.toLocaleString("ko-KR")],
-                  ["고령", currentElderly.toLocaleString("ko-KR")],
-                  ["의료기관", String(selectedFacilities.length)],
-                  ["1인가구", currentOnePerson == null ? "없음" : currentOnePerson.toLocaleString("ko-KR")],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
-                    <p className="text-[9px] text-slate-600">{label}</p>
-                    <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-[10px] font-bold text-slate-600">13개월 인구</p>
-                  <p
-                    className={`text-[10px] font-bold ${
-                      currentNaturalChange >= 0 ? "text-emerald-600" : "text-rose-600"
-                    }`}
-                  >
-                    자연증가 {currentNaturalChange >= 0 ? "+" : ""}
-                    {currentNaturalChange}
-                  </p>
-                </div>
-                <TrendChart values={selectedRegion.population} labels={selectedRegion.months} />
-              </div>
-            </section>
-          ) : selectedSgg ? (
-            /*
-             * 시군구 선택 칸. 동 단위 하류(인구 추세·민간 프로파일)는 5자리 코드를
-             * 못 찾으므로, 분석 행의 값과 소속 시설 수만 보여 준다. 없는 칸을
-             * 0으로 메우지 않는다 — 총인구·1인가구 칸 자체를 내지 않는다.
-             */
-            <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
-              <p className="ui-caption font-bold text-blue-600">선택한 시군구</p>
-              <h3 className="ui-title mt-1 text-slate-950">{selectedSgg.name}</h3>
-
-              {!analysis?.isFacilityResult && selectedAnalysisRegion && selectedAnalysisRegion.metrics.length > 0 ? (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {selectedAnalysisRegion.metrics.slice(0, 4).map((metric) => (
-                    <div key={metric.label} className="rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2.5">
-                      <p className="ui-caption font-semibold text-blue-700">{metric.label}</p>
-                      <p className="mt-1 ui-body-lg font-black tabular-nums text-slate-950">
-                        {formatMetric(metric.value, metric.unit)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="mt-3 grid grid-cols-2 gap-1.5">
-                {[
-                  ["의료기관", String(selectedFacilities.length)],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
-                    <p className="text-[9px] text-slate-600">{label}</p>
-                    <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="ui-caption mt-2.5 text-slate-500">
-                인구 추세·민간데이터 종합은 행정동 단위로만 있습니다. 행정동을 고르면 나타납니다.
-              </p>
-            </section>
-          ) : null}
-
-          {selectedRegion && analysis.isFacilityResult ? <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[10px] font-bold text-slate-600">실시간 주변 장소</p>
-                <p className="ui-caption">선택 동 대표점 기준 주변 장소</p>
-              </div>
-              <button
-                type="button"
-                className="min-h-11 rounded-lg border border-slate-200 px-3 py-2 ui-caption font-semibold text-slate-600"
-                onClick={() => void loadLivePlacesNearSelection(selectedRegion, "병원")}
-                disabled={livePlacesLoading}
-              >
-                새로고침
-              </button>
-            </div>
-            {livePlacesLoading ? (
-              <p className="ui-caption mt-2" role="status">주변 장소를 찾는 중입니다…</p>
-            ) : livePlacesNotice ? (
-              <p className="ui-caption mt-2" role="status">{livePlacesNotice}</p>
-            ) : null}
-            <div className="mt-2 divide-y divide-slate-100">
-              {livePlaces.length === 0 && !livePlacesLoading && !livePlacesNotice ? (
-                <p className="py-3 ui-caption text-slate-500">
-                  선택 동 대표점 반경 2km에서 병원을 찾지 못했습니다. 다른 지역을 선택하거나 위 의료기관 목록을 확인하세요.
-                </p>
-              ) : (
-                livePlaces.map((place) => (
-                  <button
-                    key={place.id}
-                    type="button"
-                    className={`w-full py-2 text-left hover:bg-slate-50 ${
-                      selectedLivePlace?.id === place.id ? "bg-violet-50" : ""
-                    }`}
-                    onClick={() => selectLivePlace(place)}
-                  >
-                    <p className="text-xs font-bold text-slate-800">{place.name}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-400">
-                      {place.categoryName ? `${place.categoryName} · ` : ""}
-                      {place.roadAddress ?? place.address ?? "주소 없음"}
-                      {place.distanceMeters != null ? ` · ${place.distanceMeters}m` : ""}
-                    </p>
-                  </button>
-                ))
-              )}
-            </div>
-          </section> : null}
         </div>
       </aside>
 

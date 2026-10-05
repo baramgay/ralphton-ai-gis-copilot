@@ -88,10 +88,16 @@ export function expandSynonyms(query: string): string {
 }
 
 /** Precompute document frequencies once per corpus instance. */
+function retrievalText(chunk: RagChunk): string {
+  // Limitations often contrast a different observation. They stay in returned context, not subject matching.
+  const definition = chunk.body.split(/한계:/, 1)[0];
+  return `${chunk.title} ${definition} ${chunk.keywords.join(" ")}`;
+}
+
 function buildIdf(corpus: RagChunk[]): Map<string, number> {
   const df = new Map<string, number>();
   for (const chunk of corpus) {
-    const unique = new Set(tokenize(`${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`));
+    const unique = new Set(tokenize(retrievalText(chunk)));
     for (const token of unique) {
       df.set(token, (df.get(token) ?? 0) + 1);
     }
@@ -107,12 +113,12 @@ function buildIdf(corpus: RagChunk[]): Map<string, number> {
 const DEFAULT_IDF = buildIdf(RAG_CORPUS);
 
 function indexChunk(chunk: RagChunk) {
-  const text = `${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`;
+  const text = retrievalText(chunk);
   const tokens = tokenize(text);
   const subjects = [chunk.title, ...chunk.keywords].map((subject) => ({
     phrase: subject.toLowerCase().replace(/\s+/g, ""), words: tokenizeWords(subject),
   }));
-  const subjectWords = new Set(subjects.flatMap((subject) => subject.words));
+  const subjectWords = new Set(tokenizeWords(text));
   return { chunk, text, tokens, tf: termFrequency(tokens), words: new Set(tokenizeWords(text)), subjects, subjectWords };
 }
 
@@ -153,7 +159,7 @@ function evidenceQuery(query: string, corpus: RagChunk[]): { tokens: string[]; w
 const DEFAULT_CHUNK_VECTORS = new Map<string, number[]>(
   RAG_CORPUS.map((chunk) => [
     chunk.id,
-    hashEmbed(`${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`),
+    hashEmbed(retrievalText(chunk)),
   ]),
 );
 
@@ -202,6 +208,8 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
   const boostTags = new Set(options.boostTags ?? []);
   const queryLower = options.query.toLowerCase();
   const queryCompact = queryLower.replace(/\s+/g, "");
+  // Expansion helps recall; it must not invent extra subjects that defeat the explicit question.
+  const coverageWords = tokenizeWords(options.query).filter((word) => !QUERY_STRUCTURE_WORDS.has(word) && !PLACE_WORDS.has(word));
   const lw = options.lexicalWeight ?? 0.55;
   const vw = options.vectorWeight ?? 0.45;
 
@@ -213,14 +221,14 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
       : new Map(
           corpus.map((chunk) => [
             chunk.id,
-            hashEmbed(`${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`),
+            hashEmbed(retrievalText(chunk)),
           ]),
         ));
 
   const raw = documents.map(({ chunk, text: docText, tokens: docTokens, tf, words, subjects, subjectWords }) => {
     let lexical = bm25LiteScore(queryTokens, tf, docTokens.length, idf, corpus.length);
     const hasEvidence = lexical > 0 && queryWords.some((word) => words.has(word));
-    const subjectCoverage = queryWords.filter((word) => subjectWords.has(word)).length;
+    const subjectCoverage = coverageWords.filter((word) => subjectWords.has(word)).length;
     const subjectMatchLength = Math.max(0, ...subjects.filter(({ phrase, words: subjectWords }) =>
       queryCompact.includes(phrase) && subjectWords.some((word) => !QUERY_STRUCTURE_WORDS.has(word) && !PLACE_WORDS.has(word)),
     ).map(({ phrase }) => phrase.length));

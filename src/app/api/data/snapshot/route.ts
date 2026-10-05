@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { DemoSnapshotSchema, type DemoSnapshot } from '@/lib/domain/schemas';
 import { readPublishedSnapshotMeta } from '@/lib/supabase/public';
 import { CachedSnapshotSchema } from '@/lib/supabase/types';
+import { combineOfficialResidents, loadOfficialResidents, loadOfficialResidentsManifest } from '@/lib/data/official-residents';
 
 const ModeSchema = z.enum(['auto', 'live', 'demo']);
 const DEMO_SNAPSHOT_PATH = path.join(
@@ -50,7 +51,7 @@ export const SNAPSHOT_CACHE_CONTROL = 'public, max-age=600, s-maxage=300, stale-
 
 function snapshotResponse(
   snapshot: { mode?: string; referenceMonth?: string; facilities?: unknown[]; regions?: unknown[] },
-  source: 'supabase-cache' | 'demo' | 'demo-fallback',
+  source: 'supabase-cache' | 'demo' | 'demo-fallback' | 'official-residents',
   publishedAt?: string | null,
   createdAt?: string | null,
 ) {
@@ -92,8 +93,11 @@ export async function GET(request: Request) {
     validatedCache.success &&
     (mode.data === 'auto' || validatedCache.data.mode === mode.data)
   ) {
-    return snapshotResponse(validatedCache.data, 'supabase-cache', cachedMeta?.updatedAt ?? cachedMeta?.createdAt, cachedMeta?.createdAt);
+    const official = await loadOfficialResidents();
+    return snapshotResponse(combineOfficialResidents(official, validatedCache.data), 'supabase-cache', cachedMeta?.updatedAt ?? cachedMeta?.createdAt, cachedMeta?.createdAt);
   }
 
-  return snapshotResponse(await loadDemoSnapshot(), 'demo-fallback');
+  const official = await loadOfficialResidents();
+  const manifest = await loadOfficialResidentsManifest();
+  return snapshotResponse(official, 'official-residents', manifest.facilities?.publishedAt, manifest.facilities?.createdAt);
 }

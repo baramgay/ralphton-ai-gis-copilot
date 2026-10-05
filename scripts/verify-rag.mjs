@@ -3,8 +3,10 @@ import { readFile } from "node:fs/promises";
 import { cpus } from "node:os";
 import { performance } from "node:perf_hooks";
 import { createServer } from "vite";
+import assert from "node:assert/strict";
 
 const cases = JSON.parse(await readFile(new URL("../tests/fixtures/rag-korean-qa.json", import.meta.url), "utf8"));
+const paraphrases = JSON.parse(await readFile(new URL("../tests/fixtures/rag-paraphrase-qa.json", import.meta.url), "utf8"));
 const server = await createServer({
   configFile: false,
   resolve: { alias: { "@": `${process.cwd()}/src` } },
@@ -40,8 +42,14 @@ try {
   durations.sort((a, b) => a - b);
   const relevant = results.filter((entry) => entry.kind === "relevant");
   const absent = results.filter((entry) => entry.kind !== "relevant");
+  const paraphraseResults = paraphrases.map((entry) => {
+    const ids = retrieveRagChunks({ query: entry.query, limit: 5 }).map((hit) => hit.chunk.id);
+    const matched = entry.kind === "relevant" ? ids[0] === entry.expectedIds[0]
+      : entry.kind === "combined" ? entry.expectedIds.every((id) => ids.includes(id)) : ids.length === 0;
+    return { ...entry, returnedIds: ids, matched };
+  });
   console.log(JSON.stringify({
-    stage: process.argv[2] ?? "measurement",
+    stage: process.argv.slice(2).find((argument) => argument !== "--assert") ?? "measurement",
     measuredAt: new Date().toISOString(),
     environment: { node: process.version, platform: process.platform, architecture: process.arch, cpu: cpus()[0].model },
     mode: "offline-bm25-hash", remoteModelCalls: 0,
@@ -55,7 +63,15 @@ try {
     },
     latency: { warmup: 20, samples: 200, coldRetrievalMs, p50Ms: durations[99], p95Ms: durations[189] },
     results,
+    paraphraseQuality: { cases: paraphraseResults.length, passed: paraphraseResults.filter((entry) => entry.matched).length },
+    paraphraseResults,
   }, null, 2));
+  if (process.argv.includes("--assert")) {
+    assert.equal(relevant.filter((entry) => entry.rank === 1).length, relevant.length, "fixed QA top1 regressed");
+    assert.equal(relevant.filter((entry) => entry.rank !== null).length, relevant.length, "fixed QA top5 regressed");
+    assert.equal(absent.filter((entry) => entry.returnedIds.length === 0).length, absent.length, "fixed QA absent-evidence rejection regressed");
+    assert.ok(paraphraseResults.every((entry) => entry.matched), "independent paraphrase QA regressed");
+  }
 } finally {
   await server.close();
 }

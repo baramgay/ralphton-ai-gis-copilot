@@ -3,6 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 
 const baseURL = process.argv[2] ?? "http://127.0.0.1:3110";
 const cases = JSON.parse(await readFile("tests/fixtures/rag-korean-qa.json", "utf8"));
+const paraphrases = JSON.parse(await readFile("tests/fixtures/rag-paraphrase-qa.json", "utf8"));
 // These acceptance questions were selected separately from the implementation benchmark.
 const acceptance = [
   { id: "heldout-living-quantity", query: "김해시 총생활인구 높은 동", kind: "relevant", expectedTop1: "metric-skt-living-living_total" },
@@ -28,14 +29,16 @@ async function post(endpoint, body) {
   return { httpStatus: response.status, elapsedMs: Math.round(performance.now() - started), json };
 }
 
-for (const entry of [...cases, ...acceptance]) {
+for (const entry of [...cases, ...acceptance, ...paraphrases.map((entry) => ({ ...entry, expectedTop1: entry.kind === "relevant" ? entry.expectedIds[0] : undefined }))]) {
   const result = await post("/api/rag/search", { query: entry.query, limit: 5, useRemoteEmbed: false });
   const hits = result.json.hits ?? [];
   const citations = result.json.citations ?? [];
   const context = result.json.context ?? "";
   const expectedIds = entry.expectedIds ?? [];
   const expectedTags = entry.expectedTags ?? [];
-  const matched = entry.kind === "relevant"
+  const matched = entry.kind === "combined"
+    ? expectedIds.every((id) => hits.some((hit) => hit.id === id))
+    : entry.kind === "relevant"
     ? entry.expectedTop1 ? hits[0]?.id === entry.expectedTop1 : hits.some((hit) => expectedIds.includes(hit.id) || expectedTags.some((tag) => hit.tags?.includes(tag)))
     : hits.length === 0 && citations.length === 0 && context === "";
   const lineage = citations.every((citation) => context.includes(`[${citation.id}]`) && hits.some((hit) => hit.id === citation.id && hit.inContext))

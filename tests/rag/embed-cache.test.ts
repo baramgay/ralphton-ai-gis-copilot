@@ -95,4 +95,38 @@ describe("embed-cache", () => {
       expect(Number.isFinite(score)).toBe(true);
     }
   });
+
+  it("does not reuse vectors from another provider with the same model", async () => {
+    embedMocks.createTextEmbeddings.mockImplementation(async (_deps, texts: string[]) =>
+      texts.map((_, i) => unitVector(i + 1)),
+    );
+    await ensureCorpusEmbeddings({ apiKey: "k", baseUrl: "https://provider-a.example/v1", model: "shared-model" });
+    await ensureCorpusEmbeddings({ apiKey: "k", baseUrl: "https://provider-b.example/v1", model: "shared-model" });
+    expect(embedMocks.createTextEmbeddings).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects query vectors with a different dimension instead of reporting a remote rerank", async () => {
+    embedMocks.createTextEmbeddings.mockImplementation(async (_deps, texts: string[]) =>
+      texts.map(() => texts.length === 1 ? [1, 0, 0] : [1, 0]),
+    );
+    expect(await rerankWithRemoteEmbeddings("병원 부족", [RAG_CORPUS[0].id], {
+      apiKey: "k", baseUrl: "https://example.com/v1",
+    })).toBeNull();
+  });
+
+  it("invalidates vectors when the corpus text changes without changing its size", async () => {
+    embedMocks.createTextEmbeddings.mockImplementation(async (_deps, texts: string[]) =>
+      texts.map((_, i) => unitVector(i + 1)),
+    );
+    const deps = { apiKey: "k", baseUrl: "https://example.com/v1" };
+    await ensureCorpusEmbeddings(deps);
+    const original = RAG_CORPUS[0].body;
+    try {
+      RAG_CORPUS[0].body = `${original} Updated definition.`;
+      await ensureCorpusEmbeddings(deps);
+      expect(embedMocks.createTextEmbeddings).toHaveBeenCalledTimes(2);
+    } finally {
+      RAG_CORPUS[0].body = original;
+    }
+  });
 });

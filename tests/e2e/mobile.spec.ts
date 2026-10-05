@@ -8,8 +8,8 @@ import { expect, type Page, test } from "@playwright/test";
  */
 async function isReachable(page: Page, label: string): Promise<boolean> {
   return page.evaluate((text) => {
-    const bar = document.querySelector(".map-float-dock");
-    const btn = [...(bar?.querySelectorAll("button") ?? [])].find(
+    const bar = document.querySelector(".workspace-action-bar");
+    const btn = [...(bar?.querySelectorAll(":scope > button") ?? [])].find(
       (b) => b.textContent?.trim() === text,
     );
     if (!btn) return false;
@@ -48,9 +48,9 @@ test.describe("mobile sheet", () => {
 
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "분석 설정" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "결과" })).toBeVisible();
+    await expect(page.getByTestId("workspace-results-toggle")).toBeVisible();
 
-    await page.getByRole("button", { name: "결과" }).click({ force: true });
+    await page.getByTestId("workspace-results-toggle").click({ force: true });
     await expect(page.getByTestId("result-panel")).toBeVisible();
     await expect(page.getByTestId("analysis-empty-state")).toBeVisible();
   });
@@ -77,9 +77,10 @@ test.describe("mobile sheet", () => {
     expect(await selectorReachable(page, ".query-hero-submit")).toBe(true);
 
     // 결과 시트를 끝까지 올려도 마찬가지여야 한다.
-    await page.getByRole("button", { name: "결과", exact: true }).click();
+    await page.getByTestId("workspace-results-toggle").click();
     await expect(page.locator(".copilot-panel-right")).toHaveClass(/sheet-open/);
-    await page.getByRole("button", { name: "높게" }).first().click();
+    await page.getByRole("slider", { name: "결과 패널 높이 조절" }).focus();
+    await page.keyboard.press("End");
 
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
     expect(await selectorReachable(page, ".query-hero-submit")).toBe(true);
@@ -104,7 +105,7 @@ test.describe("mobile sheet", () => {
     await expect(page.getByTestId("onboard-card")).toBeVisible();
 
     expect(await isReachable(page, "분석 설정")).toBe(true);
-    expect(await isReachable(page, "결과")).toBe(true);
+    expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
   });
 
   test("떠 있는 버튼 줄이 접히지 않는다", async ({ page }) => {
@@ -120,20 +121,19 @@ test.describe("mobile sheet", () => {
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
 
     const rows = await page.evaluate(() => {
-      const bar = document.querySelector(".map-float-bar");
+      const bar = document.querySelector(".workspace-action-bar");
       const tops = new Set<number>();
-      for (const button of bar?.querySelectorAll("button") ?? []) {
+      for (const button of bar?.querySelectorAll(":scope > button") ?? []) {
         tops.add(Math.round(button.getBoundingClientRect().top));
       }
-      return { rows: tops.size, count: bar?.querySelectorAll("button").length ?? 0 };
+      return { rows: tops.size, count: bar?.querySelectorAll(":scope > button").length ?? 0 };
     });
     expect(rows.count).toBeGreaterThanOrEqual(2);
     expect(rows.rows).toBe(1);
 
     // 줄 안의 버튼은 모두 눌려야 한다. 화면 밖으로 나가도 접히지는 않기 때문이다.
-    for (const label of ["분석 설정", "결과"]) {
-      expect(await isReachable(page, label)).toBe(true);
-    }
+    expect(await isReachable(page, "분석 설정")).toBe(true);
+    expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
   });
 
   test("시트를 연 뒤에도 반대편 시트로 넘어갈 수 있다", async ({ page }) => {
@@ -149,9 +149,9 @@ test.describe("mobile sheet", () => {
     // 조작을 연 상태에서 결과 버튼이 시트에 가려 눌리지 않아 한쪽에 갇히곤 했다.
     await page.getByRole("button", { name: "분석 설정", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
-    expect(await isReachable(page, "결과")).toBe(true);
+    expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
 
-    await page.getByRole("button", { name: "결과", exact: true }).click();
+    await page.getByTestId("workspace-results-toggle").click();
     await expect(page.locator(".copilot-panel-right")).toHaveClass(/sheet-open/);
     expect(await isReachable(page, "분석 설정")).toBe(true);
   });
@@ -166,7 +166,7 @@ test.describe("tablet sheet", () => {
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "분석 설정" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "결과" })).toBeVisible();
+    await expect(page.getByTestId("workspace-results-toggle")).toBeVisible();
 
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
     await page.getByRole("button", { name: "분석 설정", exact: true }).click();
@@ -179,7 +179,7 @@ test.describe("tablet sheet", () => {
     await expect(page.getByRole("button", { name: /의료기관/ })).toBeVisible();
 
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
-    expect(await isReachable(page, "결과")).toBe(true);
+    expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
   });
 });
 
@@ -197,7 +197,7 @@ test.describe("tablet landscape sheet", () => {
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
     await expect(page.getByText("민간 자료")).toBeVisible();
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
-    expect(await isReachable(page, "결과")).toBe(true);
+    expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
   });
 });
 
@@ -209,7 +209,7 @@ test.describe("phone landscape", () => {
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".sheet-handle").first()).toBeVisible();
     expect(await isReachable(page, "분석 설정")).toBe(true);
-    expect(await isReachable(page, "결과")).toBe(true);
+    expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
 
     const inputPx = await page.locator(".query-hero-input").evaluate((el) =>

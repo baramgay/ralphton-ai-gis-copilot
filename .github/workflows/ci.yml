@@ -19,11 +19,22 @@ jobs:
         run: npm ci
       - name: Unit verify
         run: npm run verify:unit
+      - name: Numeric and fixed Korean RAG acceptance gates
+        run: |
+          node scripts/verify-nurimap-numerics.mjs public/data/official-snapshot.json
+          node scripts/verify-rag.mjs ci --assert > rag-quality.json
+      - name: Preserve quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            rag-quality.json
+            test-results/nurimap-numerics.json
+          if-no-files-found: warn
       - name: Install Playwright browser
         if: ${{ hashFiles('tests/e2e/**/*.ts') != '' }}
         run: npx playwright install --with-deps chromium
-      - name: Build for e2e
-        run: npm run build
       - name: E2E
         env:
           VERIFY_E2E: "1"

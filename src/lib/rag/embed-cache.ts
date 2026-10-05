@@ -5,36 +5,43 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 import { RAG_CORPUS } from "./corpus";
-import { createTextEmbeddings, cosine, type EmbeddingClientDeps } from "./embeddings";
+import { createTextEmbeddings, cosine, isValidEmbeddingVector, type EmbeddingClientDeps } from "./embeddings";
 
 export type EmbedCacheState = {
   model: string;
+  identity: string;
   updatedAt: string;
   vectors: Record<string, number[]>;
 };
 
 let memoryCache: EmbedCacheState | null = null;
-let warming: Promise<Map<string, number[]> | null> | null = null;
+const warming = new Map<string, Promise<Map<string, number[]> | null>>();
 
 /** Test-only: clear in-memory cache between cases (disk still skipped under VITEST). */
 export function resetEmbedCacheForTests(): void {
   memoryCache = null;
-  warming = null;
+  warming.clear();
 }
 
 function cachePath(): string {
   return path.join(process.cwd(), ".data", "rag-embed-cache.json");
 }
 
-async function loadDiskCache(model: string): Promise<EmbedCacheState | null> {
+function validState(state: EmbedCacheState, identity: string): boolean {
+  if (state?.identity !== identity || !state.vectors || typeof state.vectors !== "object") return false;
+  const vectors = RAG_CORPUS.map((chunk) => state.vectors[chunk.id]);
+  return Object.keys(state.vectors).length === RAG_CORPUS.length &&
+    vectors.every((vector) => isValidEmbeddingVector(vector) && vector.length === vectors[0]?.length);
+}
+
+async function loadDiskCache(identity: string): Promise<EmbedCacheState | null> {
   try {
     const text = await readFile(cachePath(), "utf8");
     const parsed = JSON.parse(text) as EmbedCacheState;
-    if (parsed.model !== model) return null;
-    if (!parsed.vectors || typeof parsed.vectors !== "object") return null;
-    return parsed;
+    return validState(parsed, identity) ? parsed : null;
   } catch {
     return null;
   }
@@ -56,24 +63,29 @@ export async function ensureCorpusEmbeddings(
   deps: EmbeddingClientDeps,
 ): Promise<Map<string, number[]> | null> {
   const model = deps.model?.trim() || "text-embedding-v3";
-  if (memoryCache?.model === model && Object.keys(memoryCache.vectors).length === RAG_CORPUS.length) {
+  const texts = RAG_CORPUS.map(
+    (chunk) => `${chunk.title}\n${chunk.body}\n${chunk.keywords.join(" ")}`,
+  );
+  const identity = createHash("sha256").update(JSON.stringify({
+    provider: deps.baseUrl?.trim().replace(/\/+$/, ""), model,
+    chunks: RAG_CORPUS.map((chunk, index) => [chunk.id, texts[index]]),
+  })).digest("hex");
+  if (memoryCache && validState(memoryCache, identity)) {
     return new Map(Object.entries(memoryCache.vectors));
   }
 
-  if (warming) return warming;
+  const pending = warming.get(identity);
+  if (pending) return pending;
 
-  warming = (async () => {
+  const task = (async () => {
     // Avoid leaking local .data cache into unit tests.
     const skipDisk = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
-    const disk = skipDisk ? null : await loadDiskCache(model);
-    if (disk && Object.keys(disk.vectors).length === RAG_CORPUS.length) {
+    const disk = skipDisk ? null : await loadDiskCache(identity);
+    if (disk) {
       memoryCache = disk;
       return new Map(Object.entries(disk.vectors));
     }
 
-    const texts = RAG_CORPUS.map(
-      (chunk) => `${chunk.title}\n${chunk.body}\n${chunk.keywords.join(" ")}`,
-    );
     const vectors = await createTextEmbeddings(deps, texts);
     if (!vectors) return null;
 
@@ -81,14 +93,17 @@ export async function ensureCorpusEmbeddings(
     RAG_CORPUS.forEach((chunk, index) => {
       record[chunk.id] = vectors[index];
     });
-    memoryCache = { model, updatedAt: new Date().toISOString(), vectors: record };
+    const state = { model, identity, updatedAt: new Date().toISOString(), vectors: record };
+    if (!validState(state, identity)) return null;
+    memoryCache = state;
     if (!skipDisk) await saveDiskCache(memoryCache);
     return new Map(Object.entries(record));
   })().finally(() => {
-    warming = null;
+    warming.delete(identity);
   });
 
-  return warming;
+  warming.set(identity, task);
+  return task;
 }
 
 /**
@@ -103,8 +118,10 @@ export async function rerankWithRemoteEmbeddings(
   if (!corpusMap) return null;
 
   const queryVectors = await createTextEmbeddings(deps, [query]);
-  if (!queryVectors?.[0]) return null;
+  if (!isValidEmbeddingVector(queryVectors?.[0])) return null;
   const q = queryVectors[0];
+  const dimension = corpusMap.values().next().value?.length;
+  if (q.length !== dimension) return null;
 
   const scores = new Map<string, number>();
   for (const id of chunkIds) {

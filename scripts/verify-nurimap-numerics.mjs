@@ -89,9 +89,16 @@ try {
     layers.push({ file, regions: cube.cells.length, observations: measured, missing });
   }
 
-  const response = await fetch(snapshotURL, { signal: AbortSignal.timeout(30_000) });
-  assert(response.ok, `snapshot HTTP ${response.status}`);
-  const snapshot = await response.json();
+  let snapshot;
+  let publishedAt = null;
+  if (/^https?:\/\//.test(snapshotURL)) {
+    const response = await fetch(snapshotURL, { signal: AbortSignal.timeout(30_000) });
+    assert(response.ok, `snapshot HTTP ${response.status}`);
+    snapshot = await response.json();
+    publishedAt = response.headers.get("x-published-at");
+  } else {
+    snapshot = JSON.parse(await readFile(snapshotURL, "utf8"));
+  }
   const population = populationCubeFromSnapshot(snapshot);
   const districts = aggregateToSgg(population, POPULATION_LAYER.metrics);
   for (const group of districts.cells) {
@@ -106,7 +113,7 @@ try {
 
   const report = {
     checkedAt: new Date().toISOString(), snapshotURL,
-    publishedAt: response.headers.get("x-published-at"),
+    publishedAt,
     referenceMonth: snapshot.referenceMonth,
     assertions, layers, densityDistricts: districts.cells.length,
     failures,

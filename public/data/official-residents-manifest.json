@@ -1,0 +1,684 @@
+{
+  "acquiredAt": "2026-10-05T13:00:23.743Z",
+  "provider": "행정안전부",
+  "source": "https://jumin.mois.go.kr/",
+  "months": [
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08",
+    "2026-09"
+  ],
+  "regions": 305,
+  "facilities": {
+    "source": "https://gnbc.site/api/data/snapshot?mode=live",
+    "acquiredAt": "2026-10-05T12:45:18.327Z",
+    "publishedAt": "2026-10-04T15:42:29.14+00:00",
+    "createdAt": "2026-07-18T05:41:46.137498+00:00",
+    "count": 4254,
+    "baseSha256": "a957257aedf1d0f4951eb8ac40838071c8fd46df61ca8e68147bd93f3516dfd3",
+    "notes": [
+      "HIRA 병원정보서비스(v2)로 경남 시설 4254곳을 갱신했습니다."
+    ]
+  },
+  "files": [
+    {
+      "dataset": "population",
+      "month": "2025-09",
+      "filename": "population-2025-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285214,
+      "sha256": "1c6efff191bc32e0f6fbeb4ba28edc05deca89080be4c57ae6d5599dba25b778",
+      "rows": 3915
+    },
+    {
+      "dataset": "ages",
+      "month": "2025-09",
+      "filename": "ages-2025-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2352651,
+      "sha256": "32388151c0e530699a8f307bf0651625289f662d9ea15087baa046cb40cede77",
+      "rows": 3912
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2025-09",
+      "filename": "onePerson-households-2025-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400061,
+      "sha256": "89d755db515ce2bdce46ad828c050af41d2795ab0c5107e8332fb18d00a20734",
+      "rows": 3897
+    },
+    {
+      "dataset": "births",
+      "month": "2025-09",
+      "filename": "births-2025-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 202649,
+      "sha256": "c3eab795d78ee112c205ce3778db1eeae23073cc187b7251e5d15c643a329a60",
+      "rows": 3916
+    },
+    {
+      "dataset": "deaths",
+      "month": "2025-09",
+      "filename": "deaths-2025-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203156,
+      "sha256": "c5667e7ffe3ab803ace88979d875339a55fac1d0de1d474fdf0f7976c9587447",
+      "rows": 3916
+    },
+    {
+      "dataset": "population",
+      "month": "2025-10",
+      "filename": "population-2025-10.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285371,
+      "sha256": "fbf33b2872f3ce0d8fb197cdca48365ec1f9d9d81c73c6eec1058a9491bab26c",
+      "rows": 3917
+    },
+    {
+      "dataset": "ages",
+      "month": "2025-10",
+      "filename": "ages-2025-10.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2353770,
+      "sha256": "339c08cf12ac456998927b016b205f7a6499f4bddf4a21447faa41600851f64b",
+      "rows": 3914
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2025-10",
+      "filename": "onePerson-households-2025-10.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400273,
+      "sha256": "8a93557af529719da9baf688d8cf29d2085ebe343815c9451a390f86033fcdfd",
+      "rows": 3899
+    },
+    {
+      "dataset": "births",
+      "month": "2025-10",
+      "filename": "births-2025-10.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 202867,
+      "sha256": "87e13605ccfc221e89909746952494092178a3afaf7563947316f97152476bbe",
+      "rows": 3918
+    },
+    {
+      "dataset": "deaths",
+      "month": "2025-10",
+      "filename": "deaths-2025-10.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203367,
+      "sha256": "e2b88bd9fce58db919d5bdbf0a18d4a8ff0c7c7d5b9231f28c3d2dc53d230f34",
+      "rows": 3918
+    },
+    {
+      "dataset": "population",
+      "month": "2025-11",
+      "filename": "population-2025-11.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285373,
+      "sha256": "fd78e1c8ea980affbbfc07b32ffcc7159fcf5f9a4e3f171339d8a732aea55a89",
+      "rows": 3917
+    },
+    {
+      "dataset": "ages",
+      "month": "2025-11",
+      "filename": "ages-2025-11.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2353556,
+      "sha256": "0c02bd84b5fce2db356dd80582a8a40c764a617d24ce1a979d4158c731ccdafe",
+      "rows": 3914
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2025-11",
+      "filename": "onePerson-households-2025-11.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400259,
+      "sha256": "1dd8fc1d25146ff3ce46755fcc58b33b8194e600a3247cf550cbba38ca9135ef",
+      "rows": 3899
+    },
+    {
+      "dataset": "births",
+      "month": "2025-11",
+      "filename": "births-2025-11.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 202429,
+      "sha256": "f755f253eeb4ce14ce5537690e711a1554cdbda60488c0bd41becaa1bc9a464d",
+      "rows": 3918
+    },
+    {
+      "dataset": "deaths",
+      "month": "2025-11",
+      "filename": "deaths-2025-11.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203150,
+      "sha256": "56cbff27de5f21e14b6cf60ea25415a81dd398ea4267ca0ce86ef70db09948b6",
+      "rows": 3918
+    },
+    {
+      "dataset": "population",
+      "month": "2025-12",
+      "filename": "population-2025-12.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285378,
+      "sha256": "50e5799e53acd692e039686a1050e584a09f1ede938662c6d189b378900fcb6a",
+      "rows": 3917
+    },
+    {
+      "dataset": "ages",
+      "month": "2025-12",
+      "filename": "ages-2025-12.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2353726,
+      "sha256": "422a9ea84be6329365d411f05640574e566c742ec315586659c28e91ba8dd472",
+      "rows": 3914
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2025-12",
+      "filename": "onePerson-households-2025-12.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400291,
+      "sha256": "35c9e96bc8798b62f4f51baad649712369e4426d5ceb9a0a58205cdb166e9b1e",
+      "rows": 3899
+    },
+    {
+      "dataset": "births",
+      "month": "2025-12",
+      "filename": "births-2025-12.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 202815,
+      "sha256": "4c27cbd47ce7746056dfaf58aa25af10311dbeb01dc29b5e62095edc71895ffe",
+      "rows": 3918
+    },
+    {
+      "dataset": "deaths",
+      "month": "2025-12",
+      "filename": "deaths-2025-12.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203867,
+      "sha256": "0d0809c3b5c2c00bb752c671c5a60f1373e8896b63935c0765fc461edb53fef6",
+      "rows": 3918
+    },
+    {
+      "dataset": "population",
+      "month": "2026-01",
+      "filename": "population-2026-01.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285446,
+      "sha256": "2575f3308b0d102b8a052fe05a06c646328f73881c1ecc1bda9c7407cb7ac0f6",
+      "rows": 3918
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-01",
+      "filename": "ages-2026-01.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2354314,
+      "sha256": "3dc2346d81c15ec53f5922b99395d069ade37756cc9caacaca0ef6f4c08ee6fc",
+      "rows": 3915
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-01",
+      "filename": "onePerson-households-2026-01.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400345,
+      "sha256": "8b677c6fd615b688ea79530880a0e6d7bfa67b42d7a7f0ee1fb8db00cbf513ae",
+      "rows": 3900
+    },
+    {
+      "dataset": "births",
+      "month": "2026-01",
+      "filename": "births-2026-01.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 203059,
+      "sha256": "13d6c7bed4d171110606aae53335f0fb3c614825de5ba73a1c44ddea484b53af",
+      "rows": 3919
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-01",
+      "filename": "deaths-2026-01.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203702,
+      "sha256": "ec8361d2c1968331acd0c7d9269a092cb1b13702f578ee5c41595e8ca5889d10",
+      "rows": 3919
+    },
+    {
+      "dataset": "population",
+      "month": "2026-02",
+      "filename": "population-2026-02.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285812,
+      "sha256": "c26fb608ee5ba487a01d86f098ee4b72995ec6bc0954187b54e12c88866d9bff",
+      "rows": 3920
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-02",
+      "filename": "ages-2026-02.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2356878,
+      "sha256": "74ea2f7e05b1dd0e0aafbc31cd74c7830fc6eb2f436fbacf80b68c812d9fb086",
+      "rows": 3917
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-02",
+      "filename": "onePerson-households-2026-02.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400918,
+      "sha256": "00d3212abd9dbe0edebf9cb619b600c2e79871b1d6dfa1ab847ffc66f720b834",
+      "rows": 3904
+    },
+    {
+      "dataset": "births",
+      "month": "2026-02",
+      "filename": "births-2026-02.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 203171,
+      "sha256": "e15707ec59e86e3a1d91af5a9ebe9c8146e172d0b144b63efab20c7ae5c7bf09",
+      "rows": 3921
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-02",
+      "filename": "deaths-2026-02.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203536,
+      "sha256": "f7544d4b6d011ad1b3c07400d5f3763256dfdd56de6e8dfdcd50883fc6520f53",
+      "rows": 3921
+    },
+    {
+      "dataset": "population",
+      "month": "2026-03",
+      "filename": "population-2026-03.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285891,
+      "sha256": "28a4fae9c29a47b51770dbf09aefd1606f8bf81cb86cc2b3db77803fcdb21c16",
+      "rows": 3921
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-03",
+      "filename": "ages-2026-03.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2357360,
+      "sha256": "a04633a9c1448878bed995addbce83aa54c441d1c6193d82d95c3b4e5b5cc594",
+      "rows": 3918
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-03",
+      "filename": "onePerson-households-2026-03.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400901,
+      "sha256": "fe2359554e561121839166b405f8f03299e82321dd476291898ff7294cf7ca20",
+      "rows": 3904
+    },
+    {
+      "dataset": "births",
+      "month": "2026-03",
+      "filename": "births-2026-03.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 203589,
+      "sha256": "8c327de44f17e1dc26080c14af2303ac6f8b37f4f27a84120c90f36665557c74",
+      "rows": 3922
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-03",
+      "filename": "deaths-2026-03.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 204108,
+      "sha256": "25ef4ff4e9d6239716466107b13ef8b204dd832d454099bd9e9c223b0a043554",
+      "rows": 3922
+    },
+    {
+      "dataset": "population",
+      "month": "2026-04",
+      "filename": "population-2026-04.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285894,
+      "sha256": "c8b1c677e59241f0cf7d22c5dca3a0fbff5a3bcae6188e24917bf0b119202dde",
+      "rows": 3921
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-04",
+      "filename": "ages-2026-04.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2357306,
+      "sha256": "96c944602a8f3011ace9b504e0d58eefe8b87b1f07343d628f78e6dd67c43f27",
+      "rows": 3918
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-04",
+      "filename": "onePerson-households-2026-04.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400847,
+      "sha256": "5b5317630ebdb0aaa4facd2a9442c6e58675b71fb50135eab00c173a0779d1f4",
+      "rows": 3904
+    },
+    {
+      "dataset": "births",
+      "month": "2026-04",
+      "filename": "births-2026-04.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 203477,
+      "sha256": "cc91781aa4109075a0ce365dd5414740e17db2e00d7bc4a4ba2b80bac861abe3",
+      "rows": 3922
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-04",
+      "filename": "deaths-2026-04.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203737,
+      "sha256": "4ecac1a6902a884e0f4cbb78e1ea4c169a44c47ef1c4d8f435a1bf81f07e91d9",
+      "rows": 3922
+    },
+    {
+      "dataset": "population",
+      "month": "2026-05",
+      "filename": "population-2026-05.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285893,
+      "sha256": "af0c33a55908a411f03dad1a094ae5f94c73b6182239f1d236a82392e156f2dd",
+      "rows": 3921
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-05",
+      "filename": "ages-2026-05.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2357339,
+      "sha256": "06635d16a0250d71e6f5ddb92d07ac9610be3be26eac0ca73ac5a06d6cb34185",
+      "rows": 3918
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-05",
+      "filename": "onePerson-households-2026-05.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400766,
+      "sha256": "9afc872aeddaaeeafd8c9b578b3ce2b10ac4afe34fa8bc98a06f251b37bcfcdf",
+      "rows": 3904
+    },
+    {
+      "dataset": "births",
+      "month": "2026-05",
+      "filename": "births-2026-05.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 203239,
+      "sha256": "d22229816f1eb5f6352135894b92dd2f16413cdcd0d59b2404ab99a5a7821e0e",
+      "rows": 3922
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-05",
+      "filename": "deaths-2026-05.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203412,
+      "sha256": "2f707d89ee6d73df8bad0a3d02d6a5380e9a55c56d4c00309ebc02cdf6af4417",
+      "rows": 3922
+    },
+    {
+      "dataset": "population",
+      "month": "2026-06",
+      "filename": "population-2026-06.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 285894,
+      "sha256": "b2b18d517cea788ddc5e359f9521110195fc8e3ab6e3d276d41796741bc2248a",
+      "rows": 3921
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-06",
+      "filename": "ages-2026-06.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2357169,
+      "sha256": "dab42a43fac86169d6f360c534dafff39665c9ae1b52e3cacecfea012f0ed4e5",
+      "rows": 3918
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-06",
+      "filename": "onePerson-households-2026-06.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 400765,
+      "sha256": "1729a9ca6d00f48c61a3aa870dcc71a7a6dce639371fe3550d995b2b0885c9bc",
+      "rows": 3904
+    },
+    {
+      "dataset": "births",
+      "month": "2026-06",
+      "filename": "births-2026-06.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 203455,
+      "sha256": "7b8f038a606e406de676b0a220b159966b7f3485b7155c93067626ec48def5d6",
+      "rows": 3922
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-06",
+      "filename": "deaths-2026-06.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 203719,
+      "sha256": "3bccd808120de8bc198278a56e321882d62a618b8bfc2952d2bfa8080ab8c7f7",
+      "rows": 3922
+    },
+    {
+      "dataset": "population",
+      "month": "2026-07",
+      "filename": "population-2026-07.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 290389,
+      "sha256": "82999085bbe90c4acd11ab41516bec61f6e23151b25098917233cd027b8e4b3a",
+      "rows": 3922
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-07",
+      "filename": "ages-2026-07.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2362001,
+      "sha256": "29be711bc9530c24475c05d7e1c4775e13949d4adbc15969af3f25d8e667b27f",
+      "rows": 3919
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-07",
+      "filename": "onePerson-households-2026-07.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 405231,
+      "sha256": "52b323cefa9e4aa5564f38e158f9e6ea32c3339b9aff6d5f95dc543d6d2cbbee",
+      "rows": 3905
+    },
+    {
+      "dataset": "births",
+      "month": "2026-07",
+      "filename": "births-2026-07.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 207904,
+      "sha256": "6d3274d45e445ef769c6cc645acfbe3f727d0342308260c839c68129b6b983da",
+      "rows": 3923
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-07",
+      "filename": "deaths-2026-07.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 208167,
+      "sha256": "8410f6b203b670b06984bf442d365649339159c6e9d4f591772c25cf1d4d5376",
+      "rows": 3923
+    },
+    {
+      "dataset": "population",
+      "month": "2026-08",
+      "filename": "population-2026-08.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 290394,
+      "sha256": "b4cb500c75bc45a1ffd5d2f9fab1f442bc57e01debe983ab9d7376ca788b8f62",
+      "rows": 3922
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-08",
+      "filename": "ages-2026-08.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2362051,
+      "sha256": "570c1c356907bc9027380ecfe1b754ceb69398b3f0eabcd49718bbc14322f08f",
+      "rows": 3919
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-08",
+      "filename": "onePerson-households-2026-08.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 405222,
+      "sha256": "52e0bf28de2c5e0754c41b4217a82028f3bf2e4120330be764782f974cb4d780",
+      "rows": 3905
+    },
+    {
+      "dataset": "births",
+      "month": "2026-08",
+      "filename": "births-2026-08.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 207872,
+      "sha256": "111008d17074b744529dc990440e8e1541792d73d933186af5e002dfca5a3104",
+      "rows": 3923
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-08",
+      "filename": "deaths-2026-08.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 208138,
+      "sha256": "dbbff585d50e7d927934f7d4285aca9a5693d2dcc4f07ef39f9f69b6e3610a14",
+      "rows": 3923
+    },
+    {
+      "dataset": "population",
+      "month": "2026-09",
+      "filename": "population-2026-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsv.do",
+      "category": "month",
+      "bytes": 290392,
+      "sha256": "00d9961f0bd25635b271a230703f10793e9065cacc7d8dd2c1f0789c8dcfdcd0",
+      "rows": 3922
+    },
+    {
+      "dataset": "ages",
+      "month": "2026-09",
+      "filename": "ages-2026-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvAge.do",
+      "category": "month",
+      "bytes": 2362063,
+      "sha256": "d05b7e3d39cfad1daaea68306f33a08c4e7b2a067da2b13a9fb0e4269daf3bb7",
+      "rows": 3919
+    },
+    {
+      "dataset": "onePerson",
+      "month": "2026-09",
+      "filename": "onePerson-households-2026-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "households",
+      "bytes": 405212,
+      "sha256": "24854fc76c7329396e8a688537ae58a81403a52220e9ad27aaa054208977908b",
+      "rows": 3905
+    },
+    {
+      "dataset": "births",
+      "month": "2026-09",
+      "filename": "births-2026-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "birth",
+      "bytes": 208049,
+      "sha256": "84e8d05f35754f79122f5a22f9cfbdb24dcab173f959332c0256dc84ead939bb",
+      "rows": 3923
+    },
+    {
+      "dataset": "deaths",
+      "month": "2026-09",
+      "filename": "deaths-2026-09.csv",
+      "source": "https://jumin.mois.go.kr/downloadCsvEtc.do",
+      "category": "death",
+      "bytes": 208133,
+      "sha256": "891a9b5bc0e1e89bbcf31d6311a1501708da6db1145fbb8866d3c9ef5b8db06d",
+      "rows": 3923
+    }
+  ]
+}

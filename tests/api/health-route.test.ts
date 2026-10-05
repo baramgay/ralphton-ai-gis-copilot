@@ -18,6 +18,12 @@ vi.mock("@/lib/data/sync-status", () => ({
 import { GET } from "@/app/api/health/route";
 
 describe("/api/health", () => {
+  it("공식 번들 인구는 API 키 없이도 실제 가용 기간과 지역 수를 보고한다", async () => {
+    vi.stubEnv("DATA_GO_KR_SERVICE_KEY", "");
+    const body = await (await GET()).json();
+    expect(body.capabilities.populationLive).toBe(true);
+    expect(body.populationData).toMatchObject({ source: "행정안전부 주민등록 인구통계", fromMonth: "2025-09", referenceMonth: "2026-09", regionCount: 305, refreshMode: "bundled-monthly" });
+  });
   it("uses refresh time for freshness while retaining creation time and hides internal errors", async () => {
     mocks.readPublishedSnapshotMeta.mockResolvedValueOnce({
       createdAt: "2026-07-18T00:00:00Z", updatedAt: "2026-09-07T00:00:00Z",

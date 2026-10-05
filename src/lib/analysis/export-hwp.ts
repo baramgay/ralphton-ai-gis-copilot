@@ -2,6 +2,7 @@ import { regionUnitLabel } from "@/lib/analysis/export-csv";
 import {
   rankWordOf,
   reportCitationWarning,
+  reportPopulationNotes,
   reportModeLabel,
   reportSourceLabel,
   toNounEnding,
@@ -85,6 +86,7 @@ export function buildHwpHtmlReport(input: ReportInput): string {
   parts.push("<ul>");
   const citation = reportCitationWarning(input);
   if (citation) parts.push(`<li>${escapeHtml(citation)}</li>`);
+  for (const note of reportPopulationNotes(input)) parts.push(`<li>${escapeHtml(note)}</li>`);
   parts.push("<li>순위는 기준월 단일 시점 값이며 추세 판단에는 다월 비교 필요</li>");
   parts.push("<li>절대값 지표는 인구·상권 규모에 좌우되므로 비율 지표와 병행 해석 필요</li>");
   parts.push("</ul>");
