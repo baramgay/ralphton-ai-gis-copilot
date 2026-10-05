@@ -39,3 +39,11 @@ node scripts/verify-nurimap-upgrade.mjs https://gnbc.site
 최종 소스 전체 테스트는 150개 파일·2,072개, 타입 검사와 프로덕션 빌드가 통과했다. 별도로 34개 근거·API·원격 회귀를 확인했다. 전체 린트의 기존 경고는 47개, 오류는 0개이며 후속 지역 필터·UI 범위 린트는 기존 경고 3개·오류 0개다. 운영 health·게시 API는 정상이며 인증 없는 Cron은 401이다. 이 감사는 Supabase 테이블과 게시 자료를 변경하지 않는다.
 
 최종 프로덕션 빌드의 데스크톱·모바일 E2E 28개가 통과했다. 로그는 `logs/nurimap-final-audit-complete-unit.log`, `logs/nurimap-final-audit-complete-build.log`, `logs/nurimap-final-audit-release-e2e.log`에 남긴다.
+
+## 운영 반영과 재검증
+
+운영 소스는 `3b861588e4c0589efd9ccbbb60b272cad1b29dc5`, Vercel 배포는 `dpl_F4csnxVuyKQa76TQD4Rk22ffnkRL`이다. 도메인 연결을 보류한 운영 배포에서 health와 세 명시 지표의 첫 근거, 실제 AI 의료 취약 분석, 무관한 질문의 빈 근거를 확인하고 `https://gnbc.site`로 승격했다.
+
+최종 운영에서 검색 33개·파서 8개가 오류 0개로 통과했다. 생성 모델은 ‘가기 힘든 지역’에서 실제 사용되어 `rankHospitalScarcity`와 입력 근거의 인용을 반환했다. 네 화면 크기 검증도 모두 통과했다. 진주시 추세는 CSV 30개 행·보고서 상위 20개 행이 모두 진주시였고 공유 재진입도 같은 지역 범위를 유지했다. ‘진주시 중앙동 최근 3개월 카드매출 증가하는 동’은 실제 자료에서 화면·CSV·보고서·공유 재진입 모두 진주시 중앙동 1개 행만 포함했다. 두 별도 여정의 페이지 오류는 0개다.
+
+진주 공유 검증의 최초 시도는 복원 중 표시되는 초기 결과를 먼저 검사해 실패했다. 실행·공유 복원의 추세 제목을 기다린 다음 실제 행과 내보내기를 확인하도록 검사 순서를 바로잡아 통과했다. 제품 수정으로 처리하거나 실패 결과를 정상 결과로 바꿔 기록하지 않았다. 최종 원본은 `nurimap-final-audit-production.json`에 보관한다.

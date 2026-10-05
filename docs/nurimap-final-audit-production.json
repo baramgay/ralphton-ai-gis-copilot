@@ -1,0 +1,609 @@
+{
+  "sourceCommit": "3b861588e4c0589efd9ccbbb60b272cad1b29dc5",
+  "deploymentId": "dpl_F4csnxVuyKQa76TQD4Rk22ffnkRL",
+  "url": "https://gnbc.site",
+  "viewports": [
+    {
+      "width": 390,
+      "height": 844,
+      "passed": true
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "passed": true
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "passed": true
+    }
+  ],
+  "rag": {
+    "checkedAt": "2026-10-05T05:52:19.098Z",
+    "baseURL": "https://gnbc.site",
+    "remoteEmbeddingRequested": false,
+    "searchCases": 33,
+    "parserCases": 8,
+    "results": [
+      {
+        "id": "medical-access",
+        "query": "병원 가기 어려운 읍면을 찾고 싶어",
+        "kind": "relevant",
+        "elapsedMs": 261,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "tool-scarcity",
+          "metric-medical-vulnerability",
+          "tool-access",
+          "metric-nh-industry-health_share",
+          "hira-hospitals"
+        ]
+      },
+      {
+        "id": "elderly-access",
+        "query": "고령 인구에 비해 병원이 부족한 곳",
+        "kind": "relevant",
+        "elapsedMs": 135,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "tool-scarcity",
+          "tool-elderly-medical",
+          "metric-population-elderly_ratio",
+          "metric-kosis-health-doctors",
+          "metric-medical-vulnerability"
+        ]
+      },
+      {
+        "id": "living",
+        "query": "김해시 생활인구가 많은 지역",
+        "kind": "relevant",
+        "elapsedMs": 142,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-living-living_total",
+          "layer-skt-living",
+          "metric-skt-daynight-day_population",
+          "metric-skt-daynight-night_population",
+          "metric-skt-living-elderly_ratio"
+        ]
+      },
+      {
+        "id": "day",
+        "query": "낮에 사람이 붐비는 동네",
+        "kind": "relevant",
+        "elapsedMs": 138,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-daynight-day_population",
+          "metric-skt-daynight-day_night_ratio",
+          "metric-skt-daynight-night_population",
+          "metric-skt-mobility-inflow_total",
+          "metric-nh-demographics-youth_share"
+        ]
+      },
+      {
+        "id": "night",
+        "query": "야간인구가 많은 동네",
+        "kind": "relevant",
+        "elapsedMs": 147,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-daynight-night_population",
+          "metric-skt-daynight-day_night_ratio",
+          "layer-skt-daynight"
+        ]
+      },
+      {
+        "id": "sales",
+        "query": "진주시 카드매출 큰 상권",
+        "kind": "relevant",
+        "elapsedMs": 140,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-nh-consumption-card_sales",
+          "metric-nh-storetype-cafe_share",
+          "metric-nh-hourly-night_sales",
+          "metric-nh-hourly-day_sales",
+          "metric-nh-storetype-pub_share"
+        ]
+      },
+      {
+        "id": "income",
+        "query": "거창군 평균소득 수준",
+        "kind": "relevant",
+        "elapsedMs": 126,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kcb-credit-avg_income",
+          "metric-kcb-grid-500m-avg_income",
+          "layer-kcb-grid-500m",
+          "layer-kcb-credit"
+        ]
+      },
+      {
+        "id": "loan",
+        "query": "대출보유율이 높은 지역",
+        "kind": "relevant",
+        "elapsedMs": 141,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kcb-credit-loan_ratio",
+          "metric-kcb-grid-500m-loan_ratio",
+          "layer-kcb-credit",
+          "layer-kcb-grid-500m"
+        ]
+      },
+      {
+        "id": "solo-elderly",
+        "query": "혼자 지내는 노인이 많은 시군구",
+        "kind": "relevant",
+        "elapsedMs": 131,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kosis-welfare-solo_elderly",
+          "tool-elderly-medical",
+          "metric-kosis-welfare-senior_leisure",
+          "metric-population-elderly_ratio",
+          "layer-kosis-welfare"
+        ]
+      },
+      {
+        "id": "fire",
+        "query": "화재가 잦은 시군구",
+        "kind": "relevant",
+        "elapsedMs": 125,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kosis-safety-fire_rate",
+          "layer-kosis-safety"
+        ]
+      },
+      {
+        "id": "waste",
+        "query": "주민 한 명당 쓰레기 배출량",
+        "kind": "relevant",
+        "elapsedMs": 138,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kosis-environment-waste_per_person",
+          "metric-kosis-environment-recycle",
+          "layer-kosis-environment",
+          "tool-population",
+          "metric-skt-mobility-inflow_total"
+        ]
+      },
+      {
+        "id": "migration",
+        "query": "전입인구가 많은 곳",
+        "kind": "relevant",
+        "elapsedMs": 941,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kcb-migration-move_in",
+          "layer-kcb-migration"
+        ]
+      },
+      {
+        "id": "inflow",
+        "query": "유입인구가 많은 곳",
+        "kind": "relevant",
+        "elapsedMs": 137,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-mobility-inflow_total",
+          "metric-kcb-migration-move_in",
+          "metric-skt-mobility-net_flow",
+          "layer-skt-mobility"
+        ]
+      },
+      {
+        "id": "geometry",
+        "query": "500m 격자 소득 자료",
+        "kind": "relevant",
+        "elapsedMs": 135,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kcb-grid-500m-avg_income",
+          "metric-kcb-grid-500m-highend_ratio",
+          "metric-kcb-grid-500m-loan_ratio",
+          "metric-kcb-grid-500m-delinquency_ratio",
+          "layer-kcb-grid-500m"
+        ]
+      },
+      {
+        "id": "latin-noise",
+        "query": "xyzzy foobar 12345",
+        "kind": "no-evidence",
+        "elapsedMs": 811,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "short-noise",
+        "query": "qzxvbnm",
+        "kind": "no-evidence",
+        "elapsedMs": 159,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "recipe",
+        "query": "스파게티 레시피 알려줘",
+        "kind": "irrelevant",
+        "elapsedMs": 133,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "movie",
+        "query": "인터스텔라 영화 줄거리",
+        "kind": "irrelevant",
+        "elapsedMs": 133,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "weather",
+        "query": "오늘 김해 날씨 알려줘",
+        "kind": "unsupported",
+        "elapsedMs": 131,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "real-estate",
+        "query": "김해 신축 아파트 실거래가",
+        "kind": "unsupported",
+        "elapsedMs": 138,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "crypto",
+        "query": "내일 비트코인 가격 예측",
+        "kind": "unsupported",
+        "elapsedMs": 158,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "seoul",
+        "query": "서울 강남구 소득 높은 동네",
+        "kind": "out-of-scope",
+        "elapsedMs": 157,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "busan",
+        "query": "부산 해운대구 생활인구",
+        "kind": "out-of-scope",
+        "elapsedMs": 143,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "jeju",
+        "query": "제주시 카드매출",
+        "kind": "out-of-scope",
+        "elapsedMs": 130,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "heldout-living-quantity",
+        "query": "김해시 총생활인구 높은 동",
+        "kind": "relevant",
+        "elapsedMs": 134,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-living-living_total",
+          "metric-skt-living-elderly_ratio",
+          "layer-skt-living"
+        ]
+      },
+      {
+        "id": "heldout-night-quantity",
+        "query": "야간인구 규모 순위",
+        "kind": "relevant",
+        "elapsedMs": 131,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-daynight-night_population",
+          "metric-skt-daynight-day_night_ratio",
+          "layer-skt-daynight",
+          "metric-kosis-welfare-welfare_facility",
+          "metric-kosis-education-class_size"
+        ]
+      },
+      {
+        "id": "heldout-inflow-quantity",
+        "query": "관외 방문 유입인구 순위",
+        "kind": "relevant",
+        "elapsedMs": 136,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-skt-mobility-inflow_total",
+          "metric-skt-mobility-net_flow",
+          "metric-kcb-migration-move_in",
+          "layer-skt-mobility",
+          "metric-skt-daynight-day_population"
+        ]
+      },
+      {
+        "id": "heldout-income",
+        "query": "경남 평균소득 자료의 산출 기준",
+        "kind": "relevant",
+        "elapsedMs": 175,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kcb-credit-avg_income",
+          "metric-kcb-grid-500m-avg_income",
+          "layer-kcb-credit",
+          "metric-kcb-grid-500m-highend_ratio",
+          "layer-kcb-grid-500m"
+        ]
+      },
+      {
+        "id": "heldout-fire",
+        "query": "경남 주민 만명당 화재 발생 건수",
+        "kind": "relevant",
+        "elapsedMs": 194,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kosis-safety-fire_rate",
+          "layer-kosis-safety",
+          "tool-population",
+          "metric-skt-mobility-inflow_total",
+          "metric-nh-consumption-card_txns"
+        ]
+      },
+      {
+        "id": "heldout-night",
+        "query": "낮보다 밤에 사람이 모이는 상권",
+        "kind": "relevant",
+        "elapsedMs": 157,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-nh-consumption-card_sales",
+          "metric-nh-hourly-day_sales",
+          "metric-nh-hourly-night_sales",
+          "metric-nh-storetype-cafe_share",
+          "metric-skt-daynight-night_population"
+        ]
+      },
+      {
+        "id": "heldout-loan",
+        "query": "주민의 대출 보유 비율이 높은 곳",
+        "kind": "relevant",
+        "elapsedMs": 179,
+        "matched": true,
+        "lineage": true,
+        "ids": [
+          "metric-kcb-credit-loan_ratio",
+          "metric-kcb-grid-500m-loan_ratio",
+          "tool-population",
+          "metric-gn-business-corp_share",
+          "metric-kosis-welfare-solo_elderly"
+        ]
+      },
+      {
+        "id": "heldout-recipe",
+        "query": "김해에서 딸기 케이크 만드는 방법",
+        "kind": "irrelevant",
+        "elapsedMs": 126,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      },
+      {
+        "id": "heldout-music",
+        "query": "창원에서 클래식 음악 작곡하는 방법",
+        "kind": "irrelevant",
+        "elapsedMs": 127,
+        "matched": true,
+        "lineage": true,
+        "ids": []
+      }
+    ],
+    "parserResults": [
+      {
+        "query": "병원 가기 힘든 읍면 어디야",
+        "expectedTool": "rankHospitalScarcity",
+        "actualTool": "rankHospitalScarcity",
+        "elapsedMs": 147,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": [
+          "tool-scarcity",
+          "metric-medical-vulnerability",
+          "tool-access",
+          "metric-nh-industry-health_share"
+        ]
+      },
+      {
+        "query": "가기 힘든 지역",
+        "expectedTool": "rankHospitalScarcity",
+        "actualTool": "rankHospitalScarcity",
+        "elapsedMs": 2742,
+        "parser": "ai",
+        "aiUsed": true,
+        "citations": [
+          "tool-scarcity",
+          "tool-access",
+          "metric-medical-vulnerability",
+          "unsupported"
+        ]
+      },
+      {
+        "query": "진주시와 거제시 비교",
+        "expectedTool": "compareRegions",
+        "actualTool": "compareRegions",
+        "elapsedMs": 138,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": []
+      },
+      {
+        "query": "서울 강남구 소득 높은 동네",
+        "expectedTool": null,
+        "actualTool": null,
+        "elapsedMs": 137,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": []
+      },
+      {
+        "query": "김해 신축 아파트 실거래가",
+        "expectedTool": null,
+        "actualTool": null,
+        "elapsedMs": 189,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": []
+      },
+      {
+        "query": "김해에서 딸기 케이크 만드는 방법",
+        "expectedTool": null,
+        "actualTool": null,
+        "elapsedMs": 135,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": []
+      },
+      {
+        "query": "창원에서 클래식 음악 작곡하는 방법",
+        "expectedTool": null,
+        "actualTool": null,
+        "elapsedMs": 133,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": []
+      },
+      {
+        "query": "xyzzy foobar 12345",
+        "expectedTool": null,
+        "actualTool": null,
+        "elapsedMs": 123,
+        "parser": "rules",
+        "aiUsed": false,
+        "citations": []
+      }
+    ],
+    "failures": []
+  },
+  "cityTrend": {
+    "baseURL": "https://gnbc.site",
+    "query": "진주시 최근3개월 카드매출 증가하는 동",
+    "checkedAt": "2026-10-05T05:53:45.348Z",
+    "pageErrors": [],
+    "title": "카드매출 증가 추세 (최근 3개월)",
+    "rows": [
+      "진주시 수곡면",
+      "진주시 이반성면",
+      "진주시 대곡면",
+      "진주시 금곡면",
+      "진주시 지수면",
+      "진주시 집현면",
+      "진주시 사봉면",
+      "진주시 금산면",
+      "진주시 명석면",
+      "진주시 충무공동",
+      "진주시 문산읍",
+      "진주시 초장동",
+      "진주시 천전동",
+      "진주시 미천면",
+      "진주시 상평동",
+      "진주시 이현동",
+      "진주시 내동면",
+      "진주시 평거동",
+      "진주시 일반성면",
+      "진주시 판문동",
+      "진주시 상대동",
+      "진주시 신안동",
+      "진주시 하대동",
+      "진주시 가호동"
+    ],
+    "csvRows": 30,
+    "reportRows": 20,
+    "replayedRows": [
+      "진주시 수곡면",
+      "진주시 이반성면",
+      "진주시 대곡면",
+      "진주시 금곡면",
+      "진주시 지수면",
+      "진주시 집현면",
+      "진주시 사봉면",
+      "진주시 금산면",
+      "진주시 명석면",
+      "진주시 충무공동",
+      "진주시 문산읍",
+      "진주시 초장동",
+      "진주시 천전동",
+      "진주시 미천면",
+      "진주시 상평동",
+      "진주시 이현동",
+      "진주시 내동면",
+      "진주시 평거동",
+      "진주시 일반성면",
+      "진주시 판문동",
+      "진주시 상대동",
+      "진주시 신안동",
+      "진주시 하대동",
+      "진주시 가호동"
+    ],
+    "passed": true
+  },
+  "qualifiedTrend": {
+    "baseURL": "https://gnbc.site",
+    "query": "진주시 중앙동 최근3개월 카드매출 증가하는 동",
+    "checkedAt": "2026-10-05T05:54:39.370Z",
+    "pageErrors": [],
+    "title": "카드매출 증가 추세 (최근 3개월)",
+    "rows": [
+      "진주시 중앙동"
+    ],
+    "csvRows": 1,
+    "reportRows": 1,
+    "replayedRows": [
+      "진주시 중앙동"
+    ],
+    "passed": true
+  }
+}
