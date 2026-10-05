@@ -10,15 +10,29 @@ export async function retrieveRagChunksWithRemote(
   embedDeps?: EmbeddingClientDeps,
 ): Promise<{ hits: RagHit[]; remote: boolean }> {
   const base = retrieveRagChunks(options);
-  if (!embedDeps?.apiKey || !embedDeps?.baseUrl) {
+  if (base.length === 0 || !embedDeps?.apiKey || !embedDeps?.baseUrl) {
     return { hits: base, remote: false };
   }
 
-  const scores = await rerankWithRemoteEmbeddings(
-    options.query,
-    base.map((hit) => hit.chunk.id),
-    embedDeps,
-  );
+  // Optional re-ranking must not hold a usable offline answer behind a slow API.
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let scores: Map<string, number> | null;
+  try {
+    const deadline = new Promise<null>((resolve) => {
+      timer = setTimeout(() => { controller.abort(); resolve(null); }, 2000);
+    });
+    scores = await Promise.race([
+      rerankWithRemoteEmbeddings(options.query, base.map((hit) => hit.chunk.id), {
+        ...embedDeps, signal: controller.signal,
+      }),
+      deadline,
+    ]);
+  } catch {
+    return { hits: base, remote: false };
+  } finally {
+    clearTimeout(timer);
+  }
   if (!scores || scores.size === 0) {
     return { hits: base, remote: false };
   }

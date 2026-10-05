@@ -17,8 +17,6 @@ import {
   resolveExportProvenance,
 } from "@/lib/analysis/export-csv";
 import {
-  dataModeLabel,
-  dataModeTitle,
   exportModeLabel,
   exportSourceLabel,
   isSnapshotPopulationRanking,
@@ -988,6 +986,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const [resultSearch, setResultSearch] = useState("");
+  const [lastExecutedQuery, setLastExecutedQuery] = useState<string | null>(null);
   const [resultLimit, setResultLimit] = useState(RESULT_PAGE_STEP);
   /* "상위 10%"는 전체 행 수를 알아야 개수가 나온다. 분석이 끝난 뒤 렌더에서 환산한다. */
   const [percentLimit, setPercentLimit] = useState<number | null>(null);
@@ -997,9 +996,31 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const [valueThreshold, setValueThreshold] = useState<ValueThreshold | null>(null);
   /** Facility list sort when showing facilities */
   const [facilitySort, setFacilitySort] = useState<"name" | "type">("name");
+  const queryRequestIdRef = useRef(0);
+  const [pendingCubeQuery, setPendingCubeQuery] = useState<
+    | { kind: "trend"; match: TrendQueryMatch }
+    | { kind: "cross"; match: CrossQueryMatch }
+    | { kind: "multi"; match: MultiQueryMatch }
+    | { kind: "trendCross"; match: TrendCrossMatch }
+    | { kind: "stats"; match: StatsQueryMatch; query: string }
+    | null
+  >(null);
+  const resetResultFilters = useCallback(() => {
+    queryRequestIdRef.current += 1;
+    setPendingCubeQuery(null);
+    setIsParsing(false);
+    setResultSearch("");
+    setResultLimit(RESULT_PAGE_STEP);
+    setExplicitCount(null);
+    setPercentLimit(null);
+    setValueThreshold(null);
+  }, []);
   const [reloadToken, setReloadToken] = useState(0);
   const densityHydratedRef = useRef(false);
   const queryInputRef = useRef<HTMLInputElement>(null);
+  const controlsToggleRef = useRef<HTMLButtonElement>(null);
+  const resultsToggleRef = useRef<HTMLButtonElement>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
   const shareAppliedRef = useRef(false);
   const {
     layout,
@@ -1012,6 +1033,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     resetLayout,
     applyPreset,
   } = usePanelLayout();
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 1199px)");
+    const update = () => setIsNarrow(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [themePreference, setThemePreference] = useState<ThemePreference>("system");
   const [toast, setToast] = useState<string | null>(null);
@@ -1152,99 +1181,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable);
-
-      if (event.key === "Escape") {
-        setSheetMode("none");
-        return;
-      }
-      if (typing) return;
-
-      if (event.key === "/" || (event.key === "k" && (event.metaKey || event.ctrlKey))) {
-        event.preventDefault();
-        setActiveTab("control");
-        setSheetMode("left");
-        queryInputRef.current?.focus();
-        return;
-      }
-      if (event.key === "[" && !event.metaKey && !event.ctrlKey) {
-        event.preventDefault();
-        toggleLeft();
-      }
-      if (event.key === "]" && !event.metaKey && !event.ctrlKey) {
-        event.preventDefault();
-        toggleRight();
-      }
-      if (event.key === "\\" && !event.metaKey && !event.ctrlKey) {
-        event.preventDefault();
-        expandMap();
-      }
-      if (event.key === "0" && event.shiftKey) {
-        event.preventDefault();
-        resetLayout();
-      }
-      // Shift+D — cycle system → light → dark → contrast
-      if ((event.key === "D" || event.key === "d") && event.shiftKey && !event.metaKey && !event.ctrlKey) {
-        event.preventDefault();
-        setThemePreference((current) => {
-          const next = cycleThemePreference(current);
-          showToast(`테마: ${THEME_LABELS[next]}`);
-          return next;
-        });
-      }
-
-      // Rank list keyboard navigation
-      if (
-        (event.key === "ArrowDown" ||
-          event.key === "ArrowUp" ||
-          event.key === "j" ||
-          event.key === "k") &&
-        !event.metaKey &&
-        !event.ctrlKey
-      ) {
-        const list =
-          customAnalysis?.ranked ??
-          (snapshot
-            ? executeQuickAnalysis(snapshot, activeQuick, radiusKm, comparePair).ranked
-            : []);
-        if (list.length === 0) return;
-        event.preventDefault();
-        const current = list.findIndex((row) => row.code === selectedRegionCode);
-        const delta =
-          event.key === "ArrowDown" || event.key === "j" ? 1 : -1;
-        const nextIndex = Math.max(0, Math.min(list.length - 1, (current < 0 ? 0 : current) + delta));
-        const next = list[nextIndex];
-        if (next) {
-          setSelectedFacilityId(null);
-          setSelectedLivePlace(null);
-          setSelectedRegionCode(next.code);
-          setSheetMode((mode) => (mode === "none" ? "right" : mode));
-        }
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    activeQuick,
-    comparePair,
-    customAnalysis,
-    expandMap,
-    radiusKm,
-    resetLayout,
-    selectedRegionCode,
-    snapshot,
-    showToast,
-    toggleLeft,
-    toggleRight,
-  ]);
-
   const rememberQuery = useCallback((text: string) => {
     setRecentQueries((previous) => {
       const next = [text, ...previous.filter((item) => item !== text)].slice(0, 6);
@@ -1288,7 +1224,47 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           if (share.q) setQuery(share.q);
           if (share.region) {
             const code = resolveSharedRegionCode(nextSnapshot.regions, share.region);
-            if (code) setSelectedRegionCode(code);
+            if (code) { setSelectedRegionCode(code); setFollowSelection(true); }
+          }
+          if (share.intent) {
+            const restored = share.intent;
+            const result = executeAnalysisIntent(restored, nextSnapshot);
+            const quickId = toolToQuickId(restored.tool);
+            const pair = restored.filters.compare;
+            if (restored.tool === "compareRegions" && pair?.length === 2) {
+              setComparePair([pair[0], pair[1]]);
+              setCompareScope(listDongLabels(nextSnapshot.regions).includes(pair[0]) ? "dong" : "gu");
+            }
+            setAnalysisRequested(true);
+            setActiveQuick(quickId);
+            setActiveLayerId("medical");
+            setCustomAnalysis(resultToView(quickId, result, pair?.length === 2 ? `${pair[0]} vs ${pair[1]}` : undefined));
+            setLastIntent(restored);
+            setLastExecutedQuery(share.q ?? null);
+            if (share.q) {
+              setExplicitCount(detectResultCount(share.q));
+              setPercentLimit(detectPercentLimit(share.q));
+              setValueThreshold(detectValueThreshold(share.q));
+            }
+            if (restored.adminLevel) setAdminLevel(restored.adminLevel);
+            const sharedCode = share.region ? resolveSharedRegionCode(nextSnapshot.regions, share.region) : null;
+            const selectedCode = sharedCode ?? result.selectedRegion?.adm_cd2 ?? result.rankedRegions[0]?.adm_cd2;
+            if (selectedCode) setSelectedRegionCode(selectedCode);
+            return;
+          }
+          if (share.layer) {
+            const layer = share.layer;
+            if (LAYER_OPTIONS.some((item) => item.id === layer.id) && CUBE_LAYER_METRICS[layer.id]?.some((metric) => metric.key === layer.metricKey)) {
+              setAnalysisRequested(true);
+              setActiveLayerId(layer.id as LayerId);
+              setActiveMetricKey(layer.metricKey);
+              setAdminLevel(layer.adminLevel);
+              setLayerDirection(layer.direction);
+              setLayerRegionFilters(layer.regions);
+              setLastExecutedQuery(null);
+              setLastIntent(null);
+              return;
+            }
           }
           /*
            * 질문이 실려 있으면 **그 질문을 다시 실행해** 복원한다. 도구 이름만 재생하지 않는다.
@@ -1325,6 +1301,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               setActiveLayerId("medical");
               setCustomAnalysis(resultToView(quickId, result));
               setLastIntent(parsed.data);
+              setAnalysisRequested(true);
+              setLastExecutedQuery(null);
               if (result.selectedRegion) setSelectedRegionCode(result.selectedRegion.adm_cd2);
               else if (result.rankedRegions[0]) {
                 setSelectedRegionCode(result.rankedRegions[0].adm_cd2);
@@ -1444,16 +1422,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * "잠시 후 다시 시도해 주세요"를 보는 창이 생겼다. 사용자에게 다시 하라고 할 일이
    * 아니라 필요한 것을 받아서 이어가면 된다.
    */
-  const [pendingCubeQuery, setPendingCubeQuery] = useState<
-    | { kind: "trend"; match: TrendQueryMatch }
-    | { kind: "cross"; match: CrossQueryMatch }
-    | { kind: "multi"; match: MultiQueryMatch }
-    | { kind: "trendCross"; match: TrendCrossMatch }
-    /* 상관 답에는 "원인을 물었는가"가 실려야 해서 원문을 함께 들고 간다. */
-    | { kind: "stats"; match: StatsQueryMatch; query: string }
-    | null
-  >(null);
-
   const requestCubesAndRetry = useCallback(
     (layerIds: string[], pending: NonNullable<typeof pendingCubeQuery>) => {
       const targets = layerIds
@@ -1633,7 +1601,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [snapshot],
   );
 
-  const activeLayerMetrics = activeLayerId === "medical" ? [] : CUBE_LAYER_METRICS[activeLayerId];
+  const activeLayerMetrics = useMemo(() => activeLayerId === "medical" ? [] : CUBE_LAYER_METRICS[activeLayerId], [activeLayerId]);
   const activeMetric =
     activeLayerMetrics.find((metric) => metric.key === activeMetricKey) ?? activeLayerMetrics[0] ?? null;
 
@@ -1645,13 +1613,17 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    * 질의로 들어올 때는 이미 시군구로 돌려세우고 있었는데, 버튼으로 고를 때만 안 그랬다.
    */
   const selectMetric = useCallback((metric: MetricDef) => {
+    resetResultFilters();
+    setLastExecutedQuery(null);
+    setLastIntent(null);
+    setCustomAnalysis(null);
     setAnalysisRequested(true);
     setActiveMetricKey(metric.key);
     if (metric.scope === "sgg") {
       adminLevelSourceRef.current = "user";
       setAdminLevel("sgg");
     }
-  }, []);
+  }, [resetResultFilters]);
   // population is derived from the snapshot; every other cube layer is a remote JSON.
   const activeCube =
     activeLayerId === "population"
@@ -1708,7 +1680,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       legendLabel: `${label} 분포`,
       isFacilityResult: false,
     };
-  }, [isLayerCubeLoading, activeLayerId, activeMetric]);
+  }, [isLayerCubeLoading, activeLayerId, activeMetric, activeLayerMetrics]);
 
   const analysis = useMemo<AnalysisView | null>(() => {
     if (customAnalysis) return customAnalysis;
@@ -1752,6 +1724,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
    */
   const ONBOARD_EXAMPLE = "생활인구 많은 동네";
   const runOnboardExample = useCallback(() => {
+    resetResultFilters();
+    setLastExecutedQuery(ONBOARD_EXAMPLE);
+    setLastIntent(null);
+    setAnsweredLastQuery(true);
     dismissOnboard();
     setActiveTab("control");
     setCustomAnalysis(null);
@@ -1777,7 +1753,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     }
     setSheetMode("right");
     showToast("생활인구 분석 시작");
-  }, [adminLevel, dismissOnboard, showToast]);
+  }, [adminLevel, dismissOnboard, resetResultFilters, showToast]);
 
   const interpretation = useMemo(() => {
     if (!snapshot || !analysis) return null;
@@ -2159,6 +2135,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const exportTotal =
     analysis && exportRanked.length !== analysis.ranked.length ? exportRanked.length : analysis?.totalCount;
 
+  const hasExportRows = analysis?.isFacilityResult ? filteredFacilitiesList.length > 0 : exportRanked.length > 0;
   const visibleRanked = filteredRanked.slice(0, effectiveLimit);
   const visibleFacilities = filteredFacilitiesList.slice(0, resultLimit);
   const selectedFacility =
@@ -2275,9 +2252,95 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     [activeLayerId, adminLevel, populationCube, remoteCubes, snapshot],
   );
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "SELECT" || target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (event.key === "Escape") {
+        if (isNarrowNow()) {
+          const panel = target?.closest(".copilot-panel");
+          setSheetMode("none");
+          if (panel?.id === "left-panel") controlsToggleRef.current?.focus();
+          else if (panel) resultsToggleRef.current?.focus();
+        }
+        return;
+      }
+      if (typing || target?.closest('[role="tablist"], [role="slider"], [role="separator"]')) return;
+
+      if (event.key === "/" || (event.key === "k" && (event.metaKey || event.ctrlKey))) {
+        event.preventDefault();
+        setActiveTab("control");
+        if (isNarrowNow()) setSheetMode("left");
+        else if (layout.leftCollapsed) toggleLeft();
+        queryInputRef.current?.focus();
+        return;
+      }
+      if (event.key === "[" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        toggleControls();
+      }
+      if (event.key === "]" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        toggleResults();
+      }
+      if (event.key === "\\" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        expandMap();
+      }
+      if (event.key === "0" && event.shiftKey) {
+        event.preventDefault();
+        resetLayout();
+      }
+      // Shift+D — cycle system → light → dark → contrast
+      if ((event.key === "D" || event.key === "d") && event.shiftKey && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        setThemePreference((current) => {
+          const next = cycleThemePreference(current);
+          showToast(`테마: ${THEME_LABELS[next]}`);
+          return next;
+        });
+      }
+
+      // Rank list keyboard navigation
+      if (
+        (event.key === "ArrowDown" ||
+          event.key === "ArrowUp" ||
+          event.key === "j" ||
+          event.key === "k") &&
+        !event.metaKey &&
+        !event.ctrlKey
+      ) {
+        if (!analysisRequested) return;
+        const list = exportLimit ? filteredRanked.slice(0, exportLimit) : filteredRanked;
+        if (list.length === 0) return;
+        event.preventDefault();
+        const current = list.findIndex((row) => row.code === selectedRegionCode);
+        const delta =
+          event.key === "ArrowDown" || event.key === "j" ? 1 : -1;
+        const nextIndex = Math.max(0, Math.min(list.length - 1, current < 0 ? 0 : current + delta));
+        const next = list[nextIndex];
+        if (next) {
+          selectRegion(next.code);
+          if (isNarrowNow()) setSheetMode("right");
+          else if (layout.rightCollapsed) toggleRight();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [analysisRequested, expandMap, exportLimit, filteredRanked, layout.leftCollapsed, layout.rightCollapsed, resetLayout,
+    selectRegion, selectedRegionCode, showToast, toggleControls, toggleLeft, toggleResults, toggleRight]);
+
   const drillIntoDistrict = useCallback(
     (districtLabel: string) => {
       if (!snapshot) return;
+      resetResultFilters();
+      setLastExecutedQuery(null);
       const token = districtLabel.replace(/^경상남도\s+/, "").trim();
       const intent: AnalysisIntent = {
         tool: "rankHospitalScarcity",
@@ -2294,11 +2357,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setSheetMode("right");
       showToast(`${token} 동으로 드릴다운`);
     },
-    [showToast, snapshot],
+    [resetResultFilters, showToast, snapshot],
   );
 
   const exitDrill = useCallback(() => {
     if (!snapshot) return;
+    resetResultFilters();
+    setLastExecutedQuery(null);
     setDrillTrail([]);
     setActiveQuick("compare");
     setCustomAnalysis(null);
@@ -2306,11 +2371,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     const next = executeQuickAnalysis(snapshot, "compare", radiusKm, comparePair);
     if (next.ranked[0]) setSelectedRegionCode(next.ranked[0].code);
     showToast("지역 비교로 돌아감");
-  }, [comparePair, radiusKm, showToast, snapshot]);
+  }, [comparePair, radiusKm, resetResultFilters, showToast, snapshot]);
 
   const applyComparePair = useCallback(
     (nextA: string, nextB: string, scope: CompareScope = compareScope) => {
       if (!snapshot) return;
+      resetResultFilters();
+      setLastExecutedQuery(null);
       const pool =
         scope === "dong" ? listDongLabels(snapshot.regions) : listDistricts(snapshot.regions);
       const pair = normalizeComparePair(nextA, nextB, pool);
@@ -2325,7 +2392,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setSheetMode("right");
       showToast(`${pair[0]} vs ${pair[1]}`);
     },
-    [compareScope, radiusKm, showToast, snapshot],
+    [compareScope, radiusKm, resetResultFilters, showToast, snapshot],
   );
 
   const onSheetPointerDown = useCallback(
@@ -2375,6 +2442,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (intent: AnalysisIntent | null, regionCode: string | null, q?: string) => {
       if (typeof window === "undefined") return;
       const search = buildShareSearch({
+        intent: intent ?? undefined,
+        layer: !intent && !q && activeLayerId !== "medical" && activeMetric
+          ? { id: activeLayerId, metricKey: activeMetric.key, adminLevel, direction: layerDirection, regions: layerRegionFilters }
+          : undefined,
         tool: intent?.tool,
         region: regionCode ?? undefined,
         radius: radiusKm,
@@ -2385,7 +2456,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const next = `${window.location.pathname}${search}`;
       window.history.replaceState(null, "", next);
     },
-    [activeTab, markerScope, radiusKm],
+    [activeLayerId, activeMetric, activeTab, adminLevel, layerDirection, layerRegionFilters, markerScope, radiusKm],
   );
 
   const copyShareLink = useCallback(async () => {
@@ -2422,7 +2493,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   }, [analysis, activeCube, activeLayerId, activeLayerProvider, dataSource, snapshot]);
 
   const exportCurrentCsv = useCallback(() => {
-    if (!snapshot || !analysis || !exportProvenance) return;
+    if (!snapshot || !analysis || !exportProvenance || !hasExportRows) return;
     const { referenceMonth: stamp, source } = exportProvenance;
     const csvOptions = {
       sourceNotes: snapshot.sourceNotes,
@@ -2440,7 +2511,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         stamp,
         source,
         snapshot.mode,
-        analysis.filteredFacilities.map((facility) => ({
+        filteredFacilitiesList.map((facility) => ({
           id: facility.id,
           sido: "경남",
           name: facility.name,
@@ -2459,9 +2530,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       stamp,
       source,
       snapshot.mode,
-      exportRanked.map((row, index) => {
+      exportRanked.map((row) => {
         return {
-          rank: index + 1,
+          rank: analysis.ranked.findIndex((item) => item.code === row.code) + 1,
           code: row.code,
           sido: "경남",
           name: row.name,
@@ -2473,17 +2544,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     );
     downloadTextFile(`누리맵-순위-${stamp}.csv`, csv);
     showToast("순위 표 저장");
-  }, [analysis, exportProvenance, exportRanked, showToast, snapshot]);
+  }, [analysis, exportProvenance, exportRanked, filteredFacilitiesList, hasExportRows, showToast, snapshot]);
 
   /**
    * 보고서가 쓰는 재료를 한 자리에서 만든다. 「답하지 못했습니다」경고나 모수처럼
    * 정직성을 지키는 항목이 갈래마다 빠지지 않게 한다.
    */
   const buildReportInput = useCallback((): ReportInput | null => {
-    if (!snapshot || !analysis || !exportProvenance) return null;
+    if (!snapshot || !analysis || !exportProvenance || !hasExportRows) return null;
     return {
       title: analysis.title,
-      summary: oneLineConclusion ?? analysis.summary,
+      summary: resultSearch.trim()
+        ? `검색 「${resultSearch.trim()}」과 일치하는 ${analysis.isFacilityResult ? "시설" : "지역"} ${analysis.isFacilityResult ? filteredFacilitiesList.length : filteredRanked.length}개 결과입니다.`
+        : oneLineConclusion ?? analysis.summary,
       referenceMonth: exportProvenance.referenceMonth,
       source: exportProvenance.source,
       mode: snapshot.mode,
@@ -2495,20 +2568,24 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         title: analysis.title,
         formulaNotes: analysis.formulaNotes,
       }),
-      formulaNotes: answeredLastQuery
-        ? analysis.formulaNotes
-        : [
-            "⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다.",
-            ...analysis.formulaNotes,
-          ],
-      rows: exportRanked.map((row, index) => ({
-        rank: index + 1,
-        code: row.code,
-        name: row.name,
-        valueLabel: row.valueLabel,
-        note: row.note,
-      })),
-      totalCount: exportTotal,
+      formulaNotes: [
+        ...(answeredLastQuery ? [] : ["⚠ 마지막 질의에는 답하지 못했습니다. 아래는 그 직전 분석 결과입니다."]),
+        ...(resultSearch.trim() ? [`결과 검색 「${resultSearch.trim()}」을 적용했습니다. 검색 전 전체 ${analysis.isFacilityResult ? analysis.filteredFacilities.length : analysis.ranked.length}개 중 일치하는 ${analysis.isFacilityResult ? filteredFacilitiesList.length : filteredRanked.length}개를 기준으로 내보냈습니다.`] : []),
+        ...analysis.formulaNotes,
+      ],
+      resultKind: analysis.isFacilityResult ? "facilities" : "regions",
+      rankDirection: analysis.rankDirection === "asc" ? "ascending" : analysis.rankDirection === "desc" ? "descending" : undefined,
+      rows: analysis.isFacilityResult
+        ? filteredFacilitiesList.map((facility, index) => ({
+            rank: index + 1, code: facility.id, name: facility.name,
+            valueLabel: facility.type,
+            note: `${facility.adm_nm} · ${facility.address ?? "주소 없음"}`,
+          }))
+        : exportRanked.map((row) => ({
+            rank: analysis.ranked.findIndex((item) => item.code === row.code) + 1,
+            code: row.code, name: row.name, valueLabel: row.valueLabel, note: row.note,
+          })),
+      totalCount: analysis.isFacilityResult ? filteredFacilitiesList.length : exportTotal,
       exportedAt: new Date().toLocaleString("ko-KR"),
     };
   }, [
@@ -2517,6 +2594,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     exportProvenance,
     exportRanked,
     exportTotal,
+    filteredFacilitiesList,
+    hasExportRows,
+    filteredRanked,
+    resultSearch,
     oneLineConclusion,
     snapshot,
   ]);
@@ -2545,6 +2626,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
   const runQuick = useCallback(
     (id: QuickId) => {
+      resetResultFilters();
+      setLastExecutedQuery(null);
+      setAnsweredLastQuery(true);
       setFollowSelection(false);
       if (id === "reset") {
         setAnalysisRequested(false);
@@ -2553,6 +2637,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         setSelectedRegionCode(null);
         setRadiusKm(2);
         setQuery("");
+        setLastIntent(null);
         setQueryNotice(null);
         setQueryNoticeTone("neutral");
         setQuerySuggestions([]);
@@ -2571,9 +2656,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setResultLimit(RESULT_PAGE_STEP);
       setResultSearch("");
       if (id !== "compare") setDrillTrail([]);
-      if (id === "compare") {
-        setLastIntent({ tool: "compareRegions", filters: { compare: [...comparePair] } });
-      }
+      setLastIntent(quickIntent(id, radiusKm, snapshot?.regions.length ?? 600, comparePair));
       const next = snapshot
         ? executeQuickAnalysis(snapshot, id, radiusKm, comparePair)
         : null;
@@ -2585,11 +2668,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveTab("control");
       if (id === "compare") setSheetMode("right");
     },
-    [comparePair, radiusKm, snapshot],
+    [comparePair, radiusKm, resetResultFilters, snapshot],
   );
 
   const runRadius = useCallback(
     (radius: 1 | 2 | 3) => {
+      resetResultFilters();
+      setLastExecutedQuery(null);
+      setLastIntent(quickIntent("radius", radius, snapshot?.regions.length ?? 600, comparePair));
       setRadiusKm(radius);
       setActiveQuick("radius");
       setCustomAnalysis(null);
@@ -2599,7 +2685,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         : null;
       setSelectedRegionCode(next?.ranked[0]?.code ?? selectedRegionCode);
     },
-    [comparePair, selectedRegionCode, snapshot],
+    [comparePair, resetResultFilters, selectedRegionCode, snapshot],
   );
 
   const clearRecentQueries = useCallback(() => {
@@ -2825,6 +2911,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     (presetQuery: string) => {
       const cross = resolveCrossQuery(presetQuery, CROSS_LAYERS, { adminLevelFallback: adminLevel });
       if (!cross) return;
+      resetResultFilters();
+      setLastExecutedQuery(presetQuery);
       setAnalysisRequested(true);
       setQuery(presetQuery);
       dismissOnboard();
@@ -2835,7 +2923,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         requestCubesAndRetry([cross.a.layerId, cross.b.layerId], { kind: "cross", match: cross });
       }
     },
-    [adminLevel, dismissOnboard, requestCubesAndRetry, runCross],
+    [adminLevel, dismissOnboard, requestCubesAndRetry, resetResultFilters, runCross],
   );
 
   /**
@@ -2864,6 +2952,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const view: AnalysisView = {
         id: "cross",
         title: `${trendMatch.metricLabel} ${directionLabel} 추세${periodLabel}`,
+        rankDirection: trendMatch.direction === "falling" ? "asc" : "desc",
         summary:
           result.ranked.length === 0
             ? `${trendMatch.metricLabel} 추세를 낼 수 있는 지역 없음`
@@ -2911,7 +3000,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 value: rate,
                 unit: "%",
                 formula: `기간 첫 관측월 대비 최근월 변화율 (${trendMatch.provider})`,
-                referenceMonth: cube.referenceMonth,
+                referenceMonth: row.trend.lastMonth ?? "관측월 미상",
                 limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
               },
             ],
@@ -2920,6 +3009,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         filteredFacilities: [],
         formulaNotes: [
           `변화율 = (최근월 − 첫 관측월) ÷ |첫 관측월| × 100${periodLabel}`,
+          ...(result.ranked[0] ? [`첫 결과의 관측 기간: ${describeTrend(result.ranked[0].trend, trendMatch.metricLabel, trendMatch.unit)}`] : []),
           `${trendMatch.metricLabel}: ${metric.formula} (${trendMatch.provider})`,
           result.excluded > 0
             ? `관측이 2개월 미만이거나 첫 값이 0이라 변화율을 낼 수 없는 ${result.excluded.toLocaleString("ko-KR")}개 ${unitWordOf(trendMatch.layerId, trendMatch.adminLevel)}을 순위에서 제외했다(0에서 시작한 값의 변화율은 나눗셈이 되지 않는다)`
@@ -2929,7 +3019,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         isFacilityResult: false,
         totalCount: result.comparable,
         provenance: {
-          referenceMonth: cube.referenceMonth,
+          referenceMonth: [...new Set(result.ranked.map((row) => row.trend.lastMonth).filter(Boolean))].join(" / ") || "관측월 미상",
           source: withHubChannel(`${trendMatch.provider} ${trendMatch.metricLabel} 추세`, [
             trendMatch.provider,
           ]),
@@ -2961,12 +3051,19 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const match = resolveTrendQuery(presetQuery, PRIVATE_NL_LAYERS, {
         adminLevelFallback: adminLevel,
       });
-      if (!match || !runTrend(match)) {
+      if (match && runTrend(match)) {
+        resetResultFilters();
+        setLastExecutedQuery(presetQuery);
+        setQuery(presetQuery);
+        setAnsweredLastQuery(true);
+        setAnalysisRequested(true);
+        dismissOnboard();
+      } else {
         setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
         setQueryNoticeTone("neutral");
       }
     },
-    [adminLevel, runTrend],
+    [adminLevel, dismissOnboard, resetResultFilters, runTrend],
   );
 
 
@@ -3035,14 +3132,14 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
              */
             mapScore: result.scores.get(row.code) ?? null,
             valueLabel: `${row.rateA > 0 ? "+" : ""}${row.rateA.toFixed(1)}% / ${row.rateB > 0 ? "+" : ""}${row.rateB.toFixed(1)}%`,
-            note: `${match.a.metricLabel} ${row.rateA > 0 ? "+" : ""}${row.rateA.toFixed(1)}% · ${match.b.metricLabel} ${row.rateB > 0 ? "+" : ""}${row.rateB.toFixed(1)}%`,
+            note: `${describeTrend(row.trendA, match.a.metricLabel, metricA.unit)} · ${describeTrend(row.trendB, match.b.metricLabel, metricB.unit)}`,
             metrics: [
               {
                 label: `${match.a.metricLabel} 변화율`,
                 value: row.rateA,
                 unit: "%",
                 formula: `기간 첫 관측월 대비 최근월 변화율 (${match.a.provider})`,
-                referenceMonth: cubeA.referenceMonth,
+                referenceMonth: row.trendA.lastMonth ?? "관측월 미상",
                 limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
               },
               {
@@ -3050,7 +3147,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 value: row.rateB,
                 unit: "%",
                 formula: `기간 첫 관측월 대비 최근월 변화율 (${match.b.provider})`,
-                referenceMonth: cubeB.referenceMonth,
+                referenceMonth: row.trendB.lastMonth ?? "관측월 미상",
                 limitation: "월별 등락이 있어 ±3% 이내는 보합으로 본다",
               },
             ],
@@ -3116,7 +3213,20 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const runQueryText = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
-    setAnalysisRequested(true);
+    const requestId = ++queryRequestIdRef.current;
+    setPendingCubeQuery(null);
+    setIsParsing(false);
+    const applyQueryState = () => {
+      setAnalysisRequested(true);
+      setResultSearch("");
+      setLastExecutedQuery(trimmed);
+      setAnsweredLastQuery(true);
+      setLastIntent(null);
+      setExplicitCount(detectResultCount(trimmed));
+      setResultLimit(detectResultCount(trimmed) ?? RESULT_PAGE_STEP);
+      setPercentLimit(detectPercentLimit(trimmed));
+      setValueThreshold(detectValueThreshold(trimmed));
+    };
 
     /*
      * 기본 단위는 **질의를 던지는 이 시점에** 정한다.
@@ -3135,11 +3245,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
      * 되돌린다 — 앞 질의의 5곳이 다음 질의까지 따라오면, 물어보지도 않은 개수로 잘린
      * 결과를 보게 된다(단위가 새던 것과 같은 종류의 결함).
      */
-    const asked = detectResultCount(trimmed);
-    setExplicitCount(asked);
-    setResultLimit(asked ?? RESULT_PAGE_STEP);
-    setPercentLimit(detectPercentLimit(trimmed));
-    setValueThreshold(detectValueThreshold(trimmed));
+
 
 
     /*
@@ -3230,9 +3336,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     if (trendCross) {
       rememberQuery(trimmed);
       if (runTrendCross(trendCross)) {
-        setAnsweredLastQuery(true);
+        applyQueryState();
         return;
       }
+      applyQueryState();
       requestCubesAndRetry([trendCross.a.layerId, trendCross.b.layerId], {
         kind: "trendCross",
         match: trendCross,
@@ -3250,8 +3357,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
     });
     if (trendMatch) {
       rememberQuery(trimmed);
-      if (runTrend(trendMatch)) { setAnsweredLastQuery(true); return; }
+      if (runTrend(trendMatch)) { applyQueryState(); return; }
       // 큐브가 아직 없을 뿐이다. 받아 와서 그대로 이어 실행한다.
+      applyQueryState();
       requestCubesAndRetry([trendMatch.layerId], { kind: "trend", match: trendMatch });
       setParseStage("analyze");
       setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
@@ -3281,8 +3389,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       : resolveMultiQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (multi) {
       rememberQuery(trimmed);
-      if (runMulti(multi)) { setAnsweredLastQuery(true); return; }
+      if (runMulti(multi)) { applyQueryState(); return; }
 
+      applyQueryState();
       requestCubesAndRetry(
         multi.operands.map((operand) => operand.layerId),
         { kind: "multi", match: multi },
@@ -3305,8 +3414,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         });
     if (stats) {
       rememberQuery(trimmed);
-      if (runStats(stats, trimmed)) { setAnsweredLastQuery(true); return; }
+      if (runStats(stats, trimmed)) { applyQueryState(); return; }
 
+      applyQueryState();
       requestCubesAndRetry(
         stats.kind === "correlation" ? [stats.a.layerId, stats.b.layerId] : [stats.ref.layerId],
         { kind: "stats", match: stats, query: trimmed },
@@ -3322,10 +3432,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       : resolveCrossQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (cross) {
       rememberQuery(trimmed);
-      if (runCross(cross)) { setAnsweredLastQuery(true); return; }
+      if (runCross(cross)) { applyQueryState(); return; }
 
       // 교차 질의로 해석은 됐는데 큐브가 아직 없다. 단일 레이어 경로로 조용히 흘리지 말고,
       // 필요한 두 큐브를 받아 와서 그대로 이어 실행한다.
+      applyQueryState();
       requestCubesAndRetry([cross.a.layerId, cross.b.layerId], { kind: "cross", match: cross });
       setParseStage("analyze");
       setQueryNotice("민간데이터 레이어를 불러오는 중입니다.");
@@ -3352,7 +3463,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       setActiveMetricKey(match.metricKey);
       setLayerDirection(match.direction);
       setLayerRegionFilters(match.regionFilters);
-      setAnsweredLastQuery(true);
+      applyQueryState();
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       adminLevelSourceRef.current = "query";
       setActiveTab("control");
@@ -3389,6 +3500,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         enrichment?: { kakaoPlacesQuery?: string; kakaoCategory?: "HP8" | "PM9" };
         metricHint?: { layerId: string; metricKey: string; metricLabel: string };
       };
+      if (requestId !== queryRequestIdRef.current) return;
 
       /*
        * 규칙이 지표 낱말을 못 알아본 질의를 AI가 지표로 지목해 준 경우. 질의에 그 지표의
@@ -3436,7 +3548,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       rememberQuery(trimmed);
       if (!snapshot) return;
 
-      setAnsweredLastQuery(true);
+      applyQueryState();
       setParseStage("analyze");
       setQueryNotice("분석 실행 중…");
 
@@ -3497,13 +3609,18 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
         void loadLivePlacesNearSelection(regionForKakao, keyword);
       }
     } catch {
+      if (requestId !== queryRequestIdRef.current) return;
       setParseStage("idle");
       setQueryNotice("오프라인 상태입니다. 빠른 분석은 계속 사용할 수 있습니다.");
       setQueryNoticeTone("error");
       setQuerySuggestions([...QUERY_SUGGESTIONS].slice(0, 4));
     } finally {
-      setIsParsing(false);
-      window.setTimeout(() => setParseStage("idle"), 1200);
+      if (requestId === queryRequestIdRef.current) {
+        setIsParsing(false);
+        window.setTimeout(() => {
+          if (requestId === queryRequestIdRef.current) setParseStage("idle");
+        }, 1200);
+      }
     }
   };
 
@@ -3758,7 +3875,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           있으면 보이는 것이므로, 접힘 상태(leftCollapsed)만 보고 숨기면 시트를 열어도
           내용이 스크린리더에 없다 — e2e에서 시트를 열고도 '이용' 탭을 못 찾았다.
         */
-        aria-hidden={(sheetMode === "left" ? false : layout.leftCollapsed) || undefined}
+        aria-hidden={(isNarrow ? sheetMode !== "left" : layout.leftCollapsed) || undefined}
+        inert={isNarrow ? sheetMode !== "left" : layout.leftCollapsed}
       >
         <div
           className="sheet-handle"
@@ -3846,6 +3964,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   activeId={activeLayerId}
                   onChange={(id) => {
                     const nextId = id as LayerId;
+                    resetResultFilters();
+                    setLastExecutedQuery(null);
+                    setLastIntent(nextId === "medical" ? quickIntent("scarcity", radiusKm, snapshot.regions.length, comparePair) : null);
+                    setAnsweredLastQuery(true);
                     setAnalysisRequested(true);
                     setActiveLayerId(nextId);
                     // 앞 질의에서 "낮은 순"이었으면 레이어만 바꿨을 때도 그대로 남는다.
@@ -3901,6 +4023,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                             onChange={(level) => {
                               // 사용자가 직접 고른 단위는 다음 질의까지 이어진다.
                               adminLevelSourceRef.current = "user";
+                              resetResultFilters();
+                              setLastExecutedQuery(null);
+                              setLastIntent(null);
+                              setAnsweredLastQuery(true);
+                              setCustomAnalysis(null);
+                              setAnalysisRequested(true);
                               setAdminLevel(level);
                             }}
                           />
@@ -4934,6 +5062,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 두 모델을 다 읽는다.
               */
               aria-pressed={sheetMode === "left" || !layout.leftCollapsed}
+              ref={controlsToggleRef}
               onClick={toggleControls}
             >
               분석 설정
@@ -4942,6 +5071,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               type="button"
               className="mobile-panel-btn !m-0 !shadow-none"
               aria-pressed={sheetMode === "right" || !layout.rightCollapsed}
+              ref={resultsToggleRef}
               onClick={toggleResults}
             >
               결과
@@ -5021,7 +5151,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
           layout.rightCollapsed ? "is-collapsed" : ""
         }`}
         aria-label="분석 결과 패널"
-        aria-hidden={(sheetMode === "right" ? false : layout.rightCollapsed) || undefined}
+        aria-hidden={(isNarrow ? sheetMode !== "right" : layout.rightCollapsed) || undefined}
+        inert={isNarrow ? sheetMode !== "right" : layout.rightCollapsed}
         data-testid="result-panel"
       >
         <div
@@ -5377,7 +5508,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               : `${filteredRanked.length.toLocaleString("ko-KR")}개 ${analysis.unitWord ?? unitWordOf(activeLayerId, adminLevel)}`}
             {currentRank > 0 ? ` · 선택 ${currentRank}위` : ""}
           </p> : null}
-          {analysis.ranked.length > 0 || analysis.filteredFacilities.length > 0 ? (
+          {hasExportRows && !isParsing && !pendingCubeQuery ? (
           <div className="export-actions mt-1.5" role="group" aria-label="내보내기">
             <button
               type="button"
@@ -5406,7 +5537,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                  * 먼저 실행돼 원래 결과가 사라진다(prod 실측). 그럴 땐 질문만 싣고,
                  * 복원 쪽에서 같은 경로로 다시 태운다.
                  */
-                pushShareUrl(lastIntent, selectedRegionCode, query || undefined);
+                pushShareUrl(lastIntent, selectedRegionCode, lastExecutedQuery ?? undefined);
                 void copyShareLink();
               }}
             >
@@ -5492,6 +5623,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                   data-testid="result-search"
                 />
               </label>
+              {resultSearch.trim() ? (
+                <button type="button" className="mt-2 min-h-11 ui-caption font-bold text-blue-700" onClick={() => { setResultSearch(""); setResultLimit(RESULT_PAGE_STEP); }}>검색 지우기</button>
+              ) : null}
               {analysis.isFacilityResult ? (
                 <div className="mt-2 flex gap-1" role="group" aria-label="시설 정렬">
                   {(
@@ -5628,10 +5762,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 </button>
               ) : null}
               {!isLayerCubeLoading && !analysis.isFacilityResult && filteredRanked.length === 0 ? (
-                <p className="px-3.5 py-4 ui-body text-slate-500">검색 결과가 없습니다.</p>
+                <p className="px-3.5 py-4 ui-body text-slate-500" role="status">{resultSearch.trim() ? `「${resultSearch}」과 일치하는 결과가 없습니다. 검색을 지우면 전체 결과를 볼 수 있습니다.` : "조건에 맞는 결과가 없습니다."}</p>
               ) : null}
               {!isLayerCubeLoading && analysis.isFacilityResult && filteredFacilitiesList.length === 0 ? (
-                <p className="px-3.5 py-4 ui-body text-slate-500">검색 결과가 없습니다.</p>
+                <p className="px-3.5 py-4 ui-body text-slate-500" role="status">{resultSearch.trim() ? `「${resultSearch}」과 일치하는 결과가 없습니다. 검색을 지우면 전체 결과를 볼 수 있습니다.` : "조건에 맞는 결과가 없습니다."}</p>
               ) : null}
             </div>
             {analysis.formulaNotes.length ? (

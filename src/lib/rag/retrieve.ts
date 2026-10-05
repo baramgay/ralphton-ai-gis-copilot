@@ -1,6 +1,9 @@
 import { RAG_CORPUS, type RagChunk } from "./corpus";
 import { cosineSimilarity, hashEmbed } from "./hash-embed";
-import { termFrequency, tokenize } from "./tokenize";
+import { termFrequency, tokenize, tokenizeWords } from "./tokenize";
+import { ragQueryIssue } from "./query-scope";
+import { DISTRICT_ALIASES } from "@/lib/analysis/query-catalog-meta";
+import { getAllPlaces } from "@/lib/geo/place-index";
 
 export type RagHit = {
   chunk: RagChunk;
@@ -40,9 +43,11 @@ const QUERY_SYNONYMS: Array<[RegExp, string]> = [
   [/애기|아기|영유아|유아/, "보육 어린이집"],
   [/불이 |화재/, "화재 소방"],
   [/빚|대출/, "대출 부채"],
+  [/사망자|사망\s*(?:인원|인구)/, "사망"],
+  [/비포장/, "포장도로 도로포장률"],
   [/장사|상권|매출/, "카드매출 소비"],
   [/집값|주택가격/, "주택 매매"],
-  [/빈 집|빈집|공가/, "빈집 미거주"],
+  [/빈\s*집|빈집|공가|집(?:이|은)?\s*비어/, "빈집 미거주"],
   [/재정|살림/, "재정자립도 재정자주도"],
   [/차량|자동차|차를/, "자동차 등록"],
   [/쓰레기|폐기물/, "생활폐기물 배출"],
@@ -99,6 +104,45 @@ function buildIdf(corpus: RagChunk[]): Map<string, number> {
 
 const DEFAULT_IDF = buildIdf(RAG_CORPUS);
 
+function indexChunk(chunk: RagChunk) {
+  const text = `${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`;
+  const tokens = tokenize(text);
+  return { chunk, text, tokens, tf: termFrequency(tokens), words: new Set(tokenizeWords(text)) };
+}
+
+const DEFAULT_INDEX = RAG_CORPUS.map(indexChunk);
+const DEFAULT_REGISTERED_WORDS = new Set(RAG_CORPUS.flatMap((chunk) => chunk.keywords.flatMap(tokenizeWords)));
+
+// Space and ranking instructions are not evidence for a metric's subject.
+const QUERY_STRUCTURE_WORDS = new Set([
+  "지역", "동네", "행정동", "시군구", "시군", "지자체", "곳", "동", "읍", "면", "읍면", "군", "시", "구",
+  "높은", "낮은", "많은", "적은", "높", "낮", "많", "적", "어디", "어디야", "어느", "자료", "지표",
+  "비교", "수준", "찾고", "싶어", "기준", "관련",
+]);
+
+// A place scopes a question; it does not provide evidence for its subject.
+const PLACE_WORDS = new Set(tokenizeWords([
+  "경남 경상남도",
+  ...Object.keys(DISTRICT_ALIASES), ...Object.values(DISTRICT_ALIASES),
+  ...getAllPlaces().map((place) => `${place.shortName} ${place.adm_nm}`),
+].join(" ")));
+
+function evidenceQuery(query: string, corpus: RagChunk[]): { tokens: string[]; words: string[] } {
+  const expanded = expandSynonyms(query);
+  const registeredWords = corpus === RAG_CORPUS
+    ? DEFAULT_REGISTERED_WORDS
+    : new Set(corpus.flatMap((chunk) => chunk.keywords.flatMap(tokenizeWords)));
+  const suffixSubjects = tokenizeWords(expanded).flatMap((word) => {
+    const subject = word.replace(/(?:순위|비교)$/, "");
+    return subject !== word && registeredWords.has(subject) ? [subject] : [];
+  });
+  const text = `${expanded} ${suffixSubjects.join(" ")}`;
+  return {
+    tokens: tokenize(text),
+    words: tokenizeWords(text).filter((word) => !QUERY_STRUCTURE_WORDS.has(word) && !PLACE_WORDS.has(word)),
+  };
+}
+
 /** Cached hash embeddings for default corpus */
 const DEFAULT_CHUNK_VECTORS = new Map<string, number[]>(
   RAG_CORPUS.map((chunk) => [
@@ -109,16 +153,15 @@ const DEFAULT_CHUNK_VECTORS = new Map<string, number[]>(
 
 function bm25LiteScore(
   queryTokens: string[],
-  docTokens: string[],
+  tf: Map<string, number>,
+  dl: number,
   idf: Map<string, number>,
   corpusSize: number,
 ): number {
-  if (queryTokens.length === 0 || docTokens.length === 0) return 0;
-  const tf = termFrequency(docTokens);
+  if (queryTokens.length === 0 || dl === 0) return 0;
   const avgDl = 80;
   const k1 = 1.4;
   const b = 0.75;
-  const dl = docTokens.length;
   let score = 0;
   for (const token of queryTokens) {
     const f = tf.get(token) ?? 0;
@@ -142,10 +185,14 @@ function normalizeScores(values: number[]): number[] {
  * Deterministic offline by default.
  */
 export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
+  if (ragQueryIssue(options.query)) return [];
   const limit = options.limit ?? 4;
   const corpus = options.corpus ?? RAG_CORPUS;
   const idf = corpus === RAG_CORPUS ? DEFAULT_IDF : buildIdf(corpus);
-  const queryTokens = tokenize(expandSynonyms(options.query));
+  const { tokens: queryTokens, words: queryWords } = evidenceQuery(options.query, corpus);
+  const documents = corpus === RAG_CORPUS ? DEFAULT_INDEX : corpus.map(indexChunk);
+  // A shared whole word is required before n-grams or vectors can rank evidence.
+  if (!documents.some((doc) => queryWords.some((word) => doc.words.has(word)))) return [];
   const boostTags = new Set(options.boostTags ?? []);
   const queryLower = options.query.toLowerCase();
   const lw = options.lexicalWeight ?? 0.55;
@@ -163,10 +210,9 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
           ]),
         ));
 
-  const raw = corpus.map((chunk) => {
-    const docText = `${chunk.title} ${chunk.body} ${chunk.keywords.join(" ")}`;
-    const docTokens = tokenize(docText);
-    let lexical = bm25LiteScore(queryTokens, docTokens, idf, corpus.length);
+  const raw = documents.map(({ chunk, text: docText, tokens: docTokens, tf, words }) => {
+    let lexical = bm25LiteScore(queryTokens, tf, docTokens.length, idf, corpus.length);
+    const hasEvidence = lexical > 0 && queryWords.some((word) => words.has(word));
     const reasons: string[] = [];
 
     if (lexical > 0) reasons.push("lexical");
@@ -194,7 +240,7 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
     const vector = cosineSimilarity(queryHash, docVec);
     if (vector > 0.05) reasons.push("vector");
 
-    return { chunk, lexical, vector, reasons: [...new Set(reasons)] };
+    return { chunk, lexical, vector, hasEvidence, reasons: [...new Set(reasons)] };
   });
 
   const lexNorm = normalizeScores(raw.map((row) => row.lexical));
@@ -217,7 +263,7 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
     /* 0.8로는 「교통사고가 잦은 시군」에서 레이어가 여전히 이겼다(기전 검사가 잡았다). */
     const score = (lw * lexNorm[index] + vw * vecNorm[index]) * specificity;
     // Preserve absolute signal: zero both → drop
-    const dead = row.lexical <= 0 && row.vector < 0.08;
+    const dead = !row.hasEvidence;
     return {
       chunk: row.chunk,
       score: dead ? 0 : score + row.lexical * 0.02 * specificity,
@@ -233,15 +279,21 @@ export function retrieveRagChunks(options: RetrieveOptions): RagHit[] {
     .slice(0, limit);
 }
 
-export function formatRagContext(hits: RagHit[], maxChars = 1200): string {
-  if (hits.length === 0) return "";
+export function buildRagContext(hits: RagHit[], maxChars = 1200): { context: string; hits: RagHit[] } {
   const parts: string[] = [];
+  const included: RagHit[] = [];
   let used = 0;
   for (const hit of hits) {
     const block = `[${hit.chunk.id}] ${hit.chunk.title}: ${hit.chunk.body}`;
-    if (used + block.length > maxChars) break;
+    const separatorLength = parts.length > 0 ? 1 : 0;
+    if (used + separatorLength + block.length > maxChars) break;
     parts.push(block);
-    used += block.length;
+    included.push(hit);
+    used += separatorLength + block.length;
   }
-  return parts.join("\n");
+  return { context: parts.join("\n"), hits: included };
+}
+
+export function formatRagContext(hits: RagHit[], maxChars = 1200): string {
+  return buildRagContext(hits, maxChars).context;
 }

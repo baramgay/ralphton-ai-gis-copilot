@@ -74,6 +74,13 @@ const match = (unit: "dong" | "sgg") =>
   });
 
 describe("correlationView", () => {
+  test("restricts correlation to the requested region before computing its coefficient", () => {
+    const view = correlationView({ ...match("dong"), regionFilters: ["진주시"] }, refA, refB);
+    expect(view.rows).toHaveLength(5);
+    expect(view.rows.every(row => row.name.includes("진주시"))).toBe(true);
+    expect(view.summary).toContain("관계를 말할 수 없습니다");
+    expect(view.notes.join(" ")).not.toContain("표본 30개");
+  });
   test("retains each axis value, provider and actual observation month when latest cube month is missing", () => {
     const olderB = { ...refB, cube: {
       ...refB.cube,
@@ -103,8 +110,14 @@ describe("correlationView", () => {
   });
 
   test("시군구로 냈으면 왜 그랬는지 적는다", () => {
-    const view = correlationView(match("sgg"), refA, refB);
+    const view = correlationView(match("sgg"), { ...refA, metric: { ...refA.metric, scope: "sgg" } }, refB);
     expect(view.notes.join(" ")).toContain("행정동으로 계산하면 같은 값이 반복 집계되어");
+  });
+
+  test("a requested district aggregation does not claim dong observations were unavailable", () => {
+    const view = correlationView(match("sgg"), refA, refB);
+    expect(view.notes.join(" ")).toContain("요청한 시군구 단위");
+    expect(view.notes.join(" ")).not.toContain("시군구까지만 제공");
   });
 
   test("상관은 인과가 아니라는 것을 답이 스스로 말한다", () => {
@@ -146,6 +159,12 @@ describe("outlierView", () => {
     unit: "sgg" as const,
     regionFilters: [],
   };
+  test("outside-region extreme values cannot alter requested-region outlier classification", () => {
+    const sample = { ...refA, cube: cube("layer-a", "a", { ...A, "48121": 1000 }) };
+    const view = outlierView({ ...outlierMatch, regionFilters: ["진주시"] }, sample);
+    expect(view.rows).toEqual([]);
+    expect(view.notes.join(" ")).toContain("표본 1개 시군구");
+  });
 
   test("retains the actual observation month and value for an outlier", () => {
     const sample = cube("layer-a", "a", { ...A, "48121": 1000 });

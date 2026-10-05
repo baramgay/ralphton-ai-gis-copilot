@@ -32,6 +32,10 @@ const snapshot = {
 } as unknown as AnalysisSnapshot;
 
 describe("populationCubeFromSnapshot", () => {
+  it("derives density from actual residents and area rather than a rounded cached density", () => {
+    const cube = populationCubeFromSnapshot(snapshot);
+    expect(cube.cells[0].series.density[0]).toBeCloseTo(1000 / 12, 10);
+  });
   it("produces a valid dong cube with pop_total series", () => {
     const cube = populationCubeFromSnapshot(snapshot);
     expect(() => LayerCubeSchema.parse(cube)).not.toThrow();

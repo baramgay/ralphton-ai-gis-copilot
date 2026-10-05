@@ -9,6 +9,10 @@ function row(dong: string, hour: string, amountAll: number) {
 }
 
 describe("nh-hourly adapter", () => {
+  it("retains the actual all-hour sales denominator without rounding", () => {
+    expect(finalizeStats({ day: 100001, night: 200003, total: 900007 }).total_sales).toBe(0.900007);
+    expect(finalizeStats({ day: 100001, night: 200003, total: 900007 }).night_sales_exact).toBe(0.200003);
+  });
   it("normalizes hours and strips the BOM", () => {
     expect(normalizeHour("9")).toBe("09");
     expect(normalizeHour("22")).toBe("22");

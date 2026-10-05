@@ -13,7 +13,7 @@ const SINGAPORE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/
  * 규칙이 답을 내지 못하는 질의. 라우팅이 규칙 우선이므로 AI 경로를 검사하려면
  * 반드시 이런 질의를 써야 한다 — "의료 취약 지역을 찾아줘"는 규칙이 잡는다.
  */
-const RULES_MISS_QUERY = '아이 키우기 좋은 곳';
+const RULES_MISS_QUERY = '가기 힘든 지역';
 
 function completionResponse(intent: unknown) {
   return {
@@ -142,7 +142,7 @@ describe('parseIntentWithFallbacks', () => {
     expect(fetch.mock.calls[0][0]).toBe('https://api.deepseek.com/v1/chat/completions');
   });
 
-  it('accepts a private-metric hint that exists in the catalog', async () => {
+  it('accepts a private-metric hint supported by the supplied catalog evidence', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(
       completionResponse({
         tool: 'privateMetric',
@@ -151,7 +151,7 @@ describe('parseIntentWithFallbacks', () => {
       }),
     );
 
-    const result = await parseIntentWithFallbacks(RULES_MISS_QUERY, {
+    const result = await parseIntentWithFallbacks('장사가 잘되는 상권', {
       apiKey: 'test-credential',
       baseUrl: DEEPSEEK_BASE_URL,
       fetch,
@@ -194,7 +194,7 @@ describe('parseIntentWithFallbacks', () => {
       .mockRejectedValueOnce(new Error('primary failed'))
       .mockRejectedValueOnce(new Error('primary retry failed'))
       .mockResolvedValueOnce(
-        completionResponse({ tool: 'rankElderlyUnderserved', filters: {} }),
+        completionResponse({ tool: 'rankHospitalScarcity', filters: {} }),
       );
 
     const result = await parseIntentWithFallbacks(RULES_MISS_QUERY, {
@@ -206,7 +206,7 @@ describe('parseIntentWithFallbacks', () => {
     });
 
     expect(result.mode).toBe('live');
-    expect(result.intent).toEqual({ tool: 'rankElderlyUnderserved', filters: {} });
+    expect(result.intent).toEqual({ tool: 'rankHospitalScarcity', filters: {} });
     expect(result.diagnostics?.failures).toEqual([
       'upstream_unreachable',
       'upstream_unreachable',

@@ -5,9 +5,8 @@ function sggCode(dongCode: string): string {
 }
 
 function sggName(dongName: string): string {
-  // "경상남도 창원시 의창구 동읍" → "경상남도 창원시" (앞 2 토큰)
   const parts = dongName.split(/\s+/);
-  return parts.slice(0, 2).join(" ");
+  return parts.slice(0, parts[2]?.endsWith("구") ? 3 : 2).join(" ");
 }
 
 export function aggregateToSgg(cube: LayerCube, metrics: MetricDef[]): LayerCube {
@@ -25,7 +24,35 @@ export function aggregateToSgg(cube: LayerCube, metrics: MetricDef[]): LayerCube
   for (const [code, members] of groups) {
     const series: Record<string, (number | null)[]> = {};
     for (const metric of metrics) {
+      const actualRatio = cube.layerId === "nh-demographics"
+        ? ({ youth_share: ["youth_sales", "personal_sales"], middle_share: ["middle_sales", "personal_sales"],
+            senior_share: ["senior_sales", "personal_sales"], female_share: ["female_sales", "personal_sales"],
+            corporate_share: ["corporate_sales", "total_sales"] } as Record<string, string[]>)[metric.key]
+        : cube.layerId === "nh-hourly" && metric.key === "night_share" ? ["night_sales_exact", "total_sales"] : undefined;
       series[metric.key] = Array.from({ length: n }, (_, i) => {
+        if (cube.layerId === "population" && metric.key === "density") {
+          let population = 0;
+          let area = 0;
+          for (const member of members) {
+            const value = member.series.pop_total?.[i];
+            if (value == null || !Number.isFinite(value) || !Number.isFinite(member.areaKm2) || member.areaKm2 <= 0) return null;
+            population += value;
+            area += member.areaKm2;
+          }
+          return area > 0 ? population / area : null;
+        }
+        if (actualRatio) {
+          let numerator = 0;
+          let denominator = 0;
+          for (const member of members) {
+            const value = member.series[actualRatio[0]]?.[i];
+            const base = member.series[actualRatio[1]]?.[i];
+            if (value == null || base == null || !Number.isFinite(value) || !Number.isFinite(base) || base < 0) return null;
+            numerator += value;
+            denominator += base;
+          }
+          return denominator > 0 ? numerator / denominator * 100 : null;
+        }
         if (metric.aggregation === "sum") {
           /*
            * 하나라도 비면 **합계를 내지 않는다.**
@@ -57,15 +84,16 @@ export function aggregateToSgg(cube: LayerCube, metrics: MetricDef[]): LayerCube
         let allSame = true;
         for (const m of members) {
           const v = m.series[metric.key]?.[i];
-          if (v == null) continue;
           /*
-           * 값은 있고 가중치가 없으면 평균을 내지 않는다. 가중치 0으로 조용히
-           * 빼면 남은 동만으로 평균이 나와 구성이 바뀐 사실을 알 수 없다.
+           * 값은 있고 가중치가 없으면 평균을 내지 않는다. 실제 가중치가 0인 동은
+           * 분자·분모에 기여하지 않지만, 양의 가중치에서 관측값이 비면 null이다.
            * 합계(sum)가 하나라도 비면 null을 내는 것과 같은 규칙이다.
            * 실측: kcb-migration.move_out_sgg 3셀월이 이 경우다(전수 조사).
            */
           const w = weightKey ? m.series[weightKey]?.[i] : 1;
-          if (w == null || !Number.isFinite(w)) return null;
+          if (w == null || !Number.isFinite(w) || w < 0) return null;
+          if (w === 0) continue;
+          if (v == null || !Number.isFinite(v)) return null;
           if (only === null) only = v;
           else if (v !== only) allSame = false;
           weighted += v * w;

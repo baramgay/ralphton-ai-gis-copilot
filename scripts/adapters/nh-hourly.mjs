@@ -70,6 +70,8 @@ export function finalizeStats(entry) {
   return {
     day_sales: toMillion(entry.day),
     night_sales: toMillion(entry.night),
+    night_sales_exact: toMillion(entry.night),
+    total_sales: toMillion(entry.total),
     night_share: entry.total > 0 ? (entry.night / entry.total) * 100 : null,
   };
 }
@@ -93,6 +95,7 @@ function round(value, decimals) {
 }
 
 const METRIC_KEYS = ["day_sales", "night_sales", "night_share"];
+const EXACT_KEYS = ["night_sales_exact", "total_sales"];
 
 async function main() {
   const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -104,7 +107,7 @@ async function main() {
   const perDong = new Map();
   for (const feature of boundary.features) {
     const series = {};
-    for (const key of METRIC_KEYS) series[key] = new Array(12).fill(null);
+    for (const key of [...METRIC_KEYS, ...EXACT_KEYS]) series[key] = new Array(12).fill(null);
     perDong.set(feature.properties.adm_cd2, series);
   }
 
@@ -125,6 +128,7 @@ async function main() {
       series.day_sales[month - 1] = round(finalized.day_sales, 1);
       series.night_sales[month - 1] = round(finalized.night_sales, 1);
       series.night_share[month - 1] = round(finalized.night_share, 1);
+      for (const key of EXACT_KEYS) series[key][month - 1] = finalized[key];
     }
     console.log(`${yyyymm} NH 시간대 집계 완료 (${stats.size}개 동)`);
   }

@@ -1,5 +1,6 @@
 import { collapseReplicatedDistricts } from "@/lib/layers/independent-observations";
 import { buildTrendRanking } from "@/lib/layers/trend-view";
+import type { TrendResult } from "@/lib/layers/trend";
 import type { AdminLevel, LayerCube, MetricDef } from "@/lib/layers/types";
 
 export type TrendCrossRow = {
@@ -8,6 +9,8 @@ export type TrendCrossRow = {
   /** 두 지표의 변화율(%). */
   rateA: number;
   rateB: number;
+  trendA: TrendResult;
+  trendB: TrendResult;
   zA: number;
   zB: number;
   /** 물어본 두 방향을 모두 만족할수록 큰 값. */
@@ -101,6 +104,8 @@ export function trendCrossView(
         name: row.name,
         rateA: row.trend.changeRate ?? 0,
         rateB: other.trend.changeRate ?? 0,
+        trendA: row.trend,
+        trendB: other.trend,
         zA,
         zB,
         composite: zA + zB,

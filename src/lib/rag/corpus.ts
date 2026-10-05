@@ -39,28 +39,29 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "tool-death-birth",
     title: "출생·사망·자연증감",
-    body: "출생 수는 rankBirthCount, 사망 수는 rankDeathCount, 자연감소(사망−출생)는 rankNaturalDecrease입니다. 전입·전출은 포함하지 않습니다.",
-    tags: ["rankDeathCount", "rankBirthCount", "rankNaturalDecrease", "vital"],
+    body: "출생 수는 rankBirthCount, 사망 수는 rankDeathCount, 자연감소(사망−출생)는 rankNaturalDecrease, 자연증가(출생−사망)는 rankNaturalIncrease입니다. 전입·전출은 포함하지 않습니다.",
+    tags: ["rankDeathCount", "rankBirthCount", "rankNaturalDecrease", "rankNaturalIncrease", "vital"],
     keywords: ["사망", "출생", "자연감소", "자연증가", "출산"],
   },
   {
     id: "tool-population",
     title: "인구·밀도·증감",
-    body: "총인구 rankPopulationSize, 인구밀도 rankPopulationDensity, 12개월 증가 rankPopulationGrowthPressure, 감소 rankPopulationDeclineRisk. 밀도는 총인구÷면적(km²).",
+    body: "총인구 rankPopulationSize, 세대수 rankHouseholdCount, 인구밀도 rankPopulationDensity, 12개월 증가 rankPopulationGrowthPressure, 감소 rankPopulationDeclineRisk. 밀도는 총인구÷면적(km²).",
     tags: [
       "rankPopulationSize",
       "rankPopulationDensity",
+      "rankHouseholdCount",
       "rankPopulationGrowthPressure",
       "rankPopulationDeclineRisk",
       "population",
     ],
-    keywords: ["인구", "밀도", "증가", "감소", "밀집", "주민"],
+    keywords: ["인구", "세대수", "가구수", "밀도", "증가", "감소", "밀집", "주민"],
   },
   {
     id: "tool-single-elderly-ratio",
     title: "1인가구·고령화율",
-    body: "1인가구 비율은 rankSingleHouseholdRisk, 고령인구 비율은 rankElderlyRatio. 결측은 0으로 추정하지 않고 데이터 없음으로 둡니다.",
-    tags: ["rankSingleHouseholdRisk", "rankElderlyRatio", "population"],
+    body: "1인가구 비율은 rankSingleHouseholdRisk, 고령인구 비율은 rankElderlyRatio, 그 비율의 증가는 rankElderlyRatioTrend, 감소는 rankElderlyRatioDecline. 결측은 0으로 추정하지 않고 데이터 없음으로 둡니다.",
+    tags: ["rankSingleHouseholdRisk", "rankElderlyRatio", "rankElderlyRatioTrend", "rankElderlyRatioDecline", "population"],
     keywords: ["1인가구", "고령화율", "노인 비율", "단독가구"],
   },
   {
@@ -108,9 +109,9 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "unsupported",
     title: "미지원 질의",
-    body: "전입·전출, 도로망 거리, 응급의료 통계, 날씨, 교통 혼잡 등은 현재 tool 카탈로그에 없습니다. 지원 지표로 재질문하도록 안내합니다.",
+    body: "도로망 거리, 응급의료 실시간 통계, 날씨, 교통 혼잡은 제공하지 않습니다. 전입·전출은 KCB 거주이동, 일시 유입·유출은 SKT 이동인구 자료로 구분합니다. 지원 지표로 재질문하도록 안내합니다.",
     tags: ["unsupported", "safety"],
-    keywords: ["전입", "전출", "날씨", "응급", "도로", "교통", "unsupported"],
+    keywords: ["날씨", "응급의료 실시간", "도로망 거리", "교통 혼잡", "unsupported"],
   },
   {
     id: "follow-up",

@@ -2,7 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const embedMocks = vi.hoisted(() => ({
   createTextEmbeddings: vi.fn(),
+  writeFile: vi.fn(),
 }));
+
+vi.mock("node:fs/promises", async () => {
+  const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+  return { ...actual, writeFile: embedMocks.writeFile, default: { ...actual, writeFile: embedMocks.writeFile } };
+});
 
 vi.mock("@/lib/rag/embeddings", async () => {
   const actual = await vi.importActual<typeof import("@/lib/rag/embeddings")>(
@@ -31,6 +37,7 @@ function unitVector(seed: number, dim = 8): number[] {
 describe("embed-cache", () => {
   beforeEach(() => {
     embedMocks.createTextEmbeddings.mockReset();
+    embedMocks.writeFile.mockReset();
     resetEmbedCacheForTests();
   });
 
@@ -62,6 +69,7 @@ describe("embed-cache", () => {
     expect(meta.ready).toBe(true);
     expect(meta.model).toBe("text-embedding-v3");
     expect(meta.chunkCount).toBe(RAG_CORPUS.length);
+    expect(embedMocks.writeFile).not.toHaveBeenCalled();
   });
 
   it("reranks chunk ids with remote query embedding", async () => {

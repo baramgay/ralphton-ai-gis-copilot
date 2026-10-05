@@ -159,6 +159,11 @@ describe("nl-routing: defect fixes", () => {
     expect(parseIntentWithRules("어디가 병원 부족하냐")?.tool).toBe("rankHospitalScarcity");
   });
 
+  test("medical access hardship questions request scarcity analysis rather than a facility list", () => {
+    expect(parseIntentWithRules("병원 가기 힘든 읍면 어디야")?.tool).toBe("rankHospitalScarcity");
+    expect(parseIntentWithRules("의료기관 이용이 어려운 동네")?.tool).toBe("rankHospitalScarcity");
+  });
+
   test("defect 9 — 가장 가까운 병원 returns the closest region first", () => {
     const intent = parseIntentWithRules("가장 가까운 병원");
     expect(intent?.tool).toBe("nearestFacilityDistance");

@@ -1,5 +1,34 @@
 import { describe, expect, test } from "vitest";
 
+test("검색된 한 행도 원래 분석의 낮은 순 정렬을 유지한다", () => {
+  const input = {
+    title: "낮은 소득 순위", summary: "낮은 소득 순으로 분석", referenceMonth: "2025-12",
+    source: "KCB", mode: "live", rankDirection: "ascending" as const, formulaNotes: [],
+    rows: [{ rank: 96, code: "4812051000", name: "테스트동", valueLabel: "300만원", note: "검색 결과" }],
+  };
+  const markdown = buildMarkdownReport(input);
+  expect(markdown).toContain("하위 1개 제시");
+  expect(markdown).toContain("| 96 | 테스트동 | 300만원 |");
+  expect(markdown).not.toContain("상위 1개");
+});
+
+test("시설 목록 보고서는 시설 이름·유형과 건수를 표시하고 지역 순위로 설명하지 않는다", () => {
+  const input = {
+    title: "의료기관 검색", summary: "의료기관 2곳을 확인했습니다.", referenceMonth: "2026-06",
+    source: "공공데이터", mode: "live", resultKind: "facilities" as const, formulaNotes: [],
+    rows: [
+      { rank: 1, code: "hospital-a", name: "가나다의원", valueLabel: "의원", note: "진주시 · 중앙로 1" },
+      { rank: 2, code: "hospital-b", name: "라마바병원", valueLabel: "병원", note: "진주시 · 중앙로 2" },
+    ],
+  };
+  const markdown = buildMarkdownReport(input);
+  expect(markdown).toContain("대상 시설 2개");
+  expect(markdown).toContain("| 번호 | 시설명 | 유형 | 지역·주소 |");
+  expect(markdown).toContain("가나다의원");
+  expect(markdown).not.toContain("대상 행정동");
+  expect(markdown).not.toContain("순위는 기준월 단일 시점");
+});
+
 import { buildMarkdownReport, toNounEnding, type ReportInput } from "@/lib/analysis/export-report";
 
 const base: ReportInput = {

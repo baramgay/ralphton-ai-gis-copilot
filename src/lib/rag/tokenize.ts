@@ -126,6 +126,13 @@ export function tokenize(text: string): string[] {
   return [...new Set(tokens)];
 }
 
+/** Whole words and particle stems, without compound n-grams or hash collisions. */
+export function tokenizeWords(text: string): string[] {
+  const raw = text.toLowerCase().replace(/[^\p{L}\p{N}\s가-힣]/gu, " ").split(/\s+/);
+  const words = raw.flatMap((word) => [word, stripParticle(word)]);
+  return [...new Set(words.filter((word): word is string => Boolean(word) && !STOP.has(word!)))];
+}
+
 export function termFrequency(tokens: string[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const token of tokens) {

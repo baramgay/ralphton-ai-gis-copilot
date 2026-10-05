@@ -1,7 +1,19 @@
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import { AnalysisIntentSchema } from "@/lib/analysis/intent-schema";
+import { z } from "zod";
+import { AdminLevelSchema } from "@/lib/layers/types";
+
+const SharedLayerSchema = z.object({
+  id: z.string().min(1).max(40),
+  metricKey: z.string().min(1).max(60),
+  adminLevel: AdminLevelSchema,
+  direction: z.enum(["asc", "desc"]),
+  regions: z.array(z.string().min(1).max(50)).max(10),
+}).strict();
 
 export type ShareState = {
+  intent?: AnalysisIntent;
+  layer?: z.infer<typeof SharedLayerSchema>;
   tool?: string;
   region?: string;
   radius?: 1 | 2 | 3;
@@ -37,7 +49,17 @@ export function parseShareState(search: string | URLSearchParams): ShareState {
   const radiusRaw = Number(params.get("radius") ?? "");
   const markers = params.get("markers");
   const tab = params.get("tab");
+  let intent: ShareState["intent"];
+  let layer: ShareState["layer"];
+  try {
+    intent = AnalysisIntentSchema.safeParse(JSON.parse(params.get("intent") ?? "null")).data;
+  } catch { /* Invalid links keep the legacy query path. */ }
+  try {
+    layer = SharedLayerSchema.safeParse(JSON.parse(params.get("layer") ?? "null")).data;
+  } catch { /* Invalid links keep the legacy query path. */ }
   return {
+    intent,
+    layer,
     tool: params.get("tool") ?? undefined,
     region: params.get("region") ?? undefined,
     radius: RADIUS_SET.has(radiusRaw) ? (radiusRaw as 1 | 2 | 3) : undefined,
@@ -49,17 +71,20 @@ export function parseShareState(search: string | URLSearchParams): ShareState {
 
 export function buildShareSearch(state: ShareState): string {
   const params = new URLSearchParams();
+  if (state.intent) params.set("intent", JSON.stringify(AnalysisIntentSchema.parse(state.intent)));
+  if (state.layer) params.set("layer", JSON.stringify(SharedLayerSchema.parse(state.layer)));
   if (state.tool) params.set("tool", state.tool);
   if (state.region) params.set("region", state.region);
   if (state.radius) params.set("radius", String(state.radius));
-  if (state.q) params.set("q", state.q.slice(0, 200));
+  if (state.q) params.set("q", state.q.slice(0, 1000));
   if (state.markers && state.markers !== "priority") params.set("markers", state.markers);
   if (state.tab && state.tab !== "control") params.set("tab", state.tab);
   const text = params.toString();
   return text ? `?${text}` : "";
 }
 
-export function shareStateFromIntent(  intent: AnalysisIntent,
+export function shareStateFromIntent(
+  intent: AnalysisIntent,
   extras?: {
     region?: string | null;
     q?: string;
@@ -67,6 +92,7 @@ export function shareStateFromIntent(  intent: AnalysisIntent,
   },
 ): ShareState {
   return {
+    intent,
     tool: intent.tool,
     region: extras?.region ?? intent.filters.regions?.[0] ?? intent.filters.compare?.[0],
     radius: intent.filters.radiusKm as 1 | 2 | 3 | undefined,

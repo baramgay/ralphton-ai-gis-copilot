@@ -58,7 +58,10 @@ export function buildTrendRanking(
   const rows: TrendRow[] = [];
   let excluded = 0;
   for (const cell of source.cells) {
-    const trend = computeTrend(sliceRecentMonths(cell.series[metric.key] ?? [], source.months, trendMonths));
+    const trend = computeTrend(
+      sliceRecentMonths(cell.series[metric.key] ?? [], source.months, trendMonths),
+      sliceRecentMonths(source.months, source.months, trendMonths),
+    );
     // 산출 불가를 0%로 두면 「0 → 50으로 는 곳」이 보합 한가운데에 놓인다. 빼되, 센다.
     if (trend.changeRate === null) {
       excluded += 1;

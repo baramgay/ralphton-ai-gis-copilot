@@ -15,6 +15,8 @@ export type ReportRow = {
 };
 
 export type ReportInput = {
+  resultKind?: "regions" | "facilities";
+  rankDirection?: "ascending" | "descending";
   title: string;
   summary: string;
   referenceMonth: string;
@@ -120,16 +122,18 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push("## 분석 요약");
   lines.push("");
   lines.push(`- ${toNounEnding(input.summary)}`);
-  const unit = regionUnitLabel(input.rows.map((row) => row.code));
-  lines.push(`- 대상 ${unit} ${totalCount.toLocaleString("ko-KR")}개 중 ${rankWordOf(input.rows)} ${top.length}개 제시`);
+  const facilities = input.resultKind === "facilities";
+  const unit = facilities ? "시설" : regionUnitLabel(input.rows.map((row) => row.code));
+  const order = facilities ? "목록 앞" : input.rankDirection === "ascending" ? "하위" : input.rankDirection === "descending" ? "상위" : rankWordOf(input.rows);
+  lines.push(`- 대상 ${unit} ${totalCount.toLocaleString("ko-KR")}개 중 ${order} ${top.length}개 제시`);
   lines.push("");
 
-  lines.push(`## ${rankWordOf(input.rows)} ${top.length}개 지역`);
+  lines.push(facilities ? `## 시설 목록 ${top.length}개` : `## ${order} ${top.length}개 지역`);
   lines.push("");
   if (top.length === 0) {
-    lines.push("- 표시할 순위 없음");
+    lines.push(facilities ? "- 표시할 시설 없음" : "- 표시할 순위 없음");
   } else {
-    lines.push("| 순위 | 지역 | 값 | 비고 |");
+    lines.push(facilities ? "| 번호 | 시설명 | 유형 | 지역·주소 |" : "| 순위 | 지역 | 값 | 비고 |");
     lines.push("| ---: | --- | --- | --- |");
     for (const row of top) {
       lines.push(
@@ -150,8 +154,12 @@ export function buildMarkdownReport(input: ReportInput): string {
   lines.push("");
   const citation = reportCitationWarning(input);
   if (citation) lines.push(`- ${citation}`);
-  lines.push("- 순위는 기준월 단일 시점 값이며 추세 판단에는 다월 비교 필요");
-  lines.push("- 절대값 지표는 인구·상권 규모에 좌우되므로 비율 지표와 병행 해석 필요");
+  if (facilities) {
+    lines.push("- 시설 목록은 현재 검색 조건과 정렬을 적용한 결과이며 최신 운영 여부 확인 필요");
+  } else {
+    lines.push("- 순위는 기준월 단일 시점 값이며 추세 판단에는 다월 비교 필요");
+    lines.push("- 절대값 지표는 인구·상권 규모에 좌우되므로 비율 지표와 병행 해석 필요");
+  }
   lines.push("");
 
   return lines.join("\n");

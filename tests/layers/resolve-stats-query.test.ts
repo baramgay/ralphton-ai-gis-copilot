@@ -7,6 +7,11 @@ import { asksCausation, resolveStatsQuery } from "@/lib/layers/resolve-stats-que
 const resolve = (query: string) => resolveStatsQuery(query, NL_LAYERS, { adminLevelFallback: "dong" });
 
 describe("상관 질의", () => {
+  test("explicit district requests and district fallback set the actual calculation unit", () => {
+    expect(resolve("시군구별 생활인구와 카드매출 상관관계")?.unit).toBe("sgg");
+    expect(resolveStatsQuery("생활인구와 카드매출 상관관계", NL_LAYERS, { adminLevelFallback: "sgg" })?.unit).toBe("sgg");
+    expect(resolve("시군구별 생활인구 이상치")?.unit).toBe("sgg");
+  });
   test("두 지표의 관계를 물으면 상관으로 간다", () => {
     const match = resolve("재정자립도와 빈집 비율의 상관관계");
     expect(match?.kind).toBe("correlation");

@@ -20,7 +20,8 @@ export function populationCubeFromSnapshot(snapshot: AnalysisSnapshot): LayerCub
       series: {
         pop_total: [...r.population],
         households: [...r.households],
-        density: [...r.populationDensity],
+        density: r.population.map(value => Number.isFinite(value) && Number.isFinite(r.areaSquareKm) && r.areaSquareKm > 0
+          ? value / r.areaSquareKm : null),
         elderly_ratio: ratioSeries([...r.elderlyPopulation], [...r.population]),
         natural_change: [...r.naturalChange],
       },

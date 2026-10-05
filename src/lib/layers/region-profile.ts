@@ -83,7 +83,7 @@ export function buildRegionProfile(
         value,
         percentile: value === null ? null : percentileOf(value, all),
         // 기준월 한 시점이 아니라 계열로 방향을 본다. 기간을 좁히면 최근 흐름만 본다.
-        trend: computeTrend(sliceRecentMonths(series ?? [], cube.months, trendMonths)),
+        trend: computeTrend(sliceRecentMonths(series ?? [], cube.months, trendMonths), sliceRecentMonths(cube.months, cube.months, trendMonths)),
         referenceMonth: cube.referenceMonth,
       });
     }

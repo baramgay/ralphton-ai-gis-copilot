@@ -457,7 +457,7 @@ export function extractQuerySignals(query: string): QuerySignals {
   }
 
   if (
-    includesAny(text, [
+    (hasMedicalOrFacilityWord && /(?:가기|이용|진료|접근)\s*(?:이|가|하기)?\s*(?:힘들|힘든|어려)/.test(text)) || includesAny(text, [
       "취약",
       "부족",
       "공백",

@@ -6,7 +6,7 @@
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import type { EmbeddingClientDeps } from "./embeddings";
 import type { RagAugmentation } from "./augment";
-import { formatRagContext } from "./retrieve";
+import { buildRagContext } from "./retrieve";
 import { retrieveRagChunksWithRemote } from "./retrieve-remote";
 
 export async function augmentQueryWithRagRemote(
@@ -21,13 +21,14 @@ export async function augmentQueryWithRagRemote(
     ...(extras?.intent ? [extras.intent.tool] : []),
     ...(extras?.extraTags ?? []),
   ];
-  const { hits, remote } = await retrieveRagChunksWithRemote(
+  const { hits: retrieved, remote } = await retrieveRagChunksWithRemote(
     { query, limit: 4, boostTags },
     extras?.embedDeps,
   );
+  const { hits, context } = buildRagContext(retrieved);
   return {
     hits,
-    context: formatRagContext(hits),
+    context,
     citations: hits.map((hit) => ({ id: hit.chunk.id, title: hit.chunk.title })),
     remote,
   };

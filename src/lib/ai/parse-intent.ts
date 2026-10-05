@@ -16,13 +16,14 @@ import {
   type QueryEnrichment,
 } from "@/lib/analysis/query-rules";
 import { recordAiFailure, recordAiSuccess } from "./last-outcome";
-import { augmentQueryWithRag } from "@/lib/rag/augment";
+import { augmentQueryWithRag, type RagAugmentation } from "@/lib/rag/augment";
 import {
   catalogMetricsFromChunkIds,
   findCatalogMetric,
 } from "@/lib/rag/catalog-chunks";
 import { formatRagContext, type RagHit } from "@/lib/rag/retrieve";
 import { augmentQueryWithRagRemote } from "@/lib/rag/augment-remote";
+import { ragQueryIssue } from "@/lib/rag/query-scope";
 
 export interface ParseIntentDeps extends LlmClientDeps {
   primaryModel?: string;
@@ -101,7 +102,7 @@ function systemPrompt(query: string, hits: RagHit[]): string {
         "",
         `관련 지식(RAG, id=${hits.map((hit) => hit.chunk.id).join(", ")}):`,
         context,
-        "위 지식을 우선 반영해 tool을 고르세요. 지식과 충돌하는 추정은 하지 마세요.",
+        "위 지식에 명시된 tool만 고르세요. 지식과 충돌하는 추정은 하지 마세요.",
         metricHintSection(hits),
       ].join("\n")
     : "";
@@ -125,7 +126,7 @@ filters optional:
 5. "부족·취약·공백" + 의료 → rankHospitalScarcity. 고령+의료 부족 → rankElderlyUnderserved.
 6. 반경·km·이내 + 병원 수 → countFacilitiesWithinRadius. 먼/최근접 거리 → nearestFacilityDistance.
 7. 근처·주변 장소 → filterFacilitiesByTypeAndHours (regions에 시·구 넣기). 카카오 보강은 클라이언트가 함.
-8. 스키마 외 키·SQL·코드 금지. 전입전출·도로거리·응급·날씨 등 미등록만 unsupported.
+8. 스키마 외 키·SQL·코드 금지. 도로망거리·응급의료 실시간·날씨 등 미등록 지표는 unsupported. 전입·전출(KCB)과 일시 유입·유출(SKT)은 구분해 제공된 지표 후보에서 고르세요.
 
 예시:
 - "사망자 많은 곳" → {"tool":"rankDeathCount","filters":{"limit":20}}
@@ -206,6 +207,10 @@ async function callAiParser(
 
   const hint = readMetricHint(raw);
   if (hint) {
+    const candidates = catalogMetricsFromChunkIds(hits.map((hit) => hit.chunk.id));
+    if (!candidates.some(({ layer, metric }) => layer.id === hint.layerId && metric.key === hint.metricKey)) {
+      throw new Error("선택한 지표의 근거가 없습니다.");
+    }
     return { kind: "metricHint", hint };
   }
 
@@ -219,11 +224,14 @@ async function callAiParser(
     };
   }
 
-  return { kind: "intent", intent: AnalysisIntentSchema.parse(raw) };
+  const intent = AnalysisIntentSchema.parse(raw);
+  if (!hits.some((hit) => hit.chunk.tags.includes(intent.tool))) {
+    throw new Error("선택한 분석 도구의 근거가 없습니다.");
+  }
+  return { kind: "intent", intent };
 }
 
-function attachRagMeta(query: string, result: ParseIntentResult): ParseIntentResult {
-  const rag = augmentQueryWithRag(query, { intent: result.intent });
+function attachRagEvidence(result: ParseIntentResult, rag: RagAugmentation): ParseIntentResult {
   return {
     ...result,
     rag: {
@@ -238,6 +246,14 @@ async function attachRagMetaAsync(
   result: ParseIntentResult,
   deps: ParseIntentDeps,
 ): Promise<ParseIntentResult> {
+  return attachRagEvidence(result, await retrieveEvidence(query, deps, result.intent));
+}
+
+async function retrieveEvidence(
+  query: string,
+  deps: ParseIntentDeps,
+  intent?: AnalysisIntent | null,
+): Promise<RagAugmentation> {
   /*
    * 임베딩은 채팅 모델과 같은 제공자에 있으리라 가정하면 안 된다 — 현재 채팅 제공자
    * (DeepSeek)에는 임베딩 엔드포인트가 아예 없다. 그래서 채팅 자격증명을 물려받지 않고
@@ -246,9 +262,9 @@ async function attachRagMetaAsync(
   const embedBaseUrl = process.env.EMBED_BASE_URL?.trim();
   const embedApiKey = process.env.EMBED_API_KEY?.trim();
   const wantRemote =
-    deps.useRemoteRagEmbed === true ||
+    deps.useRemoteRagEmbed ?? (
     process.env.RAG_REMOTE_EMBED?.trim() === "1" ||
-    Boolean(process.env.EMBED_MODEL?.trim());
+    Boolean(process.env.EMBED_MODEL?.trim()));
   const embedDeps =
     wantRemote && embedApiKey && embedBaseUrl
       ? {
@@ -260,23 +276,16 @@ async function attachRagMetaAsync(
       : undefined;
 
   if (!embedDeps) {
-    return attachRagMeta(query, result);
+    return augmentQueryWithRag(query, { intent });
   }
 
   try {
-    const rag = await augmentQueryWithRagRemote(query, {
-      intent: result.intent,
+    return await augmentQueryWithRagRemote(query, {
+      intent,
       embedDeps,
     });
-    return {
-      ...result,
-      rag: {
-        citations: rag.citations,
-        hitCount: rag.hits.length,
-      },
-    };
   } catch {
-    return attachRagMeta(query, result);
+    return augmentQueryWithRag(query, { intent });
   }
 }
 
@@ -284,31 +293,31 @@ function fromRules(query: string): ParseIntentResult {
   const resolved = resolveQueryWithRules(query);
 
   if (resolved.kind === "intent") {
-    return attachRagMeta(query, {
+    return {
       intent: resolved.intent,
       mode: "demo",
       notice: resolved.notice,
       enrichment: resolved.enrichment,
       parser: "rules",
-    });
+    };
   }
 
   if (resolved.kind === "unsafe") {
-    return attachRagMeta(query, {
+    return {
       intent: null,
       mode: "demo",
       notice: resolved.notice,
       parser: "rules",
-    });
+    };
   }
 
-  return attachRagMeta(query, {
+  return {
     intent: null,
     mode: "demo",
     notice: resolved.notice,
     suggestions: resolved.suggestions,
     parser: "rules",
-  });
+  };
 }
 
 export async function parseIntentWithFallbacks(
@@ -329,6 +338,17 @@ export async function parseIntentWithFallbacks(
     };
   }
 
+  const issue = ragQueryIssue(safety.query);
+  if (issue) {
+    return {
+      intent: null, mode: "demo", parser: "rules",
+      notice: issue === "out-of-scope"
+        ? "경남 지역만 지원합니다. 경남 지역으로 다시 질문해 주세요."
+        : "요청한 지표는 현재 자료에 없습니다. 지원하는 지표로 다시 질문해 주세요.",
+      rag: { citations: [], hitCount: 0 },
+      diagnostics: { aiAttempted: false, aiUsed: false, failures: [] },
+    };
+  }
   const ruleResult = fromRules(safety.query);
 
   /*
@@ -367,7 +387,14 @@ export async function parseIntentWithFallbacks(
   }
 
   const failures: LlmFailureCode[] = [];
-  const hits = augmentQueryWithRag(safety.query).hits;
+  const evidence = await retrieveEvidence(safety.query, deps);
+  const hits = evidence.hits;
+  if (hits.length === 0) {
+    return attachRagEvidence({
+      ...ruleResult,
+      diagnostics: { aiAttempted: false, aiUsed: false, failures: [] },
+    }, evidence);
+  }
 
   for (const model of [primaryModel, primaryModel, fallbackModel]) {
     try {
@@ -376,8 +403,7 @@ export async function parseIntentWithFallbacks(
       recordAiSuccess();
 
       if (parsed.kind === "metricHint") {
-        return attachRagMetaAsync(
-          safety.query,
+        return attachRagEvidence(
           {
             intent: null,
             mode: "live",
@@ -386,13 +412,12 @@ export async function parseIntentWithFallbacks(
             metricHint: parsed.hint,
             diagnostics,
           },
-          deps,
+          evidence,
         );
       }
 
       if (parsed.kind === "unsupported") {
-        return attachRagMetaAsync(
-          safety.query,
+        return attachRagEvidence(
           {
             intent: null,
             mode: "live",
@@ -401,12 +426,11 @@ export async function parseIntentWithFallbacks(
             parser: "ai",
             diagnostics,
           },
-          deps,
+          evidence,
         );
       }
 
-      return attachRagMetaAsync(
-        safety.query,
+      return attachRagEvidence(
         {
           intent: parsed.intent,
           mode: "live",
@@ -415,7 +439,7 @@ export async function parseIntentWithFallbacks(
           parser: ruleResult.enrichment ? "hybrid" : "ai",
           diagnostics,
         },
-        deps,
+        evidence,
       );
     } catch (error) {
       const code: LlmFailureCode =
@@ -436,8 +460,7 @@ export async function parseIntentWithFallbacks(
     }
   }
 
-  return attachRagMetaAsync(
-    safety.query,
+  return attachRagEvidence(
     {
       ...ruleResult,
       notice:
@@ -447,6 +470,6 @@ export async function parseIntentWithFallbacks(
       parser: "rules",
       diagnostics: { aiAttempted: true, aiUsed: false, failures },
     },
-    deps,
+    evidence,
   );
 }

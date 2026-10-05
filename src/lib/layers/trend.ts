@@ -10,6 +10,9 @@ export type TrendResult = {
   last: number | null;
   /** 실제 값이 있는 월 수. 2 미만이면 추세를 말할 수 없다. */
   points: number;
+  firstMonth: string | null;
+  lastMonth: string | null;
+  elapsedMonths: number | null;
 };
 
 /**
@@ -34,6 +37,7 @@ export function sliceRecent<T>(series: ReadonlyArray<T>, months?: number): Reado
 function monthNumber(label: string): number | null {
   const match = /^(\d{4})-(\d{2})$/.exec(label.trim());
   if (!match) return null;
+  if (Number(match[2]) < 1 || Number(match[2]) > 12) return null;
   return Number(match[1]) * 12 + (Number(match[2]) - 1);
 }
 
@@ -75,15 +79,22 @@ export function sliceRecentMonths<T>(
  * 변화율은 첫 값 대비 마지막 값으로 크기를 보고, 기울기는 최소제곱으로 흔들림에 덜 휘둘리게
  * 방향을 본다. 결측월은 건너뛰되 원래 위치(월 인덱스)를 유지해 간격이 왜곡되지 않게 한다.
  */
-export function computeTrend(series: ReadonlyArray<number | null | undefined>): TrendResult {
-  const points: Array<{ x: number; y: number }> = [];
+export function computeTrend(series: ReadonlyArray<number | null | undefined>, monthLabels?: ReadonlyArray<string>): TrendResult {
+  const dated = monthLabels?.length === series.length && monthLabels.every(label => monthNumber(label) !== null);
+  const points: Array<{ x: number; y: number; month: string | null }> = [];
   series.forEach((value, index) => {
-    if (typeof value === "number" && Number.isFinite(value)) points.push({ x: index, y: value });
+    if (typeof value === "number" && Number.isFinite(value)) points.push({
+      x: dated ? monthNumber(monthLabels![index])! : index, y: value,
+      month: dated ? monthLabels![index] : null,
+    });
   });
+  const firstMonth = points[0]?.month ?? null;
+  const lastMonth = points.at(-1)?.month ?? null;
+  const elapsedMonths = firstMonth && lastMonth ? monthNumber(lastMonth)! - monthNumber(firstMonth)! : null;
 
   if (points.length < 2) {
     const only = points[0]?.y ?? null;
-    return { changeRate: null, slope: null, direction: "flat", first: only, last: only, points: points.length };
+    return { changeRate: null, slope: null, direction: "flat", first: only, last: only, points: points.length, firstMonth, lastMonth, elapsedMonths };
   }
 
   const first = points[0].y;
@@ -111,7 +122,7 @@ export function computeTrend(series: ReadonlyArray<number | null | undefined>): 
     direction = slope > 0 ? "rising" : "falling";
   }
 
-  return { changeRate, slope, direction, first, last, points: n };
+  return { changeRate, slope, direction, first, last, points: n, firstMonth, lastMonth, elapsedMonths };
 }
 
 const DIRECTION_LABEL: Record<TrendDirection, string> = {
@@ -122,7 +133,7 @@ const DIRECTION_LABEL: Record<TrendDirection, string> = {
 
 /** 추세를 보고서에 그대로 옮길 수 있는 명사형 한 줄로. */
 export function describeTrend(trend: TrendResult, metricLabel: string, unit: string): string {
-  if (trend.points < 2) return `${metricLabel} 추세 판단 불가(관측 ${trend.points}개월)`;
+  if (trend.points < 2) return `${metricLabel} 추세 판단 불가(관측 ${trend.points}회)`;
 
   const label = DIRECTION_LABEL[trend.direction];
   if (trend.changeRate === null) {
@@ -131,8 +142,11 @@ export function describeTrend(trend: TrendResult, metricLabel: string, unit: str
 
   const sign = trend.changeRate > 0 ? "+" : "";
   const format = (value: number) => value.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
+  const period = trend.firstMonth && trend.lastMonth
+    ? `${trend.firstMonth} → ${trend.lastMonth} · 관측 ${trend.points}회`
+    : `관측 ${trend.points}회`;
   return (
-    `${metricLabel} ${label} · ${trend.points}개월간 ${format(trend.first ?? 0)}${unit} → ` +
+    `${metricLabel} ${label} · ${period} · ${format(trend.first ?? 0)}${unit} → ` +
     `${format(trend.last ?? 0)}${unit}(${sign}${format(trend.changeRate)}%)`
   );
 }

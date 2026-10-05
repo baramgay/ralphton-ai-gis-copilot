@@ -29,6 +29,23 @@ describe("share-state", () => {
     expect(parsed.markers).toBe("selected");
   });
 
+  test("restores the executed comparison and its full filters", () => {
+    const intent: AnalysisIntent = { tool: "compareRegions", filters: { compare: ["진주시", "양산시"], radiusKm: 3, limit: 2 } };
+    const parsed = parseShareState(buildShareSearch({ intent, q: "이전 질문" }));
+    expect(parsed.intent).toEqual(intent);
+  });
+
+  test("restores manual layer selection with region and direction", () => {
+    const layer = { id: "kcb-credit", metricKey: "avg_income", adminLevel: "dong" as const, direction: "asc" as const, regions: ["진주시"] };
+    expect(parseShareState(buildShareSearch({ layer })).layer).toEqual(layer);
+  });
+
+  test("rejects invalid serialized execution states but reads legacy query links", () => {
+    expect(parseShareState("?intent=" + encodeURIComponent(JSON.stringify({ tool: "arbitrary", filters: {} }))).intent).toBeUndefined();
+    expect(parseShareState("?layer=" + encodeURIComponent(JSON.stringify({ id: "kcb-credit", adminLevel: "world" }))).layer).toBeUndefined();
+    expect(parseShareState("?intent=broken&q=생활인구").q).toBe("생활인구");
+  });
+
   test("detects follow-up queries", () => {
     expect(isFollowUpQuery("이 동만 병원")).toBe(true);
     expect(isFollowUpQuery("반경 3km로")).toBe(true);

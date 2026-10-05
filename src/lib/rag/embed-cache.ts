@@ -82,7 +82,7 @@ export async function ensureCorpusEmbeddings(
       record[chunk.id] = vectors[index];
     });
     memoryCache = { model, updatedAt: new Date().toISOString(), vectors: record };
-    await saveDiskCache(memoryCache);
+    if (!skipDisk) await saveDiskCache(memoryCache);
     return new Map(Object.entries(record));
   })().finally(() => {
     warming = null;

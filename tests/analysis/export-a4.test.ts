@@ -3,6 +3,31 @@ import { describe, expect, test } from "vitest";
 import { buildA4HtmlReport } from "@/lib/analysis/export-a4";
 import type { ReportInput } from "@/lib/analysis/export-report";
 
+test("검색된 한 행의 인쇄본도 원래 낮은 순 정렬과 전체 순위를 유지한다", () => {
+  const input = {
+    title: "낮은 소득 순위", summary: "낮은 소득 순으로 분석", referenceMonth: "2025-12",
+    source: "KCB", mode: "live", rankDirection: "ascending" as const, formulaNotes: [],
+    rows: [{ rank: 96, code: "4812051000", name: "테스트동", valueLabel: "300만원", note: "검색 결과" }],
+  };
+  const output = buildA4HtmlReport(input);
+  expect(output).toContain("정렬 기준: 하위 순");
+  expect(output).toContain("<td class=\"rank\">96</td>");
+});
+
+test("시설 인쇄 보고서는 시설 목록을 담고 행정동 순위로 표시하지 않는다", () => {
+  const input = {
+    title: "의료기관 검색", summary: "의료기관 1곳을 확인했습니다.", referenceMonth: "2026-06",
+    source: "공공데이터", mode: "live", resultKind: "facilities" as const, formulaNotes: [],
+    rows: [{ rank: 1, code: "hospital-a", name: "가나다의원", valueLabel: "의원", note: "진주시 · 중앙로 1" }],
+  };
+  const output = buildA4HtmlReport(input);
+  expect(output).toContain("분석 대상: 1개 시설");
+  expect(output).toContain("<th>시설명</th>");
+  expect(output).toContain("<th class=\"rank\">번호</th>");
+  expect(output).toContain("가나다의원");
+  expect(output).not.toContain("정렬 기준: 상위 순");
+});
+
 const base: ReportInput = {
   title: "주민 만명당 화재 순위",
   summary: "주민 만명당 화재 기준 상위 3곳은 산청군·의령군·하동군입니다.",

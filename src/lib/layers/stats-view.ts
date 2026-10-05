@@ -44,6 +44,11 @@ function atUnit(ref: CubeRef, unit: CorrelationUnit): LayerCube {
   return unit === "sgg" ? aggregateToSgg(ref.cube, ref.metrics) : ref.cube;
 }
 
+function inRequestedRegion(name: string, filters: readonly string[]): boolean {
+  const compact = filters.map(filter => filter.replace(/\s+/g, "")).filter(Boolean);
+  return compact.length === 0 || compact.some(filter => name.replace(/\s+/g, "").includes(filter));
+}
+
 /**
  * 마지막 유효 관측 — **값과 함께 그게 언제인지도** 돌린다.
  *
@@ -122,7 +127,7 @@ export function correlationView(
   const cubeB = atUnit(b, match.unit);
 
   const nameOf = new Map(cubeA.cells.map((cell) => [cell.code, cell.name]));
-  const raw = cubeA.cells.map((cell) => {
+  const raw = cubeA.cells.filter(cell => inRequestedRegion(cell.name, match.regionFilters)).map((cell) => {
     const pointA = latestPoint(cubeA, cell.code, a.metric.key);
     const pointB = latestPoint(cubeB, cell.code, b.metric.key);
     return {
@@ -201,7 +206,9 @@ export function correlationView(
   if (collapseNote) notes.push(collapseNote);
   if (match.unit === "sgg") {
     notes.push(
-      "두 지표 중 하나가 시군구까지만 제공되어 시군구 단위로 계산했습니다. 행정동으로 계산하면 같은 값이 반복 집계되어 표본 수가 부풀려집니다.",
+      a.metric.scope === "sgg" || b.metric.scope === "sgg"
+        ? "두 지표 중 하나가 시군구까지만 제공되어 시군구 단위로 계산했습니다. 행정동으로 계산하면 같은 값이 반복 집계되어 표본 수가 부풀려집니다."
+        : "요청한 시군구 단위로 행정동 자료를 집계해 계산했습니다.",
     );
   }
 
@@ -269,7 +276,7 @@ export function outlierView(match: OutlierQueryMatch, ref: CubeRef): StatsView {
   const cube = atUnit(ref, match.unit);
   const unitWord = UNIT_WORD[match.unit];
 
-  const raw = cube.cells.map((cell) => {
+  const raw = cube.cells.filter(cell => inRequestedRegion(cell.name, match.regionFilters)).map((cell) => {
     const point = latestPoint(cube, cell.code, ref.metric.key);
     return {
       code: cell.code,

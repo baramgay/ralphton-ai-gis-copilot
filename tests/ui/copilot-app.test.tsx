@@ -1,7 +1,20 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { CopilotApp } from "@/components/copilot/copilot-app";
+import { openHtmlForPrint } from "@/lib/analysis/export-a4";
+import { downloadTextFile } from "@/lib/analysis/export-csv";
+import { parseShareState, buildShareSearch } from "@/lib/analysis/share-state";
+
+vi.mock("@/lib/analysis/export-csv", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/analysis/export-csv")>(),
+  downloadTextFile: vi.fn(),
+}));
+
+vi.mock("@/lib/analysis/export-a4", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/analysis/export-a4")>(),
+  openHtmlForPrint: vi.fn(() => "print"),
+}));
 
 /**
  * 조작 패널을 연다.
@@ -570,6 +583,189 @@ describe("CopilotApp", () => {
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
+  });
+
+  test("분석 전 방향키는 지역 수치를 선택하지 않는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+    expect(screen.queryByText("선택한 행정동")).toBeNull();
+  });
+
+  test.each(["/", "Ctrl+K"])("데스크톱 %s 단축키는 접힌 설정을 열고 질의에 초점을 둔다", async (shortcut) => {
+    vi.stubGlobal("matchMedia", vi.fn((media: string) => ({ matches: false, media, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      const toggle = screen.getByRole("button", { name: "분석 설정" });
+      if (toggle.getAttribute("aria-pressed") === "true") fireEvent.click(toggle);
+      const left = document.getElementById("left-panel")!;
+      expect(left).toHaveAttribute("inert");
+      fireEvent.keyDown(document.body, shortcut === "/" ? { key: "/" } : { key: "k", ctrlKey: true });
+      await waitFor(() => expect(left).not.toHaveAttribute("inert"));
+      await waitFor(() => expect(screen.getByLabelText("분석 질의")).toHaveFocus());
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  test.each(["상위 1곳", "상위 50%"])("키보드 순위 탐색은 요청한 %s 결과를 넘지 않는다", async (constraint) => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init);
+      if (!String(input).includes("/data/layers/skt-living.json")) return response;
+      const cube = await response.json();
+      cube.cells.push({ ...cube.cells[0], code: "4817051000", name: "진주시 중앙동", series: { living_total: Array(13).fill(1000), elderly_ratio: Array(13).fill(20) } });
+      return new Response(JSON.stringify(cube), { status: 200 });
+    }) as typeof fetch;
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: `생활인구 많은 동 ${constraint}` } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    expect(document.querySelectorAll(".rank-row")).toHaveLength(1);
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+    const selected = document.querySelector(".rank-row.is-selected")?.textContent;
+    expect(selected).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: "j" });
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+    expect(document.querySelector(".rank-row.is-selected")?.textContent).toBe(selected);
+  });
+
+  test("닫힌 모바일 패널은 초점과 접근성에서 제외하고 Escape는 열기 버튼으로 돌아간다", async () => {
+    vi.stubGlobal("matchMedia", vi.fn((media: string) => ({ matches: media.includes("1199px"), media, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      const left = document.getElementById("left-panel")!;
+      const right = screen.getByTestId("result-panel");
+      expect(left).toHaveAttribute("inert");
+      expect(right).toHaveAttribute("inert");
+      expect(right).toHaveAttribute("aria-hidden", "true");
+      fireEvent.click(screen.getByRole("button", { name: "분석 설정" }));
+      expect(left).not.toHaveAttribute("inert");
+      screen.getByRole("tab", { name: "분석" }).focus();
+      fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+      expect(screen.getByRole("button", { name: "분석 설정" })).toHaveFocus();
+      expect(left).toHaveAttribute("inert");
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  test("새 질문은 이전 결과 검색을 해제하고 빈 검색에서 내보내지 않는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구 많은 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    fireEvent.change(screen.getByTestId("result-search"), { target: { value: "없는지역" } });
+    expect(screen.queryByTestId("export-csv")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "검색 지우기" }));
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("result-search"), { target: { value: "없는지역" } });
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "평균소득 높은 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(screen.getByTestId("result-search")).toHaveValue(""));
+    expect(await screen.findByTestId("export-csv")).toBeInTheDocument();
+  });
+
+  test("빠른 분석 공유는 편집 중인 질문 대신 실행한 도구를 복원한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구 많은 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    selectMedicalLayer();
+    fireEvent.click(screen.getByRole("button", { name: "고령 대비 의료" }));
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "실행하지 않은 질문" } });
+    fireEvent.click(screen.getByTestId("export-share"));
+    const share = parseShareState(window.location.search);
+    expect(share.intent?.tool).toBe("rankElderlyUnderserved");
+    expect(share.q).toBeUndefined();
+  });
+
+  test("공유된 비교 조건은 오래된 질문보다 우선한다", async () => {
+    window.history.replaceState(null, "", buildShareSearch({ intent: { tool: "compareRegions", filters: { compare: ["창원시", "진주시"], limit: 2 } }, q: "생활인구 많은 동" }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent(/창원시 vs 진주시/));
+    expect(screen.getByTestId("result-panel")).not.toHaveTextContent("총생활인구 순위");
+  });
+
+  test("시설 표는 화면의 검색 범위만 내보낸다", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => String(input).includes("/api/data/snapshot")
+      ? new Response(JSON.stringify({ ...snapshot, facilities: [...snapshot.facilities, { ...snapshot.facilities[0], id: "f3", name: "북부의원" }] }), { status: 200 })
+      : originalFetch(input, init)) as typeof fetch;
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
+    fireEvent.click(screen.getByRole("button", { name: "의료기관 목록" }));
+    fireEvent.change(screen.getByTestId("result-search"), { target: { value: "북부" } });
+    fireEvent.click(screen.getByTestId("export-csv"));
+    const csv = vi.mocked(downloadTextFile).mock.calls.at(-1)![1];
+    expect(csv).toContain("북부의원");
+    expect(csv).not.toContain("중앙의원");
+    fireEvent.click(screen.getByTestId("export-report"));
+    const html = vi.mocked(openHtmlForPrint).mock.calls.at(-1)![0];
+    expect(html).toContain("북부의원");
+    expect(html).not.toContain("중앙의원");
+    expect(html).toContain("검색 전 전체 2개 중 일치하는 1개");
+    expect(html).toContain("시설명");
+  });
+
+  test("질의 뒤 수동 분석 단위를 공유하면 실행 전 질문 대신 실제 지표를 보존한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구 많은 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    openControls();
+    fireEvent.click(within(screen.getByRole("group", { name: "분석 단위" })).getByRole("button", { name: "시군구" }));
+    fireEvent.click(screen.getByTestId("export-share"));
+    const share = parseShareState(window.location.search);
+    expect(share.q).toBeUndefined();
+    expect(share.layer).toMatchObject({ id: "skt-living", metricKey: "living_total", adminLevel: "sgg" });
+  });
+
+  test("수동 지표 공유 링크는 같은 지표와 분석 단위를 복원한다", async () => {
+    window.history.replaceState(null, "", buildShareSearch({ layer: { id: "skt-living", metricKey: "elderly_ratio", adminLevel: "sgg", direction: "asc", regions: ["창원시"] } }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent("생활인구 고령비중"));
+    expect(screen.getByTestId("demo-map-badge")).toHaveTextContent("시군구");
+    fireEvent.click(screen.getByTestId("export-share"));
+    expect(parseShareState(window.location.search).layer).toEqual({ id: "skt-living", metricKey: "elderly_ratio", adminLevel: "sgg", direction: "asc", regions: ["창원시"] });
+  });
+
+  test("비교 지역 select의 방향키는 지도 지역 선택을 가로채지 않는다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    selectMedicalLayer();
+    fireEvent.click(screen.getByTestId("quick-compare"));
+    const select = screen.getByLabelText("비교 지역 A");
+    const before = document.querySelector(".rank-row.is-selected")?.textContent;
+    const handled = fireEvent.keyDown(select, { key: "ArrowDown" });
+    expect(handled).toBe(true);
+    expect(document.querySelector(".rank-row.is-selected")?.textContent).toBe(before);
+  });
+
+  test("검색으로 남은 지역도 CSV에서는 원래 순위를 유지한다", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init);
+      if (!String(input).includes("/data/layers/skt-living.json")) return response;
+      const cube = await response.json();
+      cube.cells.push({ ...cube.cells[0], code: "4817051000", name: "진주시 중앙동", series: { living_total: Array(13).fill(1000), elderly_ratio: Array(13).fill(20) } });
+      return new Response(JSON.stringify(cube), { status: 200 });
+    }) as typeof fetch;
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구 많은 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    fireEvent.change(screen.getByTestId("result-search"), { target: { value: "진주시" } });
+    expect(screen.getByRole("button", { name: /^2위 진주시/ })).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: "ArrowDown" });
+    expect(document.querySelector(".rank-row.is-selected")).toHaveTextContent("진주시 중앙동");
+    fireEvent.click(screen.getByTestId("export-csv"));
+    expect(vi.mocked(downloadTextFile).mock.calls.at(-1)![1]).toMatch(/2,4817051000,경남,진주시 중앙동/);
   });
 
   test("분석 전 임의 지역과 빈 내보내기를 보여주지 않는다", async () => {
@@ -1231,6 +1427,65 @@ describe("CopilotApp", () => {
     expect(await screen.findAllByText(/증가 추세/, {}, { timeout: 20_000 })).not.toHaveLength(0);
   }, 45_000);
 
+  test("감소 추세 보고서는 원래 낮은 변화율 순으로 정렬됨을 표시한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "카드매출 줄어드는 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-report");
+    fireEvent.click(screen.getByTestId("export-report"));
+    expect(vi.mocked(openHtmlForPrint).mock.calls.at(-1)![0]).toContain("정렬 기준: 하위 순");
+  });
+
+  test("분기 추세의 화면과 CSV는 마지막 유효 관측월을 사용한다", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init);
+      if (!String(input).includes("/data/layers/skt-living.json")) return response;
+      const cube = await response.json();
+      cube.referenceMonth = "2025-12";
+      cube.months = ["2025-03", "2025-06", "2025-09", "2025-12"];
+      for (const cell of cube.cells) cell.series = { living_total: [100, 110, 120, null], elderly_ratio: [10, 10, 10, null] };
+      return new Response(JSON.stringify(cube), { status: 200 });
+    }) as typeof fetch;
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구 늘어나는 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    expect(within(screen.getByTestId("result-panel")).getByTestId("data-provenance")).toHaveTextContent("2025-09");
+    expect(screen.getByTestId("interpretation-card")).toHaveTextContent("2025-03 → 2025-09");
+    expect(screen.getByTestId("interpretation-card")).toHaveTextContent("관측 3회");
+    fireEvent.click(screen.getByTestId("export-csv"));
+    const csv = vi.mocked(downloadTextFile).mock.calls.at(-1)![1];
+    expect(csv).toContain("기준월,2025-09");
+    expect(csv).not.toContain("기준월,2025-12");
+  });
+
+  test("추세 교차는 두 축의 마지막 유효 관측월을 각각 표시한다", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await originalFetch(input, init);
+      const url = String(input);
+      if (!/\/data\/layers\/(skt-living|nh-consumption)\.json/.test(url)) return response;
+      const cube = await response.json();
+      cube.referenceMonth = "2025-12";
+      cube.months = ["2025-03", "2025-06", "2025-09", "2025-12"];
+      for (const cell of cube.cells) cell.series = url.includes("skt-living")
+        ? { living_total: [100, 110, 120, null], elderly_ratio: [10, 10, 10, null] }
+        : { card_sales: [200, null, 180, 160] };
+      return new Response(JSON.stringify(cube), { status: 200 });
+    }) as typeof fetch;
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "생활인구는 늘고 카드매출은 줄어드는 동" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByTestId("export-csv");
+    expect(screen.getByTestId("data-provenance")).toHaveTextContent("2025-09 / 2025-12");
+    fireEvent.click(screen.getByTestId("export-csv"));
+    expect(vi.mocked(downloadTextFile).mock.calls.at(-1)![1]).toContain("기준월,2025-09 / 2025-12");
+  });
+
   test("추세 질의는 값 크기가 아니라 변화 순으로 답한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
@@ -1278,6 +1533,52 @@ describe("CopilotApp", () => {
     release();
     await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent(/교차분석.*총생활인구.*카드매출/));
     expect(screen.getByTestId("demo-map")).toHaveAttribute("data-outline", "0");
+  });
+
+  test("새 빠른 분석을 실행하면 대기 중인 교차분석이 나중에 덮어쓰지 않는다", async () => {
+    const base = fetch;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/data/layers/nh-consumption.json")) await gate;
+      return base(input);
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(screen.getByText("더 많은 분석"));
+    fireEvent.click(screen.getByTestId("cross-living-vs-sales"));
+    selectMedicalLayer();
+    fireEvent.click(screen.getByTestId("quick-elderly"));
+    await waitFor(() => expect(screen.getByTestId("result-panel")).toHaveTextContent(/고령/));
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
+    await act(async () => { release(); await gate; });
+    await waitFor(() => expect(screen.getByTestId("result-panel")).not.toHaveTextContent(/교차분석.*총생활인구.*카드매출/));
+    expect(screen.getByTestId("export-csv")).toBeInTheDocument();
+  });
+
+  test("늦은 질의 API 응답도 새 빠른 분석과 공유 조건을 덮어쓰지 않는다", async () => {
+    const base = fetch;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const mockedFetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/api/ai/parse")) await gate;
+      return base(input);
+    });
+    vi.stubGlobal("fetch", mockedFetch);
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "약국 찾아줘" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(mockedFetch.mock.calls.some(([url]) => String(url).includes("/api/ai/parse"))).toBe(true));
+    selectMedicalLayer();
+    fireEvent.click(screen.getByTestId("quick-elderly"));
+    await screen.findByTestId("export-csv");
+    await act(async () => { release(); await gate; });
+    expect(screen.getByTestId("result-panel")).toHaveTextContent(/고령/);
+    expect(screen.getByTestId("result-panel")).not.toHaveTextContent("중앙약국");
+    fireEvent.click(screen.getByTestId("export-share"));
+    expect(parseShareState(window.location.search).intent?.tool).toBe("rankElderlyUnderserved");
   });
 
   test("selecting the 의료 layer clears a cross-analysis result instead of leaving it on screen", async () => {

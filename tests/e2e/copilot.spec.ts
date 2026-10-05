@@ -16,21 +16,17 @@ async function openSheet(page: Page, name: "분석 설정" | "결과") {
 
   const side = name === "분석 설정" ? "left" : "right";
   const panel = page.locator(`.copilot-panel-${side}`);
-  const isOpen = () =>
-    panel.evaluate(
-      (el) => !el.classList.contains("is-collapsed") || el.classList.contains("sheet-open"),
-    );
 
   const narrow = await page.evaluate(() => window.matchMedia("(max-width: 1199px)").matches);
   if (narrow) {
     if (await panel.evaluate((el) => el.classList.contains("sheet-open"))) return;
-    await toggle.click({ force: true });
+    await toggle.click();
     await expect(panel).toHaveClass(/sheet-open/);
     return;
   }
 
-  if (await isOpen()) return;
-  await toggle.click({ force: true });
+  if (await panel.evaluate((el) => !el.classList.contains("is-collapsed"))) return;
+  await toggle.click();
   await expect(panel).not.toHaveClass(/is-collapsed/);
 }
 
@@ -195,4 +191,42 @@ test.describe("AI GIS Copilot core journey", () => {
     await page.getByTestId("metric-picker").getByRole("button", { name: /세대수/ }).click();
     await expect(chip).toContainText("세대수");
   });
+});
+
+
+test("closed panels do not receive keyboard focus and comparison shares restore the executed pair", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("ralphton-onboard-v1", "1"));
+  await page.goto("/");
+  await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+  const narrow = await page.evaluate(() => matchMedia("(max-width: 1199px)").matches);
+  if (narrow) {
+    await expect(page.locator("#left-panel")).toHaveAttribute("inert", "");
+    await expect(page.getByTestId("result-panel")).toHaveAttribute("inert", "");
+    for (let index = 0; index < 12; index += 1) {
+      await page.keyboard.press("Tab");
+      expect(await page.evaluate(() => Boolean(document.activeElement?.closest("aside[inert]")))).toBe(false);
+    }
+  }
+  await openSheet(page, "분석 설정");
+  await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
+  await page.getByTestId("quick-compare").click();
+  await openSheet(page, "분석 설정");
+  await page.getByText("더 많은 분석", { exact: true }).click();
+  await page.getByLabel("비교 지역 A").selectOption({ label: "진주시" });
+  await openSheet(page, "분석 설정");
+  await page.getByLabel("비교 지역 B").selectOption({ label: "거제시" });
+  await page.getByRole("textbox", { name: "분석 질의" }).fill("실행하지 않은 질문");
+  await openSheet(page, "결과");
+  await page.getByTestId("export-share").click();
+  const intent = JSON.parse(new URL(page.url()).searchParams.get("intent")!);
+  expect(intent.filters.compare).toEqual(["진주시", "거제시"]);
+  expect(new URL(page.url()).searchParams.has("q")).toBe(false);
+  await page.reload();
+  await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+  await openSheet(page, "결과");
+  await expect(page.getByTestId("result-panel")).toContainText("진주시 vs 거제시");
+  await page.getByTestId("result-search").fill("없는지역검색");
+  await expect(page.getByTestId("export-csv")).toHaveCount(0);
+  await page.getByRole("button", { name: "검색 지우기" }).click();
+  await expect(page.getByTestId("export-csv")).toBeVisible();
 });

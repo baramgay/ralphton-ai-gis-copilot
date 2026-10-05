@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { assessQuerySafety, MAX_QUERY_LENGTH } from "@/lib/analysis/query-rules";
-import { formatRagContext } from "@/lib/rag/retrieve";
+import { buildRagContext } from "@/lib/rag/retrieve";
 import { getEmbedCacheMeta } from "@/lib/rag/embed-cache";
 import { retrieveRagChunksWithRemote } from "@/lib/rag/retrieve-remote";
 
@@ -58,6 +58,8 @@ export async function POST(request: Request) {
     embedDeps,
   );
 
+  const { hits: includedHits, context } = buildRagContext(rawHits);
+  const includedIds = new Set(includedHits.map((hit) => hit.chunk.id));
   const hits = rawHits.map((hit) => ({
     id: hit.chunk.id,
     title: hit.chunk.title,
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
     vectorScore:
       hit.vectorScore !== undefined ? Number(hit.vectorScore.toFixed(3)) : undefined,
     reasons: hit.reasons,
+    inContext: includedIds.has(hit.chunk.id),
   }));
 
   return NextResponse.json({
@@ -78,6 +81,7 @@ export async function POST(request: Request) {
     remoteEmbed: remote,
     embedCache: getEmbedCacheMeta(),
     hits,
-    context: formatRagContext(rawHits),
+    citations: includedHits.map((hit) => ({ id: hit.chunk.id, title: hit.chunk.title })),
+    context,
   });
 }

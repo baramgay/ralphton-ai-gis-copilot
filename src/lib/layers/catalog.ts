@@ -13,7 +13,7 @@ export const POPULATION_LAYER: Omit<LayerDescriptor, "months"> = {
   metrics: [
     { key: "pop_total", label: "총인구", unit: "명", aggregation: "sum", formula: "월별 주민등록 인구", limitation: "외국인 제외", triggers: ["인구", "총인구", "인구수"] },
     { key: "households", label: "세대수", unit: "세대", aggregation: "sum", formula: "월별 세대 수", limitation: "", triggers: ["세대", "가구"] },
-    { key: "density", label: "인구밀도", unit: "명/km²", aggregation: "weightedAvg", weightKey: "pop_total", formula: "인구/면적", limitation: "", triggers: ["밀도", "인구밀도"] },
+    { key: "density", label: "인구밀도", unit: "명/km²", aggregation: "weightedAvg", weightKey: "areaKm2", formula: "총인구/총면적", limitation: "", triggers: ["밀도", "인구밀도"] },
     { key: "elderly_ratio", label: "고령비율", unit: "%", aggregation: "weightedAvg", weightKey: "pop_total", formula: "고령인구/총인구×100", limitation: "", triggers: ["고령인구 비율", "고령 인구", "고령인구", "고령비율", "고령화율", "고령", "노인"] },
     { key: "natural_change", label: "자연증가", unit: "명", aggregation: "sum", formula: "출생−사망", limitation: "전입·전출 미포함", triggers: ["자연증가", "출생", "사망"] },
   ],
@@ -97,11 +97,11 @@ export const NH_DEMOGRAPHICS_LAYER: Omit<LayerDescriptor, "months"> = {
   adminLevels: ["dong", "sgg"],
   sourceNotes: ["NH농협카드 성연령별 카드매출 (행정동, 전체카드 금액 구성비)"],
   metrics: [
-    { key: "youth_share", label: "청년 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "20~39세 카드금액 ÷ 개인 카드금액 × 100", limitation: "가맹점 소재지 기준이며 법인 결제는 분모에서 제외", triggers: ["청년 소비비중", "청년 소비", "젊은 층 소비", "젊은층 소비", "젊은 사람 소비", "20대 소비", "30대 소비", "청년층 소비"] },
-    { key: "middle_share", label: "중장년 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "40~59세 카드금액 ÷ 개인 카드금액 × 100", limitation: "법인 결제는 분모에서 제외", triggers: ["중장년 소비", "40대 소비", "50대 소비"] },
-    { key: "senior_share", label: "고령 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "60세 이상 카드금액 ÷ 개인 카드금액 × 100", limitation: "법인 결제는 분모에서 제외", triggers: ["고령 소비", "노년 소비", "60대 소비", "어르신 소비"] },
-    { key: "female_share", label: "여성 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "여성 카드금액 ÷ 개인 카드금액 × 100", limitation: "법인 결제는 분모에서 제외", triggers: ["여성 소비", "여성 비중"] },
-    { key: "corporate_share", label: "법인 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "card_sales", formula: "법인 카드금액 ÷ 전체 카드금액 × 100", limitation: "업무·접대 결제가 많은 상권일수록 높다", triggers: ["법인 소비", "법인카드", "기업 소비"] },
+    { key: "youth_share", label: "청년 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "personal_sales", formula: "20~39세 카드금액 ÷ 개인 카드금액 × 100", limitation: "시군구는 실제 개인 매출 분자·분모가 모두 있는 경우만 집계. 가맹점 소재지 기준이며 법인 결제는 분모에서 제외", triggers: ["청년 소비비중", "청년 소비", "젊은 층 소비", "젊은층 소비", "젊은 사람 소비", "20대 소비", "30대 소비", "청년층 소비"] },
+    { key: "middle_share", label: "중장년 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "personal_sales", formula: "40~59세 카드금액 ÷ 개인 카드금액 × 100", limitation: "시군구는 실제 개인 매출 분자·분모가 모두 있는 경우만 집계. 법인 결제는 분모에서 제외", triggers: ["중장년 소비", "40대 소비", "50대 소비"] },
+    { key: "senior_share", label: "고령 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "personal_sales", formula: "60세 이상 카드금액 ÷ 개인 카드금액 × 100", limitation: "시군구는 실제 개인 매출 분자·분모가 모두 있는 경우만 집계. 법인 결제는 분모에서 제외", triggers: ["고령 소비", "노년 소비", "60대 소비", "어르신 소비"] },
+    { key: "female_share", label: "여성 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "personal_sales", formula: "여성 카드금액 ÷ 개인 카드금액 × 100", limitation: "시군구는 실제 개인 매출 분자·분모가 모두 있는 경우만 집계. 법인 결제는 분모에서 제외", triggers: ["여성 소비", "여성 비중"] },
+    { key: "corporate_share", label: "법인 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "total_sales", formula: "법인 카드금액 ÷ 전체 카드금액 × 100", limitation: "시군구는 실제 전체 매출 분자·분모가 모두 있는 경우만 집계. 업무·접대 결제가 많은 상권일수록 높다", triggers: ["법인 소비", "법인카드", "기업 소비"] },
   ],
 };
 
@@ -116,7 +116,7 @@ export const NH_HOURLY_LAYER: Omit<LayerDescriptor, "months"> = {
   metrics: [
     { key: "day_sales", label: "주간 카드매출", unit: "백만원", aggregation: "sum", formula: "09~18시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["주간 매출", "낮 매출", "주간 카드매출", "낮 소비", "점심 매출", "점심 시간 매출", "낮 장사"] },
     { key: "night_sales", label: "야간 카드매출", unit: "백만원", aggregation: "sum", formula: "22~05시 전체카드 이용금액 월 합계", limitation: "가맹점 소재지 기준 상권 매출", triggers: ["야간 카드매출", "야간 매출", "밤 매출", "심야 매출", "심야 소비", "밤 소비", "밤 늦게 장사", "늦은 밤 장사", "심야 장사"] },
-    { key: "night_share", label: "야간 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "day_sales", formula: "야간(22~05시) 매출 ÷ 전체 매출 × 100", limitation: "19~21시 매출도 분모에 포함되므로 주간+야간 비중의 합은 100%가 아니다", triggers: ["야간 소비비중", "야간 상권", "심야 상권", "밤 상권"] },
+    { key: "night_share", label: "야간 소비비중", unit: "%", aggregation: "weightedAvg", weightKey: "total_sales", formula: "야간(22~05시) 매출 ÷ 전체 매출 × 100", limitation: "시군구는 실제 전체 매출 분자·분모가 모두 있는 경우만 집계. 19~21시 매출도 분모에 포함되므로 주간+야간 비중의 합은 100%가 아니다", triggers: ["야간 소비비중", "야간 상권", "심야 상권", "밤 상권"] },
   ],
 };
 

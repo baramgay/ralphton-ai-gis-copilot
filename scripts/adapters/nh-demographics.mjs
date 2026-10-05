@@ -87,8 +87,15 @@ export function finalizeShares(entry) {
   const total = entry.personal + entry.corporate;
   const pct = (part, base) => (base > 0 ? (part / base) * 100 : null);
   return {
-    // 비중의 분모(개인+법인 전체 카드매출). 시군구 가중평균에 필요해 큐브에 함께 싣는다.
+    // 화면 지표는 기존 자릿수를 유지하고 집계용 실제 분자·분모는 별도로 보존한다.
     card_sales: total > 0 ? total / 1_000_000 : null,
+    personal_sales: personal / 1_000_000,
+    total_sales: total / 1_000_000,
+    youth_sales: entry.youth / 1_000_000,
+    middle_sales: entry.middle / 1_000_000,
+    senior_sales: entry.senior / 1_000_000,
+    female_sales: entry.female / 1_000_000,
+    corporate_sales: entry.corporate / 1_000_000,
     youth_share: pct(entry.youth, personal),
     middle_share: pct(entry.middle, personal),
     senior_share: pct(entry.senior, personal),
@@ -116,6 +123,7 @@ function round(value, decimals) {
 }
 
 const METRIC_KEYS = ["card_sales", "youth_share", "middle_share", "senior_share", "female_share", "corporate_share"];
+const EXACT_KEYS = ["personal_sales", "total_sales", "youth_sales", "middle_sales", "senior_sales", "female_sales", "corporate_sales"];
 
 async function main() {
   const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -127,7 +135,7 @@ async function main() {
   const perDong = new Map();
   for (const feature of boundary.features) {
     const series = {};
-    for (const key of METRIC_KEYS) series[key] = new Array(12).fill(null);
+    for (const key of [...METRIC_KEYS, ...EXACT_KEYS]) series[key] = new Array(12).fill(null);
     perDong.set(feature.properties.adm_cd2, series);
   }
 
@@ -146,6 +154,7 @@ async function main() {
       }
       const shares = finalizeShares(entry);
       for (const key of METRIC_KEYS) series[key][month - 1] = round(shares[key], 1);
+      for (const key of EXACT_KEYS) series[key][month - 1] = shares[key];
     }
     console.log(`${yyyymm} NH 성연령 집계 완료 (${stats.size}개 동)`);
   }

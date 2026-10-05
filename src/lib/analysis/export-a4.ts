@@ -140,8 +140,9 @@ export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions)
    * 단위는 **한 행이 아니라 전체 행**으로 가린다. 첫 행만 보면 시군구 결과에 읍면동
    * 코드가 하나 섞여 있어도 「행정동」이라 적는다.
    */
-  const unit = regionUnitLabel(input.rows.map((row) => row.code));
-  const rankWord = rankWordOf(input.rows);
+  const facilities = input.resultKind === "facilities";
+  const unit = facilities ? "시설" : regionUnitLabel(input.rows.map((row) => row.code));
+  const rankWord = facilities ? "목록 앞" : input.rankDirection === "ascending" ? "하위" : input.rankDirection === "descending" ? "상위" : rankWordOf(input.rows);
   const exportedAt = input.exportedAt ?? new Date().toISOString().slice(0, 10);
 
   const rows = top
@@ -200,7 +201,7 @@ export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions)
   <p class="lead">${escapeHtml(toNounEnding(input.summary))}</p>
   <ul>
     <li>분석 대상: ${totalCount.toLocaleString("ko-KR")}개 ${escapeHtml(unit)}</li>
-    <li>정렬 기준: ${escapeHtml(rankWord)} 순</li>
+    <li>정렬 기준: ${facilities ? "현재 시설 목록 순" : `${escapeHtml(rankWord)} 순`}</li>
     <li>기준 시점: ${escapeHtml(input.referenceMonth)}</li>
   </ul>
 
@@ -208,10 +209,10 @@ export function buildA4HtmlReport(input: ReportInput, options?: A4ReportOptions)
   <table>
     <thead>
       <tr>
-        <th class="rank">순위</th>
-        <th>지역</th>
-        <th class="num">값</th>
-        <th>비고</th>
+        <th class="rank">${facilities ? "번호" : "순위"}</th>
+        <th>${facilities ? "시설명" : "지역"}</th>
+        <th class="num">${facilities ? "유형" : "값"}</th>
+        <th>${facilities ? "지역·주소" : "비고"}</th>
       </tr>
     </thead>
     <tbody>

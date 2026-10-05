@@ -78,7 +78,7 @@ describe("describeTrend", () => {
   test("관측이 모자라면 추세가 있는 것처럼 쓰지 않는다", () => {
     const text = describeTrend(computeTrend([null, 5]), "카드매출", "백만원");
     expect(text).toContain("추세 판단 불가");
-    expect(text).toContain("1개월");
+    expect(text).toContain("관측 1회");
   });
 
   test("첫 값이 0이면 변화율을 지어내지 않고 이유를 밝힌다", () => {

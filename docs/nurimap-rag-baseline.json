@@ -1,0 +1,729 @@
+{
+  "stage": "before",
+  "measuredAt": "2026-10-04T15:31:45.039Z",
+  "environment": {
+    "node": "v24.15.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125U"
+  },
+  "mode": "offline-bm25-hash",
+  "remoteModelCalls": 0,
+  "corpusChunks": 124,
+  "quality": {
+    "relevant": 14,
+    "top1": 10,
+    "top5": 14,
+    "absent": 10,
+    "emptyEvidence": 0
+  },
+  "latency": {
+    "warmup": 20,
+    "samples": 200,
+    "coldRetrievalMs": 6.1784999999999854,
+    "p50Ms": 4.257499999999936,
+    "p95Ms": 5.035200000000032
+  },
+  "results": [
+    {
+      "id": "medical-access",
+      "query": "병원 가기 어려운 읍면을 찾고 싶어",
+      "kind": "relevant",
+      "expectedIds": [
+        "tool-scarcity",
+        "metric-medical-vulnerability"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "tool-scarcity",
+        "metric-medical-vulnerability",
+        "tool-access",
+        "metric-nh-industry-health_share",
+        "metric-population-households"
+      ],
+      "contextIds": [
+        "tool-scarcity",
+        "metric-medical-vulnerability",
+        "tool-access",
+        "metric-nh-industry-health_share",
+        "metric-population-households"
+      ],
+      "lexicalScores": [
+        27.219676325125562,
+        17.863093584621733,
+        19.36776772362339,
+        2.493741854871232,
+        0
+      ]
+    },
+    {
+      "id": "elderly-access",
+      "query": "고령 인구에 비해 병원이 부족한 곳",
+      "kind": "relevant",
+      "expectedIds": [
+        "tool-elderly-medical"
+      ],
+      "rank": 2,
+      "returnedIds": [
+        "tool-scarcity",
+        "tool-elderly-medical",
+        "metric-population-elderly_ratio",
+        "metric-kosis-health-doctors",
+        "metric-medical-vulnerability"
+      ],
+      "contextIds": [
+        "tool-scarcity",
+        "tool-elderly-medical",
+        "metric-population-elderly_ratio",
+        "metric-kosis-health-doctors",
+        "metric-medical-vulnerability"
+      ],
+      "lexicalScores": [
+        15.171980681654262,
+        14.004777857847486,
+        8.962527046676762,
+        10.120671511413745,
+        10.734416158195526
+      ]
+    },
+    {
+      "id": "living",
+      "query": "김해시 생활인구가 많은 지역",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-skt-living-living_total"
+      ],
+      "rank": 4,
+      "returnedIds": [
+        "metric-skt-daynight-day_population",
+        "metric-skt-daynight-night_population",
+        "metric-skt-living-elderly_ratio",
+        "metric-skt-living-living_total",
+        "tool-compare-detail"
+      ],
+      "contextIds": [
+        "metric-skt-daynight-day_population",
+        "metric-skt-daynight-night_population",
+        "metric-skt-living-elderly_ratio",
+        "metric-skt-living-living_total",
+        "tool-compare-detail"
+      ],
+      "lexicalScores": [
+        18.488959330734648,
+        18.056107440048557,
+        18.844586114279075,
+        18.68317434004887,
+        20.392150635841578
+      ]
+    },
+    {
+      "id": "day",
+      "query": "낮에 사람이 붐비는 동네",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-skt-daynight-day_population"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-skt-daynight-day_population",
+        "metric-skt-daynight-day_night_ratio",
+        "metric-skt-daynight-night_population",
+        "metric-skt-mobility-inflow_total",
+        "metric-nh-hourly-day_sales"
+      ],
+      "contextIds": [
+        "metric-skt-daynight-day_population",
+        "metric-skt-daynight-day_night_ratio",
+        "metric-skt-daynight-night_population",
+        "metric-skt-mobility-inflow_total",
+        "metric-nh-hourly-day_sales"
+      ],
+      "lexicalScores": [
+        11.273518555416695,
+        7.628493964260716,
+        3.2917993110127393,
+        2.468333527254693,
+        3.7980667427942207
+      ]
+    },
+    {
+      "id": "night",
+      "query": "야간인구가 많은 동네",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-skt-daynight-night_population"
+      ],
+      "rank": 2,
+      "returnedIds": [
+        "metric-skt-daynight-day_night_ratio",
+        "metric-skt-daynight-night_population",
+        "metric-skt-daynight-day_population",
+        "layer-skt-daynight",
+        "metric-kosis-safety-fire_rate"
+      ],
+      "contextIds": [
+        "metric-skt-daynight-day_night_ratio",
+        "metric-skt-daynight-night_population",
+        "metric-skt-daynight-day_population",
+        "layer-skt-daynight",
+        "metric-kosis-safety-fire_rate"
+      ],
+      "lexicalScores": [
+        21.536208737713345,
+        21.892634269381205,
+        16.36665122482557,
+        17.95493805733508,
+        7.8573489903713245
+      ]
+    },
+    {
+      "id": "sales",
+      "query": "진주시 카드매출 큰 상권",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-nh-consumption-card_sales"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-nh-consumption-card_sales",
+        "metric-nh-storetype-cafe_share",
+        "metric-nh-hourly-night_sales",
+        "metric-nh-hourly-day_sales",
+        "metric-nh-storetype-pub_share"
+      ],
+      "contextIds": [
+        "metric-nh-consumption-card_sales",
+        "metric-nh-storetype-cafe_share",
+        "metric-nh-hourly-night_sales",
+        "metric-nh-hourly-day_sales",
+        "metric-nh-storetype-pub_share"
+      ],
+      "lexicalScores": [
+        21.32542044740141,
+        17.396788053140895,
+        16.372586906193998,
+        16.66695704748687,
+        15.051053904818747
+      ]
+    },
+    {
+      "id": "income",
+      "query": "거창군 평균소득 수준",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kcb-credit-avg_income"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kcb-credit-avg_income",
+        "metric-kcb-grid-500m-avg_income",
+        "layer-kcb-grid-500m",
+        "layer-kcb-credit",
+        "metric-kcb-grid-500m-highend_ratio"
+      ],
+      "contextIds": [
+        "metric-kcb-credit-avg_income",
+        "metric-kcb-grid-500m-avg_income",
+        "layer-kcb-grid-500m",
+        "layer-kcb-credit",
+        "metric-kcb-grid-500m-highend_ratio"
+      ],
+      "lexicalScores": [
+        27.327255519688,
+        18.358454522891254,
+        12.717646323961247,
+        16.82744416804105,
+        2.9822627082663207
+      ]
+    },
+    {
+      "id": "loan",
+      "query": "대출보유율이 높은 지역",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kcb-credit-loan_ratio"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kcb-credit-loan_ratio",
+        "metric-kcb-grid-500m-loan_ratio",
+        "layer-kcb-credit",
+        "layer-kcb-grid-500m",
+        "metric-kosis-housing-ownership"
+      ],
+      "contextIds": [
+        "metric-kcb-credit-loan_ratio",
+        "metric-kcb-grid-500m-loan_ratio",
+        "layer-kcb-credit",
+        "layer-kcb-grid-500m",
+        "metric-kosis-housing-ownership"
+      ],
+      "lexicalScores": [
+        43.02281008316971,
+        31.97782140732778,
+        24.310763705794237,
+        18.37330087612924,
+        4.412445211755401
+      ]
+    },
+    {
+      "id": "solo-elderly",
+      "query": "혼자 지내는 노인이 많은 시군구",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kosis-welfare-solo_elderly"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kosis-welfare-solo_elderly",
+        "metric-kosis-safety-fire_rate",
+        "metric-kosis-housing-vacant",
+        "metric-kosis-welfare-childcare",
+        "tool-elderly-medical"
+      ],
+      "contextIds": [
+        "metric-kosis-welfare-solo_elderly",
+        "metric-kosis-safety-fire_rate",
+        "metric-kosis-housing-vacant",
+        "metric-kosis-welfare-childcare"
+      ],
+      "lexicalScores": [
+        7.612475145534749,
+        6.583406845164323,
+        6.583406845164323,
+        6.609442917433334,
+        5.949487582906674
+      ]
+    },
+    {
+      "id": "fire",
+      "query": "화재가 잦은 시군구",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kosis-safety-fire_rate"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kosis-safety-fire_rate",
+        "gyeongnam-scope",
+        "layer-kosis-safety",
+        "metric-nh-consumption-outside_sales_share",
+        "metric-kosis-welfare-welfare_facility"
+      ],
+      "contextIds": [
+        "metric-kosis-safety-fire_rate",
+        "gyeongnam-scope",
+        "layer-kosis-safety",
+        "metric-nh-consumption-outside_sales_share",
+        "metric-kosis-welfare-welfare_facility"
+      ],
+      "lexicalScores": [
+        10.353988965346648,
+        6.028880397716687,
+        11.508847014631446,
+        3.8499347282618688,
+        2.768907858235796
+      ]
+    },
+    {
+      "id": "waste",
+      "query": "주민 한 명당 쓰레기 배출량",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kosis-environment-waste_per_person"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kosis-environment-waste_per_person",
+        "metric-kosis-environment-recycle",
+        "layer-kosis-environment",
+        "tool-population",
+        "metric-nh-storetype-grocery_share"
+      ],
+      "contextIds": [
+        "metric-kosis-environment-waste_per_person",
+        "metric-kosis-environment-recycle",
+        "layer-kosis-environment",
+        "tool-population",
+        "metric-nh-storetype-grocery_share"
+      ],
+      "lexicalScores": [
+        35.446129138392344,
+        20.6132619805462,
+        32.02076945169793,
+        5.1338023610965315,
+        2.198773815659266
+      ]
+    },
+    {
+      "id": "migration",
+      "query": "전입인구가 많은 곳",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kcb-migration-move_in"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kcb-migration-move_in",
+        "layer-kcb-migration",
+        "metric-kosis-safety-fire_rate",
+        "metric-kcb-credit-avg_income",
+        "metric-kosis-welfare-childcare"
+      ],
+      "contextIds": [
+        "metric-kcb-migration-move_in",
+        "layer-kcb-migration",
+        "metric-kosis-safety-fire_rate",
+        "metric-kcb-credit-avg_income",
+        "metric-kosis-welfare-childcare"
+      ],
+      "lexicalScores": [
+        24.001044177299267,
+        19.68005319353578,
+        7.8573489903713245,
+        5.887232622111917,
+        8.276363575461481
+      ]
+    },
+    {
+      "id": "inflow",
+      "query": "유입인구가 많은 곳",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-skt-mobility-inflow_total"
+      ],
+      "rank": 3,
+      "returnedIds": [
+        "metric-kcb-migration-move_in",
+        "metric-skt-mobility-net_flow",
+        "metric-skt-mobility-inflow_total",
+        "layer-skt-mobility",
+        "metric-kosis-welfare-childcare"
+      ],
+      "contextIds": [
+        "metric-kcb-migration-move_in",
+        "metric-skt-mobility-net_flow",
+        "metric-skt-mobility-inflow_total",
+        "layer-skt-mobility",
+        "metric-kosis-welfare-childcare"
+      ],
+      "lexicalScores": [
+        18.212809316440815,
+        17.84351643303573,
+        17.623220328431497,
+        15.383688128262754,
+        8.276363575461481
+      ]
+    },
+    {
+      "id": "geometry",
+      "query": "500m 격자 소득 자료",
+      "kind": "relevant",
+      "expectedIds": [
+        "metric-kcb-grid-500m-avg_income",
+        "layer-kcb-grid-500m"
+      ],
+      "rank": 1,
+      "returnedIds": [
+        "metric-kcb-grid-500m-avg_income",
+        "metric-kcb-grid-500m-highend_ratio",
+        "metric-kcb-grid-500m-loan_ratio",
+        "metric-kcb-grid-500m-delinquency_ratio",
+        "layer-kcb-grid-500m"
+      ],
+      "contextIds": [
+        "metric-kcb-grid-500m-avg_income",
+        "metric-kcb-grid-500m-highend_ratio",
+        "metric-kcb-grid-500m-loan_ratio",
+        "metric-kcb-grid-500m-delinquency_ratio",
+        "layer-kcb-grid-500m"
+      ],
+      "lexicalScores": [
+        11.32150267410486,
+        10.558320337642114,
+        7.707200832330633,
+        7.938186663092877,
+        9.70290609975283
+      ]
+    },
+    {
+      "id": "latin-noise",
+      "query": "xyzzy foobar 12345",
+      "kind": "no-evidence",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "tool-single-elderly-ratio",
+        "metric-population-elderly_ratio",
+        "metric-kosis-finance-welfare_budget",
+        "metric-kosis-education-class_size",
+        "metric-kosis-safety-accident_rate"
+      ],
+      "contextIds": [
+        "tool-single-elderly-ratio",
+        "metric-population-elderly_ratio",
+        "metric-kosis-finance-welfare_budget",
+        "metric-kosis-education-class_size",
+        "metric-kosis-safety-accident_rate"
+      ],
+      "lexicalScores": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "short-noise",
+      "query": "qzxvbnm",
+      "kind": "no-evidence",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "tool-elderly-medical",
+        "metric-kcb-grid-500m-pop_total",
+        "follow-up",
+        "metric-kcb-grid-500m-delinquency_ratio",
+        "metric-kcb-grid-500m-card_spend"
+      ],
+      "contextIds": [
+        "tool-elderly-medical",
+        "metric-kcb-grid-500m-pop_total",
+        "follow-up",
+        "metric-kcb-grid-500m-delinquency_ratio",
+        "metric-kcb-grid-500m-card_spend"
+      ],
+      "lexicalScores": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "recipe",
+      "query": "스파게티 레시피 알려줘",
+      "kind": "irrelevant",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "tool-facilities",
+        "metric-kosis-welfare-foreign_rate",
+        "metric-kosis-housing-vacant",
+        "metric-kosis-finance-welfare_budget",
+        "metric-kosis-education-culture"
+      ],
+      "contextIds": [
+        "tool-facilities",
+        "metric-kosis-welfare-foreign_rate",
+        "metric-kosis-housing-vacant",
+        "metric-kosis-finance-welfare_budget"
+      ],
+      "lexicalScores": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "movie",
+      "query": "인터스텔라 영화 줄거리",
+      "kind": "irrelevant",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "tool-access",
+        "tool-scarcity",
+        "data-geometry",
+        "unsupported",
+        "metric-kosis-welfare-senior_leisure"
+      ],
+      "contextIds": [
+        "tool-access",
+        "tool-scarcity",
+        "data-geometry",
+        "unsupported",
+        "metric-kosis-welfare-senior_leisure"
+      ],
+      "lexicalScores": [
+        6.013454949282577,
+        3.323066573216687,
+        3.7891433057079165,
+        3.627270575124056,
+        0
+      ]
+    },
+    {
+      "id": "weather",
+      "query": "오늘 김해 날씨 알려줘",
+      "kind": "unsupported",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "unsupported",
+        "tool-compare-detail",
+        "gyeongnam-scope",
+        "metric-kcb-migration-move_out_sgg",
+        "metric-kosis-welfare-foreign_rate"
+      ],
+      "contextIds": [
+        "unsupported",
+        "tool-compare-detail",
+        "gyeongnam-scope",
+        "metric-kcb-migration-move_out_sgg",
+        "metric-kosis-welfare-foreign_rate"
+      ],
+      "lexicalScores": [
+        6.823550522912958,
+        6.832208445576635,
+        5.945574797790481,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "real-estate",
+      "query": "김해 신축 아파트 실거래가",
+      "kind": "unsupported",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "tool-compare-detail",
+        "metric-skt-living-living_total",
+        "metric-skt-daynight-night_population",
+        "gyeongnam-scope",
+        "metric-kosis-housing-vacant"
+      ],
+      "contextIds": [
+        "tool-compare-detail",
+        "metric-skt-living-living_total",
+        "metric-skt-daynight-night_population",
+        "gyeongnam-scope",
+        "metric-kosis-housing-vacant"
+      ],
+      "lexicalScores": [
+        6.832208445576635,
+        3.9853164930771534,
+        4.008641924056703,
+        5.945574797790481,
+        2.984362661666383
+      ]
+    },
+    {
+      "id": "crypto",
+      "query": "내일 비트코인 가격 예측",
+      "kind": "unsupported",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "metric-kcb-credit-card_spend",
+        "metric-skt-mobility-inflow_total",
+        "data-demo-live",
+        "metric-kcb-credit-avg_income",
+        "metric-skt-living-living_total"
+      ],
+      "contextIds": [
+        "metric-kcb-credit-card_spend",
+        "metric-skt-mobility-inflow_total",
+        "data-demo-live",
+        "metric-kcb-credit-avg_income",
+        "metric-skt-living-living_total"
+      ],
+      "lexicalScores": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "seoul",
+      "query": "서울 강남구 소득 높은 동네",
+      "kind": "out-of-scope",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "metric-kcb-grid-500m-avg_income",
+        "metric-kcb-credit-avg_income",
+        "metric-kcb-credit-delinquency_ratio",
+        "dong-gazetteer",
+        "metric-kcb-credit-loan_ratio"
+      ],
+      "contextIds": [
+        "metric-kcb-grid-500m-avg_income",
+        "metric-kcb-credit-avg_income",
+        "metric-kcb-credit-delinquency_ratio",
+        "dong-gazetteer",
+        "metric-kcb-credit-loan_ratio"
+      ],
+      "lexicalScores": [
+        6.832437198858383,
+        4.75342460313353,
+        2.8667137841453005,
+        2.2,
+        2.9822627082663207
+      ]
+    },
+    {
+      "id": "busan",
+      "query": "부산 해운대구 생활인구",
+      "kind": "out-of-scope",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "metric-skt-living-elderly_ratio",
+        "metric-skt-living-living_total",
+        "metric-skt-daynight-day_population",
+        "metric-skt-daynight-night_population",
+        "layer-skt-living"
+      ],
+      "contextIds": [
+        "metric-skt-living-elderly_ratio",
+        "metric-skt-living-living_total",
+        "metric-skt-daynight-day_population",
+        "metric-skt-daynight-night_population",
+        "layer-skt-living"
+      ],
+      "lexicalScores": [
+        18.844586114279075,
+        18.68317434004887,
+        15.74114617386883,
+        15.372624357089295,
+        19.52777081673578
+      ]
+    },
+    {
+      "id": "jeju",
+      "query": "제주시 카드매출",
+      "kind": "out-of-scope",
+      "expectedIds": [],
+      "rank": null,
+      "returnedIds": [
+        "metric-nh-consumption-card_sales",
+        "metric-nh-storetype-cafe_share",
+        "metric-nh-hourly-night_sales",
+        "metric-nh-hourly-day_sales",
+        "metric-nh-industry-leisure_share"
+      ],
+      "contextIds": [
+        "metric-nh-consumption-card_sales",
+        "metric-nh-storetype-cafe_share",
+        "metric-nh-hourly-night_sales",
+        "metric-nh-hourly-day_sales",
+        "metric-nh-industry-leisure_share"
+      ],
+      "lexicalScores": [
+        16.84520833884677,
+        14.702918162605389,
+        13.837313224520967,
+        14.086100534208418,
+        14.343997754102382
+      ]
+    }
+  ]
+}

@@ -9,6 +9,13 @@ function row(dong: string, entity: string, gender: string, band: string, amountA
 }
 
 describe("nh-demographics adapter", () => {
+  it("preserves unrounded actual numerator and denominator sales for district arithmetic", () => {
+    const shares = finalizeShares({ personal: 1234567, corporate: 500000, youth: 345678, middle: 400000, senior: 488889, female: 700001 });
+    expect(shares.personal_sales).toBe(1.234567);
+    expect(shares.youth_sales).toBe(0.345678);
+    expect(shares.female_sales).toBe(0.700001);
+    expect(shares.total_sales).toBe(1.734567);
+  });
   it("maps age band codes to policy groups, leaving under-20 and 법인 out", () => {
     expect(ageGroupOf("3.2529")).toBe("youth");
     expect(ageGroupOf("7.4549")).toBe("middle");

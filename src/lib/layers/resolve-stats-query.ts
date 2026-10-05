@@ -67,8 +67,8 @@ export function asksCausation(query: string): boolean {
 }
 
 /** `Match.sggOnly`가 이미 「시군구까지만 있는 지표」를 들고 있다. 그것을 그대로 쓴다. */
-function unitOf(matches: readonly { sggOnly: boolean }[]): CorrelationUnit {
-  return matches.some((match) => match.sggOnly) ? "sgg" : "dong";
+function unitOf(matches: readonly { sggOnly: boolean }[], requested: AdminLevel): CorrelationUnit {
+  return requested === "sgg" || matches.some((match) => match.sggOnly) ? "sgg" : "dong";
 }
 
 export function resolveStatsQuery(
@@ -90,7 +90,7 @@ export function resolveStatsQuery(
   if (ordered.length === 0) return null;
 
   const regionFilters = detectRegionFilters(text, options.dongNames ?? []);
-  const adminLevel = detectAdminLevel(text) ?? options.adminLevelFallback ?? "dong";
+  const adminLevel = detectAdminLevel(text, options.adminLevelFallback ?? "dong");
 
   /*
    * 상관을 물었는데 지표가 하나뿐이면 답할 수 없다. 그때 이상치로 슬쩍 바꿔 답하면
@@ -103,7 +103,7 @@ export function resolveStatsQuery(
       a: a.ref,
       b: b.ref,
       adminLevel,
-      unit: unitOf([a, b]),
+      unit: unitOf([a, b], adminLevel),
       regionFilters,
     };
   }
@@ -114,7 +114,7 @@ export function resolveStatsQuery(
       kind: "outlier",
       ref: only.ref,
       adminLevel,
-      unit: unitOf([only]),
+      unit: unitOf([only], adminLevel),
       regionFilters,
     };
   }

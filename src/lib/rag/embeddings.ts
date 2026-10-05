@@ -10,6 +10,7 @@ import type { LlmClientDeps } from "@/lib/ai/llm";
 
 export type EmbeddingClientDeps = LlmClientDeps & {
   model?: string;
+  signal?: AbortSignal;
 };
 
 const DEFAULT_EMBED_MODEL = "text-embedding-v3";
@@ -48,7 +49,9 @@ export async function createTextEmbeddings(
         model: deps.model?.trim() || DEFAULT_EMBED_MODEL,
         input: texts,
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: deps.signal
+        ? AbortSignal.any([deps.signal, AbortSignal.timeout(15_000)])
+        : AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) return null;
