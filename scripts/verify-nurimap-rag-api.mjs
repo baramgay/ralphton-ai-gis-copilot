@@ -48,6 +48,8 @@ const parserCases = [
   ["진주시와 거제시 비교", "compareRegions"],
   ["서울 강남구 소득 높은 동네", null],
   ["김해 신축 아파트 실거래가", null],
+  ["김해에서 딸기 케이크 만드는 방법", null],
+  ["창원에서 클래식 음악 작곡하는 방법", null],
   ["xyzzy foobar 12345", null],
 ];
 const parserResults = [];

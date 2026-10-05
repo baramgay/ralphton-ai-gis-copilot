@@ -592,6 +592,115 @@ describe("CopilotApp", () => {
     expect(screen.queryByText("선택한 행정동")).toBeNull();
   });
 
+  test("배경 큐브는 유휴 시간까지 기다리고 한 번에 하나만 요청한다", async () => {
+    let idle: IdleRequestCallback | undefined;
+    vi.stubGlobal("requestIdleCallback", vi.fn((callback: IdleRequestCallback) => { idle = callback; return 1; }));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    const originalFetch = fetch;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const layerCalls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/data/layers/")) {
+        layerCalls.push(String(input));
+        if (!String(input).includes("skt-living")) await gate;
+      }
+      return originalFetch(input);
+    }));
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      expect(layerCalls).toEqual(["/data/layers/skt-living.json"]);
+      await waitFor(() => expect(idle).toBeDefined());
+      await act(async () => { idle!({ didTimeout: false, timeRemaining: () => 10 }); });
+      expect(layerCalls.filter((url) => !url.includes("skt-living"))).toHaveLength(1);
+    } finally { release(); vi.unstubAllGlobals(); }
+  });
+
+  test("직접 큐브 질의는 진행 중인 배경 요청을 기다리지 않는다", async () => {
+    let idle: IdleRequestCallback | undefined;
+    vi.stubGlobal("requestIdleCallback", vi.fn((callback: IdleRequestCallback) => { idle = callback; return 1; }));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    const originalFetch = fetch;
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const layerCalls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/data/layers/")) {
+        layerCalls.push(String(input));
+        if (String(input).includes("skt-mobility")) await gate;
+      }
+      return originalFetch(input);
+    }));
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      await waitFor(() => expect(idle).toBeDefined());
+      await act(async () => { idle!({ didTimeout: false, timeRemaining: () => 10 }); });
+      expect(layerCalls).toContain("/data/layers/skt-mobility.json");
+      fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "카드매출 높은 동" } });
+      fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+      await screen.findByTestId("export-csv");
+      expect(layerCalls).toContain("/data/layers/nh-consumption.json");
+      expect(screen.getByTestId("result-panel")).toHaveTextContent("카드매출");
+    } finally { release(); vi.unstubAllGlobals(); }
+  });
+
+  test("형식 오류 큐브는 다시 선택하면 재요청한다", async () => {
+    vi.stubGlobal("requestIdleCallback", vi.fn(() => 1));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    const originalFetch = fetch;
+    let attempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("skt-mobility.json") && ++attempts === 1) {
+        return new Response(JSON.stringify({ invalid: true }), { status: 200 });
+      }
+      return originalFetch(input);
+    }));
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      openControls();
+      const layers = screen.getByRole("group", { name: "레이어 선택" });
+      fireEvent.click(within(layers).getByRole("button", { name: /^이동인구/ }));
+      await screen.findByText(/이동인구.*데이터 형식이 올바르지 않습니다/);
+      fireEvent.click(within(layers).getByRole("button", { name: /^생활인구/ }));
+      fireEvent.click(within(layers).getByRole("button", { name: /^이동인구/ }));
+      await waitFor(() => expect(attempts).toBe(2));
+      await screen.findByTestId("export-csv");
+      expect(screen.queryByText(/이동인구.*데이터 형식이 올바르지 않습니다/)).toBeNull();
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  test("스냅샷 변경으로 취소된 배경 큐브는 새 큐에서 다시 받는다", async () => {
+    const idleCallbacks: IdleRequestCallback[] = [];
+    vi.stubGlobal("requestIdleCallback", vi.fn((callback: IdleRequestCallback) => { idleCallbacks.push(callback); return idleCallbacks.length; }));
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    const originalFetch = fetch;
+    let attempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("skt-mobility.json") && ++attempts === 1) {
+        await new Promise((_, reject) => init?.signal?.addEventListener("abort", () => {
+          queueMicrotask(() => reject(new DOMException("Aborted", "AbortError")));
+        }, { once: true }));
+      }
+      return originalFetch(input);
+    }));
+    try {
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      await waitFor(() => expect(idleCallbacks).toHaveLength(1));
+      await act(async () => { idleCallbacks[0]({ didTimeout: false, timeRemaining: () => 10 }); });
+      expect(attempts).toBe(1);
+      openControls();
+      fireEvent.click(screen.getByRole("tab", { name: "데이터" }));
+      fireEvent.click(screen.getByRole("button", { name: /^시연만$/ }));
+      await waitFor(() => expect(idleCallbacks).toHaveLength(2));
+      await act(async () => { idleCallbacks[1]({ didTimeout: false, timeRemaining: () => 10 }); });
+      expect(attempts).toBe(2);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   test.each(["/", "Ctrl+K"])("데스크톱 %s 단축키는 접힌 설정을 열고 질의에 초점을 둔다", async (shortcut) => {
     vi.stubGlobal("matchMedia", vi.fn((media: string) => ({ matches: false, media, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
     try {

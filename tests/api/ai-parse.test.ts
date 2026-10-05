@@ -509,7 +509,21 @@ describe('/api/ai/parse', () => {
     vi.unstubAllGlobals();
   });
 
-  it('returns a rule-based intent in demo mode for a known query', async () => {
+  it.each(['김해에서 딸기 케이크 만드는 방법', '창원 클래식 작곡 방법', '중앙동 스파게티 레시피 알려줘'])('rejects a place plus unrelated topic without an AI call: %s', async (query) => {
+    const fetch = vi.fn();
+    vi.stubEnv('DEEPSEEK_API_KEY', 'route-test-credential');
+    vi.stubGlobal('fetch', fetch);
+    const response = await POST(createRequest({ query }));
+    const json = await responseBody(response);
+    expect(response.status).toBe(200);
+    expect(json.intent).toBeNull();
+    expect(json.metricHint).toBeUndefined();
+    expect(json.diagnostics.aiAttempted).toBe(false);
+    expect(json.rag.citations).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('returns a rule-based intent in demo mode for a known query' , async () => {
     const response = await POST(createRequest({ query: '약국' }));
     const json = await responseBody(response);
 

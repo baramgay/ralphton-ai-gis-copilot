@@ -1376,32 +1376,39 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   /**
    * 민간 큐브를 필요할 때 받는다.
    *
-   * 마운트 즉시 11개를 모두 받으면 1.4MB를 첫 화면에서 내려받는다. 시작 화면은 생활인구
+   * 마운트 즉시 모든 큐브를 받으면 첫 화면에서 요청과 JSON 파싱이 몰린다. 시작 화면은 생활인구
    * 하나라 그것만 먼저 받고, 나머지는 화면이 뜬 뒤 배경에서 채워 교차·추세 질의가
    * 곧바로 동작하게 한다.
    */
-  const requestedCubesRef = useRef(new Set<string>());
-  const loadCube = useCallback((layer: (typeof REMOTE_CUBE_LAYERS)[number], signal?: AbortSignal) => {
-    if (requestedCubesRef.current.has(layer.id)) return;
-    requestedCubesRef.current.add(layer.id);
-    fetch(layer.url, { signal })
+  const requestedCubesRef = useRef(new Map<string, { signal?: AbortSignal; complete: boolean }>());
+  const loadCube = useCallback((layer: (typeof REMOTE_CUBE_LAYERS)[number], signal?: AbortSignal): Promise<void> => {
+    if (requestedCubesRef.current.has(layer.id)) return Promise.resolve();
+    const request = { signal, complete: false };
+    requestedCubesRef.current.set(layer.id, request);
+    const releaseRequest = () => {
+      if (requestedCubesRef.current.get(layer.id) === request) requestedCubesRef.current.delete(layer.id);
+    };
+    return fetch(layer.url, { signal })
       .then((response) => {
         if (!response.ok) throw new Error(`${layer.label} 레이어를 불러오지 못했습니다.`);
         return response.json();
       })
       .then((raw: unknown) => {
+        if (signal?.aborted) { releaseRequest(); return; }
         const parsed = LayerCubeSchema.safeParse(raw);
         if (!parsed.success) {
+          releaseRequest();
           setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: `${layer.label} 레이어 데이터 형식이 올바르지 않습니다.` }));
           return;
         }
+        request.complete = true;
         setRemoteCubes((prev) => ({ ...prev, [layer.id]: parsed.data }));
         setRemoteCubeErrors((prev) => ({ ...prev, [layer.id]: null }));
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
         // 실패한 큐브는 다시 시도할 수 있어야 한다.
-        requestedCubesRef.current.delete(layer.id);
+        releaseRequest();
+        if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
         setRemoteCubeErrors((prev) => ({
           ...prev,
           [layer.id]: error instanceof Error ? error.message : `${layer.label} 레이어를 불러오지 못했습니다.`,
@@ -1435,14 +1442,39 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   );
 
 
-  // 나머지는 첫 화면에 필요한 스냅샷·경계가 도착한 뒤 받는다. 큐브 11개(약 1.4MB)가 대역을
-  // 먼저 차지하면 정작 화면을 띄우는 데 필요한 데이터가 밀려 "준비하는 중"이 길어진다.
-  // 필수 데이터가 온 뒤 곧바로 시작하므로 교차·추세 질의는 큐브를 기다리지 않는다.
+  // 나머지는 첫 화면 준비 후 유휴 시간에 하나씩 받는다. 직접 선택·질의 요청은 이 큐를 거치지 않는다.
   useEffect(() => {
     if (!snapshot || !boundary) return;
     const controller = new AbortController();
-    for (const layer of REMOTE_CUBE_LAYERS) loadCube(layer, controller.signal);
-    return () => controller.abort();
+    const requestedCubes = requestedCubesRef.current;
+    let index = 0;
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const scheduleNext = () => {
+      if (controller.signal.aborted) return;
+      while (index < REMOTE_CUBE_LAYERS.length && requestedCubesRef.current.has(REMOTE_CUBE_LAYERS[index].id)) index += 1;
+      if (index >= REMOTE_CUBE_LAYERS.length) return;
+      const next = async () => {
+        if (controller.signal.aborted) return;
+        await loadCube(REMOTE_CUBE_LAYERS[index++], controller.signal);
+        scheduleNext();
+      };
+      if (typeof window.requestIdleCallback === "function") {
+        idleId = window.requestIdleCallback(() => { void next(); }, { timeout: 1000 });
+      } else {
+        timeoutId = setTimeout(() => { void next(); }, 100);
+      }
+    };
+    scheduleNext();
+    return () => {
+      // Release before the next effect scans IDs; an old rejection must not remove a newer request.
+      for (const [id, request] of requestedCubes) {
+        if (request.signal === controller.signal && !request.complete) requestedCubes.delete(id);
+      }
+      controller.abort();
+      if (idleId !== undefined && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleId);
+      clearTimeout(timeoutId);
+    };
   }, [snapshot, boundary, loadCube]);
 
   /*
@@ -3051,19 +3083,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
       const match = resolveTrendQuery(presetQuery, PRIVATE_NL_LAYERS, {
         adminLevelFallback: adminLevel,
       });
-      if (match && runTrend(match)) {
-        resetResultFilters();
-        setLastExecutedQuery(presetQuery);
-        setQuery(presetQuery);
-        setAnsweredLastQuery(true);
-        setAnalysisRequested(true);
-        dismissOnboard();
-      } else {
-        setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      if (!match) return;
+      resetResultFilters();
+      setLastExecutedQuery(presetQuery);
+      setQuery(presetQuery);
+      setAnsweredLastQuery(true);
+      setAnalysisRequested(true);
+      dismissOnboard();
+      if (!runTrend(match)) {
+        requestCubesAndRetry([match.layerId], { kind: "trend", match });
+        setParseStage("analyze");
+        setQueryNotice("민간데이터 레이어를 불러오는 중입니다. 준비되면 분석이 이어집니다.");
         setQueryNoticeTone("neutral");
       }
     },
-    [adminLevel, dismissOnboard, resetResultFilters, runTrend],
+    [adminLevel, dismissOnboard, requestCubesAndRetry, resetResultFilters, runTrend],
   );
 
 
@@ -3205,7 +3239,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
               : runCross(pendingCubeQuery.match);
     if (!ok) return; // 아직 다 안 왔다. 다음 큐브 도착 때 다시 본다.
     setPendingCubeQuery(null);
-    setQueryNotice(null);
     setParseStage("done");
   }, [pendingCubeQuery, runTrend, runCross, runTrendCross, runMulti, runStats]);
   /* eslint-enable react-hooks/set-state-in-effect */

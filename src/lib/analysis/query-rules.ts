@@ -7,6 +7,7 @@ import {
 import {
   GYEONGNAM_DISTRICT_LABELS,
   DISTRICT_LABELS,
+  DISTRICT_ALIASES,
   QUERY_SUGGESTIONS,
 } from "./query-catalog-meta";
 import { detectOutOfScopePlace, extractQuerySignals, type QuerySignals } from "./query-signals";
@@ -165,6 +166,22 @@ function withTrendCaveat(notice: string, entry: ToolCatalogEntry, signals: Query
   return `${notice} 늘고 주는 변화는 이 지표로 아직 낼 수 없어 지금 수준으로 답했습니다.`;
 }
 
+/** A place alone, or a request for its overview, may use the regional details fallback. */
+function isRegionDetailsQuestion(signals: QuerySignals): boolean {
+  const names = [...new Set([
+    ...signals.districts,
+    ...signals.dongs.map((place) => place.match),
+    ...Object.entries(DISTRICT_ALIASES)
+      .filter(([, district]) => signals.districts.includes(district))
+      .flatMap(([alias, district]) => [alias, district]),
+  ])].sort((a, b) => b.length - a.length);
+  if (names.length === 0) return false;
+  let remainder = signals.normalized.replace(/경상남도|경남/g, " ");
+  for (const name of names) remainder = remainder.split(name).join(" ");
+  remainder = remainder.replace(/[?!.,·]/g, " ").trim();
+  return /^(?:(?:에서|지역|동네|행정동|의|은|는|이|가|을|를|에|좀|현재|지금|전반적인|전반적|전체|현황|상세|정보|지표|상황|개요|어때|어떤가|자세히|알려\s*줘|알려\s*주세요|보여\s*줘|보여\s*주세요|말해\s*줘|궁금해|부탁해)\s*)*$/.test(remainder);
+}
+
 export function resolveQueryWithRules(query: string): RuleParseResult {
   const safety = assessQuerySafety(query);
 
@@ -272,9 +289,11 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
     }
   }
 
+  const allowRegionDetails = isRegionDetailsQuestion(signals);
   const ranked = TOOL_CATALOG.map((entry) => ({
     entry,
-    score: scoreCatalogEntry(entry, signals),
+    score: entry.id === "getRegionDetails" && signals.metrics.size === 0 && !allowRegionDetails
+      ? 0 : scoreCatalogEntry(entry, signals),
   })).sort((a, b) => b.score - a.score);
   const best = ranked[0];
   const second = ranked[1];
@@ -328,7 +347,7 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   }
 
   // Dong-only soft path: "송정동 현황"
-  if (signals.dongs.length >= 1 && signals.metrics.size === 0 && !signals.spatial.has("compare")) {
+  if (allowRegionDetails && signals.dongs.length >= 1 && signals.metrics.size === 0 && !signals.spatial.has("compare")) {
     const codes = signals.dongs.slice(0, 5).map((dong) => dong.adm_cd2);
     const intent = AnalysisIntentSchema.parse({
       tool: "getRegionDetails",
@@ -343,7 +362,7 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   }
 
   // District-only soft path: "수영구 어때" style
-  if (signals.districts.length === 1 && signals.metrics.size === 0 && signals.dongs.length === 0) {
+  if (allowRegionDetails && signals.districts.length === 1 && signals.metrics.size === 0 && signals.dongs.length === 0) {
     const intent = AnalysisIntentSchema.parse({
       tool: "getRegionDetails",
       filters: withLimit({ regions: [signals.districts[0]] }, 50),

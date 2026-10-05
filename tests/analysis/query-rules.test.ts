@@ -7,6 +7,25 @@ import { resolveLayerQuery } from '@/lib/layers/resolve-layer-query';
 
 describe('parseIntentWithRules', () => {
   it.each([
+    '김해에서 딸기 케이크 만드는 방법',
+    '김해에서 딸기 케이크 만드는 방법 알려줘',
+    '창원 클래식 작곡 방법',
+    '김해 딸기 케이크 현황',
+    '중앙동 스파게티 레시피 알려줘',
+  ])('does not interpret a place plus unrelated text as regional details: %s', (query) => {
+    expect(parseIntentWithRules(query)).toBeNull();
+    expect(resolveQueryWithRules(query).kind).toBe('unsupported');
+  });
+
+  it.each(['경남 김해시 현황', '김해', '김해시', '김해 현황', '김해시 상세 알려줘', '중앙동 현황', '김해 어때?'])('keeps an actual regional details question: %s', (query) => {
+    expect(parseIntentWithRules(query)?.tool).toBe('getRegionDetails');
+  });
+
+  it('keeps a regional metric query on its metric tool', () => {
+    expect(parseIntentWithRules('김해 인구')?.tool).toBe('rankPopulationSize');
+  });
+
+  it.each([
     [
       '병원',
       {
