@@ -3278,6 +3278,14 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
   padding-bottom: 0.6rem;
 }
 
+/* 데스크톱에서는 패널 토글의 지도 쪽 공간을 카드가 침범하지 않는다. */
+@media (min-width: 1200px) {
+  .probe-card {
+    right: 4rem;
+    width: min(19rem, calc(100% - 5rem));
+  }
+}
+
 .probe-head-actions {
   display: flex;
   flex-shrink: 0;
