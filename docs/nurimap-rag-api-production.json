@@ -1,0 +1,92 @@
+{
+  "checkedAt": "2026-10-05T01:17:23.417Z",
+  "baseURL": "https://gnbc.site",
+  "searchCases": 30,
+  "parserCases": 8,
+  "searchPassed": 30,
+  "parserResults": [
+    {
+      "query": "병원 가기 힘든 읍면 어디야",
+      "expectedTool": "rankHospitalScarcity",
+      "actualTool": "rankHospitalScarcity",
+      "elapsedMs": 134,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": [
+        "tool-scarcity",
+        "metric-medical-vulnerability",
+        "tool-access",
+        "metric-nh-industry-health_share"
+      ]
+    },
+    {
+      "query": "가기 힘든 지역",
+      "expectedTool": "rankHospitalScarcity",
+      "actualTool": "rankHospitalScarcity",
+      "elapsedMs": 1924,
+      "parser": "ai",
+      "aiUsed": true,
+      "citations": [
+        "tool-scarcity",
+        "tool-access",
+        "metric-medical-vulnerability",
+        "unsupported"
+      ]
+    },
+    {
+      "query": "진주시와 거제시 비교",
+      "expectedTool": "compareRegions",
+      "actualTool": "compareRegions",
+      "elapsedMs": 136,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": []
+    },
+    {
+      "query": "서울 강남구 소득 높은 동네",
+      "expectedTool": null,
+      "actualTool": null,
+      "elapsedMs": 124,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": []
+    },
+    {
+      "query": "김해 신축 아파트 실거래가",
+      "expectedTool": null,
+      "actualTool": null,
+      "elapsedMs": 144,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": []
+    },
+    {
+      "query": "김해에서 딸기 케이크 만드는 방법",
+      "expectedTool": null,
+      "actualTool": null,
+      "elapsedMs": 145,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": []
+    },
+    {
+      "query": "창원에서 클래식 음악 작곡하는 방법",
+      "expectedTool": null,
+      "actualTool": null,
+      "elapsedMs": 151,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": []
+    },
+    {
+      "query": "xyzzy foobar 12345",
+      "expectedTool": null,
+      "actualTool": null,
+      "elapsedMs": 146,
+      "parser": "rules",
+      "aiUsed": false,
+      "citations": []
+    }
+  ],
+  "failures": []
+}
