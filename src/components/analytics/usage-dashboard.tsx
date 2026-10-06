@@ -71,8 +71,8 @@ function Trend({ rows }: { rows: UsageStats["series"] }) {
   const point = (index: number, value: number) => `${margin + index / Math.max(1, rows.length - 1) * (width - margin * 2)},${height - margin - value / maximum * (height - margin * 2)}`;
   return <div>
     <div className="mb-4 flex flex-wrap gap-5 text-sm font-medium text-slate-700">
-      <span className="flex items-center gap-2"><span className="h-1 w-6 rounded bg-blue-700" aria-hidden="true" />방문</span>
-      <span className="flex items-center gap-2"><span className="h-1 w-6 rounded bg-emerald-700" aria-hidden="true" />분석</span>
+      <span className="flex items-center gap-2"><span className="w-6 border-t-[3px] border-blue-700 [[data-theme=contrast]_&]:border-white" aria-hidden="true" />방문</span>
+      <span className="flex items-center gap-2"><span className="w-6 border-t-[3px] border-dashed border-emerald-700 [[data-theme=contrast]_&]:border-white" aria-hidden="true" />분석</span>
     </div>
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="방문과 분석 추이" className="w-full overflow-visible">
       <title>방문과 분석 추이</title>
@@ -164,7 +164,7 @@ export function UsageDashboard() {
   const datasetTotal = stats?.datasets.reduce((sum, row) => sum + row.count, 0) ?? 0;
   const empty = stats && METRICS.every(({ key }) => stats.totals[key] === 0);
 
-  return <main className="min-h-screen bg-slate-50 text-slate-900">
+  return <main className="usage-dashboard h-dvh overflow-y-auto bg-slate-50 text-slate-900">
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-12">
       <header className="mb-8 flex flex-wrap items-start justify-between gap-5">
         <div><Link href="/" className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-blue-700">← 누리맵으로 돌아가기</Link>

@@ -809,6 +809,27 @@ html {
 }
 
 html,
+/* The analytics page scrolls inside the app's fixed viewport. Selected controls
+ * retain readable foregrounds when global theme rules replace their backgrounds. */
+html[data-theme="dark"] .usage-dashboard button[aria-pressed="true"] {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="contrast"] .usage-dashboard button[aria-pressed="true"],
+html[data-theme="contrast"] .usage-dashboard button[aria-pressed="false"]:hover {
+  background: #fff !important;
+  color: #000 !important;
+}
+
+html[data-theme="contrast"] .usage-dashboard a {
+  color: #fff;
+}
+
+html[data-theme="contrast"] .usage-dashboard [aria-hidden="true"] > span {
+  background: #fff;
+}
+
 body {
   height: 100%;
   overflow: hidden;
