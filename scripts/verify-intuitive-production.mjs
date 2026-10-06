@@ -47,6 +47,8 @@ try {
   await run('진주시 최근 3개월 카드매출 증가하는 동');await openControls();
   const conditions=await page.getByTestId('executed-analysis-context').innerText();
   assert.match(conditions,/카드매출/);assert.match(conditions,/진주시/);assert.match(conditions,/최근 3개월/);
+  assert.match(conditions,/방식\s*변화 보기/);
+  assert.equal(await page.getByRole('heading',{name:'다음 분석 고르기',exact:true}).count(),1);
   assert.equal(await page.getByTestId('quick-radius').count(),0);
   assert(!/의료기관/.test(await page.getByTestId('dataset-selected').innerText()));
   await page.getByRole('button',{name:'자료 변경'}).click();await page.keyboard.press('Escape');

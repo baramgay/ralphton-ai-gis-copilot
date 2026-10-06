@@ -232,6 +232,42 @@ test.describe("AI GIS Copilot core journey", () => {
 });
 
 
+test("폰 가로에서 분석 후 결과 탭과 순위를 스크롤로 읽을 수 있다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.addInitScript(() => localStorage.setItem("ralphton-onboard-v1", "1"));
+  await page.goto("/");
+  await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+  await page.getByLabel("분석 질의").fill("생활인구 많은 동");
+  await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+  await expect(page.getByTestId("one-line-conclusion")).toContainText("생활인구", { timeout: 30_000 });
+  await openSheet(page, "결과");
+  await page.getByRole("slider", { name: "결과 패널 높이 조절" }).focus();
+  await page.keyboard.press("End");
+
+  const reachable = (locator: ReturnType<Page["locator"]>) => locator.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    if (bounds.top < 0 || bounds.bottom > innerHeight) return false;
+    const target = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    return target === element || element.contains(target);
+  });
+  const panel = page.getByTestId("result-panel");
+  const bounds = await panel.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  // overflow:hidden도 프로그램으로는 스크롤되므로 실제 사용자 입력으로 확인한다.
+  await page.mouse.wheel(0, 120);
+  const evidence = page.getByRole("tab", { name: "분석 근거", exact: true });
+  await expect.poll(() => reachable(evidence)).toBe(true);
+  await evidence.click();
+  await expect(evidence).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "순위", exact: true }).click();
+  const firstRow = panel.locator(".rank-row").first();
+  await firstRow.scrollIntoViewIfNeeded();
+  await expect.poll(() => reachable(firstRow)).toBe(true);
+  await firstRow.click();
+  await testInfo.attach("phone-landscape-results", { body: await page.screenshot(), contentType: "image/png" });
+});
+
 test("closed panels do not receive keyboard focus and comparison shares restore the executed pair", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("ralphton-onboard-v1", "1"));
   await page.goto("/");

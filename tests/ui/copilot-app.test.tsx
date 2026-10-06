@@ -1659,6 +1659,7 @@ describe("CopilotApp", () => {
   test("원클릭 추세 프리셋이 자연어 없이 추세를 낸다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
+    openControls();
     fireEvent.click(screen.getByRole("button", { name: "변화 보기" }));
     await waitFor(() => expect(screen.getByTestId("trend-presets")).toBeInTheDocument());
 
@@ -1670,9 +1671,13 @@ describe("CopilotApp", () => {
     openControls();
     expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent(/카드매출/);
     expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent("전체 관측 기간");
+    expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent(/방식변화 보기/);
     expect(screen.getByTestId("dataset-selected")).not.toHaveTextContent("의료기관");
     expect(screen.queryByTestId("quick-radius")).not.toBeInTheDocument();
-
+    fireEvent.click(screen.getByRole("button", { name: "함께 보기" }));
+    expect(screen.getByTestId("cross-presets")).toBeInTheDocument();
+    expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent(/방식변화 보기/);
+    expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent("전체 관측 기간");
   }, 45_000);
 
   test("큐브가 늦게 와도 사용자에게 다시 하라고 하지 않는다", async () => {

@@ -4212,6 +4212,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                     <div className="analysis-executed" data-testid="executed-analysis-context">
                       <p className="analysis-step-title">적용 중인 조건</p>
                       <dl className="analysis-condition-list">
+                        {analysis.context?.method ? <div><dt>방식</dt><dd>{analysis.context.method}</dd></div> : null}
                         <div><dt>지표</dt><dd>{analysis.context?.metrics.join(" · ") ?? analysis.legendLabel}</dd></div>
                         <div><dt>지역</dt><dd>{analysisRegionLabel}</dd></div>
                         <div><dt>단위</dt><dd>{analysis.isFacilityResult ? "시설" : analysis.unitWord ?? activeUnitLabel}</dd></div>

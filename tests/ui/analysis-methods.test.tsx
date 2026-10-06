@@ -25,7 +25,10 @@ describe("AnalysisMethods", () => {
   it("starts with current conditions and does not expose or execute advanced presets", () => {
     const { onTrend, onCross } = setup();
     expect(screen.getByRole("button", { name: "현재 수준" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("현재 조건의 지역 순위를 지도와 결과에서 확인하세요.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "다음 분석 고르기" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "분석 추천 유형" })).toBeInTheDocument();
+    expect(screen.getByText("종류를 고른 뒤 추천 항목을 누르면 새 분석을 실행합니다.")).toBeInTheDocument();
+    expect(screen.getByText("위의 자료와 지표를 선택하면 해당 시점의 지역 순위를 분석합니다.")).toBeInTheDocument();
     expect(screen.queryByTestId("trend-presets")).not.toBeInTheDocument();
     expect(screen.queryByTestId("cross-presets")).not.toBeInTheDocument();
     expect(onTrend).not.toHaveBeenCalled();

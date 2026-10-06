@@ -48,8 +48,9 @@ export function AnalysisMethods({ trendPresets, crossPresets, crossGroups, onTre
   const headingId = useId();
 
   return <section className="analysis-method-panel" aria-labelledby={headingId} data-testid="analysis-methods">
-    <h2 id={headingId} className="analysis-method-heading">분석 방식</h2>
-    <div role="group" aria-label="분석 방식" className="analysis-method-options">
+    <h2 id={headingId} className="analysis-method-heading">다음 분석 고르기</h2>
+    <p className="analysis-method-description">종류를 고른 뒤 추천 항목을 누르면 새 분석을 실행합니다.</p>
+    <div role="group" aria-label="분석 추천 유형" className="analysis-method-options">
       {METHODS.map((item) => <button
         key={item.id}
         type="button"
@@ -59,7 +60,7 @@ export function AnalysisMethods({ trendPresets, crossPresets, crossGroups, onTre
       >{item.label}</button>)}
     </div>
 
-    {method === "current" ? <p className="analysis-method-description">현재 조건의 지역 순위를 지도와 결과에서 확인하세요.</p> : null}
+    {method === "current" ? <p className="analysis-method-description">위의 자료와 지표를 선택하면 해당 시점의 지역 순위를 분석합니다.</p> : null}
 
     {method === "trend" ? <section className="analysis-method-content" data-testid="trend-presets" aria-label="시간에 따른 변화">
       <h3 className="analysis-method-content-heading">시간에 따른 변화</h3>

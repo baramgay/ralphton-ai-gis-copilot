@@ -3602,6 +3602,9 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
   .workspace-heading, .query-workspace .query-hero-chips.is-optional { display: none; }
   .query-workspace { padding: 6px 10px; }
   .onboard-card { bottom: 12px; padding: 12px; }
+  /* 짧은 화면에서는 머리글과 목록을 함께 스크롤해 결과가 시트 밖에 잘리지 않게 한다. */
+  .copilot-panel-right { overflow-y: auto; }
+  .copilot-panel-right > .copilot-scroll { flex: none; overflow: visible; }
 }
 
 @media (max-width: 1199px) { .query-workspace .query-hero-input { font-size: 16px; } }
