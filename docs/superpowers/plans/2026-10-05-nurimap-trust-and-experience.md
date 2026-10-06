@@ -19,7 +19,7 @@
 - [x] UI 담당: 운영의 데스크톱·모바일 화면을 인식하고 사용자 흐름 중심의 구조를 설계한다. 질문, 결과, 지도, 비교, 공유, 내보내기를 전면 재구성하고 관련 컴포넌트 및 E2E와 화면 캡처로 확인한다.
 - [x] Root: 원격 응답·캐시의 잘못된 순서, 비정상 수치, 모델·제공자 변경, 코퍼스 변경과 배치 제한을 실패 테스트로 재현해 수정한다. 같은 평가로 로컬·원격 비교하는 스크립트와 운영 회귀 작업을 추가한다.
 - [x] 통합: `npm test -- --maxWorkers=4`, `npm run typecheck`, `npm run lint`, `npm run build`, `npx playwright test --output logs/nurimap-trust-e2e-output`, `node scripts/verify-nurimap-numerics.mjs public/data/official-snapshot.json`를 실행하고 보고서를 확인한다. 테스트 실패는 원인과 사용자 동작을 기준으로 해결한다.
-- [ ] 출시: 검증한 변경만 commit·push하고 운영 설정으로 도메인 연결을 보류한 배포를 검사한다. 성공한 배포를 승격한 다음 운영 검색·파서·네 화면 크기·실데이터·공유·내보내기를 재검증하고 소스 SHA와 배포 ID를 기록한다.
+- [x] 출시: 검증한 변경만 commit·push하고 운영 설정으로 도메인 연결을 보류한 배포를 검사한다. 성공한 배포를 승격한 다음 운영 검색·파서·네 화면 크기·실데이터·공유·내보내기를 재검증하고 소스 SHA와 배포 ID를 기록한다.
 
 ## 실제 원격 검증
 

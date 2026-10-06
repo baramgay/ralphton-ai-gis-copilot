@@ -29,6 +29,9 @@ jobs:
       - name: Four viewports, shared results and exports
         if: ${{ !cancelled() }}
         run: node scripts/verify-nurimap-upgrade.mjs https://gnbc.site
+      - name: Regional facility totals and filtered results
+        if: ${{ !cancelled() }}
+        run: node scripts/verify-region-facilities-prod.mjs https://gnbc.site
       - name: Preserve production evidence
         if: always()
         uses: actions/upload-artifact@v4

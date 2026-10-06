@@ -64,8 +64,8 @@ if (!mapBox) {
   // 실제 지역 말풍선이 생긴 좌표를 찾아 같은 좌표를 클릭한다.
   let point = null;
   const spots = [];
-  for (let fx = 0.3; fx <= 0.7; fx += 0.1) {
-    for (let fy = 0.35; fy <= 0.75; fy += 0.1) spots.push([fx, fy]);
+  for (let fx = 0.3; fx <= 0.7; fx += 0.05) {
+    for (let fy = 0.35; fy <= 0.75; fy += 0.05) spots.push([fx, fy]);
   }
   for (const [fx, fy] of spots) {
     const x = mapBox.x + mapBox.width * fx;
