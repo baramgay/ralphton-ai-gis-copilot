@@ -9,6 +9,24 @@ const deps = { apiKey: 'test', useRemoteRagEmbed: false };
 afterEach(() => { vi.useRealTimers(); });
 
 describe('LLM interpretation constraints', () => {
+  it('supplies supported public accessibility wording and its grounded JSON interpretation', async () => {
+    const fetch = vi.fn().mockResolvedValue(completion({ tool: 'rankHospitalScarcity', filters: {} }));
+    const result = await parseIntentWithFallbacks('가기 힘든 지역', { ...deps, fetch });
+    expect(result.intent?.tool).toBe('rankHospitalScarcity');
+    const system = JSON.parse(fetch.mock.calls[0][1].body).messages[0].content;
+    expect(system).toContain('가기 힘든');
+    expect(system).toContain('"tool":"rankHospitalScarcity","filters":{}');
+    expect(system).toContain('소요시간');
+    expect(system).toContain('고령 수요');
+    expect(system).not.toContain('layerId="medical" metricKey="vulnerability"');
+  });
+  it('rejects a public medical metric returned as a private hint that the client cannot apply', async () => {
+    const fetch = vi.fn().mockResolvedValue(completion({ tool: 'privateMetric', layerId: 'medical', metricKey: 'vulnerability' }));
+    const result = await parseIntentWithFallbacks('가기 힘든 지역', { ...deps, fetch });
+    expect(result.metricHint).toBeUndefined();
+    expect(result.diagnostics?.aiUsed).toBe(false);
+    expect(result.diagnostics?.failures).toEqual(['response_invalid', 'response_invalid']);
+  });
   it.each(['장사가 잘되는 상권', '진주시 장사가 잘되는 상권'])('preserves catalog paraphrase evidence for a supported commerce question: %s', async (query) => {
     const fetch = vi.fn().mockResolvedValue(completion({ tool: 'privateMetric', layerId: 'nh-consumption', metricKey: 'card_sales' }));
     const result = await parseIntentWithFallbacks(query, { ...deps, fetch });
