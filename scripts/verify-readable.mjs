@@ -71,8 +71,9 @@ for (const [themeName, theme] of THEMES) {
       continue;
     }
     /* 접힌 채로 재면 안 보이는 글자를 못 본다. 전부 펼친다. */
-    const summaries = root.locator("summary");
-    for (let i = 0; i < (await summaries.count()); i++) await summaries.nth(i).click();
+    const summaries = root.locator("details > summary");
+    for (const summary of await summaries.all())
+      if (!(await summary.evaluate(el => el.parentElement.open))) await summary.click();
     await page.waitForTimeout(400);
 
     const worst = await root.evaluate((el, minRatio) => {
@@ -143,8 +144,8 @@ for (const [themeName, theme] of THEMES) {
         const fg = over(fgp.slice(0, 3), paintedBg(node), fgp[3]);
         const size = parseFloat(cs.fontSize);
         const weight = Number(cs.fontWeight);
-        // WCAG 의 「큰 글자」는 18.66px 이상이거나 14px 이상 굵기 700 이상이다.
-        const need = size >= 18.66 || (size >= 14 && weight >= 700) ? 3 : minRatio;
+        // WCAG 의 「큰 글자」는 24px 이상이거나 18.66px 이상 굵기 700 이상이다.
+        const need = size >= (18 * 4 / 3) || (size >= (14 * 4 / 3) && weight >= 700) ? 3 : minRatio;
         const value = ratio(fg, paintedBg(node));
         const slack = value - need;
         if (!found || slack < found.slack)
@@ -154,7 +155,8 @@ for (const [themeName, theme] of THEMES) {
     }, 4.5);
 
     if (!worst) {
-      console.log(`  --  ${testId}: 잴 글자가 없다`);
+      console.log(`  !!  ${testId}: 잴 글자가 없다`);
+      failures.push(`${themeName}/${testId} 측정 대상 없음`);
       continue;
     }
     const ok = worst.slack >= 0;

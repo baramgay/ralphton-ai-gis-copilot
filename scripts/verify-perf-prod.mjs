@@ -27,11 +27,14 @@ async function visit() {
   await page.goto(URL, { waitUntil: "domcontentloaded" });
   await page.locator("h1").first().waitFor({ state: "visible", timeout: 60_000 });
   const h1 = Date.now() - started;
+  await page.waitForFunction(() => performance.getEntriesByName("first-contentful-paint").length > 0);
+  await page.getByTestId("query-workspace").waitFor({ timeout: 60_000 });
+  const workspace = Date.now() - started;
   const fcp = await page.evaluate(
     () => performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? null,
   );
   await context.close();
-  return { fcp, h1 };
+  return { fcp, h1, workspace };
 }
 
 /* 버리는 방문 — 함수·캐시를 데운다. 이 값은 쓰지 않는다. */
@@ -42,7 +45,7 @@ const runs = [];
 for (let i = 0; i < RUNS; i++) {
   const r = await visit();
   runs.push(r);
-  console.log(`  ${i + 1}회 FCP ${r.fcp?.toFixed(0) ?? "?"}ms · h1 ${r.h1}ms`);
+  console.log(`  ${i + 1}회 FCP ${r.fcp?.toFixed(0) ?? "?"}ms · h1 ${r.h1}ms · 질문 영역 ${r.workspace}ms`);
 }
 await browser.close();
 
@@ -52,8 +55,9 @@ const median = (values) => {
 };
 const fcp = median(runs.map((r) => r.fcp).filter((v) => v != null));
 const h1 = median(runs.map((r) => r.h1));
+const workspace = median(runs.map((r) => r.workspace));
 
-console.log(`\n중앙값 — FCP ${fcp.toFixed(0)}ms (예산 ${BUDGET.fcp}) · h1 ${h1}ms (예산 ${BUDGET.h1})`);
+console.log(`\n중앙값 — FCP ${fcp.toFixed(0)}ms (예산 ${BUDGET.fcp}) · h1 ${h1}ms (예산 ${BUDGET.h1}) · 질문 영역 ${workspace}ms`);
 const ok = fcp <= BUDGET.fcp && h1 <= BUDGET.h1;
 console.log(ok ? "예산 안" : "예산 초과");
 process.exit(ok ? 0 : 1);

@@ -47,15 +47,10 @@ check(!/구 비교/.test(shell), "옛 이름(구 비교)이 남아 있지 않다
  * 첫 화면은 시군구 경계만 보여 의료 빠른 분석이 없다. 의료기관 레이어를 고른 뒤에
  * 새 이름·부제가 나오는지 본다 — 옛 이름 부활을 막는 자리는 그대로 둔다.
  */
-const openLeft = page.getByRole("button", { name: "조작 패널 열기" });
-if (await openLeft.isVisible().catch(() => false)) {
-  await openLeft.click();
-} else {
-  const toggle = page.getByRole("button", { name: "조작", exact: true });
-  if (await toggle.isVisible().catch(() => false)) await toggle.click();
-}
+const settings = page.getByTestId("query-workspace").getByRole("button", { name: "분석 설정", exact: true });
+if (await settings.getAttribute("aria-pressed") !== "true") await settings.click();
 await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
-const medicalPanel = await page.getByLabel("분석 조작 패널").innerText();
+const medicalPanel = await page.getByRole("complementary", { name: "분석 설정 패널", exact: true }).innerText();
 check(medicalPanel.includes("의료 접근성"), "의료기관을 고르면 빠른 분석이 새 이름으로 나온다");
 check(
   medicalPanel.includes("공급·거리·고령수요 합성"),
@@ -67,13 +62,13 @@ check(
  * 본다 — 항목이 있는지가 아니라 **뜻이 실려 있는지**.
  */
 /*
- * 좌 패널이 접혀 있으면 탭 자체가 화면에 없다. 「조작」으로 먼저 연다 — 탭을 못 찾는 것과
+ * 좌 패널이 접혀 있으면 탭 자체가 화면에 없다. 「분석 설정」으로 먼저 연다 — 탭을 못 찾는 것과
  * 용어집이 없는 것은 다른 일인데, 그냥 기다리면 둘이 같은 실패로 보인다.
  */
 const useTab = page.getByRole("tab", { name: "이용" });
 if ((await useTab.count()) === 0 || !(await useTab.first().isVisible())) {
-  // 「조작」이라는 이름을 가진 버튼이 둘이다(모바일 시트 버튼 · 데스크톱 가장자리 토글).
-  await page.getByRole("button", { name: "조작 패널 열기" }).click();
+  // 작업 영역의 설정 버튼은 모바일 시트와 데스크톱 패널을 함께 제어한다.
+  await settings.click();
 }
 await useTab.first().click();
 const glossary = page.getByTestId("glossary");

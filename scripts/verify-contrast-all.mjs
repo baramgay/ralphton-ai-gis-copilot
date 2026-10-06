@@ -26,6 +26,10 @@ const TABS = [
   ["분석", "control"],
   ["이용", "help"],
   ["데이터", "data"],
+  ["순위", "result"],
+  ["선택 지역", "result"],
+  ["분석 근거", "result"],
+  ["공식 인구 선택 지역", "public"],
 ];
 const THEMES = [
   ["라이트", null],
@@ -98,7 +102,19 @@ const SCORE = `(() => {
     const r = node.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) continue;
     if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
-    if (node.closest("[aria-hidden='true']")) continue;
+    if (node.closest("[aria-hidden='true'], [inert], [hidden], .sr-only")) continue;
+    let left = Math.max(0, r.left), right = Math.min(innerWidth, r.right);
+    let top = Math.max(0, r.top), bottom = Math.min(innerHeight, r.bottom);
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent), bounds = parent.getBoundingClientRect();
+      if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+        left = Math.max(left, bounds.left); right = Math.min(right, bounds.right);
+      }
+      if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+        top = Math.max(top, bounds.top); bottom = Math.min(bottom, bounds.bottom);
+      }
+    }
+    if (right - left <= 1 || bottom - top <= 1) continue;
     /* 비활성 컨트롤은 WCAG 1.4.3 예외다. 세지 않되 몇 개인지는 밝힌다. */
     if (node.closest("button:disabled, input:disabled, select:disabled, [aria-disabled='true']")) {
       disabled += 1;
@@ -113,8 +129,8 @@ const SCORE = `(() => {
     const fg = alpha >= 0.999 ? fgp.slice(0, 3) : over(fgp.slice(0, 3), bg, alpha);
     const size = parseFloat(cs.fontSize);
     const weight = Number(cs.fontWeight);
-    /* WCAG 「큰 글자」 = 18.66px 이상, 또는 14px 이상이면서 굵기 700 이상. */
-    const need = size >= 18.66 || (size >= 14 && weight >= 700) ? 3 : 4.5;
+    /* WCAG 「큰 글자」 = 24px 이상, 또는 18.66px 이상이면서 굵기 700 이상. */
+    const need = size >= (18 * 4 / 3) || (size >= (14 * 4 / 3) && weight >= 700) ? 3 : 4.5;
     seen.push({ value: ratio(fg, bg), need, text: text.slice(0, 26), cls: String(node.className || ""), tag: node.tagName, size, weight, fg: fg.map(Math.round).join(","), bg: bg.map(Math.round).join(",") });
   }
   return { seen, unmeasurable, disabled };
@@ -138,9 +154,9 @@ for (const [vpName, viewport] of VIEWPORTS) {
   } catch {
     // 안내를 이미 본 프로필이면 카드가 없다.
   }
-  /* 좁은 화면에서는 패널이 접혀 있다. 접힌 채로 재면 아무것도 안 센다. */
-  const opener = page.getByTestId("panel-edge-toggle");
-  if ((await opener.count()) && (await opener.isVisible())) await opener.click().catch(() => {});
+  await page.getByLabel("분석 질의").fill("생활인구 많은 동네");
+  await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+  await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
 
   for (const [themeName, theme] of THEMES) {
     await page.evaluate((value) => {
@@ -148,29 +164,50 @@ for (const [vpName, viewport] of VIEWPORTS) {
       else document.documentElement.removeAttribute("data-theme");
     }, theme);
 
-    for (const [tabLabel] of TABS) {
-      const tab = page.getByRole("tab", { name: tabLabel });
-      if (await tab.count()) await tab.first().click().catch(() => {});
+    await page.getByLabel("분석 질의").fill("생활인구 많은 동네");
+    await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+    await page.locator(".query-hero-notice.is-success").waitFor({ timeout: 60_000 });
+    for (const [viewLabel, side] of TABS) {
+      const tabLabel = side === "public" ? "선택 지역" : viewLabel;
+      if (side === "public") {
+        await page.getByLabel("분석 질의").fill("총인구 많은 동");
+        await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+        await page.getByTestId("data-provenance").filter({ hasText: "공공데이터" }).waitFor({ timeout: 60_000 });
+        await page.getByTestId("result-search").fill("가호동");
+        await page.locator(".rank-row").filter({ hasText: "진주시 가호동" }).getByRole("button").first().click();
+      }
+      if (side === "result" || side === "public") {
+        if (!(await page.getByRole("tab", { name: tabLabel, exact: true }).isVisible()))
+          await page.getByTestId("workspace-results-toggle").click();
+      } else if (!(await page.getByRole("tab", { name: tabLabel, exact: true }).isVisible())) {
+        await page.getByRole("button", { name: "분석 설정", exact: true }).click();
+      }
+      await page.getByRole("tab", { name: tabLabel, exact: true }).click();
+      if (side === "public") {
+        await page.getByTestId("selected-population-source").filter({ hasText: "행정안전부" }).waitFor();
+        await page.getByText(/^출생등록−사망말소 \+/).scrollIntoViewIfNeeded();
+        await page.locator("#result-view-region figure figcaption").first().scrollIntoViewIfNeeded();
+      }
       /* 색 전이(140ms)가 끝난 뒤에 읽는다. 그전에 재면 전이 도중의 색이 나온다. */
       await page.waitForTimeout(700);
       /* 접힌 것 안의 글자는 안 보이는 게 아니라 아직 안 그려진 것이다. 펼쳐서 잰다. */
-      const summaries = page.locator("details:not([open]) > summary");
-      for (let i = 0; i < (await summaries.count()); i++)
-        await summaries.nth(i).click({ timeout: 2_000 }).catch(() => {});
+      const summaries = page.locator(".copilot-panel:not([aria-hidden='true']) details > summary");
+      for (const summary of await summaries.all())
+        if (await summary.isVisible() && !(await summary.evaluate(el => el.parentElement.open || Boolean(el.closest("[inert], [hidden], [aria-hidden='true']"))))) await summary.click();
       await page.waitForTimeout(400);
 
       const { seen: rows, unmeasurable, disabled } = await page.evaluate(SCORE);
       offDuty += disabled;
       counted += rows.length;
       skipped += unmeasurable;
-      const bad = rows.filter((row) => row.value < row.need - 0.005);
+      const bad = rows.filter((row) => row.value < row.need);
       for (const row of bad)
         failures.push(
-          `${vpName}/${themeName}/${tabLabel} · 「${row.text}」 ${row.value.toFixed(2)}:1 ` +
+          `${vpName}/${themeName}/${viewLabel} · 「${row.text}」 ${row.value.toFixed(2)}:1 ` +
             `(필요 ${row.need}) · 글자 rgb(${row.fg}) 바탕 rgb(${row.bg}) · ${row.tag}.${row.cls || "(클래스 없음)"} ${row.size}px/${row.weight}`,
         );
       console.log(
-        `  ${bad.length === 0 ? "OK " : "!! "} ${vpName}/${themeName}/${tabLabel}: ` +
+        `  ${bad.length === 0 ? "OK " : "!! "} ${vpName}/${themeName}/${viewLabel}: ` +
           `${rows.length}개 중 ${bad.length}개 미달` +
           (unmeasurable ? ` (바탕이 그림이라 못 잰 것 ${unmeasurable}개)` : ""),
       );

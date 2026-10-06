@@ -44,10 +44,10 @@ for (const width of [390, 320]) {
     // 안내를 이미 본 프로필이면 카드가 없다.
   }
 
-  const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
+  const box = page.getByLabel("분석 질의");
   await box.fill(QUERY);
-  await box.press("Enter");
-  await page.locator(".rank-row .rank-value").first().waitFor({ timeout: 60_000 }).catch(() => {});
+  await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+  await page.locator(".rank-row .rank-value").first().waitFor({ timeout: 60_000 });
 
   const rows = await page.evaluate(() => {
     const size = (node) =>

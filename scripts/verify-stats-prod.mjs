@@ -44,21 +44,19 @@ async function ask(query) {
    * 첫 질의만 5건 실패로 나왔고 두 번째 질의는 통과했다. 알림이 「중입니다」에서
    * 벗어날 때까지 기다린다.
    */
-  await page
-    .waitForFunction(
-      () => {
-        const notice = document.querySelector('[data-testid="query-notice"]');
-        return !notice || !/중입니다/.test(notice.textContent ?? "");
-      },
-      null,
-      { timeout: 30_000 },
-    )
-    .catch(() => {});
-  await page.waitForTimeout(1_200);
+  await page.locator('.query-hero-notice.is-success').waitFor({ timeout: 60_000 });
+  await page.getByRole("tab", { name: "순위", exact: true }).click();
+  await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
+  const rows = await page.locator(".rank-row").count();
+  const rankingText = await page.getByTestId("result-panel").innerText();
+  await page.getByRole("tab", { name: "분석 근거", exact: true }).click();
+  const notes = page.locator('#result-view-evidence details > summary');
+  for (const note of await notes.all())
+    if (!(await note.evaluate(el => el.parentElement.open))) await note.click();
   return {
     // 결과 패널 전체 글자. 「(0점)」은 해석문에, 「표본 n개」는 산식 각주에 있다.
-    text: await page.getByTestId("result-panel").innerText(),
-    rows: await page.locator(".rank-row").count(),
+    text: rankingText + "\n" + await page.getByTestId("result-panel").innerText(),
+    rows,
   };
 }
 
@@ -89,7 +87,7 @@ check(
 check(vacant.text.includes("창원시 5개 구"), "왜 접었는지 적는다");
 check(!vacant.text.includes("(0점)"), "없는 점수를 0점으로 인쇄하지 않는다");
 check(
-  /1위 [^(]+\([\d.]+%\)/.test(vacant.text),
+  /1위 [^\n]+[\d.]+%\)/.test(vacant.text),
   "상위 지역에 점수 대신 실제 지표 값을 적는다",
   vacant.text.match(/상위 지역: [^\n]{0,60}/)?.[0] ?? "(문구 없음)",
 );

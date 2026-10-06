@@ -38,25 +38,24 @@ try {
   // 안내를 이미 본 프로필이면 카드가 없다. 정상이다.
 }
 
-const chips = await page.locator(".query-hero-chip").allInnerTexts();
+const chips = await page.locator('.query-hero-chips[aria-label="추천 질문"] .query-hero-chip').allInnerTexts();
 check(chips.length > 0, "추천 질문이 화면에 있다", `${chips.length}개`);
 
 /*
  * 비었다는 판정은 **개수**로 한다. 문구로 재면 문구가 바뀌는 날 검사가 눈을 감는다.
  * 결과 메타는 "30개 행정동" 또는 "1,361개 시설" 꼴이라 앞의 수만 보면 된다.
  */
-const resultCount = async () => {
-  const text = (await page.getByTestId("result-meta").innerText().catch(() => "")) ?? "";
-  const matched = text.replace(/,/g, "").match(/(\d+)\s*개/);
-  return matched ? Number(matched[1]) : null;
-};
+const resultCount = async () => page.locator(".rank-row").count();
 
 for (const chip of chips) {
-  const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
-  await box.fill(chip);
-  await box.press("Enter");
+  const box = page.getByLabel("분석 질의");
+  await box.fill("");
+  await page.getByRole("button", { name: chip, exact: true }).click();
+  await page.getByRole("button", { name: "질의 실행", exact: true }).click();
   /* 결과가 그려지기 전에 세면 앞 질문의 개수를 읽는다. 값이 자리 잡을 때까지 기다린다. */
-  await page.waitForTimeout(7_000);
+  await page.locator(".query-hero-notice.is-success").waitFor({ timeout: 60_000 });
+  await page.getByRole("tab", { name: "순위", exact: true }).click();
+  await page.getByTestId("export-csv").waitFor();
   const count = await resultCount();
   check(count !== null && count > 0, `「${chip}」에 답이 있다`, count === null ? "개수를 못 읽음" : `${count}개`);
 }

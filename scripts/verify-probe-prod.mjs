@@ -50,10 +50,10 @@ for (const [label, opts, touch] of [
     // 안내를 이미 본 프로필이면 카드가 없다. 그건 정상이다.
   }
 
-  // 떠 있는 버튼 줄이 접히면 첫 방문 안내 카드 밑으로 들어가 「조작」이 안 눌린다.
+  // 지도 밖 작업 영역의 주 버튼·더 보기 요약이 실제로 눌리는지 잰다.
   const bar = await page.evaluate(() => {
-    const el = document.querySelector(".map-float-bar");
-    const buttons = [...(el?.querySelectorAll("button") ?? [])];
+    const el = document.querySelector(".workspace-action-bar");
+    const buttons = [...(el?.querySelectorAll(":scope > button, :scope > details > summary") ?? [])];
     const reach = {};
     for (const button of buttons) {
       const r = button.getBoundingClientRect();
@@ -63,8 +63,8 @@ for (const [label, opts, touch] of [
     }
     return { rows: new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))).size, reach };
   });
-  check(bar.rows === 1, "떠 있는 버튼 줄이 한 줄", `${bar.rows}줄`);
-  check(Object.values(bar.reach).every(Boolean), "버튼이 모두 눌린다", JSON.stringify(bar.reach));
+  check(bar.rows === 1, "작업 버튼 줄이 한 줄", `${bar.rows}줄`);
+  check(Object.keys(bar.reach).length >= 3 && Object.values(bar.reach).every(Boolean), "버튼이 모두 눌린다", JSON.stringify(bar.reach));
 
   /*
    * 「지점 분석」 버튼은 경계가 도착한 뒤에야 나온다. 그전에는 Kakao 지도가 떠 있어도
@@ -78,6 +78,7 @@ for (const [label, opts, touch] of [
     { timeout: 60_000 },
   );
 
+  await page.getByTestId("query-workspace").getByText("더 보기", { exact: true }).click();
   const toggle = page.getByTestId("probe-toggle");
   await toggle.waitFor({ timeout: 30_000 });
   await toggle.click();
@@ -138,7 +139,7 @@ for (const [label, opts, touch] of [
   await tap(cx, cy - box.height * 0.18);
   await page.waitForTimeout(600);
   const second = await page.getByTestId("probe-region").innerText();
-  check(second.length > 0, "접은 채로 다른 지점을 찍을 수 있다", `${first.region} → ${second}`);
+  check(second.length > 0 && second !== first.region, "접은 채로 다른 지점을 찍어 결과가 바뀐다", `${first.region} → ${second}`);
 
   check(errors.length === 0, "JS 에러 없음", errors.slice(0, 2).join(" | "));
   await context.close();

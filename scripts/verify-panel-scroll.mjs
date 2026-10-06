@@ -54,7 +54,10 @@ await page.waitForTimeout(1200);
  * 왼쪽 패널은 기본으로 접혀 있다. 접힌 채 재면 폭 0이라 이 검사가
  * 「접혀 있어 건너뜀」으로 초록이 된다. 지시서대로 연 뒤에 잰다.
  */
-await page.keyboard.press("[");
+await page.getByLabel("분석 질의").fill("생활인구 많은 동네");
+await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
+await page.getByRole("button", { name: "분석 설정", exact: true }).click();
 await page.waitForTimeout(400);
 
 for (const [name, theme] of [
@@ -128,7 +131,7 @@ for (const [name, theme] of [
       continue;
     }
     if (row.collapsed) {
-      console.log(`  --  ${row.label}: 접혀 있어 건너뜀`);
+      check(false, `${row.label}: 열기 동작 후에도 접혀 있다`);
       continue;
     }
     check(row.overflows, `${row.label}: 넘치는 내용이 있다`, `보이는 높이 ${row.clientH}px`);
@@ -155,7 +158,7 @@ for (const [label, sel] of [
     (el) => el.closest(".copilot-panel")?.getBoundingClientRect().width ?? 0,
   );
   if (panelWidth < 40) {
-    console.log(`  --  ${label}: 접혀 있어 건너뜀`);
+    check(false, `${label}: 휠 검사 전 패널이 접혀 있다`);
     continue;
   }
   await target.evaluate((el) => {

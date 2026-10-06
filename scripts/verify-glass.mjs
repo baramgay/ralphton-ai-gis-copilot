@@ -7,7 +7,7 @@
  *
  * 그래서 세 가지를 묻는다.
  *   1. 네 테마 각각에서 --glass-* 가 값으로 풀리는가 (라이트에서 빈 문자열이면 실패)
- *   2. 지도 위 부유층에 backdrop-filter 가 실제로 걸렸는가 (고대비는 none 이어야 정상)
+ *   2. 지도 범례의 유리 효과와 지도 밖 질문 작업 영역의 높은 불투명도가 유지되는가
  *   3. 그 위의 글자가 최악의 타일에서도 AA(4.5:1)를 넘는가 — 계산이 아니라 화면에서
  *      읽어 온 실제 색으로
  *
@@ -62,10 +62,14 @@ try {
   // 이미 본 프로필이면 카드가 없다. 정상이다.
 }
 
+await page.getByLabel("분석 질의").fill("생활인구 많은 동네");
+await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
+
 if (BREAK) {
   await page.addStyleTag({
     content: `:root { --glass-bg: ; }
-      .query-hero-input, .query-hero-chip, .map-float-bar {
+      .query-workspace, .query-hero-input, .query-hero-chip, .workspace-action-bar, .map-legend {
         -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
         background: rgb(255 255 255 / 40%) !important; color: #8fa3bd !important;
       }`,
@@ -138,6 +142,8 @@ for (const [name, attr] of THEMES) {
       const cs = getComputedStyle(worst);
       return {
         bg: rgbaOf(cs.backgroundColor),
+        workspaceBg: worst.closest(".query-workspace")
+          ? rgbaOf(getComputedStyle(worst.closest(".query-workspace")).backgroundColor) : null,
         color: rgbaOf(cs.color),
         weight: cs.fontWeight,
         filter: cs.backdropFilter || cs.webkitBackdropFilter || "none",
@@ -148,8 +154,9 @@ for (const [name, attr] of THEMES) {
       tokens,
       input: pick(".query-hero-input"),
       chip: pick(".query-hero-chip"),
-      bar: pick(".map-float-bar"),
-      btn: pick(".map-float-btn"),
+      bar: pick(".workspace-action-bar"),
+      legend: pick(".map-legend"),
+      btn: pick(".workspace-action-bar .mobile-panel-btn"),
     };
   });
 
@@ -167,6 +174,7 @@ for (const [name, attr] of THEMES) {
     ["질의창", probe.input],
     ["칩", probe.chip],
     ["버튼 줄", probe.bar],
+    ["지도 범례", probe.legend],
   ]) {
     if (!part) {
       check(false, `${label} 요소를 찾지 못함`);
@@ -174,8 +182,8 @@ for (const [name, attr] of THEMES) {
     }
     const blurred = /blur/.test(part.filter);
     check(
-      glassy ? blurred : !blurred,
-      `${label}: ${glassy ? "유리가 걸렸다" : "고대비에서 유리를 버렸다"}`,
+      label === "지도 범례" ? (glassy ? blurred : !blurred) : parseColor(part.workspaceBg)?.alpha >= 0.95,
+      `${label}: ${label === "지도 범례" ? (glassy ? "유리가 걸렸다" : "고대비에서 유리를 버렸다") : "지도와 분리된 작업 영역"}`,
       part.filter,
     );
   }
@@ -188,13 +196,15 @@ for (const [name, attr] of THEMES) {
     ["질의창 글자", probe.input],
     ["칩 글자", probe.chip],
     ["버튼 글자", probe.btn ?? probe.bar],
+    ["지도 범례 글자", probe.legend],
   ]) {
     if (!part) continue;
     const bg = parseColor(part.bg);
     const fg = parseColor(part.color);
     if (!bg || !fg) continue;
-    // 버튼은 배경이 투명이라 줄(bar)의 유리를 바탕으로 삼는다.
-    const tint = bg.alpha === 0 ? parseColor(probe.bar.bg) : bg;
+    // 작업 영역 컨트롤은 부모 표면과 합성하고, 지도 범례는 최악 타일 위에서 잰다.
+    const base = part.workspaceBg ? parseColor(part.workspaceBg) : null;
+    const tint = base ? { rgb: composite(bg, base.rgb), alpha: base.alpha } : bg;
     if (!tint) continue;
     const worst = Math.min(
       contrast(fg.rgb, composite(tint, [255, 255, 255])),
@@ -206,10 +216,12 @@ for (const [name, attr] of THEMES) {
 
 /* 지점 카드가 열렸을 때 닫기 단추가 실제로 눌리는가. */
 await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+await page.locator('.workspace-more > summary').click();
 const probeToggle = page.getByTestId("probe-toggle");
+await probeToggle.waitFor({ timeout: 60_000 });
 if (await probeToggle.count()) {
   await probeToggle.first().click();
-  await page.locator(".copilot-map").click({ position: { x: 380, y: 360 } });
+  await page.locator(".copilot-map").click({ position: { x: 600, y: 240 } });
   const card = page.getByTestId("probe-card");
   try {
     await card.waitFor({ timeout: 15_000 });
@@ -221,7 +233,7 @@ if (await probeToggle.count()) {
     });
     check(reachable, "지점 카드 머리글이 다른 층에 가리지 않는다");
   } catch {
-    console.log("  --  지점 카드가 열리지 않아 건너뜀(데이터 없음)");
+    check(false, "지점 분석 실행 후 카드가 열린다");
   }
 }
 

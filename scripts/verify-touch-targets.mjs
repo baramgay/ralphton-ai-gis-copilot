@@ -31,19 +31,9 @@ const dismissOnboard = async (page) => {
   }
 };
 
-const openLeft = async (page, narrow) => {
-  if (narrow) {
-    const toggle = page.getByRole("button", { name: "조작", exact: true });
-    if (await toggle.isVisible().catch(() => false)) {
-      const panel = page.locator(".copilot-panel-left");
-      if (!(await panel.evaluate((el) => el.classList.contains("sheet-open")))) {
-        await toggle.click({ force: true });
-      }
-    }
-    return;
-  }
-  await page.keyboard.press("[");
-  await page.waitForTimeout(400);
+const openLeft = async (page) => {
+  await page.getByRole("button", { name: "분석 설정", exact: true }).click();
+  await page.getByRole("tab", { name: "분석", exact: true }).waitFor();
 };
 
 const measure = async (page) =>
@@ -180,6 +170,17 @@ for (const [name, viewport, narrow] of viewports) {
           .join("; ")
       : "0건",
   );
+  await page.getByLabel("분석 질의").fill("생활인구 많은 동네");
+  await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+  await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
+  for (const tabName of ["순위", "선택 지역", "분석 근거"]) {
+    await page.getByRole("tab", { name: tabName, exact: true }).click();
+    await page.waitForTimeout(400);
+    const targets = await measure(page);
+    check(targets.total > 0 && targets.misses.length === 0,
+      `${name}/${tabName}: 보이는 표적 ${targets.total}개 중 44×44 미달 ${targets.misses.length}건`,
+      targets.misses.slice(0, 8).map(m => `${m.label} ${m.w}×${m.h} 모서리${m.corners}/4`).join("; ") || "0건");
+  }
   await context.close();
 }
 

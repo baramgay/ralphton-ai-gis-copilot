@@ -38,7 +38,7 @@ await page.getByTestId("copilot-shell").waitFor({ timeout: 90_000 });
 const onboard = page.getByTestId("onboard-card");
 if (await onboard.isVisible().catch(() => false)) {
   const text = clean(await onboard.textContent());
-  check(text.includes(HUB), "30초 안내가 창구를 부른다", text.slice(0, 90));
+  check(/추천 질문/.test(text) && /분석하기/.test(text), "첫 방문 안내가 실제 질문 실행 경로를 알려준다", text.slice(0, 90));
   await page.locator('[data-testid="onboard-card"] button').last().click();
   await onboard.waitFor({ state: "detached", timeout: 8_000 }).catch(() => {});
 } else {
@@ -69,15 +69,16 @@ for (const provider of ["SKT", "NH", "KCB"]) {
 }
 
 /* 4) 레이어를 바꿀 때 뜨는 출처 문구. 이 문장이 보고서로 옮겨진다. */
-await page.getByRole("button", { name: "조작" }).click().catch(() => {});
-const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
-await box.fill("생활인구 많은 동네");
-await box.press("Enter");
-await page.waitForTimeout(9_000);
 
-const shell = clean(await page.getByTestId("copilot-shell").textContent());
-check(shell.includes(HUB), "레이어 전환 안내가 창구를 밝힌다");
-check(shell.includes("SKT"), "그 안내에 제공기관 이름도 남아 있다");
+const box = page.getByLabel("분석 질의");
+await box.fill("생활인구 많은 동네");
+await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+await page.locator(".query-hero-notice.is-success").waitFor({ timeout: 60_000 });
+await page.getByTestId("export-csv").waitFor();
+
+const shell = clean(await page.getByTestId("data-provenance").innerText());
+check(shell.includes(HUB), "실행 결과 출처가 창구를 밝힌다");
+check(shell.includes("SKT"), "실행 결과 출처에 제공기관 이름도 남아 있다");
 
 await browser.close();
 console.log(`\n통과 ${pass}건${failures.length ? ` · 실패 ${failures.length}건: ${failures.join(", ")}` : ""}`);

@@ -1963,9 +1963,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
   const mapPointCap = capMapPoints(scopedMapFacilities.map(facilityToMapPoint));
   const mapFacilities = mapPointCap.shown;
   const mapFacilitiesCapped = mapPointCap.capped;
-  const selectedFacilities = scopedMapFacilities.filter(
+  // 지역 통계는 지도 표시 여부·검색 유형·핀 상한과 무관하게 전체 자료에서 센다.
+  const selectedFacilityCount = (snapshot?.facilities ?? []).filter(
     (facility) => facilityInScope(facility.adm_cd2, selectedRegionCode),
-  );
+  ).length;
 
   /*
    * 시군구 선택 칸의 주인. 스냅샷에 없는 5자리 코드라 selectedRegion은 null이다.
@@ -5727,7 +5728,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
                 {[
                   ["총인구", currentPopulation.toLocaleString("ko-KR")],
                   ["고령", currentElderly.toLocaleString("ko-KR")],
-                  [snapshot.mode === "live" ? "의료기관 · 심평원" : "의료기관 · 시연", String(selectedFacilities.length)],
+                  [snapshot.mode === "live" ? "의료기관 · 심평원" : "의료기관 · 시연", String(selectedFacilityCount)],
                   ["1인세대", currentOnePerson == null ? "없음" : currentOnePerson.toLocaleString("ko-KR")],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
@@ -5777,7 +5778,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "" }: CopilotAppProp
 
               <div className="mt-3 grid grid-cols-2 gap-1.5">
                 {[
-                  [snapshot.mode === "live" ? "의료기관 · 심평원" : "의료기관 · 시연", String(selectedFacilities.length)],
+                  [snapshot.mode === "live" ? "의료기관 · 심평원" : "의료기관 · 시연", String(selectedFacilityCount)],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl bg-slate-50 px-2.5 py-2">
                     <p className="text-[9px] text-slate-600">{label}</p>

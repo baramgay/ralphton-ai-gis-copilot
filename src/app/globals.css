@@ -710,9 +710,7 @@ html[data-theme="contrast"] .copilot-shell .map-float-btn.is-active *,
 html[data-theme="contrast"] .copilot-shell .rank-row.is-selected,
 html[data-theme="contrast"] .copilot-shell .rank-row.is-selected *,
 html[data-theme="contrast"] .copilot-shell .choice-btn[aria-pressed="true"],
-html[data-theme="contrast"] .copilot-shell .choice-btn[aria-pressed="true"] *,
-html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"],
-html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"] * {
+html[data-theme="contrast"] .copilot-shell .choice-btn[aria-pressed="true"] * {
   background-color: #fff !important;
   color: #000 !important;
 }
@@ -728,6 +726,12 @@ html[data-theme="contrast"] .score-bar > span {
 html[data-theme="contrast"] .copilot-shell [class*="text-"],
 html[data-theme="contrast"] .copilot-shell [class*="text-"] * {
   color: #fff !important;
+}
+
+html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"],
+html[data-theme="contrast"] .copilot-shell [class*="bg-slate-9"] * {
+  background-color: #fff !important;
+  color: #000 !important;
 }
 
 /* 옅은 바탕은 전부 검정으로. `bg-white/90` 같은 투명도 변형까지 잡는다. */

@@ -51,9 +51,13 @@ check(fileStatus.regions === 22, "경남 시군구 22곳이 모두 실렸다", `
 check(fileStatus.months === 12, "12개월이 실렸다", `${fileStatus.months}개월`);
 
 /* 지역을 골라야 패널이 뜬다. 질의 하나면 1위 지역이 선택된다. */
-const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
+const box = page.getByLabel("분석 질의");
 await box.fill("생활인구 많은 동네");
-await box.press("Enter");
+await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+
+await page.locator(".query-hero-notice.is-success").waitFor({ timeout: 60_000 });
+await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
+await page.getByRole("tab", { name: "선택 지역", exact: true }).click();
 
 const flow = page.getByTestId("region-flow");
 await flow.waitFor({ timeout: 60_000 }).catch(() => {});
@@ -61,7 +65,7 @@ check(await flow.isVisible().catch(() => false), "사람 흐름 칸이 뜬다");
 
 if (await flow.isVisible().catch(() => false)) {
   await flow.locator("summary").click();
-  await page.waitForTimeout(1200);
+  await flow.getByTestId("region-flow-inbound").waitFor({ timeout: 60_000 });
   const text = clean(await flow.textContent());
 
   check(!/자료를 불러오지 못했습니다/.test(text), "자료를 받아 온다", text.slice(0, 90));

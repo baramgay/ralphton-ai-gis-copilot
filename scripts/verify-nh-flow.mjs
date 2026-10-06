@@ -50,16 +50,19 @@ check(fileStatus.ok, "돈 흐름 자료가 배포본에 있다", JSON.stringify(
 check(fileStatus.regions === 22, "경남 시군구 22곳이 모두 실렸다", `${fileStatus.regions}곳`);
 check(fileStatus.months === 12, "12개월이 실렸다", `${fileStatus.months}개월`);
 
-/* 김해를 골라 돈 흐름 칸을 연다. 공유 링크가 선택을 대신한다. */
-await page.goto(`${URL.replace(/\/$/, "")}/?region=48250`, { waitUntil: "domcontentloaded" });
-await page.getByTestId("copilot-shell").waitFor({ timeout: 90_000 });
+/* 실제 분석으로 김해를 선택한 뒤 선택 지역 탭을 연다. */
+await page.getByLabel("분석 질의").fill("김해 생활인구 많은 동");
+await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+await page.locator(".query-hero-notice.is-success").waitFor({ timeout: 60_000 });
+await page.locator(".rank-row").first().waitFor({ timeout: 60_000 });
+await page.getByRole("tab", { name: "선택 지역", exact: true }).click();
 const money = page.getByTestId("money-flow");
 await money.waitFor({ timeout: 60_000 }).catch(() => {});
 check(await money.isVisible().catch(() => false), "돈 흐름 칸이 뜬다");
 
 if (await money.isVisible().catch(() => false)) {
   await money.locator("summary").click();
-  await page.waitForTimeout(1200);
+  await money.getByTestId("money-flow-inbound").waitFor({ timeout: 60_000 });
   const text = clean(await money.textContent());
 
   check(!/자료를 불러오지 못했습니다/.test(text), "자료를 받아 온다", text.slice(0, 90));
@@ -83,10 +86,11 @@ if (await money.isVisible().catch(() => false)) {
 }
 
 /* 말로 물으면 지역 상세로 가서 돈 흐름을 펼치라고 안내한다. */
-const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
+const box = page.getByLabel("분석 질의");
 await box.fill("김해 돈은 어디서 와?");
-await box.press("Enter");
-await page.waitForTimeout(2500);
+await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+await page.locator(".query-hero-notice.is-success").waitFor({ timeout: 60_000 });
+await page.getByRole("tab", { name: "선택 지역", exact: true }).click();
 const shellText = clean(await page.getByTestId("copilot-shell").textContent());
 check(/돈 흐름을 표시합니다/.test(shellText), "돈 질문에 돈 흐름 안내가 뜬다");
 

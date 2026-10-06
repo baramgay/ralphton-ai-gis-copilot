@@ -17,7 +17,7 @@
  *
  * 실행: node scripts/verify-map-overlap.mjs [URL] (종료 코드로 판정)
  */
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 const URL = process.argv[2] ?? "https://gnbc.site/";
 /* 긴 라벨을 만드는 질의. 짧은 기본 라벨로 재면 겹침이 있어도 초록이 나온다. */
@@ -45,11 +45,14 @@ for (const width of WIDTHS) {
     // 안내를 이미 본 프로필이면 카드가 없다. 정상이다.
   }
 
-  const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
+  const box = page.getByLabel("분석 질의");
   await box.fill(LONG_LABEL_QUERY);
   await box.press("Enter");
   /* 안내 줄까지 자리를 잡아야 질의창의 진짜 높이가 나온다. */
-  await page.waitForTimeout(8_000);
+  await expect(page.getByTestId("map-view-chip")).toContainText("교통사고", { timeout: 30_000 });
+  // 레이어 전환 직후 임시 라벨이 아니라 원자료가 도착한 상태를 잰다.
+  await expect(page.getByTestId("map-view-chip")).toContainText("KOSIS", { timeout: 30_000 });
+  await page.waitForFunction(() => document.querySelectorAll("[data-map-engine] path").length > 20, null, { timeout: 60_000 });
 
   const measured = await page.evaluate(() => {
     const rect = (selector) => {
@@ -65,7 +68,7 @@ for (const width of WIDTHS) {
       chip: rect(".map-chip-topleft"),
       hero: rect(".query-hero"),
       legend: rect(".map-legend"),
-      bar: rect(".map-float-bar"),
+      bar: rect(".workspace-action-bar"),
       badge: rect(".map-context-badge"),
     };
   });
@@ -82,13 +85,16 @@ for (const width of WIDTHS) {
     ["칩", "chip", "질의창", "hero"],
     ["칩", "chip", "범례", "legend"],
     ["질의창", "hero", "범례", "legend"],
-    ["질의창", "hero", "조작 줄", "bar"],
+    ["질의창", "hero", "작업 버튼", "bar"],
+    ["칩", "chip", "작업 버튼", "bar"],
     ["질의창", "hero", "아래 배지", "badge"],
   ];
 
   console.log(`\n[${width}px]`);
   check(measured.chip !== null, `${width}px · 좌상단 칩이 있다`);
   check(measured.hero !== null, `${width}px · 질의창이 있다`);
+  check(measured.bar !== null, `${width}px · 작업 버튼이 있다`);
+  check(measured.chip?.text.includes("교통사고"), `${width}px · 긴 분석 라벨이 실제 적용됐다`, measured.chip?.text);
 
   for (const [aName, aKey, bName, bKey] of pairs) {
     const a = measured[aKey];
@@ -120,10 +126,13 @@ for (const width of WIDTHS) {
   } catch {
     // 안내 카드가 없으면 그대로 간다.
   }
-  const box = page.getByPlaceholder("무엇이 궁금하세요", { exact: false }).first();
+  const box = page.getByLabel("분석 질의");
   await box.fill(LONG_LABEL_QUERY);
   await box.press("Enter");
-  await page.waitForTimeout(9_000);
+  await expect(page.getByTestId("map-view-chip")).toContainText("교통사고", { timeout: 30_000 });
+  // 레이어 전환 직후 임시 라벨이 아니라 원자료가 도착한 상태를 잰다.
+  await expect(page.getByTestId("map-view-chip")).toContainText("KOSIS", { timeout: 30_000 });
+  await page.waitForFunction(() => document.querySelectorAll("[data-map-engine] path").length > 20, null, { timeout: 60_000 });
 
   const map = await page.locator(".copilot-map").boundingBox();
   let tip = null;

@@ -48,10 +48,9 @@ export function TrendChart({ values, labels, tone = "blue" }: TrendChartProps) {
           </circle>
         ))}
       </svg>
-      <figcaption className="flex justify-between text-[10px] font-medium text-slate-400">
+      <figcaption className="flex justify-between text-[10px] font-medium text-slate-600">
         <span>{labels[0]}</span><span>{labels.at(-1)}</span>
       </figcaption>
     </figure>
   );
 }
-

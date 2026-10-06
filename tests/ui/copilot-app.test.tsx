@@ -942,6 +942,61 @@ describe("CopilotApp", () => {
     expect(screen.getByText("추천 질문으로 분석을 시작하세요")).toBeInTheDocument();
   });
 
+  test.each([["행정동", "dong", "2"], ["시군구", "sgg", "3"]] as const)(
+    "%s 인구 분석의 의료기관 통계는 숨긴 지도 핀 대신 전체 소속 시설을 센다",
+    async (_label, level, expectedCount) => {
+      const baseFetch = fetch;
+      const sibling = { ...snapshot.regions[0], adm_cd2: "4812131000", adm_nm: "경상남도 창원시 의창구 북면", population: Array(13).fill(1000) };
+      const other = { ...snapshot.regions[0], adm_cd2: "4825025000", adm_nm: "경상남도 김해시 진영읍", population: Array(13).fill(500) };
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/data/snapshot")) return new Response(JSON.stringify({
+          ...snapshot,
+          regions: [...snapshot.regions, sibling, other],
+          facilities: [...snapshot.facilities,
+            { ...snapshot.facilities[0], id: "sibling", adm_cd2: sibling.adm_cd2, adm_nm: sibling.adm_nm },
+            { ...snapshot.facilities[0], id: "outside", adm_cd2: other.adm_cd2, adm_nm: other.adm_nm },
+          ],
+        }), { status: 200 });
+        return baseFetch(input, init);
+      }));
+      render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+      await screen.findByTestId("demo-map-badge");
+      openControls();
+      fireEvent.click(within(screen.getByRole("group", { name: "레이어 선택" })).getByRole("button", { name: /^인구/ }));
+      if (level === "sgg") fireEvent.click(within(screen.getByRole("group", { name: "분석 단위" })).getByRole("button", { name: "시군구" }));
+      fireEvent.click(screen.getByRole("tab", { name: "선택 지역" }));
+      const label = await screen.findByText("의료기관 · 시연");
+      expect(within(label.parentElement!).getByText(expectedCount, { exact: true })).toBeInTheDocument();
+      expect(screen.getByTestId("demo-map")).toHaveAttribute("data-facilities-mode", "analysis");
+      expect(within(screen.getByTestId("demo-map")).queryByRole("button", { name: /중앙의원|중앙약국/ })).toBeNull();
+    },
+  );
+
+  test("의료 유형 필터와 900개 지도 핀 상한이 선택 지역 전체 의료기관 통계를 바꾸지 않는다", async () => {
+    const baseFetch = fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/data/snapshot")) return new Response(JSON.stringify({
+        ...snapshot,
+        facilities: [snapshot.facilities[0], ...Array.from({ length: 901 }, (_, i) => ({
+          ...snapshot.facilities[1], id: `pharmacy-${i}`, name: `약국-${i}`,
+        }))],
+      }), { status: 200 });
+      return baseFetch(input, init);
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByLabelText("분석 질의"), { target: { value: "창원시 약국 위치" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByRole("heading", { name: "의료기관 검색" });
+    const map = screen.getByTestId("demo-map");
+    expect(within(map).getAllByRole("button", { name: /약국-/ })).toHaveLength(900);
+    expect(within(map).queryByRole("button", { name: /중앙의원/ })).toBeNull();
+    expect(screen.getByTestId("result-panel")).toHaveTextContent("901");
+    fireEvent.click(screen.getByRole("tab", { name: "선택 지역" }));
+    const label = await screen.findByText("의료기관 · 시연");
+    expect(within(label.parentElement!).getByText("902", { exact: true })).toBeInTheDocument();
+  }, 15_000);
+
   test("선택 지역의 합성 인구 통계와 추세 곁에 시연 자료를 표시한다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
