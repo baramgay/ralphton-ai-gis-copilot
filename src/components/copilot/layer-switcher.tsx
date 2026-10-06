@@ -1,4 +1,7 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+import { DATASET_DESCRIPTIONS, DATASET_TOPICS, type DatasetTopicId } from "./dataset-topics";
 
 import { CROSS_CANDIDATE_LAYERS } from "@/lib/layers/catalog";
 import { HUB_PLATFORM } from "@/lib/layers/channel";
@@ -16,14 +19,9 @@ type LayerSwitcherProps = {
   layers: LayerOption[];
   activeId: string;
   onChange: (id: string) => void;
-  /**
-   * 고른 레이어의 버튼 줄 **바로 아래**에 끼워 넣을 것 — 지표 고르기가 여기로 온다.
-   *
-   * 전에는 목록 전체가 끝난 뒤에 지표 콤보박스가 하나 있었다. 레이어가 스물둘이라
-   * 위쪽 SKT 레이어를 고르면 그 콤보박스는 화면 밖이었고, 「이동인구에는 유입인구밖에
-   * 없다」로 읽혔다 — 유출인구도 순유입도 그 상자 안에 있었는데 상자가 안 보였다.
-   * 고른 자리에 붙여 두면 무엇을 더 고를 수 있는지가 고르는 순간 보인다.
-   */
+  selectionLabel?: string;
+  selectionDetail?: string;
+  /** 선택한 자료의 지표·단위·적용 조건. 탐색 창을 열어도 유지한다. */
   activeSlot?: ReactNode;
   /** 검색 색인. 생략하면 카탈로그 정본을 쓴다. */
   searchSource?: readonly LayerSearchSource[];
@@ -110,98 +108,123 @@ export function groupBySource(layers: LayerOption[]): SourceGroup[] {
   ).filter((group) => group.providers.length > 0);
 }
 
-function LayerButton({
-  layer,
-  activeId,
-  onChange,
-}: {
-  layer: LayerOption;
-  activeId: string;
-  onChange: (id: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={layer.id === activeId}
-      className="layer-switcher-item"
-      onClick={() => onChange(layer.id)}
-    >
-      <span className="layer-switcher-label">{layer.label}</span>
-      <span className="layer-switcher-provider">{layer.provider}</span>
-    </button>
-  );
-}
-
 export function LayerSwitcher({
   layers,
   activeId,
   onChange,
   activeSlot,
+  selectionLabel,
+  selectionDetail,
   searchSource = CROSS_CANDIDATE_LAYERS,
 }: LayerSwitcherProps) {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const visible = useMemo(
-    () => filterLayersByQuery(layers, query, searchSource),
-    [layers, query, searchSource],
-  );
-  /*
-   * 고른 레이어를 목록 밖으로 빼지 않는다. 이 목록이 이 화면의 본문이고, 민간·공공
-   * 묶음 안에서 고르는 것이 첫 동작이다. 빼 두면 목록은 잘린 나머지만 남고(예전에
-   * 10.5rem 스크롤), 의료기관만 따로 떠 공공 자료의 하나로 읽히지 않았다.
-   *
-   * 지표 고르기는 고른 버튼이 있는 **그 제공기관 묶음 바로 아래**에 둔다. 목록 맨
-   * 밑에 두면 SKT를 골랐을 때 상자가 화면 밖이라 「이동인구에는 유입인구밖에 없다」로
-   * 읽혔다.
-   */
-  const groups = groupBySource(visible);
+  const [topicId, setTopicId] = useState<DatasetTopicId | "all" | "overview">("overview");
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const titleId = useId();
+  const selected = layers.find((layer) => layer.id === activeId);
+  const selectedLabel = selectionLabel ?? selected?.label ?? "자료를 선택하세요";
+  const topics = DATASET_TOPICS.filter((topic) => layers.some((layer) => (topic.layerIds as readonly string[]).includes(layer.id)));
+  const visible = useMemo(() => {
+    const searched = filterLayersByQuery(layers, query, searchSource);
+    if (query.trim() || topicId === "all") return searched;
+    const topic = DATASET_TOPICS.find((item) => item.id === topicId);
+    return topic ? searched.filter((layer) => (topic.layerIds as readonly string[]).includes(layer.id)) : [];
+  }, [layers, query, searchSource, topicId]);
+  const overview = topicId === "overview" && !query.trim();
+
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    const trigger = triggerRef.current;
+    dialog?.showModal();
+    searchRef.current?.focus();
+    return () => {
+      if (dialog?.open) dialog.close();
+      trigger?.focus();
+    };
+  }, [open]);
+
+  const closeCatalog = () => {
+    dialogRef.current?.close();
+    setOpen(false);
+  };
+  const handleKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeCatalog();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]'))
+      .filter((node) => !node.matches(":disabled") && !node.closest("[hidden]"));
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  };
 
   return (
-    <div className="layer-picker">
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="자료 이름 또는 지표"
-        aria-label="레이어 검색"
-        className="layer-search"
-        data-testid="layer-search"
-      />
-      {visible.length === 0 ? (
-        <p className="layer-search-empty" data-testid="layer-search-empty" role="status">
-          「{query.trim()}」에 해당하는 자료가 없습니다
-        </p>
-      ) : (
-        <div role="group" aria-label="레이어 선택" className="space-y-3">
-          {groups.map((group) => (
-            <div key={group.source}>
-              {query.trim() ? null : (
-                <>
-                  <p className="layer-group-kicker">{group.source} 자료</p>
-                  <p className="ui-caption mb-1.5">{group.note}</p>
-                </>
-              )}
-              {group.providers.map((byProvider) => (
-                <div key={byProvider.provider} className="mt-1.5">
-                  <p className="ui-caption mb-1 font-bold">{byProvider.provider}</p>
-                  <div className="layer-switcher">
-                    {byProvider.layers.map((layer) => (
-                      <LayerButton
-                        key={layer.id}
-                        layer={layer}
-                        activeId={activeId}
-                        onChange={onChange}
-                      />
-                    ))}
-                  </div>
-                  {activeSlot && byProvider.layers.some((layer) => layer.id === activeId) ? (
-                    <div className="mt-2">{activeSlot}</div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ))}
+    <div className="dataset-picker">
+      <section className="dataset-selected" data-testid="dataset-selected" aria-label="선택한 자료">
+        <div className="dataset-selected-heading">
+          <div>
+            <p className="dataset-selected-name">{selectedLabel}</p>
+            {selected ? <span className="dataset-selected-provider">{selected.provider}</span> : null}
+          </div>
+          <button ref={triggerRef} type="button" className="dataset-change-button" aria-haspopup="dialog"
+            onClick={() => { setQuery(""); setTopicId("overview"); setOpen(true); }}>자료 변경</button>
         </div>
-      )}
+        <p className="dataset-selected-description">{selectionDetail ?? (selected ? DATASET_DESCRIPTIONS[selected.id] : "목적에 맞는 자료를 골라 분석하세요.")}</p>
+      </section>
+      {activeSlot ? <div className="dataset-controls">{activeSlot}</div> : null}
+      {open ? createPortal(
+        <dialog ref={dialogRef} className="dataset-dialog" aria-labelledby={titleId}
+          onClose={() => setOpen(false)} onCancel={(event) => { event.preventDefault(); closeCatalog(); }} onKeyDown={handleKeyDown}>
+          <header className="dataset-dialog-header">
+            <div><h2 id={titleId} className="dataset-dialog-title">자료 선택</h2><p>궁금한 목적을 고르거나 자료·지표를 검색하세요.</p></div>
+            <button type="button" className="dataset-dialog-close" aria-label="자료 선택 닫기" onClick={closeCatalog}>닫기</button>
+          </header>
+          <input ref={searchRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+            placeholder="예: 유출인구, 카드매출, 빈집" aria-label="자료 검색" className="dataset-search" data-testid="layer-search" />
+          <p className="dataset-catalog-count" role="status" aria-live="polite">
+            {overview ? `${layers.length}개 자료 · 목적을 선택하세요` : `${query.trim() ? "전체 자료 검색" : topics.find((topic) => topic.id === topicId)?.label ?? "전체 자료"} · ${visible.length}개`}
+          </p>
+          {overview ? (
+            <div className="dataset-topic-grid">
+              {topics.map((topic) => <button key={topic.id} type="button" className="dataset-topic-card" onClick={() => setTopicId(topic.id)}>
+                <span className="dataset-topic-title">{topic.label}</span><span className="dataset-topic-description">{topic.description}</span>
+                <span className="dataset-topic-count">{layers.filter((layer) => (topic.layerIds as readonly string[]).includes(layer.id)).length}개 자료</span>
+              </button>)}
+              <button type="button" className="dataset-all-button" onClick={() => setTopicId("all")}>전체 자료 보기</button>
+            </div>
+          ) : (
+            <>
+              <nav className="dataset-topic-nav" aria-label="자료 목적">
+                <button type="button" aria-pressed={topicId === "all" || Boolean(query.trim())} onClick={() => { setQuery(""); setTopicId("all"); }}>전체</button>
+                {topics.map((topic) => <button key={topic.id} type="button" aria-pressed={!query.trim() && topicId === topic.id}
+                  onClick={() => { setQuery(""); setTopicId(topic.id); }}>{topic.label}</button>)}
+              </nav>
+              {visible.length === 0 ? <p className="dataset-empty" data-testid="layer-search-empty">「{query.trim()}」에 해당하는 자료가 없습니다</p> : (
+                <div className="dataset-catalog-grid" role="group" aria-label="자료 선택 목록">
+                  {visible.map((layer) => <button key={layer.id} type="button" className="dataset-card" data-layer-id={layer.id}
+                    aria-pressed={layer.id === activeId} onClick={() => { onChange(layer.id); closeCatalog(); }}>
+                    <span className="dataset-card-label">{layer.label}</span><span className="dataset-card-provider">{layer.provider}</span>
+                    <span className="dataset-card-description">{DATASET_DESCRIPTIONS[layer.id]}</span>
+                  </button>)}
+                </div>
+              )}
+            </>
+          )}
+        </dialog>, document.body,
+      ) : null}
     </div>
   );
 }

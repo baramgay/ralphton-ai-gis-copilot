@@ -171,12 +171,12 @@ test.describe("tablet sheet", () => {
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
     await page.getByRole("button", { name: "분석 설정", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
-    await expect(page.getByText("민간 자료")).toBeVisible();
-    await expect(page.getByRole("button", { name: "생활인구 SKT" })).toBeVisible();
-    await page.getByText("공공 자료").scrollIntoViewIfNeeded();
-    await expect(page.getByText("공공 자료")).toBeVisible();
-    await page.getByRole("button", { name: /의료기관/ }).scrollIntoViewIfNeeded();
-    await expect(page.getByRole("button", { name: /의료기관/ })).toBeVisible();
+    await expect(page.getByTestId("dataset-selected")).toContainText("생활인구");
+    await page.getByRole("button", { name: "자료 변경" }).click();
+    await expect(page.getByRole("dialog", { name: "자료 선택" })).toBeVisible();
+    await page.getByRole("button", { name: /^생활과 공공서비스/ }).click();
+    await page.getByRole("button", { name: /^의료기관/ }).click();
+    await expect(page.getByTestId("dataset-selected")).toContainText("의료기관");
 
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
     expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
@@ -195,7 +195,8 @@ test.describe("tablet landscape sheet", () => {
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
     await page.getByRole("button", { name: "분석 설정", exact: true }).click();
     await expect(page.locator(".copilot-panel-left")).toHaveClass(/sheet-open/);
-    await expect(page.getByText("민간 자료")).toBeVisible();
+    await expect(page.getByTestId("dataset-selected")).toContainText("생활인구");
+    await expect(page.getByRole("button", { name: "자료 변경" })).toBeVisible();
     expect(await selectorReachable(page, "#analysis-query")).toBe(true);
     expect(await selectorReachable(page, '[data-testid="workspace-results-toggle"]')).toBe(true);
   });

@@ -30,6 +30,13 @@ async function openSheet(page: Page, name: "분석 설정" | "결과") {
   await expect(panel).not.toHaveClass(/is-collapsed/);
 }
 
+async function selectDataset(page: Page, name: string | RegExp) {
+  await openSheet(page, "분석 설정");
+  await page.getByRole("button", { name: "자료 변경" }).click();
+  await page.getByRole("button", { name: "전체 자료 보기" }).click();
+  await page.getByRole("group", { name: "자료 선택 목록" }).getByRole("button", { name }).click();
+}
+
 test.describe("AI GIS Copilot core journey", () => {
   test("loads demo shell and runs quick analyses", async ({ page }) => {
     await page.goto("/");
@@ -46,7 +53,8 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("result-panel")).toBeVisible();
 
     await openSheet(page, "분석 설정");
-    await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
+    await selectDataset(page, /^의료기관/);
+    await page.locator(".analysis-medical-tools > summary").click();
     await page.getByTestId("quick-elderly").click();
     await openSheet(page, "결과");
     await page.getByRole("tab", { name: "분석 근거", exact: true }).click();
@@ -73,7 +81,7 @@ test.describe("AI GIS Copilot core journey", () => {
     await expect(page.getByTestId("data-mode-banner")).toContainText(/시연|실데이터/);
 
     await page.getByRole("tab", { name: /^분석$/ }).click();
-    await page.getByText("화면 설정").click();
+    await page.getByText("화면·접근성 설정").click();
     await expect(page.getByTestId("theme-dark")).toBeVisible();
     await expect(page.getByTestId("theme-system")).toBeVisible();
 
@@ -101,20 +109,17 @@ test.describe("AI GIS Copilot core journey", () => {
     await page.getByRole("button", { name: "바로 시작" }).click().catch(() => {});
     await openSheet(page, "분석 설정");
 
-    const tall = await page.evaluate(() => {
-      const items = [...document.querySelectorAll(".layer-switcher-item")];
-      const lineHeight = 18; // ui-body 한 줄의 대략치
-      return items
-        .map((el) => ({
-          label: el.textContent?.trim() ?? "",
-          height: el.getBoundingClientRect().height,
-        }))
-        // 한 줄짜리 알약은 패딩 포함 34px 안팎이다. 두 줄이면 이미 무너진 것이다.
-        .filter((item) => item.height > lineHeight * 2 + 16);
-    });
+    await page.getByRole("button", { name: "자료 변경" }).click();
+    await page.getByRole("button", { name: "전체 자료 보기" }).click();
+    const labels = await page.locator(".dataset-card-label").evaluateAll((nodes) => nodes.map((node) => ({
+      label: node.textContent,
+      height: node.getBoundingClientRect().height,
+      lineHeight: parseFloat(getComputedStyle(node).lineHeight),
+      overflow: node.scrollWidth > node.clientWidth,
+    })));
+    expect(labels).toHaveLength(23);
+    expect(labels.filter(item => item.height > item.lineHeight * 2 + 1 || item.overflow)).toEqual([]);
 
-    expect(tall, `세로로 흐른 레이어: ${JSON.stringify(tall)}`).toEqual([]);
-    expect(await page.locator(".layer-switcher-item").count()).toBeGreaterThan(10);
   });
 
   /*
@@ -182,15 +187,14 @@ test.describe("AI GIS Copilot core journey", () => {
     const chip = page.locator(".map-chip-topleft");
     await expect(chip).toContainText("시군구 경계");
 
-    await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: "생활인구 SKT" }).click();
+    await selectDataset(page, /^생활인구/);
     await expect(chip).toContainText("생활인구");
 
-    await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^인구/ }).click();
+    await selectDataset(page, /^인구/);
     await page.getByTestId("metric-picker").getByRole("button", { name: /총인구/ }).click();
     await expect(chip).toContainText("인구");
     await expect(chip).toContainText("총인구");
 
-    await page.getByTestId("picker-summary").click();
     await page.getByTestId("metric-picker").getByRole("button", { name: /세대수/ }).click();
     await expect(chip).toContainText("세대수");
   });

@@ -21,7 +21,7 @@ const PUBLIC_PREFIXES = ["/_next/", "/favicon", "/icon", "/apple-icon", "/robots
  * - /api/access: 인증 자체를 처리한다. 막으면 비밀번호를 넣어도 들어갈 수 없다.
  * - /api/health: 잠긴 화면이 서비스 상태를 물어야 한다.
  */
-const PUBLIC_PATHS = ["/api/access", "/api/health"];
+const PUBLIC_PATHS = ["/api/access", "/api/health", "/brand-mark.svg", "/apple-touch-icon.png"];
 
 export function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

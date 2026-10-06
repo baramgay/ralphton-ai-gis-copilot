@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as baseRender, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
 import {
@@ -14,6 +14,13 @@ const layers: LayerOption[] = [
   { id: "population", label: "인구", provider: "공공" },
   { id: "skt-living", label: "생활인구", provider: "SKT" },
 ];
+
+function render(node: React.ReactNode) {
+  const result = baseRender(node);
+  fireEvent.click(screen.getByRole("button", { name: "자료 변경" }));
+  fireEvent.click(screen.getByRole("button", { name: "전체 자료 보기" }));
+  return result;
+}
 
 describe("LayerSwitcher", () => {
   test("renders every layer option", () => {
@@ -51,19 +58,12 @@ describe("LayerSwitcher", () => {
    * 인구와 의료기관 둘만 서서, 첫 화면이 「공공 = 인구·의료」로 읽힌다 — 이 도구가
    * 의료 도구처럼 보이게 된다.
    */
-  test("큰 갈래는 민간·공공 둘이고 제공기관은 그 아래다", () => {
+  test("전체 자료에는 제공기관이 함께 표시된다", () => {
     render(<LayerSwitcher layers={many} activeId="population" onChange={vi.fn()} />);
-
-    expect(screen.getByText("민간 자료")).toBeInTheDocument();
-    expect(screen.getByText("공공 자료")).toBeInTheDocument();
-    // 제공기관은 사라지지 않는다 — 출처는 여전히 한눈에 보여야 한다
-    for (const provider of ["SKT", "NH", "KCB"]) {
-      expect(screen.getAllByText(provider).length).toBeGreaterThan(0);
+    for (const layer of many) {
+      expect(screen.getByRole("button", { name: new RegExp(`^${layer.label}`) })).toHaveTextContent(layer.provider);
     }
-    // 「의료」가 큰 분류로 서지 않는다
-    expect(screen.queryByText("의료 데이터")).not.toBeInTheDocument();
-    // 묶어도 모든 레이어는 그대로 눌린다
-    expect(screen.getAllByRole("button")).toHaveLength(many.length);
+    expect(document.querySelectorAll("[data-layer-id]")).toHaveLength(many.length);
   });
 
   test("민간이 공공보다 먼저 온다 — 중심 자료가 먼저다", () => {
@@ -113,7 +113,7 @@ describe("LayerSwitcher", () => {
       provider: layer.provider,
     }));
     render(<LayerSwitcher layers={catalogLayers} activeId="medical" onChange={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "유출" } });
+    fireEvent.change(screen.getByLabelText("자료 검색"), { target: { value: "유출" } });
     expect(screen.getByRole("button", { name: /이동인구/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^인구/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /의료기관/ })).not.toBeInTheDocument();
@@ -121,31 +121,17 @@ describe("LayerSwitcher", () => {
 
   test("0건이면 무엇을 못 찾았는지 문장으로 말한다", () => {
     render(<LayerSwitcher layers={layers} activeId="population" onChange={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("레이어 검색"), { target: { value: "없는자료xyz" } });
+    fireEvent.change(screen.getByLabelText("자료 검색"), { target: { value: "없는자료xyz" } });
     expect(screen.getByTestId("layer-search-empty")).toHaveTextContent("「없는자료xyz」에 해당하는 자료가 없습니다");
     expect(screen.queryByRole("button", { name: /^인구/ })).not.toBeInTheDocument();
   });
 
-  test("고른 레이어를 목록 밖으로 빼지 않는다 — 민간·공공 목록이 본문이다", () => {
-    render(<LayerSwitcher layers={many} activeId="skt-living" onChange={vi.fn()} />);
-    const living = screen.getAllByRole("button", { name: /생활인구/ });
-    expect(living).toHaveLength(1);
-    const kicker = screen.getByText("민간 자료");
-    expect(kicker.compareDocumentPosition(living[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  test("지표 자리는 고른 레이어가 있는 묶음 바로 아래다", () => {
-    render(
-      <LayerSwitcher
-        layers={many}
-        activeId="medical"
-        onChange={vi.fn()}
-        activeSlot={<div data-testid="active-slot">슬롯</div>}
-      />,
-    );
-    const medical = screen.getByRole("button", { name: /의료기관/ });
-    const slot = screen.getByTestId("active-slot");
-    expect(medical.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  test("자료를 검색해도 현재 자료의 조건은 유지된다", () => {
+    render(<LayerSwitcher layers={many} activeId="medical" onChange={vi.fn()}
+      activeSlot={<div data-testid="active-slot">슬롯</div>} />);
+    fireEvent.change(screen.getByLabelText("자료 검색"), { target: { value: "생활인구" } });
+    expect(screen.getByTestId("active-slot")).toHaveTextContent("슬롯");
+    expect(screen.getByTestId("dataset-selected")).toHaveTextContent("의료기관");
   });
 
   test("groupByProvider는 SKT·NH·KCB·공공 순으로 묶는다", () => {

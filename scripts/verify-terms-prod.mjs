@@ -49,7 +49,10 @@ check(!/구 비교/.test(shell), "옛 이름(구 비교)이 남아 있지 않다
  */
 const settings = page.getByTestId("query-workspace").getByRole("button", { name: "분석 설정", exact: true });
 if (await settings.getAttribute("aria-pressed") !== "true") await settings.click();
-await page.getByRole("group", { name: "레이어 선택" }).getByRole("button", { name: /^의료기관/ }).click();
+await page.getByRole("button", { name: "자료 변경" }).click();
+await page.getByRole("button", { name: "전체 자료 보기" }).click();
+await page.getByRole("group", { name: "자료 선택 목록" }).getByRole("button", { name: /^의료기관/ }).click();
+await page.locator(".analysis-medical-tools > summary").click();
 const medicalPanel = await page.getByRole("complementary", { name: "분석 설정 패널", exact: true }).innerText();
 check(medicalPanel.includes("의료 접근성"), "의료기관을 고르면 빠른 분석이 새 이름으로 나온다");
 check(

@@ -11,3 +11,6 @@ configure({ asyncUtilTimeout: 10_000 });
 vi.mock("server-only", () => ({}));
 
 afterEach(() => cleanup());
+
+Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: function () { this.setAttribute("open", ""); } });
+Object.defineProperty(HTMLDialogElement.prototype, "close", { configurable: true, value: function () { this.removeAttribute("open"); this.dispatchEvent(new Event("close")); } });

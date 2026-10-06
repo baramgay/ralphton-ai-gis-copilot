@@ -30,7 +30,7 @@ export function AppTopbar({
   return (
     <header className="copilot-topbar">
       <img
-        src="/brand-mark.svg"
+        src="/brand-mark.svg?v=20261006-redesign"
         alt=""
         width={28}
         height={28}

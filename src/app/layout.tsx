@@ -20,11 +20,12 @@ export const metadata: Metadata = {
   applicationName: "누리맵",
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/brand-mark.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=20261006-redesign", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/favicon-96.png?v=20261006-redesign", sizes: "96x96", type: "image/png" },
+      { url: "/favicon.svg?v=20261006-redesign", sizes: "any", type: "image/svg+xml" },
     ],
-    apple: [{ url: "/brand-mark.svg" }],
-    shortcut: ["/favicon.svg"],
+    apple: [{ url: "/apple-touch-icon.png?v=20261006-redesign", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico?v=20261006-redesign"],
   },
   openGraph: {
     title: "누리맵 — 경남 공간데이터 분석",

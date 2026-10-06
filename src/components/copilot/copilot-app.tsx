@@ -46,7 +46,7 @@ import { GLOSSARY, GLOSSARY_GROUPS } from "@/lib/analysis/glossary";
 import { USAGE_GUIDE } from "@/lib/analysis/usage-guide";
 import { QUERY_SUGGESTIONS } from "@/lib/analysis/query-rules";
 import { recordUsage, recordVisit } from "@/lib/analytics/client";
-import { assessQueryRegions } from "@/lib/geo/place-index";
+import { assessQueryRegions, findPlaceByCode } from "@/lib/geo/place-index";
 import {
   baseUnit,
   detectMissingMetric,
@@ -86,6 +86,7 @@ import { InterpretationCard } from "./interpretation-card";
 import type { LiveMapPlace } from "./kakao-map";
 import { AdminLevelToggle } from "./admin-level-toggle";
 import { AppTopbar } from "./app-topbar";
+import { AnalysisMethods } from "./analysis-methods";
 import { LayerSwitcher, type LayerOption } from "./layer-switcher";
 import { MapCanvas } from "./map-canvas";
 import { PointProbeCard, type ProbeRegionValue } from "./point-probe-card";
@@ -218,6 +219,8 @@ type AnalysisView = {
    * 보고서가 ranked.length를 모수로 쓰면 잘못된 대상 수가 실린다.
    */
   totalCount?: number;
+  /** Display the executed conditions instead of the internal layer used to render a custom view. */
+  context?: { regions: readonly string[]; metrics: readonly string[]; method: string; period?: string };
 };
 
 const IDLE_ANALYSIS: AnalysisView = {
@@ -1089,8 +1092,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
    * 그린다. 기본 레이어를 생활인구로 두되, 고르기 전에는 경계만 보여 카카오 바탕이 비친다.
    */
   const [analysisRequested, setAnalysisRequested] = useState(false);
-  /* 세션 안에서만. 첫 방문자가 접힌 고르기를 보면 지표 자리가 안 보인다. */
-  const [pickerOpen, setPickerOpen] = useState(true);
   // 낮은 쪽을 물었으면 순위를 뒤집는다. 레이어를 바꿔도 방향이 남아 있으면 혼란스러우므로
   // 새 질의·레이어 선택 때마다 다시 정한다.
   const [layerDirection, setLayerDirection] = useState<"desc" | "asc">("desc");
@@ -2838,6 +2839,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
        */
       setCustomAnalysis({
         id: "cross",
+        context: { regions: stats.regionFilters, metrics: stats.kind === "correlation" ? [stats.a.metricLabel, stats.b.metricLabel] : [stats.ref.metricLabel], method: stats.kind === "correlation" ? "상관 분석" : "특이 지역 분석" },
         title: view.title,
         summary: view.summary,
         ranked: view.rows.slice(0, 30).map((row) => {
@@ -2916,7 +2918,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
         cross.mode,
       );
       setActiveLayerId("medical");
-      setCustomAnalysis(view);
+      setCustomAnalysis({ ...view, context: { regions: cross.regionFilters, metrics: [cross.a.metricLabel, cross.b.metricLabel], method: "함께 보기" } });
       setActiveTab("control");
       if (cross.adminLevel !== adminLevel) setAdminLevel(cross.adminLevel);
       adminLevelSourceRef.current = "query";
@@ -2974,7 +2976,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       );
 
       setActiveLayerId("medical");
-      setCustomAnalysis(view);
+      setCustomAnalysis({ ...view, context: { regions: match.regionFilters, metrics: match.operands.map((operand) => operand.metricLabel), method: "함께 보기" } });
       setActiveTab("control");
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       adminLevelSourceRef.current = "query";
@@ -3119,7 +3121,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
         },
       };
       setActiveLayerId("medical");
-      setCustomAnalysis(view);
+      setCustomAnalysis({ ...view, context: { regions: trendMatch.regionFilters, metrics: [trendMatch.metricLabel], method: "변화 보기", period: months > 0 ? `최근 ${months}개월` : "전체 관측 기간" } });
       setActiveTab("control");
       if (trendMatch.adminLevel !== adminLevel) setAdminLevel(trendMatch.adminLevel);
       if (view.ranked[0]) setSelectedRegionCode(view.ranked[0].code);
@@ -3264,7 +3266,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       };
 
       setActiveLayerId("medical");
-      setCustomAnalysis(view);
+      setCustomAnalysis({ ...view, context: { regions: match.regionFilters, metrics: [match.a.metricLabel, match.b.metricLabel], method: "변화 함께 보기", period: months > 0 ? `최근 ${months}개월` : "전체 관측 기간" } });
       setActiveTab("control");
       if (match.adminLevel !== adminLevel) setAdminLevel(match.adminLevel);
       adminLevelSourceRef.current = "query";
@@ -3868,9 +3870,21 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
   const activeLayerLabel =
     LAYER_OPTIONS.find((layer) => layer.id === activeLayerId)?.label ?? activeLayerId;
   const activeMetricLabel =
-    activeLayerId === "medical" ? "지점 목록" : (activeMetric?.label ?? "지표");
+    activeLayerId === "medical" ? (analysisRequested ? analysis.title : "의료 접근성") : (activeMetric?.label ?? "지표");
   const activeUnitLabel = unitWordOf(activeLayerId, adminLevel);
-  const pickerSummary = `${activeLayerLabel} · ${activeMetricLabel} · ${activeUnitLabel}`;
+  const pickerSummary = customAnalysis ? analysis.title : `${activeLayerLabel} · ${activeMetricLabel} · ${activeUnitLabel}`;
+  const appliedRegions = analysis.context?.regions ?? lastIntent?.filters.compare ?? lastIntent?.filters.regions ?? layerRegionFilters;
+  const analysisRegionLabel = appliedRegions.length
+    ? appliedRegions.map((region) => {
+      const place = findPlaceByCode(region);
+      return place ? `${place.district} ${place.shortName}` : region;
+    }).join(" · ")
+    : "경상남도 전체";
+  const isPopulationQuickView = activeLayerId === "medical" && activeQuick === "growth" && !customAnalysis;
+  const showMedicalControls = activeLayerId === "medical" && !isCrossView && !isPopulationQuickView && (
+    !customAnalysis || ["rankHospitalScarcity", "rankElderlyUnderserved", "nearestFacilityDistance", "countFacilitiesWithinRadius", "filterFacilitiesByTypeAndHours", "listFacilitiesWithinRadius", "compareRegions"].includes(lastIntent?.tool ?? "")
+  );
+
   const outlineMode = !analysisRequested || scores.size === 0;
   const showSggLabels =
     outlineMode ||
@@ -3977,7 +3991,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       />
 
       <section ref={workspaceRef} className="query-workspace" aria-label="질문과 분석 작업" data-testid="query-workspace">
-        <p className="workspace-heading">경남의 변화를 질문하세요</p>
+        <p className="workspace-heading">어떤 지역이 궁금하세요?</p>
         <QueryHero
           query={query}
           onQueryChange={setQuery}
@@ -4150,30 +4164,16 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
         <div className="copilot-scroll px-3 pb-6 pt-3">
           {activeTab === "control" ? (
             <div className="space-y-5">
-              <section className="picker-block" data-testid="analysis-picker">
-                <button
-                  type="button"
-                  className="picker-summary"
-                  aria-expanded={pickerOpen}
-                  data-testid="picker-summary"
-                  onClick={() => setPickerOpen((open) => !open)}
-                >
-                  <span className="picker-summary-label">{pickerSummary}</span>
-                  <span className="picker-summary-hint">{pickerOpen ? "접기" : "고르기"}</span>
-                </button>
-                {pickerOpen ? (
-                  <>
-                    <p className="picker-intro" data-testid="analysis-intro">
-                      {LAYER_OPTIONS.length}개 자료를 지도에 겹쳐 보고, 질문으로 순위를 냅니다
-                    </p>
-              <div>
-                <h2 className="section-label">지도에 올릴 자료</h2>
-                <p className="ui-caption mb-2 -mt-1">
-                  찾거나 눌러 고르세요 · {LAYER_OPTIONS.length}개
-                </p>
+              <section className="analysis-setup" data-testid="analysis-picker">
+                <div className="analysis-step-heading">
+                  <span className="analysis-step-number" aria-hidden="true">1</span>
+                  <div><h2 className="analysis-step-title">분석 자료</h2><p className="analysis-step-note">목적에 맞는 자료를 고르세요</p></div>
+                </div>
                 <LayerSwitcher
                   layers={LAYER_OPTIONS}
-                  activeId={activeLayerId}
+                  activeId={customAnalysis ? "" : isPopulationQuickView ? "population" : activeLayerId}
+                  selectionLabel={customAnalysis?.title ?? (isPopulationQuickView ? analysis.title : undefined)}
+                  selectionDetail={customAnalysis ? `${analysis.context?.method ?? "직접 분석"} · ${analysisSourceLabel}` : undefined}
                   onChange={(id) => {
                     const nextId = id as LayerId;
                     beginUsageAnalysis(nextId);
@@ -4187,6 +4187,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                     // 버튼으로 고른 것은 방향 요구가 없으므로 기본(높은 순)으로 되돌린다.
                     setLayerDirection("desc");
                     setLayerRegionFilters([]);
+                    if (query === lastExecutedQuery) setQuery("");
+                    setQueryNotice(null);
                     if (nextId !== "medical") {
                       selectMetric(CUBE_LAYER_METRICS[nextId][0]);
                     }
@@ -4198,11 +4200,22 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                     setLivePlaces([]);
                     setSelectedFacilityId(null);
                   }}
-                  activeSlot={
+                  activeSlot={customAnalysis || isPopulationQuickView ? (
+                    <div className="analysis-executed" data-testid="executed-analysis-context">
+                      <p className="analysis-step-title">적용 중인 조건</p>
+                      <dl className="analysis-condition-list">
+                        <div><dt>지표</dt><dd>{analysis.context?.metrics.join(" · ") ?? analysis.legendLabel}</dd></div>
+                        <div><dt>지역</dt><dd>{analysisRegionLabel}</dd></div>
+                        <div><dt>단위</dt><dd>{analysis.unitWord ?? activeUnitLabel}</dd></div>
+                        <div><dt>기간</dt><dd>{analysis.context?.period ?? referenceMonthLabel}</dd></div>
+                      </dl>
+                      <p className="analysis-context-note">새 자료를 고르면 해당 자료의 기본 분석으로 전환됩니다.</p>
+                    </div>
+                  ) : (
                       <div className="metric-picker" data-testid="metric-picker">
                         {activeLayerId === "medical" ? (
                           <p className="ui-caption metric-picker-note">
-                            이 레이어는 지점 목록이라 고를 지표가 없습니다
+                            의료기관 위치와 접근성을 봅니다. 원하는 방식은 아래 빠른 분석에서 고르세요.
                           </p>
                         ) : (
                           <>
@@ -4218,8 +4231,9 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                                   aria-pressed={metric.key === activeMetricKey}
                                   onClick={() => {
                                     beginUsageAnalysis(activeLayerId);
+                                    if (query === lastExecutedQuery) setQuery("");
+                                    setQueryNotice(null);
                                     selectMetric(metric);
-                                    setPickerOpen(false);
                                   }}
                                 >
                                   {metric.label}
@@ -4244,6 +4258,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                               setAnsweredLastQuery(true);
                               setCustomAnalysis(null);
                               setAnalysisRequested(true);
+                              if (query === lastExecutedQuery) setQuery("");
+                              setQueryNotice(null);
                               setAdminLevel(level);
                             }}
                           />
@@ -4254,20 +4270,25 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                           ) : null}
                         </div>
                       </div>
-                  }
+                  )}
                 />
-                {activeLayerError ? (
-                  <p className="mt-2 ui-caption">{activeLayerError}</p>
+                {!customAnalysis ? (
+                  <div className="analysis-scope" data-testid="analysis-scope">
+                    <span>적용 범위</span><strong>{analysisRegionLabel}</strong>
+                    <p>특정 지역은 질문에 함께 적어 주세요.</p>
+                  </div>
                 ) : null}
-              </div>
-
-              {/*
-                질의창은 이 패널에 없다. 지도 위 히어로(QueryHero)로 올렸다 — 주기능이
-                레이어 버튼 아래에 묻혀 있었고, 모바일에서는 결과 시트에 덮여 아예 닿지
-                않았다. 이 패널은 이제 "직접 고르기"만 맡는다.
-              */}
-              {activeLayerId === "medical" ? (
-                <section>
+                {activeLayerError ? <p className="analysis-load-error" role="status">{activeLayerError}</p> : null}
+              </section>
+              <AnalysisMethods
+                trendPresets={TREND_PRESETS}
+                crossPresets={CROSS_PRESETS}
+                crossGroups={CROSS_PRESET_GROUPS}
+                onTrend={runTrendPreset}
+                onCross={runCrossPreset}
+              />
+              {activeLayerId === "medical" && !isCrossView ? (
+                <details className="analysis-medical-tools"><summary>인구·의료 빠른 분석</summary><section>
                   {/*
                     여덟 개 중 넷이 의료다. 공공 스냅샷(인구·의료기관)으로 도는 것들이라
                     그런 것인데, 아무 말이 없으면 이 도구가 의료 도구로 읽힌다.
@@ -4303,73 +4324,11 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                       </button>
                     ))}
                   </div>
-                </section>
+                </section></details>
               ) : null}
 
-              <details className="ui-details">
-                <summary>더 많은 분석</summary>
-                <div className="ui-details-body space-y-4">
-              <section data-testid="trend-presets">
-                <h2 className="section-label">시간에 따른 변화</h2>
-                <p className="ui-caption mb-2 -mt-1">
-                  한 시점 값이 아니라, 그동안 얼마나 달라졌는지
-                </p>
-                <div className="quick-grid">
-                  {TREND_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      data-testid={`trend-${preset.id}`}
-                      aria-label={preset.label}
-                      onClick={() => runTrendPreset(preset.query)}
-                      className="quick-tile"
-                    >
-                      <span className="quick-name">{preset.label}</span>
-                      <span className="quick-sub">{preset.subtitle}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
 
-              <section data-testid="cross-presets">
-                <h2 className="section-label">두 자료를 겹쳐 보기</h2>
-                <p className="ui-caption mb-2 -mt-1">
-                  생활·소비·신용 자료를 인구·의료와 나란히 봅니다
-                </p>
-                <div className="space-y-2.5">
-                  {CROSS_PRESET_GROUPS.map((group) => {
-                    const items = CROSS_PRESETS.filter((preset) => preset.group === group);
-                    if (items.length === 0) return null;
-                    return (
-                      <div key={group}>
-                        <p className="layer-group-kicker mb-1">{group}</p>
-                        <div className="quick-grid">
-                          {items.map((preset) => (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              data-testid={`cross-${preset.id}`}
-                              aria-label={preset.label}
-                              onClick={() => runCrossPreset(preset.query)}
-                              className="quick-tile"
-                            >
-                              <span className="quick-name">{preset.label}</span>
-                              <span className="quick-sub">{preset.subtitle}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-                </div>
-              </details>
-                  </>
-                ) : null}
-              </section>
-
-              {activeLayerId === "medical" && (activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
+              {showMedicalControls && (activeQuick === "compare" || lastIntent?.tool === "compareRegions") && (
                 <section
                   className="compare-card"
                   data-testid="compare-picker"
@@ -4500,7 +4459,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                 </section>
               )}
 
-              {activeLayerId === "medical" ? (
+              {showMedicalControls ? (
                 <section>
                   <h2 className="section-label">접근 반경</h2>
                   <div className="flex gap-2">
@@ -4523,7 +4482,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                 </section>
               ) : null}
 
-              {activeLayerId === "medical" && selectedRegion && lastIntent ? (
+              {showMedicalControls && selectedRegion && lastIntent ? (
                 <section className="follow-card">
                   <p className="ui-caption font-bold">이어서 묻기</p>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -4546,7 +4505,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
               ) : null}
 
               <details className="ui-details">
-                <summary>화면 설정</summary>
+                <summary>화면·접근성 설정</summary>
                 <div className="ui-details-body space-y-3">
                   <div>
                     <p className="ui-caption mb-1.5">패널 배치</p>

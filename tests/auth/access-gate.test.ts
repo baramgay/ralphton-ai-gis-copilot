@@ -91,3 +91,13 @@ describe("safeEqual", () => {
     expect(safeEqual("", "")).toBe(true);
   });
 });
+
+
+test("새 브랜드와 홈 화면 아이콘만 잠금 상태에서도 제공한다", () => {
+  for (const pathname of ["/brand-mark.svg", "/apple-touch-icon.png"]) {
+    expect(decideAccess({ password: "test", pathname, cookieValue: undefined })).toEqual({ kind: "allow" });
+  }
+  for (const pathname of ["/brand-mark.svg/extra", "/private.svg", "/data/layers/kcb-credit.json"]) {
+    expect(decideAccess({ password: "test", pathname, cookieValue: undefined })).toEqual({ kind: "challenge" });
+  }
+});
