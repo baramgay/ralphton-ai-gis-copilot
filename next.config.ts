@@ -11,6 +11,7 @@ export function buildContentSecurityPolicy(isProduction: boolean): string {
     "'unsafe-eval'",
     "https://dapi.kakao.com",
     "https://t1.daumcdn.net",
+    "https://t1.kakaocdn.net",
     "https://ssl.daumcdn.net",
     "https://mts.daumcdn.net",
     "https://map.kakao.com",
