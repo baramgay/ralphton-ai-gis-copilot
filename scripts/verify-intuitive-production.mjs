@@ -27,7 +27,16 @@ try {
   assert.notDeepEqual(after,before,'Kakao map must respond to zoom');
   await page.mouse.move(area.x+area.width*.65,area.y+area.height*.4);await page.mouse.down();await page.mouse.move(area.x+area.width*.65+60,area.y+area.height*.4+30,{steps:10});await page.mouse.up();
   const input=page.getByRole('textbox',{name:'분석 질의'});
-  const run=async query=>{await input.fill(query);await page.getByRole('button',{name:'질의 실행'}).click();await page.getByTestId('query-notice').filter({hasText:'분석 완료'}).waitFor({timeout:30000});};
+  const run=async(query,expectedNotice='분석 완료')=>{
+   await input.fill(query);await page.getByRole('button',{name:'질의 실행'}).click();
+   try {await page.getByTestId('query-notice').filter({hasText:expectedNotice}).waitFor({timeout:30000});}
+   catch(error){
+    await page.screenshot({path:`test-results/intuitive-production/${width}-query-failure.png`});
+    console.log(JSON.stringify({width,query,notice:await page.getByTestId('query-notice').innerText().catch(()=>null),caveat:await page.getByTestId('query-caveat').innerText().catch(()=>null)}));
+    throw error;
+   }
+  };
+
   const openControls=async()=>{const toggle=page.getByRole('button',{name:'분석 설정',exact:true});if(await toggle.getAttribute('aria-pressed')!=='true')await toggle.click();};
   await run('김해 생활인구 많은 동');await openControls();
   assert.match(await page.getByTestId('analysis-scope').innerText(),/김해/);
@@ -54,7 +63,7 @@ try {
   await page.getByRole('searchbox',{name:'자료 검색'}).fill('의료기관');
   await page.getByRole('dialog').getByRole('button',{name:/^의료기관/}).click();
   await page.getByRole('button',{name:'시군구',exact:true}).click();
-  await run('김해에서 약국 보여줘');await openControls();
+  await run('김해에서 약국 보여줘','약국 위치를 지도에 표시했습니다.');await openControls();
   const quickTools=page.locator('.analysis-medical-tools');
   if(await quickTools.getAttribute('open')===null) await quickTools.locator('summary').click();
   await page.getByTestId('quick-growth').click();
