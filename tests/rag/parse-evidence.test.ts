@@ -62,7 +62,9 @@ describe("parser grounding", () => {
     }) });
     const result = await parseIntentWithFallbacks("가기 힘든 지역", { apiKey: "fixture", fetch, useRemoteRagEmbed: false });
     const prompt = JSON.parse(fetch.mock.calls[0][1].body).messages[0].content as string;
-    const contextIds = [...prompt.matchAll(/^\[([^\]]+)\]/gm)].map((match) => match[1]);
+    // A document may also be referenced by its grounded question aliases. Citations identify
+    // unique supplied documents, rather than counting each repeated reference as new evidence.
+    const contextIds = [...new Set([...prompt.matchAll(/^\[([^\]]+)\]/gm)].map((match) => match[1]))];
     expect(result.rag?.citations.map((item) => item.id)).toEqual(contextIds);
     expect(result.rag?.hitCount).toBe(contextIds.length);
   });
