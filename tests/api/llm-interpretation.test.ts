@@ -9,6 +9,26 @@ const deps = { apiKey: 'test', useRemoteRagEmbed: false };
 afterEach(() => { vi.useRealTimers(); });
 
 describe('LLM interpretation constraints', () => {
+  it.each(['장사가 잘되는 상권', '진주시 장사가 잘되는 상권'])('preserves catalog paraphrase evidence for a supported commerce question: %s', async (query) => {
+    const fetch = vi.fn().mockResolvedValue(completion({ tool: 'privateMetric', layerId: 'nh-consumption', metricKey: 'card_sales' }));
+    const result = await parseIntentWithFallbacks(query, { ...deps, fetch });
+    expect(result.metricHint).toMatchObject({ layerId: 'nh-consumption', metricKey: 'card_sales' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const system = JSON.parse(fetch.mock.calls[0][1].body).messages[0].content;
+    // Retrieval already found the right metric. The model must receive its verified everyday aliases,
+    // not just a technical label that makes this supported wording look like an undefined indicator.
+    expect(system).toContain('장사가 잘');
+    expect(system).toContain('장사 잘되');
+    expect(system).toContain('"tool":"privateMetric","layerId":"nh-consumption","metricKey":"card_sales"');
+    expect(system).toContain('순이익');
+  });
+  it('does not turn an explicitly unsupported profit question into a card-revenue result', async () => {
+    const fetch = vi.fn().mockResolvedValue(completion({ tool: 'unsupported', filters: {}, reason: '순이익 자료는 제공하지 않습니다.' }));
+    const result = await parseIntentWithFallbacks('진주시 상권의 순이익 순위', { ...deps, fetch });
+    expect(result.intent).toBeNull();
+    expect(result.metricHint).toBeUndefined();
+    expect(result.notice).toContain('순이익');
+  });
   it('preserves an explicit district even when a model omits it', async () => {
     const fetch = vi.fn().mockResolvedValue(completion({ tool: 'rankHospitalScarcity', filters: {} }));
     const result = await parseIntentWithFallbacks('진주시 가기 힘든 지역', { ...deps, fetch });

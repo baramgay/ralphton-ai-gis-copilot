@@ -86,14 +86,19 @@ function metricHintSection(hits: RagHit[]): string {
 
   const lines = candidates.map(
     ({ layer, metric }) =>
-      `- layerId="${layer.id}" metricKey="${metric.key}" → ${layer.label}·${metric.label}(${layer.provider}, ${metric.unit || "무단위"})`,
+      `- layerId="${layer.id}" metricKey="${metric.key}" → ${layer.label}·${metric.label}(${layer.provider}, ${metric.unit || "무단위"}); 질문 표현: ${metric.triggers.join(" / ")}`,
   );
+  const commerceExample = candidates.some(({ layer, metric }) => layer.id === "nh-consumption" && metric.key === "card_sales")
+    ? '해석 예: "장사가 잘되는 상권" → {"tool":"privateMetric","layerId":"nh-consumption","metricKey":"card_sales"}. 카드매출 규모로 해석하며 순이익·수익률을 뜻하지 않습니다. 순이익·수익률을 명시한 질문은 카드매출로 대신 답하지 마세요.'
+    : "";
 
   return [
     "",
     "등록된 tool로 답할 수 없지만 아래 민간데이터 지표 중 하나를 묻는 질의라면,",
     '{"tool":"privateMetric","layerId":"…","metricKey":"…"} 형태로만 답하세요:',
     ...lines,
+    "질문 표현은 카탈로그에 등록된 구어체입니다. 같은 지표를 묻는 표현이면 정식 지표명이 없다는 이유로 unsupported를 선택하지 마세요.",
+    commerceExample,
     "",
   ].join("\n");
 }
