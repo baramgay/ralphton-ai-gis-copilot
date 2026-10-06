@@ -154,6 +154,7 @@ export function LayerSwitcher({
   const handleKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       closeCatalog();
       return;
     }

@@ -85,7 +85,8 @@ describe("목적별 자료 선택", () => {
 
   test("Escape로 취소하면 분석하지 않고 포커스를 복구한다", () => {
     const onChange = vi.fn();
-    render(<LayerSwitcher layers={layers} activeId="population" onChange={onChange} />);
+    const backgroundKeyDown = vi.fn();
+    render(<div onKeyDown={backgroundKeyDown}><LayerSwitcher layers={layers} activeId="population" onChange={onChange} /></div>);
     const opener = screen.getByRole("button", { name: "자료 변경" });
     opener.focus();
     openCatalog();
@@ -94,6 +95,7 @@ describe("목적별 자료 선택", () => {
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
+    expect(backgroundKeyDown).not.toHaveBeenCalled();
     expect(opener).toHaveFocus();
   });
 

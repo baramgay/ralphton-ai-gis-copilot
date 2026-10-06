@@ -512,7 +512,7 @@ export function rankElderlyUnderserved(intent: AnalysisIntent, snapshot: Analysi
     records.map((record) =>
       analysisRegion(record.region, record.elderlyRatio, [
         metric("고령인구 비율", record.elderlyRatio, "%", "65세 이상 인구 ÷ 총인구 × 100", snapshot.referenceMonth, "연령 구간은 65세 이상입니다."),
-        ...accessMetrics(record, snapshot.referenceMonth).slice(1),
+        ...accessMetrics(record, snapshot.referenceMonth).slice(1).filter((item) => item.label !== "고령인구 비율"),
       ]),
     ),
     "descending",

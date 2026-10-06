@@ -38,6 +38,37 @@ async function selectDataset(page: Page, name: string | RegExp) {
 }
 
 test.describe("AI GIS Copilot core journey", () => {
+  test("자료 선택 모달의 단축키와 Escape는 배경 분석 패널을 닫지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await openSheet(page, "분석 설정");
+    const sidebar = page.locator(".copilot-panel-left");
+    const trigger = page.getByRole("button", { name: "자료 변경", exact: true });
+    await trigger.click();
+    const dialog = page.getByRole("dialog", { name: "자료 선택", exact: true });
+    await expect(dialog).toBeVisible();
+
+    // An editable search field would already suppress shortcuts; test a catalog button.
+    const close = dialog.getByRole("button", { name: "자료 선택 닫기", exact: true });
+    await close.focus();
+    await page.keyboard.press("[");
+    await expect(dialog).toBeVisible();
+    await expect(close).toBeFocused();
+    await expect(sidebar).toHaveClass(/sheet-open/);
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(sidebar).toHaveClass(/sheet-open/);
+    await expect(sidebar).toHaveJSProperty("inert", false);
+    await expect(trigger).toBeFocused();
+    expect(await trigger.evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      const target = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      return target === button || button.contains(target);
+    })).toBe(true);
+  });
+
   test("loads demo shell and runs quick analyses", async ({ page }) => {
     await page.goto("/");
 

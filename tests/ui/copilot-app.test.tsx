@@ -2312,11 +2312,47 @@ describe("CopilotApp", () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");
     selectMedicalLayer();
+    fireEvent.click(screen.getByRole("button", { name: "시군구" }));
     fireEvent.click(screen.getByTestId("quick-growth"));
-    expect(screen.getByTestId("executed-analysis-context")).toBeInTheDocument();
+    expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent(/단위행정동/);
     expect(screen.getByTestId("dataset-selected")).not.toHaveTextContent("의료기관");
     expect(screen.queryByRole("button", { name: "1km 반경" })).not.toBeInTheDocument();
     expect(screen.getByTestId("quick-elderly")).toBeInTheDocument();
+  });
+
+  test("창원의 구 이름에 공백이 있어도 공공 시군구 결과의 단위는 시군구다", async () => {
+    const baseFetch = fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/ai/parse")) return new Response(JSON.stringify({
+        mode: "demo", intent: { tool: "rankPopulationSize", adminLevel: "sgg", filters: {} }, notice: "질문을 분석에 반영했습니다.",
+      }), { status: 200 });
+      return baseFetch(input, init);
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(screen.getByRole("button", { name: "행정동" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), { target: { value: "지역 인구순위를 알려 주세요" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(screen.getByTestId("query-notice")).toHaveTextContent(/분석 완료/));
+    openControls();
+    expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent(/단위시군구/);
+  });
+
+  test("빠른 분석과 반경 선택은 이전 실행 질문만 비우고 새 초안은 보존한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    const input = screen.getByRole("textbox", { name: "분석 질의" });
+    fireEvent.change(input, { target: { value: "김해에서 약국 보여줘" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await waitFor(() => expect(screen.getByTestId("query-notice")).toHaveTextContent(/분석 완료/));
+    openControls();
+    fireEvent.click(screen.getByTestId("quick-elderly"));
+    expect(input).toHaveValue("");
+    expect(screen.queryByTestId("query-notice")).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "아직 제출하지 않은 질문" } });
+    fireEvent.click(screen.getByRole("button", { name: "3km 반경" }));
+    expect(input).toHaveValue("아직 제출하지 않은 질문");
   });
 
   test("첫 화면에서 지표 자리와 할 수 있는 일을 스크롤 없이 말한다", async () => {

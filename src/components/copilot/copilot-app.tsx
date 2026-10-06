@@ -708,12 +708,11 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
       : result.selectedRegion
         ? [result.selectedRegion]
         : [];
-  /*
-   * 시군구로 합쳐진 행은 이름이 "경상남도 김해시"(2토큰)이고 행정동은 3토큰이다.
-   * 데이터 자체로 판별하면 호출부마다 단위를 들고 다니지 않아도 된다.
-   */
+  // 집계 코드와 정식 시군구 이름을 함께 확인한다. 비교 결과는 대표 행정동 코드를 유지한다.
   const isDistrictLevel =
-    source.length > 0 && source.every((region) => region.adm_nm.trim().split(/\s+/).length <= 2);
+    source.length > 0 && source.every((region) =>
+      /^\d{5}00000$/.test(region.adm_cd2) || /^경상남도\s+(?:창원시\s+)?[가-힣]+[시군구]$/.test(region.adm_nm.trim()),
+    );
   const values = source.map((region) => region.score ?? region.metrics[0]?.value ?? null);
   const finite = values.filter((value): value is number => value !== null && Number.isFinite(value));
   const minimum = finite.length ? Math.min(...finite) : 0;
@@ -766,7 +765,7 @@ function resultToView(id: QuickId, result: AnalysisResult, titleOverride?: strin
     formulaNotes: result.formulaNotes,
     legendLabel: `${titleOverride ?? result.title} 상대 분포`,
     isFacilityResult: id === "facilities" || (result.filteredFacilities.length > 0 && ranked.length === 0),
-    unitWord: isDistrictLevel ? "시군구" : undefined,
+    unitWord: isDistrictLevel ? "시군구" : source.length > 0 ? "행정동" : undefined,
   };
 }
 
@@ -2323,6 +2322,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
+      if (event.defaultPrevented || target?.closest("dialog[open]")) return;
       const typing =
         target &&
         (target.tagName === "SELECT" || target.tagName === "INPUT" ||
@@ -2710,6 +2710,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       beginUsageAnalysis();
       setPendingCubeQuery(null);
       resetResultFilters();
+      if (query === lastExecutedQuery) setQuery("");
+      setQueryNotice(null);
+      setQuerySuggestions([]);
+      setLayerRegionFilters([]);
       setLastExecutedQuery(null);
       setAnsweredLastQuery(true);
       setFollowSelection(false);
@@ -2752,7 +2756,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       setActiveTab("control");
       if (id === "compare") setSheetMode("right");
     },
-    [beginUsageAnalysis, comparePair, finishUsageAnalysis, radiusKm, resetResultFilters, snapshot],
+    [beginUsageAnalysis, comparePair, finishUsageAnalysis, lastExecutedQuery, query, radiusKm, resetResultFilters, snapshot],
   );
 
   const runRadius = useCallback(
@@ -2760,6 +2764,10 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       beginUsageAnalysis();
       setPendingCubeQuery(null);
       resetResultFilters();
+      if (query === lastExecutedQuery) setQuery("");
+      setQueryNotice(null);
+      setQuerySuggestions([]);
+      setLayerRegionFilters([]);
       setLastExecutedQuery(null);
       setLastIntent(quickIntent("radius", radius, snapshot?.regions.length ?? 600, comparePair));
       setRadiusKm(radius);
@@ -2772,7 +2780,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       if (next) finishUsageAnalysis(["medical"]);
       setSelectedRegionCode(next?.ranked[0]?.code ?? selectedRegionCode);
     },
-    [beginUsageAnalysis, comparePair, finishUsageAnalysis, resetResultFilters, selectedRegionCode, snapshot],
+    [beginUsageAnalysis, comparePair, finishUsageAnalysis, lastExecutedQuery, query, resetResultFilters, selectedRegionCode, snapshot],
   );
 
   const clearRecentQueries = useCallback(() => {
@@ -3872,7 +3880,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
   const activeMetricLabel =
     activeLayerId === "medical" ? (analysisRequested ? analysis.title : "의료 접근성") : (activeMetric?.label ?? "지표");
   const activeUnitLabel = unitWordOf(activeLayerId, adminLevel);
-  const pickerSummary = customAnalysis ? analysis.title : `${activeLayerLabel} · ${activeMetricLabel} · ${activeUnitLabel}`;
+  const isPopulationQuickView = activeLayerId === "medical" && activeQuick === "growth" && !customAnalysis;
+  const pickerSummary = customAnalysis || isPopulationQuickView ? analysis.title : `${activeLayerLabel} · ${activeMetricLabel} · ${analysis.unitWord ?? activeUnitLabel}`;
   const appliedRegions = analysis.context?.regions ?? lastIntent?.filters.compare ?? lastIntent?.filters.regions ?? layerRegionFilters;
   const analysisRegionLabel = appliedRegions.length
     ? appliedRegions.map((region) => {
@@ -3880,7 +3889,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       return place ? `${place.district} ${place.shortName}` : region;
     }).join(" · ")
     : "경상남도 전체";
-  const isPopulationQuickView = activeLayerId === "medical" && activeQuick === "growth" && !customAnalysis;
   const showMedicalControls = activeLayerId === "medical" && !isCrossView && !isPopulationQuickView && (
     !customAnalysis || ["rankHospitalScarcity", "rankElderlyUnderserved", "nearestFacilityDistance", "countFacilitiesWithinRadius", "filterFacilitiesByTypeAndHours", "listFacilitiesWithinRadius", "compareRegions"].includes(lastIntent?.tool ?? "")
   );
@@ -4206,7 +4214,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
                       <dl className="analysis-condition-list">
                         <div><dt>지표</dt><dd>{analysis.context?.metrics.join(" · ") ?? analysis.legendLabel}</dd></div>
                         <div><dt>지역</dt><dd>{analysisRegionLabel}</dd></div>
-                        <div><dt>단위</dt><dd>{analysis.unitWord ?? activeUnitLabel}</dd></div>
+                        <div><dt>단위</dt><dd>{analysis.isFacilityResult ? "시설" : analysis.unitWord ?? activeUnitLabel}</dd></div>
                         <div><dt>기간</dt><dd>{analysis.context?.period ?? referenceMonthLabel}</dd></div>
                       </dl>
                       <p className="analysis-context-note">새 자료를 고르면 해당 자료의 기본 분석으로 전환됩니다.</p>
@@ -5136,7 +5144,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
            * 반경 원은 "2km 안에 의료시설이 있는가"를 묻는 분석의 표시다. 생활인구·소비
            * 순위에도 늘 겹쳐 그려서, 뜻 없는 파란 원이 지도를 덮고 있었다.
            */
-          showRadius={activeLayerId === "medical" && !customAnalysis}
+          showRadius={showMedicalControls && !customAnalysis}
           outlineMode={outlineMode}
           showSggLabels={showSggLabels}
           noDataCount={noDataCount}

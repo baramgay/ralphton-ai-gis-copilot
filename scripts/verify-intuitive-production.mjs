@@ -47,11 +47,26 @@ try {
   const icons=await page.locator('link[rel="icon"],link[rel="apple-touch-icon"]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('href')));
   for(const path of ['/favicon.svg','/favicon.ico','/favicon-96.png','/apple-touch-icon.png']) {
    assert(icons.some(icon=>icon?.startsWith(path)&&icon.includes('v=20261006-redesign')));
-   assert.equal(await page.evaluate(async path=>(await fetch(path)).status,path),200);
+   const iconURL=icons.find(icon=>icon?.startsWith(path));
+   assert.equal(await page.evaluate(async url=>(await fetch(url)).status,iconURL),200);
   }
+  await page.getByRole('button',{name:'자료 변경'}).click();
+  await page.getByRole('searchbox',{name:'자료 검색'}).fill('의료기관');
+  await page.getByRole('dialog').getByRole('button',{name:/^의료기관/}).click();
+  await page.getByRole('button',{name:'시군구',exact:true}).click();
+  await run('김해에서 약국 보여줘');await openControls();
+  const quickTools=page.locator('.analysis-medical-tools');
+  if(await quickTools.getAttribute('open')===null) await quickTools.locator('summary').click();
+  await page.getByTestId('quick-growth').click();
+  assert.equal(await input.inputValue(),'');
+  const growthConditions=await page.getByTestId('executed-analysis-context').innerText();
+  assert.match(growthConditions,/단위\s*행정동/);assert.match(growthConditions,/경상남도 전체/);
+  assert.equal(await page.getByRole('button',{name:'1km 반경'}).count(),0);
+  await page.getByTestId('executed-analysis-context').scrollIntoViewIfNeeded();
+  await page.screenshot({path:`test-results/intuitive-production/${width}-growth.png`});
   blocked.push(...await page.evaluate(()=>window.__cspBlocks??[]));
   assert.equal(errors.length,0);assert.equal(blocked.length,0);
-  reports.push({width,commitSha:health.build.commitSha,loadedTiles,zoomChanged:true,conditions,icons,errors,blocked,usageEventsSent:false});
+  reports.push({width,commitSha:health.build.commitSha,loadedTiles,zoomChanged:true,conditions,growthConditions,icons,errors,blocked,usageEventsSent:false});
   await context.close();
  }
  await writeFile('logs/intuitive-production.json',JSON.stringify(reports,null,2));

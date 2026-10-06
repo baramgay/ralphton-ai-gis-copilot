@@ -120,6 +120,29 @@ function snapshot(overrides: Partial<DemoSnapshot> = {}): DemoSnapshot {
 }
 
 describe("toolRegistry", () => {
+  test("elderly medical results contain one primary ratio and preserve all three medical companion metrics", () => {
+    const older = region(regionA.adm_cd2, regionA.adm_nm, { elderlyPopulation: 30, lat: 35, lng: 129 });
+    const younger = region(regionB.adm_cd2, regionB.adm_nm, { elderlyPopulation: 10, lat: 35.1, lng: 129.1 });
+    const result = executeAnalysisIntent({ tool: "rankElderlyUnderserved", filters: {} }, snapshot({ regions: [older, younger] }));
+
+    expect(result.rankedRegions.map(({ adm_cd2, score }) => ({ adm_cd2, score }))).toEqual([
+      { adm_cd2: older.adm_cd2, score: 30 },
+      { adm_cd2: younger.adm_cd2, score: 10 },
+    ]);
+    for (const row of result.rankedRegions) {
+      expect(row.metrics.map(({ label }) => label)).toEqual([
+        "고령인구 비율", "인구 1만 명당 의료기관", "최근접 의료기관 직선거리", "2km 내 의료기관",
+      ]);
+      expect(new Set(row.metrics.map(({ label }) => label)).size).toBe(row.metrics.length);
+      expect(row.metrics[0]).toMatchObject({ value: row.score, unit: "%", formula: "65세 이상 인구 ÷ 총인구 × 100" });
+    }
+    const first = result.rankedRegions[0];
+    expect(first.metrics[1]).toMatchObject({ value: 100, unit: "개/1만 명" });
+    expect(first.metrics[2]).toMatchObject({ value: 0, unit: "km" });
+    // The first four cards must include the radius count; a repeated elderly metric used to displace it.
+    expect(first.metrics.slice(0, 4).find(({ label }) => label === "2km 내 의료기관")).toMatchObject({ value: 1, unit: "개" });
+    expect(result.filteredFacilities.map(({ id }) => id)).toEqual([medicalA.id, medicalB.id]);
+  });
   test("keeps distinct dong labels and exact snapshot totals when comparing two Jinju dongs", () => {
     const central = region("4817056500", "경상남도 진주시 중앙동", { endPopulation: 1000 });
     const gaho = region("4817074000", "경상남도 진주시 가호동", { endPopulation: 2000 });
