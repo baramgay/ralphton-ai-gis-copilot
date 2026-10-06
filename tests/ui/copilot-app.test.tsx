@@ -1,10 +1,13 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { recordUsage, recordVisit } from "@/lib/analytics/client";
 import { CopilotApp } from "@/components/copilot/copilot-app";
 import { openHtmlForPrint } from "@/lib/analysis/export-a4";
 import { downloadTextFile } from "@/lib/analysis/export-csv";
 import { parseShareState, buildShareSearch } from "@/lib/analysis/share-state";
+
+vi.mock("@/lib/analytics/client", () => ({ recordUsage: vi.fn(), recordVisit: vi.fn() }));
 
 vi.mock("@/lib/analysis/export-csv", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/analysis/export-csv")>(),
@@ -595,6 +598,46 @@ describe("CopilotApp", () => {
         throw new Error(`Unexpected URL: ${url}`);
       }),
     );
+  });
+
+  test("의료기관 레이어를 직접 고른 성공 분석도 데이터 종류별로 한 번 기록한다", async () => {
+    vi.mocked(recordUsage).mockClear();
+    const app = render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" analyticsEnabled />);
+    await screen.findByTestId("demo-map-badge");
+    openControls();
+    fireEvent.click(within(screen.getByRole("group", { name: "레이어 선택" })).getByRole("button", { name: /^의료기관/ }));
+    await waitFor(() => expect(recordUsage).toHaveBeenCalledWith("analysis", ["resident-population", "medical"], expect.any(String)));
+    app.rerender(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" analyticsEnabled />);
+    expect(vi.mocked(recordUsage).mock.calls.filter(([kind]) => kind === "analysis")).toHaveLength(1);
+  });
+
+  test("사용 통계는 자동 기본 결과를 제외하고 성공한 명시적 분석과 내보내기만 기록한다", async () => {
+    vi.mocked(recordUsage).mockClear(); vi.mocked(recordVisit).mockClear();
+    const app = render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" analyticsEnabled />);
+    await screen.findByTestId("demo-map-badge");
+    expect(recordVisit).toHaveBeenCalledTimes(1);
+    expect(recordUsage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "생활인구 분석 시작" }));
+    await waitFor(() => expect(recordUsage).toHaveBeenCalledWith("analysis", ["skt-living"], expect.any(String)));
+    app.rerender(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" analyticsEnabled />);
+    expect(vi.mocked(recordUsage).mock.calls.filter(([kind]) => kind === "analysis")).toHaveLength(1);
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), { target: { value: "중앙동 카드매출 높은 곳" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByText(/「중앙동」의 시·군·구를 확인/);
+    expect(vi.mocked(recordUsage).mock.calls.filter(([kind]) => kind === "analysis")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("export-csv"));
+    expect(recordUsage).toHaveBeenCalledWith("export");
+  });
+
+  test("동명이동 질문은 분석을 실행하지 않고 관할지역 선택 질문을 제시한다", async () => {
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    fireEvent.change(screen.getByRole("textbox", { name: "분석 질의" }), { target: { value: "중앙동 카드매출 높은 곳" } });
+    fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    await screen.findByText(/「중앙동」의 시·군·구를 확인/);
+    expect(screen.getByRole("button", { name: "양산시 중앙동 카드매출 높은 곳" })).toBeVisible();
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("/api/ai/parse"))).toBe(false);
+    expect(screen.queryByTestId("export-csv")).toBeNull();
   });
 
   test("질문 작업 영역은 지도 밖에 있고 실행 동작을 글자로 설명한다", async () => {

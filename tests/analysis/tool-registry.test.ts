@@ -120,6 +120,29 @@ function snapshot(overrides: Partial<DemoSnapshot> = {}): DemoSnapshot {
 }
 
 describe("toolRegistry", () => {
+  test("keeps distinct dong labels and exact snapshot totals when comparing two Jinju dongs", () => {
+    const central = region("4817056500", "경상남도 진주시 중앙동", { endPopulation: 1000 });
+    const gaho = region("4817074000", "경상남도 진주시 가호동", { endPopulation: 2000 });
+    const sibling = region("4817071500", "경상남도 진주시 신안동", { endPopulation: 9000 });
+    const result = executeAnalysisIntent({ tool: "compareRegions", filters: { compare: [central.adm_cd2, gaho.adm_cd2] } }, snapshot({
+      regions: [central, gaho, sibling],
+      facilities: [
+        facility("central-clinic", "의원", central.adm_cd2, central.adm_nm, 35, 129),
+        facility("central-pharmacy", "약국", central.adm_cd2, central.adm_nm, 35, 129),
+        facility("gaho-clinic-1", "의원", gaho.adm_cd2, gaho.adm_nm, 35, 129),
+        facility("gaho-clinic-2", "의원", gaho.adm_cd2, gaho.adm_nm, 35, 129),
+        facility("outside-clinic", "의원", sibling.adm_cd2, sibling.adm_nm, 35, 129),
+      ],
+    }));
+    expect(result.rankedRegions).toHaveLength(2);
+    for (const [expectedRegion, population, facilityCount] of [[central, 1000, 1], [gaho, 2000, 2]] as const) {
+      const compared = result.rankedRegions.find((entry) => entry.adm_cd2 === expectedRegion.adm_cd2);
+      expect(compared?.adm_nm).toBe(expectedRegion.adm_nm);
+      expect(compared?.metrics.find((entry) => entry.label === "총인구(합)")?.value).toBe(population);
+      expect(compared?.metrics.find((entry) => entry.label === "의료기관(약국 제외)")?.value).toBe(facilityCount);
+    }
+  });
+
   test("contains exactly the allowed tools", () => {
     expect(Object.keys(toolRegistry).sort()).toEqual([...ALLOWED_TOOLS].sort());
   });

@@ -185,14 +185,13 @@ describe('parseIntentWithFallbacks', () => {
 
     expect(result.metricHint).toBeUndefined();
     expect(result.intent).toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it('retries the primary once then uses the fallback on repeated failures', async () => {
+  it('retries the existing model once after a transient failure', async () => {
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new Error('primary failed'))
-      .mockRejectedValueOnce(new Error('primary retry failed'))
       .mockResolvedValueOnce(
         completionResponse({ tool: 'rankHospitalScarcity', filters: {} }),
       );
@@ -209,9 +208,8 @@ describe('parseIntentWithFallbacks', () => {
     expect(result.intent).toEqual({ tool: 'rankHospitalScarcity', filters: {} });
     expect(result.diagnostics?.failures).toEqual([
       'upstream_unreachable',
-      'upstream_unreachable',
     ]);
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
 
     const bodies = fetch.mock.calls.map(([, init]) =>
       JSON.parse((init as RequestInit).body as string),
@@ -219,7 +217,6 @@ describe('parseIntentWithFallbacks', () => {
 
     expect(bodies[0].model).toBe('primary-test-model');
     expect(bodies[1].model).toBe('primary-test-model');
-    expect(bodies[2].model).toBe('fallback-test-model');
   });
 
   it('records why the AI path did not answer when every call fails', async () => {
@@ -236,9 +233,9 @@ describe('parseIntentWithFallbacks', () => {
     expect(result.diagnostics).toEqual({
       aiAttempted: true,
       aiUsed: false,
-      failures: ['upstream_unreachable', 'upstream_unreachable', 'upstream_unreachable'],
+      failures: ['upstream_unreachable', 'upstream_unreachable'],
     });
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expectPrivacySafe(result);
   });
 
@@ -252,8 +249,6 @@ describe('parseIntentWithFallbacks', () => {
     });
 
     expect(result.diagnostics?.failures).toEqual([
-      'endpoint_not_allowed',
-      'endpoint_not_allowed',
       'endpoint_not_allowed',
     ]);
     expect(fetch).not.toHaveBeenCalled();
@@ -308,7 +303,7 @@ describe('parseIntentWithFallbacks', () => {
 
     expect(result.mode).toBe('demo');
     expect(result.intent).toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('rejects AI output with a radius exceeding 5 km', async () => {
@@ -329,7 +324,7 @@ describe('parseIntentWithFallbacks', () => {
 
     expect(result.mode).toBe('demo');
     expect(result.intent).toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it.each(['tool:shell', 'select * from facilities', '50km', '2km와 50km']) (
@@ -402,7 +397,7 @@ describe('AI outcome memory', () => {
       fetch,
     });
 
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('remembers a success', async () => {

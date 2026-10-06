@@ -11,6 +11,7 @@ import {
   QUERY_SUGGESTIONS,
 } from "./query-catalog-meta";
 import { detectOutOfScopePlace, extractQuerySignals, type QuerySignals } from "./query-signals";
+import { assessQueryRegions } from "@/lib/geo/place-index";
 
 export { GYEONGNAM_DISTRICT_LABELS, DISTRICT_LABELS, QUERY_SUGGESTIONS };
 export type { QuerySignals };
@@ -195,6 +196,10 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   }
 
   const signals = extractQuerySignals(safety.query);
+  const regions = assessQueryRegions(safety.query);
+  if (regions.notice) {
+    return { kind: "unsupported", intent: null, notice: regions.notice, suggestions: regions.suggestions };
+  }
 
   // If the query names a place outside Gyeongnam and no Gyeongnam district/dong was
   // also matched, surface an explicit out-of-scope notice instead of silently falling
@@ -305,6 +310,32 @@ export function resolveQueryWithRules(query: string): RuleParseResult {
   const hardWinner = best && best.score >= INTENT_SCORE_THRESHOLD;
 
   if (best && (hardWinner || clearWinner)) {
+    if (best.entry.id === "compareRegions") {
+      const comparisonRegions = [...new Set([
+        ...signals.dongs.map((place) => place.adm_cd2),
+        ...signals.districts.filter((district) => !signals.dongs.some((place) =>
+          place.district.replace(/\s+/g, "").startsWith(district.replace(/\s+/g, "")),
+        )),
+      ])];
+      if (comparisonRegions.length < 2) {
+        return {
+          kind: "unsupported", intent: null,
+          notice: "비교할 서로 다른 지역 2곳을 알려 주세요. 지역을 임의로 선택하지 않았습니다.",
+          suggestions: ["진주시와 거제시 비교", "창원시와 김해시 비교"],
+        };
+      }
+      if (signals.dongs.length) {
+        const names = comparisonRegions.map((token) =>
+          signals.dongs.find((place) => place.adm_cd2 === token)?.adm_nm.replace(/^경상남도\s*/, "") ?? token,
+        );
+        return {
+          kind: "intent",
+          intent: AnalysisIntentSchema.parse({ tool: "compareRegions", filters: withLimit({ compare: comparisonRegions.slice(0, 2) }) }),
+          notice: `${names.slice(0, 2).join(" · ")} 지표를 비교합니다.${names.length > 2 ? ` ${names.slice(2).join("·")}은(는) 빠졌습니다 — 한 번에 두 지역씩만 견줄 수 있습니다.` : ""}`,
+          score: best.score,
+        };
+      }
+    }
     /*
      * 기본 상한 20은 305개 읍면동에서 "상위 20"을 보여 주려는 것이다. 그런데 시군구는
      * 통틀어 22개뿐이라, 같은 상한을 걸면 **2개가 조용히 사라진다** — 화면에도 CSV에도

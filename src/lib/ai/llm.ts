@@ -44,7 +44,8 @@ export type LlmFailureCode =
   | 'upstream_rejected'
   | 'upstream_timeout'
   | 'upstream_unreachable'
-  | 'response_not_json';
+  | 'response_not_json'
+  | 'response_invalid';
 
 export class LlmError extends Error {
   constructor(
@@ -159,14 +160,18 @@ export async function createChatCompletion(
           messages: options.messages,
           temperature: options.temperature ?? 0.1,
           response_format: options.responseFormat ?? { type: 'json_object' },
+          max_tokens: 512,
           // enable_thinking은 DashScope 전용 필드다. 다른 제공자에 보내면 요청이
           // 통째로 400으로 되돌아온다.
           ...(dashscope ? { enable_thinking: options.enableThinking ?? false } : {}),
+          ...(DEEPSEEK_HOSTS.has(new URL(url).hostname)
+            ? { thinking: { type: options.enableThinking ? 'enabled' : 'disabled' } }
+            : {}),
         }),
         signal: controller.signal,
       });
     } catch (error) {
-      const aborted = error instanceof Error && error.name === 'AbortError';
+      const aborted = controller.signal.aborted || (error instanceof Error && error.name === 'AbortError');
       throw new LlmError(
         aborted ? 'AI request timed out' : 'AI request could not be delivered',
         aborted ? 'upstream_timeout' : 'upstream_unreachable',
@@ -183,13 +188,18 @@ export async function createChatCompletion(
       );
     }
 
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
+    let data: { choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }> };
+    try {
+      data = await response.json();
+    } catch (error) {
+      throw new LlmError('AI response could not be read',
+        controller.signal.aborted ? 'upstream_timeout' : 'response_not_json', error);
+    }
 
-    const content = data.choices?.[0]?.message?.content;
+    const choice = data?.choices?.[0];
+    const content = choice?.message?.content;
 
-    if (typeof content !== 'string') {
+    if (typeof content !== 'string' || (choice?.finish_reason && choice.finish_reason !== 'stop')) {
       throw new LlmError('AI response content is missing or not a string', 'response_not_json');
     }
 

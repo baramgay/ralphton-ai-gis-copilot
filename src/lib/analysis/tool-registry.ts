@@ -1154,7 +1154,9 @@ export function compareRegions(intent: AnalysisIntent, snapshot: AnalysisSnapsho
             : (facilityCount / population) * 10_000;
         const rep = group.matched[0];
         const label =
-          /[구현군]$/.test(group.token) || group.token.includes("구") || group.token.includes("군")
+          group.matched.length === 1 && group.token === rep.adm_cd2
+            ? rep.adm_nm.replace(/^경상남도\s*/, "")
+            : /[구현군]$/.test(group.token) || group.token.includes("구") || group.token.includes("군")
             ? group.token
             : districtLabel(rep);
 

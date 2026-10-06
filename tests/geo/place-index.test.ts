@@ -6,7 +6,7 @@ import {
   getAllPlaces,
   matchPlacesInText,
 } from "@/lib/geo/place-index";
-import { parseIntentWithRules } from "@/lib/analysis/query-rules";
+import { parseIntentWithRules, resolveQueryWithRules } from "@/lib/analysis/query-rules";
 import { extractQuerySignals } from "@/lib/analysis/query-signals";
 
 describe("place-index gazetteer", () => {
@@ -35,7 +35,7 @@ describe("place-index gazetteer", () => {
 
 describe("dong in NL signals/rules", () => {
   test("signals capture dong codes", () => {
-    const signals = extractQuerySignals("중앙동 상세");
+    const signals = extractQuerySignals("진주시 중앙동 상세");
     expect(signals.dongs.length).toBeGreaterThan(0);
     expect(signals.dongs[0]?.adm_cd2).toMatch(/^\d{10}$/);
   });
@@ -44,5 +44,38 @@ describe("dong in NL signals/rules", () => {
     const intent = parseIntentWithRules("상대동 현황");
     expect(intent?.tool).toBe("getRegionDetails");
     expect(intent?.filters.regions?.[0]).toMatch(/^\d{10}$/);
+  });
+});
+
+describe("homonymous dong resolution", () => {
+  test("does not silently choose one bare 중앙동", () => {
+    expect(matchPlacesInText("중앙동 인구")).toEqual([]);
+    const result = resolveQueryWithRules("중앙동 인구");
+    expect(result.kind).toBe("unsupported");
+    if (result.kind !== "unsupported") return;
+    expect(result.notice).toContain("중앙동");
+    expect(result.suggestions).toHaveLength(4);
+    for (const suggestion of result.suggestions) {
+      expect(resolveQueryWithRules(suggestion).kind).toBe("intent");
+    }
+  });
+
+  test.each([
+    ["진주시 중앙동 인구", "4817056500"],
+    ["진주 중앙동 인구", "4817056500"],
+    ["창원시성산구 중앙동 인구", "4812352000"],
+    ["창원시 성산구 중앙동 인구", "4812352000"],
+    ["성산구 중앙동 인구", "4812352000"],
+  ])("resolves qualified %s", (query, code) => {
+    expect(matchPlacesInText(query).map((place) => place.adm_cd2)).toEqual([code]);
+  });
+
+  test("keeps separate qualified mentions of the same dong name", () => {
+    expect(matchPlacesInText("진주시 중앙동과 창원시 성산구 중앙동 비교").map((place) => place.adm_cd2))
+      .toEqual(["4817056500", "4812352000"]);
+  });
+
+  test("does not treat a separate comparison region as a dong qualifier", () => {
+    expect(matchPlacesInText("김해시와 상대동 비교").map((place) => place.adm_cd2)).toEqual(["4817067300"]);
   });
 });

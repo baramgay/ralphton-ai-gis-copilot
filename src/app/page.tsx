@@ -24,6 +24,7 @@ export default function Home() {
       />
       <link rel="preload" as="fetch" href="/api/data/snapshot?mode=auto" />
       <CopilotApp
+        analyticsEnabled={Boolean(process.env.NURIMAP_ANALYTICS_ADMIN_SECRET)}
         boundaryVersion={BOUNDARY_VERSION}
         kakaoMapKey={process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}
       />

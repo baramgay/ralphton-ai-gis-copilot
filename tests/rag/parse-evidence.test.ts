@@ -40,7 +40,7 @@ describe("parser grounding", () => {
       choices: [{ message: { content: JSON.stringify({ tool: "rankBirthCount", filters: {} }) } }],
     }) });
     const result = await parseIntentWithFallbacks("아이 키우기 좋은 곳", { apiKey: "fixture", fetch, useRemoteRagEmbed: false });
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect(result.rag?.citations.some((citation) => citation.id === "tool-death-birth")).toBe(false);
     expect(result.intent).toBeNull();
     expect(result.diagnostics?.aiUsed).toBe(false);

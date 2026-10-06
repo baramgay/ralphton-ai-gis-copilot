@@ -563,8 +563,8 @@ export function scoreCatalogEntry(entry: ToolCatalogEntry, signals: QuerySignals
   return score;
 }
 
-export function buildAiToolGuide(): string {
-  return TOOL_CATALOG.map((entry) => {
+export function buildAiToolGuide(tools?: readonly string[]): string {
+  return TOOL_CATALOG.filter((entry) => !tools || tools.includes(entry.id)).map((entry) => {
     const examples = entry.examples.map((example) => `"${example}"`).join(", ");
     return `- ${entry.id}: ${entry.label} / 예: ${examples} / domains=${entry.domains.join("|")}`;
   }).join("\n");

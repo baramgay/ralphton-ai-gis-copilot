@@ -6,6 +6,23 @@ import { NL_LAYERS } from '@/lib/layers/catalog';
 import { resolveLayerQuery } from '@/lib/layers/resolve-layer-query';
 
 describe('parseIntentWithRules', () => {
+  it.each(['지역 비교', '진주와 비교', '진주시와 진주시 비교'])('clarifies missing distinct comparison regions: %s', (query) => {
+    const result = resolveQueryWithRules(query);
+    expect(result.kind).toBe('unsupported');
+    expect(result.intent).toBeNull();
+    expect(result.notice).toContain('서로 다른 지역');
+  });
+
+  it('compares explicit administrative dongs rather than adding an unrelated city', () => {
+    const result = resolveQueryWithRules('진주시 중앙동과 가호동 비교');
+    expect(result.kind).toBe('intent');
+    expect(result.intent?.tool).toBe('compareRegions');
+    expect(result.intent?.filters.compare).toEqual(['4817056500', '4817074000']);
+    expect(result.notice).toContain('중앙동');
+    expect(result.notice).toContain('가호동');
+    expect(result.notice).not.toContain('김해');
+  });
+
   it.each([
     '김해에서 딸기 케이크 만드는 방법',
     '김해에서 딸기 케이크 만드는 방법 알려줘',
@@ -17,7 +34,7 @@ describe('parseIntentWithRules', () => {
     expect(resolveQueryWithRules(query).kind).toBe('unsupported');
   });
 
-  it.each(['경남 김해시 현황', '김해', '김해시', '김해 현황', '김해시 상세 알려줘', '중앙동 현황', '김해 어때?'])('keeps an actual regional details question: %s', (query) => {
+  it.each(['경남 김해시 현황', '김해', '김해시', '김해 현황', '김해시 상세 알려줘', '진주시 중앙동 현황', '김해 어때?'])('keeps an actual regional details question: %s', (query) => {
     expect(parseIntentWithRules(query)?.tool).toBe('getRegionDetails');
   });
 
