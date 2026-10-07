@@ -27,6 +27,7 @@ for (const [label, opts, touch] of [
   ["데스크톱 1440x900", { viewport: { width: 1440, height: 900 } }, false],
 ]) {
   const context = await browser.newContext(opts);
+  await context.route("**/api/usage/events", (route) => route.fulfill({ status: 200, body: '{"ok":true}' }));
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -87,7 +88,14 @@ for (const [label, opts, touch] of [
   check(cursor === "crosshair", "지점 찍기 중 커서가 십자선", cursor);
 
   const box = await page.locator("[data-map-engine] > div").first().boundingBox();
-  const cx = box.x + box.width / 2;
+  // 데스크톱 지도는 패널 뒤까지 이어진다. 실제로 누를 수 있는 가운데 영역을 쓴다.
+  const available = await page.evaluate(({ x, width }) => {
+    if (innerWidth < 1200) return { left: x, right: x + width };
+    const left = document.querySelector('.copilot-panel-left:not(.is-collapsed)')?.getBoundingClientRect().right ?? x;
+    const right = document.querySelector('.copilot-panel-right:not(.is-collapsed)')?.getBoundingClientRect().left ?? x + width;
+    return { left: Math.max(x, left), right: Math.min(x + width, right) };
+  }, box);
+  const cx = (available.left + available.right) / 2;
   const cy = box.y + box.height / 2;
   const tap = (x, y) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
 
@@ -109,6 +117,7 @@ for (const [label, opts, touch] of [
 
   const first = await page.evaluate(() => ({
     region: document.querySelector('[data-testid="probe-region"]').innerText,
+    coordinates: document.querySelector('.probe-card-head').innerText.match(/-?\d+\.\d{5}, -?\d+\.\d{5}/)?.[0] ?? "",
     pins: document.querySelectorAll('[data-testid="probe-pin"]').length,
     onScreen: (() => {
       const r = document.querySelector('[data-testid="probe-card"]').getBoundingClientRect();
@@ -139,7 +148,10 @@ for (const [label, opts, touch] of [
   await tap(cx, cy - box.height * 0.18);
   await page.waitForTimeout(600);
   const second = await page.getByTestId("probe-region").innerText();
-  check(second.length > 0 && second !== first.region, "접은 채로 다른 지점을 찍어 결과가 바뀐다", `${first.region} → ${second}`);
+  check(await page.getByTestId("probe-card").getAttribute("data-collapsed") === "yes", "다시 찍어도 카드 접힘을 유지한다");
+  await page.getByTestId("probe-collapse").click();
+  const secondCoordinates = await page.locator('.probe-card-head').evaluate(el => el.innerText.match(/-?\d+\.\d{5}, -?\d+\.\d{5}/)?.[0] ?? "");
+  check(second.length > 0 && first.coordinates.length > 0 && secondCoordinates.length > 0 && secondCoordinates !== first.coordinates, "접은 채로 다른 지점을 찍어 좌표 결과가 바뀐다", `${first.coordinates} → ${secondCoordinates} · ${first.region} → ${second}`);
 
   check(errors.length === 0, "JS 에러 없음", errors.slice(0, 2).join(" | "));
   await context.close();

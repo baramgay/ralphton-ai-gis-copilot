@@ -38,9 +38,12 @@ try {
  await page.getByTestId('query-notice').filter({hasText:'분석 완료'}).waitFor();
  const left=await panel.boundingBox(),right=await page.locator('.copilot-panel-right').boundingBox();
  await page.waitForFunction(({leftEdge,rightEdge})=>[...document.querySelectorAll('[data-map-engine="kakao"] svg path')].every(path=>{const box=path.getBoundingClientRect();return box.left>=leftEdge&&box.right<=rightEdge;}),{leftEdge:left.x+left.width,rightEdge:right.x});
- const zoom=await page.locator('.map-zoom').boundingBox();assert(zoom.x>=left.x+left.width&&zoom.x+zoom.width<=right.x);
+ const controls=[];
+ for(const selector of ['.panel-edge-toggle-left','.panel-edge-toggle-right','.map-legend']) {
+  const box=await page.locator(selector).boundingBox();assert(box.x>=left.x+left.width&&box.x+box.width<=right.x,JSON.stringify({selector,box,left,right}));controls.push({selector,...box});
+ }
  const logo=page.locator('[data-map-engine="kakao"] a[href="http://map.kakao.com/"]');
  const logoBounds=await logo.boundingBox();assert(logoBounds.x>=left.x+left.width&&logoBounds.x+logoBounds.width<=right.x);
  await page.screenshot({path:'test-results/desktop-glass/1440-yangsan-visible.png'});
- console.log(JSON.stringify({base,health,mapWidth:bounds.width,panelBackgroundChangedRatio:changedRatio,scopedPolygons:13,zoom,logo:logoBounds,failures:0}));
+ console.log(JSON.stringify({base,health,mapWidth:bounds.width,panelBackgroundChangedRatio:changedRatio,scopedPolygons:13,controls,logo:logoBounds,failures:0}));
 }finally{await browser.close();}
