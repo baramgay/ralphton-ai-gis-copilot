@@ -7,6 +7,8 @@ const boundary = JSON.parse(await readFile('public/data/administrative-dong-2026
 const polygonCount = (features) => features.reduce((count, feature) => count + (feature.geometry.type === 'Polygon' ? 1 : feature.geometry.coordinates.length), 0);
 const fullCount = polygonCount(boundary.features);
 const scopedCount = polygonCount(boundary.features.filter((feature) => feature.properties.adm_nm.includes('양산시')));
+const districtBoundary = JSON.parse(await readFile('public/data/administrative-sgg-20260701.geojson', 'utf8'));
+const districtCount = polygonCount(districtBoundary.features);
 await mkdir('test-results/map-scope', { recursive: true });
 const browser = await chromium.launch();
 const reports = [];
@@ -52,8 +54,17 @@ try {
     await page.waitForTimeout(500);
     const restored = await scaleKm();
     assert(restored > after, JSON.stringify({ width, after, restored }));
+    await page.getByLabel('분석 질의').fill('경상남도 유입인구 많은 시군구');
+    await page.getByRole('button', { name: '질의 실행', exact: true }).click();
+    await page.waitForFunction((count) => document.querySelectorAll('[data-map-engine="kakao"] svg path').length === count, districtCount);
+    const shapeIds = () => map.locator('svg path').evaluateAll((nodes) => nodes.map((node) => node.id));
+    const idsBeforeTyping = await shapeIds();
+    await page.getByLabel('분석 질의').pressSequentially(' abc', { delay: 100 });
+    const idsAfterTyping = await shapeIds();
+    const replacedOnTyping = idsBeforeTyping.filter((id) => !idsAfterTyping.includes(id)).length;
+    assert.equal(replacedOnTyping, 0, JSON.stringify({ width, districtCount, replacedOnTyping }));
     assert.equal(errors.length, 0, JSON.stringify(errors));
-    reports.push({ width, fullCount, scopedCount, beforeKm: before, scopedKm: after, restoredKm: restored, health, errors });
+    reports.push({ width, fullCount, scopedCount, beforeKm: before, scopedKm: after, restoredKm: restored, districtCount, replacedOnTyping, health, errors });
     await context.close();
   }
   console.log(JSON.stringify({ base, reports, failures: 0 }));

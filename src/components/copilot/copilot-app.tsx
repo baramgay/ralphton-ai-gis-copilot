@@ -1971,22 +1971,45 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
    * 시설의 소속 판정. 시군구 선택(5자리)에는 소속 동 전체가 든다 — 정확히
    * 일치만 보면 시군구를 골랐는데 시설이 0곳으로 나온다.
    */
-  const facilityInScope = (facilityAdmCd2: string, code: string | null): boolean => {
+  const facilityInScope = useCallback((facilityAdmCd2: string, code: string | null): boolean => {
     if (code === null) return false;
     return facilityAdmCd2 === code || (code.length === 5 && facilityAdmCd2.startsWith(code));
-  };
+  }, []);
   /*
    * 지점 핀은 **물었을 때만** 올린다. 레이어를 고르기만 한 것으로는 병의원 수천 곳이
    * 단계구분도를 가린다. 목록은 시설 질의 결과이고, 상한을 넘기면 잘랐다고 적는다.
    */
-  const rawMapFacilities = analysis?.isFacilityResult ? analysis.filteredFacilities : [];
-  const scopedMapFacilities =
-    markerScope === "selected" && selectedRegionCode
-      ? rawMapFacilities.filter((facility) => facilityInScope(facility.adm_cd2, selectedRegionCode))
-      : rawMapFacilities;
-  const mapPointCap = capMapPoints(scopedMapFacilities.map(facilityToMapPoint));
+  const facilityResults = analysis?.isFacilityResult ? analysis.filteredFacilities : null;
+  const mapPointCap = useMemo(() => {
+    const rawMapFacilities = facilityResults ?? [];
+    const scopedMapFacilities =
+      markerScope === "selected" && selectedRegionCode
+        ? rawMapFacilities.filter((facility) => facilityInScope(facility.adm_cd2, selectedRegionCode))
+        : rawMapFacilities;
+    return capMapPoints(scopedMapFacilities.map(facilityToMapPoint));
+  }, [facilityResults, markerScope, selectedRegionCode, facilityInScope]);
   const mapFacilities = mapPointCap.shown;
   const mapFacilitiesCapped = mapPointCap.capped;
+  // 질문 초안 입력으로 기존 지도 도형을 다시 만들지 않도록 지도 자료의 참조를 유지한다.
+  const mapLivePlaces = useMemo(() => analysis?.isFacilityResult ? livePlaces : [], [analysis?.isFacilityResult, livePlaces]);
+  const appliedRegions = analysis?.context?.regions ?? lastIntent?.filters.compare ?? lastIntent?.filters.regions ?? layerRegionFilters;
+  const mapRegionFilters = useMemo(() => analysisRequested ? appliedRegions : [], [analysisRequested, appliedRegions]);
+  const useSggMap =
+    adminLevel === "sgg" &&
+    activeLayerId !== KCB_GRID_LAYER.id &&
+    sggBoundary !== null &&
+    (analysis?.ranked.length ?? 0) > 0 &&
+    (analysis?.ranked.every((row) => row.code.length === 5) ?? false);
+  const mapScores = useMemo(() => useSggMap
+    ? new Map(
+        (analysis?.ranked ?? [])
+          .filter((row): row is typeof row & { mapScore: number } => row.mapScore !== null)
+          .map((row) => [row.code, row.mapScore]),
+      )
+    : scores, [useSggMap, analysis?.ranked, scores]);
+  const mapFocusCodes = useMemo(() => useSggMap && focusRegionCodes
+    ? new Set([...focusRegionCodes].map((code) => (code.length >= 10 ? code.slice(0, 5) : code)))
+    : focusRegionCodes, [useSggMap, focusRegionCodes]);
   // 지역 통계는 지도 표시 여부·검색 유형·핀 상한과 무관하게 전체 자료에서 센다.
   const selectedFacilityCount = (snapshot?.facilities ?? []).filter(
     (facility) => facilityInScope(facility.adm_cd2, selectedRegionCode),
@@ -3882,7 +3905,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
   const activeUnitLabel = unitWordOf(activeLayerId, adminLevel);
   const isPopulationQuickView = activeLayerId === "medical" && activeQuick === "growth" && !customAnalysis;
   const pickerSummary = customAnalysis || isPopulationQuickView ? analysis.title : `${activeLayerLabel} · ${activeMetricLabel} · ${analysis.unitWord ?? activeUnitLabel}`;
-  const appliedRegions = analysis.context?.regions ?? lastIntent?.filters.compare ?? lastIntent?.filters.regions ?? layerRegionFilters;
   const analysisRegionLabel = appliedRegions.length
     ? appliedRegions.map((region) => {
       const place = findPlaceByCode(region);
@@ -3915,12 +3937,6 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       ? analysis.filteredFacilities.length === 0
       : analysis.ranked.length === 0);
 
-  /*
-   * 실시간 장소도 시설 핀과 같은 문 아래 둔다. 조회를 막는 것만으로는 부족하다 —
-   * 시설 질의로 받아 둔 목록이 남아 있는 채 다른 분석으로 넘어가면 점만 그대로 남는다.
-   * 지도에 넘기는 자리에서도 한 번 더 잠근다.
-   */
-  const mapLivePlaces = analysis.isFacilityResult ? livePlaces : [];
 
   /*
    * 시군구 모드에서는 22개 시군구 폴리곤을 그린다. 305개 동 경계는 선만 가득하고
@@ -3928,35 +3944,12 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
    * 동 코드면(의료+시군구 토글 같은 조합) 오늘과 같은 동 지도로 물러난다.
    * scores도 시군구 키로 쓴다. 동 펼침(scores 메모)은 동 지도용이다.
    */
-  const useSggMap =
-    adminLevel === "sgg" &&
-    activeLayerId !== KCB_GRID_LAYER.id &&
-    sggBoundary !== null &&
-    (analysis?.ranked.length ?? 0) > 0 &&
-    (analysis?.ranked.every((row) => row.code.length === 5) ?? false);
   const mapBoundary =
     useSggMap && sggBoundary
       ? sggBoundary
       : activeLayerId === KCB_GRID_LAYER.id && gridBoundary
         ? gridBoundary
         : boundary;
-  const mapScores = useSggMap
-    ? new Map(
-        (analysis?.ranked ?? [])
-          .filter((row): row is typeof row & { mapScore: number } => row.mapScore !== null)
-          .map((row) => [row.code, row.mapScore]),
-      )
-    : scores;
-  /*
-   * 비교 강조도 시군구로 접는다. 동 코드가 그대로 오면 전부 어둡게 가라앉아
-   * 강조가 아니라 소등이 된다.
-   */
-  const mapFocusCodes =
-    useSggMap && focusRegionCodes
-      ? new Set(
-          [...focusRegionCodes].map((code) => (code.length >= 10 ? code.slice(0, 5) : code)),
-        )
-      : focusRegionCodes;
 
   /*
    * 범례의 「자료 없음 n곳」. 순위 행 가운데 지도 점수가 없는(null) 행의 수다.
@@ -5132,7 +5125,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
           kakaoMapKey={kakaoMapKey}
           boundary={mapBoundary}
           regions={snapshot.regions}
-          regionFilters={analysisRequested ? appliedRegions : []}
+          regionFilters={mapRegionFilters}
           facilities={mapFacilities}
           livePlaces={mapLivePlaces}
           scores={mapScores}
