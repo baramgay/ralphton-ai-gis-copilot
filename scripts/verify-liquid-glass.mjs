@@ -30,6 +30,19 @@ try {
   const toggle=page.getByRole('button',{name:'분석 설정',exact:true});if(await toggle.getAttribute('aria-pressed')!=='true')await toggle.click();
   await page.locator('.copilot-panel-left').evaluate(async el=>{await Promise.all(el.getAnimations().map(animation=>animation.finished.catch(()=>{})));});
   const left=await page.locator('.copilot-panel-left').boundingBox();
+  const panelGlass=await page.locator('.copilot-panel-left').evaluate(el=>{
+   const css=getComputedStyle(el),foreground=css.getPropertyValue('--text-2').trim();
+   const tint=css.backgroundColor.match(/[\d.]+/g).map(Number),reflectionCss=css.getPropertyValue('--panel-glass-reflection').trim();
+   const reflection=reflectionCss.startsWith('#')?reflectionCss.slice(1).match(/.{2}/g).map(value=>parseInt(value,16)):reflectionCss.match(/[\d.]+/g).map(Number);
+   if(reflectionCss.startsWith('#'))reflection[3]/=255;else if(reflectionCss.includes('%'))reflection[3]/=100;
+   const hex=foreground.slice(1),text=(hex.length===3?[...hex].map(value=>value+value).join(''):hex).match(/[a-f\d]{2}/gi).map(value=>parseInt(value,16));
+   const luminance=rgb=>rgb.map(value=>{const n=value/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((sum,value,index)=>sum+value*[.2126,.7152,.0722][index],0);
+   const textLuminance=luminance(text);
+   const contrast=Math.min(...[0,255].map(backdrop=>{const background=tint.slice(0,3).map((value,index)=>(value*(tint[3]??1)+backdrop*(1-(tint[3]??1)))*(1-reflection[3])+reflection[index]*reflection[3]);const bg=luminance(background);return (Math.max(bg,textLuminance)+.05)/(Math.min(bg,textLuminance)+.05);}));
+   return {background:css.backgroundColor,reflection:css.backgroundImage,blur:css.backdropFilter,contrast};
+  });
+  if(theme==='contrast')assert.equal(panelGlass.blur,'none');
+  else {assert.equal(panelGlass.blur,'blur(28px) saturate(1.75)');assert(panelGlass.background.endsWith(theme==='dark'?'0.76)':'0.72)'),JSON.stringify(panelGlass));assert(panelGlass.contrast>=4.5,JSON.stringify(panelGlass));}
   if(width>=1200){assert.equal(Math.round(left.width),336);assert.equal(Math.round((await page.locator('.copilot-panel-right').boundingBox()).width),392);}
   const font=await page.locator('.dataset-selected-description').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));assert(font>=15);
   const change=page.getByRole('button',{name:'자료 변경',exact:true});const changeBounds=await change.boundingBox();const changeCss=await change.evaluate(el=>{const css=getComputedStyle(el);return {height:css.height,minHeight:css.minHeight,transform:css.transform,panelTransform:getComputedStyle(el.closest('.copilot-panel')).transform};});assert(changeBounds.height>=44,JSON.stringify({width,theme,changeBounds,changeCss}));
@@ -41,7 +54,13 @@ try {
   if(theme==='contrast')assert.equal(await dialog.evaluate(el=>getComputedStyle(el,'::backdrop').backdropFilter),'none');
   await page.screenshot({path:`test-results/liquid-glass/${width}-${theme}-catalog.png`});await page.keyboard.press('Escape');
   await page.screenshot({path:`test-results/liquid-glass/${width}-${theme}-conditions.png`});
+  await page.locator('.copilot-shell').evaluate(el=>el.classList.add('is-map-moving'));
+  const movingPanel=await page.locator('.copilot-panel-left').evaluate(el=>getComputedStyle(el).backdropFilter);
+  assert.equal(movingPanel,'none');
+  await page.locator('.copilot-shell').evaluate(el=>el.classList.remove('is-map-moving'));
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-transparency',value:'reduce'}]});
+  const reducedPanel=await page.locator('.copilot-panel-left').evaluate(el=>{const css=getComputedStyle(el);return {blur:css.backdropFilter,image:css.backgroundImage};});
+  assert.equal(reducedPanel.blur,'none');assert.equal(reducedPanel.image,'none');
   await page.locator('.copilot-shell').evaluate(el=>el.classList.add('is-map-moving'));
   await page.waitForFunction(()=>matchMedia('(prefers-reduced-transparency: reduce)').matches&&getComputedStyle(document.querySelector('.copilot-topbar')).backdropFilter==='none');
   const reduced=await page.evaluate(()=>{const el=document.querySelector('.copilot-topbar');return {blur:getComputedStyle(el).backdropFilter,bg:getComputedStyle(el).backgroundColor,surface:getComputedStyle(el).getPropertyValue('--surface-1').trim(),tint:getComputedStyle(el).getPropertyValue('--glass-bg-strong').trim(),lens:getComputedStyle(document.querySelector('.map-chip-topleft'),'::before').display};});
@@ -50,7 +69,7 @@ try {
   assert.equal(reduced.tint,reduced.surface);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(errors.length,0);
   const fontResources=await page.evaluate(()=>performance.getEntriesByType('resource').filter(entry=>entry.name.includes('/fonts/pretendard-')).map(entry=>({name:entry.name.split('/').at(-1),bytes:entry.encodedBodySize})));
-  reports.push({width,theme,font,headingFonts,dialogFonts,fontResources,topbar,reduced,errors});await context.close();
+  reports.push({width,theme,font,headingFonts,dialogFonts,fontResources,panelGlass,movingPanel,reducedPanel,topbar,reduced,errors});await context.close();
  }
  await writeFile(reportPath,JSON.stringify({base,reports},null,2));console.log(JSON.stringify({base,cases:reports.length,failures:0,reportPath}));
 }finally{await browser.close();}
