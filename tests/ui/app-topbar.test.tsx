@@ -54,7 +54,7 @@ describe("AppTopbar", () => {
   test("reports dong coverage and distinct district coverage from the snapshot", () => {
     render(<AppTopbar snapshot={snapshot} />);
 
-    expect(screen.getByText("시연 · 2026-06 · 3개 읍면동 · 2개 시군구")).toBeVisible();
+    expect(screen.getByText("시연 · 2026-06 · 3개 행정동 · 2개 시군구")).toBeVisible();
     expect(screen.queryByText(/305개|22개/)).not.toBeInTheDocument();
   });
 

@@ -218,6 +218,8 @@ test.describe("AI GIS Copilot core journey", () => {
     await page.getByRole("button", { name: "질의 실행" }).click();
     await openSheet(page, "결과");
     await expect(page.getByTestId("result-panel")).toBeVisible();
+    // 새 분석은 결과 탭을 순위로 초기화한다. 완료 후 근거로 이동한다.
+    await expect(page.getByTestId("query-notice")).toContainText("분석 완료", { timeout: 30_000 });
     await page.getByRole("tab", { name: "분석 근거", exact: true }).click();
     await expect(page.getByTestId("interpretation-card")).toBeVisible({ timeout: 30_000 });
   });

@@ -45,7 +45,7 @@ export function AppTopbar({
       {snapshot ? (
         <p className="copilot-topbar-meta ui-caption truncate">
           {dataModeLabel(snapshot.mode, snapshot.sourceNotes)} · {snapshot.referenceMonth} ·{" "}
-          {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동 ·{" "}
+          {snapshot.regions.length.toLocaleString("ko-KR")}개 행정동 ·{" "}
           {new Set(snapshot.regions.map((region) => region.adm_cd2.slice(0, 5))).size.toLocaleString("ko-KR")}개 시군구
         </p>
       ) : (

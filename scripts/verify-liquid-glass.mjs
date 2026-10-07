@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 const base=process.env.UX_VERIFY_URL??'http://127.0.0.1:3123';
+const reportPath=`logs/liquid-glass-geometry-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
 const browser=await chromium.launch();const reports=[];
 await mkdir('test-results/liquid-glass',{recursive:true});
 try {
@@ -16,10 +17,11 @@ try {
   assert(topbar.every(b=>b.left>=0&&b.right<=width),JSON.stringify({width,theme,topbar}));
   assert(topbar.filter(b=>b.text!=='경상남도').every(b=>b.height>=44));
   const toggle=page.getByRole('button',{name:'분석 설정',exact:true});if(await toggle.getAttribute('aria-pressed')!=='true')await toggle.click();
+  await page.locator('.copilot-panel-left').evaluate(async el=>{await Promise.all(el.getAnimations().map(animation=>animation.finished.catch(()=>{})));});
   const left=await page.locator('.copilot-panel-left').boundingBox();
   if(width>=1200){assert.equal(Math.round(left.width),336);assert.equal(Math.round((await page.locator('.copilot-panel-right').boundingBox()).width),392);}
   const font=await page.locator('.dataset-selected-description').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));assert(font>=15);
-  const change=page.getByRole('button',{name:'자료 변경',exact:true});assert((await change.boundingBox()).height>=44);
+  const change=page.getByRole('button',{name:'자료 변경',exact:true});const changeBounds=await change.boundingBox();const changeCss=await change.evaluate(el=>{const css=getComputedStyle(el);return {height:css.height,minHeight:css.minHeight,transform:css.transform,panelTransform:getComputedStyle(el.closest('.copilot-panel')).transform};});assert(changeBounds.height>=44,JSON.stringify({width,theme,changeBounds,changeCss}));
   await page.emulateMedia({reducedMotion:'reduce'});await change.hover();assert.equal(await change.evaluate(el=>getComputedStyle(el).transform),'none');
   await change.click();const dialog=page.getByRole('dialog',{name:'자료 선택',exact:true});await dialog.waitFor();
   const bounds=await dialog.boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=width);assert(bounds.y>=0&&bounds.y+bounds.height<=900);
@@ -36,5 +38,5 @@ try {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.equal(errors.length,0);
   reports.push({width,theme,font,topbar,reduced,errors});await context.close();
  }
- await writeFile('logs/liquid-glass-geometry.json',JSON.stringify({base,reports},null,2));console.log(JSON.stringify({base,cases:reports.length,failures:0}));
+ await writeFile(reportPath,JSON.stringify({base,reports},null,2));console.log(JSON.stringify({base,cases:reports.length,failures:0,reportPath}));
 }finally{await browser.close();}
