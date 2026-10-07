@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/ui/theme";
 
+import "./pretendard.css";
 import "./globals.css";
 
 export const viewport: Viewport = {

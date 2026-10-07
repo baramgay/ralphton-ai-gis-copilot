@@ -2328,8 +2328,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       // code to a representative member dong so selection/highlight/facility
       // scoping (all dong-keyed) actually has something to match.
       if (activeLayerId !== "medical" && adminLevel === "sgg") {
-        const cube =
-          activeLayerId === "population" ? populationCube : remoteCubes[activeLayerId] ?? null;
+        const cube = activeCube;
         const memberDong =
           cube?.cells.find((cell) => cell.code.slice(0, 5) === code)?.code ??
           snapshot?.regions.find((region) => region.adm_cd2.slice(0, 5) === code)?.adm_cd2 ??
@@ -2339,7 +2338,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       }
       setSelectedRegionCode(code);
     },
-    [activeLayerId, adminLevel, populationCube, remoteCubes, snapshot],
+    [activeLayerId, adminLevel, activeCube, snapshot],
   );
 
   useEffect(() => {

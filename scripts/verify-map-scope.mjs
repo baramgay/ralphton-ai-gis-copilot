@@ -57,6 +57,7 @@ try {
     await page.getByLabel('분석 질의').fill('경상남도 유입인구 많은 시군구');
     await page.getByRole('button', { name: '질의 실행', exact: true }).click();
     await page.waitForFunction((count) => document.querySelectorAll('[data-map-engine="kakao"] svg path').length === count, districtCount);
+    await page.getByTestId('query-notice').filter({ hasText: '분석 완료' }).waitFor();
     const shapeIds = () => map.locator('svg path').evaluateAll((nodes) => nodes.map((node) => node.id));
     const idsBeforeTyping = await shapeIds();
     await page.getByLabel('분석 질의').pressSequentially(' abc', { delay: 100 });
