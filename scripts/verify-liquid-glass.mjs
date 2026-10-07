@@ -54,10 +54,14 @@ try {
   if(theme==='contrast')assert.equal(await dialog.evaluate(el=>getComputedStyle(el,'::backdrop').backdropFilter),'none');
   await page.screenshot({path:`test-results/liquid-glass/${width}-${theme}-catalog.png`});await page.keyboard.press('Escape');
   await page.screenshot({path:`test-results/liquid-glass/${width}-${theme}-conditions.png`});
-  await page.locator('.copilot-shell').evaluate(el=>el.classList.add('is-map-moving'));
-  const movingPanel=await page.locator('.copilot-panel-left').evaluate(el=>getComputedStyle(el).backdropFilter);
+  // SDK idle can remove this class between separate browser calls. Read it atomically.
+  const movingPanel=await page.locator('.copilot-shell').evaluate(el=>{
+   el.classList.add('is-map-moving');
+   const blur=getComputedStyle(el.querySelector('.copilot-panel-left')).backdropFilter;
+   el.classList.remove('is-map-moving');
+   return blur;
+  });
   assert.equal(movingPanel,'none');
-  await page.locator('.copilot-shell').evaluate(el=>el.classList.remove('is-map-moving'));
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-transparency',value:'reduce'}]});
   const reducedPanel=await page.locator('.copilot-panel-left').evaluate(el=>{const css=getComputedStyle(el);return {blur:css.backdropFilter,image:css.backgroundImage};});
   assert.equal(reducedPanel.blur,'none');assert.equal(reducedPanel.image,'none');
