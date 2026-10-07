@@ -25,10 +25,13 @@ try {
  await page.screenshot({path:'test-results/desktop-glass/1440-map-behind-panels.png'});
  const topbar=page.locator(".copilot-topbar");
  const topbarVisible=await topbar.screenshot();
+ const queryBar=page.locator(".query-workspace");
+ const queryVisible=await queryBar.screenshot();
  const visible=await panel.screenshot();
  await map.evaluate(el=>{el.style.visibility='hidden';});
  const hidden=await panel.screenshot();
  const topbarHidden=await topbar.screenshot();
+ const queryHidden=await queryBar.screenshot();
  await map.evaluate(el=>{el.style.removeProperty('visibility');});
  const first=await sharp(visible).removeAlpha().raw().toBuffer({resolveWithObject:true});
  const second=await sharp(hidden).removeAlpha().raw().toBuffer();
@@ -40,6 +43,11 @@ try {
  let headerChanged=0;for(let offset=0;offset<headerFirst.data.length;offset+=3)if(Math.max(...[0,1,2].map(channel=>Math.abs(headerFirst.data[offset+channel]-headerSecond[offset+channel])))>6)headerChanged++;
  const headerChangedRatio=headerChanged/(headerFirst.info.width*headerFirst.info.height);
  assert(headerChangedRatio>.1,JSON.stringify({headerChangedRatio}));
+ const queryFirst=await sharp(queryVisible).removeAlpha().raw().toBuffer({resolveWithObject:true});
+ const querySecond=await sharp(queryHidden).removeAlpha().raw().toBuffer();
+ let queryChanged=0;for(let offset=0;offset<queryFirst.data.length;offset+=3)if(Math.max(...[0,1,2].map(channel=>Math.abs(queryFirst.data[offset+channel]-querySecond[offset+channel])))>6)queryChanged++;
+ const queryChangedRatio=queryChanged/(queryFirst.info.width*queryFirst.info.height);
+ assert(queryChangedRatio>.1,JSON.stringify({queryChangedRatio}));
  await page.getByLabel('분석 질의').fill('양산시 유입인구 많은 읍면동');
  await page.getByRole('button',{name:'질의 실행',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('[data-map-engine="kakao"] svg path').length===13);
@@ -54,5 +62,5 @@ try {
  const logo=page.locator('[data-map-engine="kakao"] a[href="http://map.kakao.com/"]');
  const logoBounds=await logo.boundingBox();assert(logoBounds.x>=left.x+left.width&&logoBounds.x+logoBounds.width<=right.x);
  await page.screenshot({path:'test-results/desktop-glass/1440-yangsan-visible.png'});
- console.log(JSON.stringify({base,health,mapWidth:bounds.width,panelBackgroundChangedRatio:changedRatio,headerBackgroundChangedRatio:headerChangedRatio,scopedPolygons:13,controls,logo:logoBounds,failures:0}));
+ console.log(JSON.stringify({base,health,mapWidth:bounds.width,panelBackgroundChangedRatio:changedRatio,headerBackgroundChangedRatio:headerChangedRatio,queryBackgroundChangedRatio:queryChangedRatio,scopedPolygons:13,controls,logo:logoBounds,failures:0}));
 }finally{await browser.close();}
