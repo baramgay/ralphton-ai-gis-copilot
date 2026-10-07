@@ -63,6 +63,7 @@ try {
   });
   assert.equal(movingPanel,'none');
   await cdp.send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-transparency',value:'reduce'}]});
+  await page.waitForFunction(()=>matchMedia('(prefers-reduced-transparency: reduce)').matches&&getComputedStyle(document.querySelector('.query-workspace')).backdropFilter==='none');
   const reducedPanel=await page.locator('.copilot-panel-left').evaluate(el=>{const css=getComputedStyle(el);return {blur:css.backdropFilter,image:css.backgroundImage};});
   assert.equal(reducedPanel.blur,'none');assert.equal(reducedPanel.image,'none');assert.equal(await page.locator('.query-workspace').evaluate(el=>getComputedStyle(el).backdropFilter),'none');
   await page.locator('.copilot-shell').evaluate(el=>el.classList.add('is-map-moving'));
