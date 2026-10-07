@@ -25,6 +25,7 @@ const browser = await chromium.launch();
 for (const [label, opts, touch] of [
   ["모바일 Pixel 5", { ...devices["Pixel 5"] }, true],
   ["데스크톱 1440x900", { viewport: { width: 1440, height: 900 } }, false],
+  ["낮은 데스크톱 1440x600", { viewport: { width: 1440, height: 600 } }, false],
 ]) {
   const context = await browser.newContext(opts);
   await context.route("**/api/usage/events", (route) => route.fulfill({ status: 200, body: '{"ok":true}' }));
@@ -89,14 +90,14 @@ for (const [label, opts, touch] of [
 
   const box = await page.locator("[data-map-engine] > div").first().boundingBox();
   // 데스크톱 지도는 패널 뒤까지 이어진다. 실제로 누를 수 있는 가운데 영역을 쓴다.
-  const available = await page.evaluate(({ x, width }) => {
-    if (innerWidth < 1200) return { left: x, right: x + width };
+  const available = await page.evaluate(({ x, y, width }) => {
+    if (innerWidth < 1200) return { left: x, right: x + width, top: y };
     const left = document.querySelector('.copilot-panel-left:not(.is-collapsed)')?.getBoundingClientRect().right ?? x;
     const right = document.querySelector('.copilot-panel-right:not(.is-collapsed)')?.getBoundingClientRect().left ?? x + width;
-    return { left: Math.max(x, left), right: Math.min(x + width, right) };
+    return { left: Math.max(x, left), right: Math.min(x + width, right), top: document.querySelector(".query-workspace").getBoundingClientRect().bottom };
   }, box);
   const cx = (available.left + available.right) / 2;
-  const cy = box.y + box.height / 2;
+  const cy = (available.top + box.y + box.height) / 2;
   const tap = (x, y) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
 
   await tap(cx, cy);

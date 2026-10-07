@@ -23,6 +23,21 @@ function context() {
 }
 
 describe("map scope camera", () => {
+  test("fits below the topbar and refits only when its padding changes", () => {
+    const engine = context();
+    const area = boundary(128.8, 129.2);
+    const { rerender } = renderHook(({ top }) => useMapCamera(engine, area, 0, 0, top), {
+      initialProps: { top: 60 },
+    });
+    expect(engine.map.setBounds.mock.calls[0].slice(1)).toEqual([92, 32, 32, 32]);
+    rerender({ top: 60 });
+    expect(engine.map.setBounds).toHaveBeenCalledTimes(1);
+    rerender({ top: 76 });
+    expect(engine.map.setBounds.mock.calls[1].slice(1)).toEqual([108, 32, 32, 32]);
+    rerender({ top: 0 });
+    expect(engine.map.setBounds).toHaveBeenCalledTimes(3);
+    expect(engine.map.setBounds.mock.calls[2]).toHaveLength(1);
+  });
   test("fits between sidebars, preserves unchanged padding, and refits resized or collapsed panels", () => {
     const engine = context();
     const area = boundary(128.8, 129.2);

@@ -18,6 +18,7 @@ type MapCanvasProps = {
   /** 데스크톱 패널 아래를 제외한 지도 영역에 경계를 맞춘다. */
   cameraPaddingLeft?: number;
   cameraPaddingRight?: number;
+  cameraPaddingTop?: number;
   facilities: MapPoint[];
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
@@ -65,6 +66,7 @@ export function MapCanvas(props: MapCanvasProps) {
     regionFilters,
     cameraPaddingLeft,
     cameraPaddingRight,
+    cameraPaddingTop,
     ...mapProps
   } = props;
 
@@ -122,6 +124,7 @@ export function MapCanvas(props: MapCanvasProps) {
         followSelection={followSelection}
         cameraPaddingLeft={cameraPaddingLeft}
         cameraPaddingRight={cameraPaddingRight}
+        cameraPaddingTop={cameraPaddingTop}
         showRadius={showRadius}
         probeMode={probeMode}
         probePoint={probePoint}

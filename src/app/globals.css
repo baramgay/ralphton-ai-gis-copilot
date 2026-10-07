@@ -3723,7 +3723,12 @@ html[data-theme="dark"] .copilot-panel {
 .copilot-panel .result-tabs { background: transparent; }
 @media (min-width: 1200px) {
   /* 지도가 패널 뒤로 이어져 실제 지도 색과 도형이 유리 바탕에 비친다. */
-  .copilot-map { grid-column: 1 / -1; z-index: 0; }
+  .copilot-map { grid-column: 1 / -1; grid-row: 1 / -1; z-index: 0; }
+  .copilot-topbar { background: linear-gradient(135deg, var(--panel-glass-reflection), transparent 60%), var(--panel-glass-bg); -webkit-backdrop-filter: blur(20px) saturate(175%); backdrop-filter: blur(20px) saturate(175%); --text-2: var(--text-1); --text-3: var(--text-1); }
+  .copilot-map :is(.map-chip-topleft, .map-zoom) { top: calc(var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) + 1rem); }
+  .copilot-map :is(.map-chip-fallback, .map-error-card) { top: calc(var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) + 3.5rem); }
+  .copilot-map :is(.probe-card, .probe-hint) { top: calc(var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) + 4.5rem); }
+  .copilot-map [data-testid="demo-map"] > svg { margin-top: var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))); height: calc(100% - var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h)))); }
   .copilot-panel { margin-block: 12px; border: 1px solid var(--glass-border); border-radius: 18px; }
   .copilot-panel-left { margin-left: 12px; }
   .copilot-panel-right { margin-right: 12px; }
@@ -3734,6 +3739,7 @@ html[data-theme="dark"] .copilot-panel {
   .copilot-map :is(.onboard-card, .ux-hint) { left: calc(50% + (var(--panel-left) - var(--panel-right)) / 2); }
   .copilot-map .onboard-card { width: min(23rem, calc(100% - var(--panel-left) - var(--panel-right) - 32px)); }
   .copilot-map .probe-card { width: min(19rem, calc(100% - var(--panel-left) - var(--panel-right) - 32px)); }
+  .copilot-map .probe-card:not(.is-collapsed) { max-height: min(26rem, calc(100% - var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) - 5.5rem)); }
   /* 카카오 로고와 축척도 패널 밖에 남긴다. SDK가 함께 생성하는 실제 표시 그룹이다. */
   .copilot-map [data-map-engine="kakao"] div:has(> div > a[href="http://map.kakao.com/"]) { translate: calc(var(--panel-left) + var(--resizer, 6px)) 0; }
   .copilot-map [data-testid="demo-map"] > svg { margin-left: calc(var(--panel-left) + var(--resizer, 6px)); width: calc(100% - var(--panel-left) - var(--panel-right) - 2 * var(--resizer, 6px)); }

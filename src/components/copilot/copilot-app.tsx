@@ -1047,16 +1047,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
   const [reloadToken, setReloadToken] = useState(0);
   const densityHydratedRef = useRef(false);
   const workspaceRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const workspace = workspaceRef.current;
-    if (!workspace) return;
-    const measure = () => workspace.closest<HTMLElement>(".copilot-shell")?.style.setProperty("--workspace-h", `${workspace.getBoundingClientRect().height}px`);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(workspace);
-    return () => observer.disconnect();
-  }, [snapshot]);
+  const [mapTopInset, setMapTopInset] = useState(0);
   const queryInputRef = useRef<HTMLInputElement>(null);
   const controlsToggleRef = useRef<HTMLButtonElement>(null);
   const resultsToggleRef = useRef<HTMLButtonElement>(null);
@@ -3804,6 +3795,27 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
     if (isNarrowNow()) setSheetMode("right");
   };
 
+  const workspaceReady = Boolean(snapshot && boundary && analysis && !loadError);
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    const shell = workspace?.closest<HTMLElement>(".copilot-shell");
+    if (!workspace || !shell) return;
+    const measure = () => {
+      const bounds = workspace.getBoundingClientRect();
+      shell.style.setProperty("--workspace-h", `${bounds.height}px`);
+      const topInset = Math.ceil(bounds.bottom - shell.getBoundingClientRect().top);
+      shell.style.setProperty("--map-top-inset", `${topInset}px`);
+      setMapTopInset(topInset);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(workspace);
+    const topbar = shell.querySelector(".copilot-topbar");
+    if (topbar) observer.observe(topbar);
+    return () => observer.disconnect();
+  }, [workspaceReady]);
+
   if (loadError) {
     return (
       <main className="grid min-h-screen place-items-center bg-[var(--surface-0,#f1f5f9)] p-6">
@@ -5126,6 +5138,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
           boundary={mapBoundary}
           regions={snapshot.regions}
           regionFilters={mapRegionFilters}
+          cameraPaddingTop={isNarrow ? 0 : mapTopInset}
           cameraPaddingLeft={isNarrow || layout.leftCollapsed ? 0 : layout.left + PANEL_LIMITS.resizer}
           cameraPaddingRight={isNarrow || layout.rightCollapsed ? 0 : layout.right + PANEL_LIMITS.resizer}
           facilities={mapFacilities}
