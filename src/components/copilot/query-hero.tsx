@@ -51,7 +51,7 @@ export function QueryHero({
           ref={inputRef}
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="무엇이 궁금하세요? 예: 생활인구 많은 동네"
+          placeholder="경남 지역을 질문하세요. 예: 김해 생활인구"
           maxLength={1000}
           autoComplete="off"
           className="query-hero-input"

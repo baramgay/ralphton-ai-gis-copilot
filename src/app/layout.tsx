@@ -45,7 +45,17 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <svg className="liquid-glass-defs" aria-hidden="true" focusable="false" width="0" height="0">
+          <defs>
+            <filter id="nurimap-glass-rim" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+              <feImage href="/liquid-glass-rim.png" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" result="rim" />
+              <feDisplacementMap in="SourceGraphic" in2="rim" scale="-14" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        </svg>
+        {children}
+      </body>
     </html>
   );
 }

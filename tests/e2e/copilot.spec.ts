@@ -38,6 +38,19 @@ async function selectDataset(page: Page, name: string | RegExp) {
 }
 
 test.describe("AI GIS Copilot core journey", () => {
+  test("경남 지역 정체성과 추천 질문이 실제 김해 분석으로 이어진다", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("note", { name: "분석 대상 지역: 경상남도" })).toBeVisible();
+    await page.getByRole("button", { name: "김해시 생활인구 많은 동", exact: true }).click();
+    await expect(page.getByLabel("분석 질의")).toHaveValue("김해시 생활인구 많은 동");
+    await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+    await openSheet(page, "분석 설정");
+    await expect(page.getByTestId("analysis-scope")).toContainText("김해시", { timeout: 30_000 });
+    await openSheet(page, "결과");
+    await expect(page.getByTestId("one-line-conclusion")).toContainText("김해시");
+  });
+
   test("자료 선택 모달의 단축키와 Escape는 배경 분석 패널을 닫지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");

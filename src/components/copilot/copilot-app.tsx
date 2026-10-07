@@ -3999,7 +3999,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       />
 
       <section ref={workspaceRef} className="query-workspace" aria-label="질문과 분석 작업" data-testid="query-workspace">
-        <p className="workspace-heading">어떤 지역이 궁금하세요?</p>
+        <p className="workspace-heading">경상남도, 어떤 지역이 궁금하세요?</p>
         <QueryHero
           query={query}
           onQueryChange={setQuery}
@@ -4016,7 +4016,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
             setQuerySuggestions([]);
             queryInputRef.current?.focus();
           }}
-          examples={QUERY_SUGGESTIONS}
+          examples={["김해시 생활인구 많은 동", "진주시 카드매출 높은 지역", "창원시 평균소득 높은 동", "양산시 유입인구 많은 지역"]}
           recentQueries={recentQueries}
           onClearRecent={clearRecentQueries}
         />

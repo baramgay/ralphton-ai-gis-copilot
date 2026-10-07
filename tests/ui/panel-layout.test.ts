@@ -4,6 +4,8 @@ import { PANEL_DEFAULTS, PANEL_LIMITS } from "@/components/copilot/use-panel-lay
 
 describe("panel layout defaults", () => {
   test("keeps map-friendly default widths", () => {
+    expect(PANEL_DEFAULTS.left).toBeGreaterThanOrEqual(336);
+    expect(PANEL_DEFAULTS.right).toBeGreaterThanOrEqual(392);
     expect(PANEL_DEFAULTS.left).toBeGreaterThanOrEqual(PANEL_LIMITS.leftMin);
     expect(PANEL_DEFAULTS.right).toBeGreaterThanOrEqual(PANEL_LIMITS.rightMin);
     expect(PANEL_DEFAULTS.left + PANEL_DEFAULTS.right + PANEL_LIMITS.resizer * 2).toBeLessThan(

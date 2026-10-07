@@ -36,13 +36,17 @@ export function AppTopbar({
         height={28}
         className="size-7 shrink-0 rounded-lg"
       />
-      <div className="min-w-0">
+      <div className="copilot-brand min-w-0">
         <h1 className="ui-body-lg truncate font-black">누리맵</h1>
+        <span className="brand-region" role="note" aria-label="분석 대상 지역: 경상남도">
+          경상남도
+        </span>
       </div>
       {snapshot ? (
         <p className="copilot-topbar-meta ui-caption truncate">
           {dataModeLabel(snapshot.mode, snapshot.sourceNotes)} · {snapshot.referenceMonth} ·{" "}
-          {snapshot.regions.length.toLocaleString("ko-KR")}개 행정동
+          {snapshot.regions.length.toLocaleString("ko-KR")}개 읍면동 ·{" "}
+          {new Set(snapshot.regions.map((region) => region.adm_cd2.slice(0, 5))).size.toLocaleString("ko-KR")}개 시군구
         </p>
       ) : (
         <p

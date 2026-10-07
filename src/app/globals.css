@@ -4,18 +4,18 @@
   color-scheme: light;
   --background: #f4f7fb;
   --foreground: #0f172a;
-  --panel-left: 300px;
-  --panel-right: 360px;
+  --panel-left: 336px;
+  --panel-right: 392px;
   --ui-space: 0.75rem;
   --ui-radius: 0.9rem;
   --ui-chip: 0.625rem;
-  /* Type scale — 최소 가독 11px, 본문 13–14px (공공 대시보드) */
-  --fs-caption: 0.6875rem; /* 11px meta only */
-  --fs-chip: 0.75rem; /* 12px chips / secondary */
-  --fs-body: 0.8125rem; /* 13px primary UI */
-  --fs-body-lg: 0.875rem; /* 14px emphasis */
-  --fs-title: 0.9375rem; /* 15px section titles */
-  --fs-display: 1.0625rem; /* 17px result headline */
+  /* 한글 본문 15px, 보조 정보 13px. 크기보다 굵기와 여백으로 계층을 구분한다. */
+  --fs-caption: 0.8125rem;
+  --fs-chip: 0.875rem;
+  --fs-body: 0.9375rem;
+  --fs-body-lg: 1rem;
+  --fs-title: 1.0625rem;
+  --fs-display: 1.25rem;
   --lh-tight: 1.35;
   --lh-body: 1.55;
 }
@@ -24,12 +24,12 @@ html[data-density="compact"] {
   --ui-space: 0.55rem;
   --ui-radius: 0.7rem;
   --ui-chip: 0.55rem;
-  --fs-caption: 0.6875rem;
-  --fs-chip: 0.72rem;
-  --fs-body: 0.78rem;
-  --fs-body-lg: 0.84rem;
-  --fs-title: 0.9rem;
-  --fs-display: 1rem;
+  --fs-caption: 0.75rem;
+  --fs-chip: 0.8125rem;
+  --fs-body: 0.875rem;
+  --fs-body-lg: 0.9375rem;
+  --fs-title: 1rem;
+  --fs-display: 1.125rem;
 }
 
 html[data-density="compact"] .copilot-scroll {
@@ -3687,3 +3687,85 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
   .dataset-card { min-height:148px; padding:12px; }
 }
 @media(max-width:420px) { .dataset-catalog-grid { grid-template-columns:1fr; } }
+
+/* 경남 작업 공간: 읽는 면은 두껍게, 탐색과 조작의 유리 가장자리는 선명하게. */
+.copilot-shell, .copilot-boot { --topbar-h: 60px; }
+.liquid-glass-defs { position: absolute; pointer-events: none; overflow: hidden; }
+.copilot-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.copilot-brand h1 { font-size: 18px; }
+.brand-region { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text-1); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.copilot-topbar { background: var(--glass-bg-strong); box-shadow: var(--glass-edge), 0 4px 20px rgb(15 23 42 / 5%); -webkit-backdrop-filter: var(--glass-blur-sm); backdrop-filter: var(--glass-blur-sm); }
+.copilot-topbar-link { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+.query-workspace { padding: 14px 20px 12px; background: linear-gradient(120deg, var(--surface-2), var(--surface-3)); }
+.workspace-heading { font-size: 16px; letter-spacing: -.02em; }
+.query-workspace .query-hero-form { border-radius: 18px; box-shadow: var(--glass-edge), 0 4px 16px rgb(15 23 42 / 5%); }
+.query-workspace .query-hero-input { height: 56px; font-size: 17px; border-radius: 17px; }
+.query-workspace .query-hero-submit { min-height: 44px; font-size: 15px; border-radius: 13px; }
+.query-workspace .query-hero-chip { min-height: 44px; font-size: 14px; padding: 8px 14px; }
+.workspace-action-bar .mobile-panel-btn { min-height: 44px; font-size: 14px; border-radius: 14px; background: var(--glass-bg-strong); box-shadow: var(--glass-edge), 0 3px 10px rgb(15 23 42 / 5%); }
+.copilot-panel { background: var(--surface-1); box-shadow: var(--glass-edge), var(--shadow-panel); }
+.panel-tabs-inner { min-height: 48px; }
+.analysis-step-title, .analysis-method-heading { font-size: 17px; }
+.analysis-step-note, .analysis-context-note, .analysis-scope, .analysis-scope > p, .dataset-selected-provider, .dataset-card-provider { font-size: 13px; line-height: 1.6; }
+.dataset-selected { border-radius: 18px; padding: 16px; }
+.dataset-selected-name { font-size: 18px; }
+.dataset-selected-description, .analysis-condition-list > div, .analysis-method-description { font-size: 15px; line-height: 1.65; }
+.dataset-change-button { min-width: 80px; font-size: 14px; border-radius: 12px; }
+.analysis-method-option { font-size: 14px; border-radius: 11px; }
+.analysis-method-options { gap: 5px; border-radius: 15px; }
+.analysis-method-row { min-height: 64px; border-radius: 14px; }
+.analysis-method-row-label, .analysis-medical-tools > summary { font-size: 15px; }
+.analysis-method-row-subtitle, .analysis-method-group-heading { font-size: 13px; }
+.dataset-search { font-size: 16px; min-height: 52px; }
+.dataset-card-label { font-size: 16px; }
+.dataset-card-description, .dataset-dialog-header p { font-size: 14px; }
+.result-header .ui-display { font-size: 22px; }
+.result-header .result-conclusion, .result-view { font-size: 15px; }
+.result-header [data-testid="data-provenance"] { font-size: 13px; }
+.result-header .export-action, .result-tabs button, .compare-scope button { min-height: 44px; font-size: 14px; }
+.result-tabs { gap: 4px; }
+.map-chip, .map-legend, .map-context-badge, .map-zoom, .map-float-bar, .panel-edge-toggle, .onboard-card { box-shadow: var(--glass-edge), inset 1px 0 0 var(--glass-border), var(--glass-shadow); }
+.map-chip-topleft { isolation: isolate; }
+.map-chip-topleft::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; background: linear-gradient(150deg, rgb(255 255 255 / 22%), transparent 38%, rgb(255 255 255 / 6%)); -webkit-backdrop-filter: url(#nurimap-glass-rim); backdrop-filter: url(#nurimap-glass-rim); }
+.dataset-dialog { background: var(--glass-bg-strong); box-shadow: var(--glass-edge), 0 30px 80px rgb(0 0 0 / 24%); -webkit-backdrop-filter: blur(24px) saturate(140%); backdrop-filter: blur(24px) saturate(140%); }
+.dataset-dialog::backdrop { background: rgb(15 23 42 / 32%); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+@media (hover: hover) and (pointer: fine) {
+  .dataset-change-button, .analysis-method-row, .dataset-topic, .dataset-card, .workspace-action-bar .mobile-panel-btn, .result-header .export-action { transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+  .dataset-change-button:hover, .analysis-method-row:hover, .dataset-topic:hover, .dataset-card:hover, .result-header .export-action:hover { border-color: var(--accent-line); background: var(--accent-soft); box-shadow: var(--glass-edge), 0 6px 18px rgb(15 23 42 / 10%); transform: translateY(-1px); }
+  .workspace-action-bar .mobile-panel-btn:hover { border-color: var(--accent); box-shadow: var(--glass-edge), 0 5px 16px rgb(15 23 42 / 10%); }
+}
+@media (max-width: 1199px) {
+  .copilot-shell, .copilot-boot { --topbar-h: 56px; }
+  .copilot-topbar { gap: 8px; padding: 0 12px; }
+  .copilot-brand { flex-direction: column; align-items: flex-start; gap: 0; }
+  .copilot-brand h1 { font-size: 16px; }
+  .brand-region { padding: 0; border: 0; background: transparent; font-size: 12px; }
+  .copilot-topbar-link { font-size: 13px; padding: 8px; }
+  .copilot-topbar nav { gap: 2px; }
+  .query-workspace { padding: 10px 12px; }
+  .workspace-heading { font-size: 14px; }
+  .query-workspace .query-hero-input { font-size: 16px; height: 52px; }
+  .query-workspace .query-hero-chip { font-size: 13px; }
+  .workspace-action-bar .mobile-panel-btn { font-size: 13px; padding: 8px; }
+  .copilot-panel { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%); }
+  .copilot-panel-right > .result-header, .result-tabs { background: var(--glass-bg-strong); }
+  .result-header .ui-display { font-size: 19px; }
+}
+@media (max-width: 1199px) and (max-height: 600px) {
+  .copilot-shell, .copilot-boot { --topbar-h: 48px; }
+  .query-workspace { padding: 6px 10px; gap: 4px; }
+  .query-workspace .query-hero-input { height: 48px; }
+}
+.copilot-shell.is-map-moving :is(.copilot-topbar, .copilot-panel, .map-float-bar) { background: var(--glass-bg-strong); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.copilot-shell.is-map-moving .map-chip-topleft::before, html[data-theme="contrast"] .map-chip-topleft::before { display: none; }
+html[data-theme="contrast"] :is(.copilot-topbar, .query-workspace, .copilot-panel, .dataset-dialog, .result-header, .result-tabs) { background: var(--surface-1); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+html[data-theme="contrast"] .dataset-dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  :root, html[data-theme] { --glass-bg: var(--surface-1); --glass-bg-strong: var(--surface-1); }
+  .copilot-topbar, .copilot-panel, .dataset-dialog, .dataset-dialog::backdrop { background: var(--surface-1); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .map-chip-topleft::before { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dataset-change-button, .analysis-method-row, .dataset-topic, .dataset-card, .workspace-action-bar .mobile-panel-btn, .result-header .export-action { transition: none; transform: none; }
+  :is(.dataset-change-button, .analysis-method-row, .dataset-topic, .dataset-card, .workspace-action-bar .mobile-panel-btn, .result-header .export-action):hover { transform: none; }
+}

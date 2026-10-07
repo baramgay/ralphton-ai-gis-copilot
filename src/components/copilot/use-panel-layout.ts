@@ -14,8 +14,8 @@ export type PanelLayout = {
 export const PANEL_LAYOUT_STORAGE_KEY = "ralphton-panel-layout-v2";
 
 export const PANEL_DEFAULTS: PanelLayout = {
-  left: 300,
-  right: 360,
+  left: 336,
+  right: 392,
   /*
    * 왼쪽은 기본으로 접는다. 질의창이 지도 위 히어로로 올라가면서 이 패널에 남은 것은
    * "직접 고르기"(레이어·지표·단위·프리셋)뿐이다 — 처음 열었을 때 필요한 것이 아니라,
