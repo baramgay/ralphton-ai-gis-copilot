@@ -33,6 +33,14 @@ try {
     await page.getByRole('button', { name: '질의 실행', exact: true }).click();
     await page.waitForFunction((count) => document.querySelectorAll('[data-map-engine="kakao"] svg path').length === count, scopedCount);
     await page.waitForFunction(() => document.querySelector('.map-context-badge')?.textContent.includes('양산시'));
+    if (width < 1200) {
+      const results = page.getByTestId('workspace-results-toggle');
+      if (await results.getAttribute('aria-pressed') === 'true') await results.click();
+    }
+    await page.waitForFunction(() => {
+      const tiles = [...document.querySelectorAll('[data-map-engine="kakao"] img')].filter((img) => img.width >= 128);
+      return tiles.length > 0 && tiles.every((img) => img.complete && img.naturalWidth >= 128);
+    });
     await page.waitForTimeout(500);
     const after = await scaleKm();
     assert(before > after && after > 0, JSON.stringify({ width, before, after }));
