@@ -3725,6 +3725,7 @@ html[data-theme="dark"] .copilot-panel {
   /* 지도가 패널 뒤로 이어져 실제 지도 색과 도형이 유리 바탕에 비친다. */
   .copilot-map { grid-column: 1 / -1; grid-row: 1 / -1; z-index: 0; }
   .copilot-topbar, .query-workspace { background: linear-gradient(135deg, var(--panel-glass-reflection), transparent 60%), var(--panel-glass-bg); -webkit-backdrop-filter: blur(20px) saturate(175%); backdrop-filter: blur(20px) saturate(175%); --text-2: var(--text-1); --text-3: var(--text-1); }
+  .query-workspace .query-hero-notice:is(.is-error, .is-warn) { color: var(--text-1); }
   .copilot-map :is(.map-chip-topleft, .map-zoom) { top: calc(var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) + 1rem); }
   .copilot-map :is(.map-chip-fallback, .map-error-card) { top: calc(var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) + 3.5rem); }
   .copilot-map :is(.probe-card, .probe-hint) { top: calc(var(--map-top-inset, calc(var(--topbar-h) + var(--workspace-h))) + 4.5rem); }
