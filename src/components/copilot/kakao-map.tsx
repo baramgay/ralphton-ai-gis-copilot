@@ -18,6 +18,7 @@ import {
   type KakaoOverlay,
 } from "./kakao-sdk";
 import type { BoundaryCollection, Position, RegionSeries } from "./types";
+import { useMapCamera } from "./use-map-camera";
 
 export type LiveMapPlace = {
   id: string;
@@ -127,33 +128,6 @@ const CLUSTER_MARKER_CAP = 350;
 const GYEONGNAM_CENTER = { lat: 35.32, lng: 128.35 };
 const GYEONGNAM_LEVEL = 11;
 
-/** 폴리곤 좌표를 재귀로 훑어 남서·북동 모서리를 구한다. */
-function boundsOf(boundary: BoundaryCollection): {
-  minLat: number;
-  minLng: number;
-  maxLat: number;
-  maxLng: number;
-} | null {
-  let minLat = Infinity;
-  let minLng = Infinity;
-  let maxLat = -Infinity;
-  let maxLng = -Infinity;
-  const walk = (coords: unknown): void => {
-    if (typeof (coords as number[])[0] === "number") {
-      const [lng, lat] = coords as number[];
-      if (lng < minLng) minLng = lng;
-      if (lng > maxLng) maxLng = lng;
-      if (lat < minLat) minLat = lat;
-      if (lat > maxLat) maxLat = lat;
-      return;
-    }
-    for (const part of coords as unknown[]) walk(part);
-  };
-  for (const feature of boundary.features) walk(feature.geometry.coordinates);
-  return Number.isFinite(minLat) ? { minLat, minLng, maxLat, maxLng } : null;
-}
-
-
 /** Prefer selected dong, then high analysis score regions. */
 function prioritizeFacilities(
   facilities: MapPoint[],
@@ -226,7 +200,6 @@ export function KakaoMap({
   const plainMarkersRef = useRef<KakaoOverlay[]>([]);
   const liveMarkersRef = useRef<KakaoOverlay[]>([]);
   const tooltipRef = useRef<KakaoOverlay | null>(null);
-  const fittedBoundaryRef = useRef<string | null>(null);
   const clustererRef = useRef<KakaoMarkerClusterer | null>(null);
   const [context, setContext] = useState<{
     maps: KakaoMapsNamespace;
@@ -234,6 +207,7 @@ export function KakaoMap({
     clustererReady: boolean;
   } | null>(null);
   const [status, setStatus] = useState("지도를 연결하는 중…");
+  useMapCamera(context, boundary);
 
   /*
    * 최신 콜백을 ref에 담아 두는 흔한 수법이다. SDK 로드는 비동기라, 그 사이 부모가 새
@@ -473,30 +447,6 @@ export function KakaoMap({
           tooltipRef.current = null;
         });
         overlaysRef.current.push(polygon);
-      }
-    }
-
-    /*
-     * 경계가 처음 들어오거나 다른 경계(격자)로 바뀌면 그 범위 전체가 보이게 한 번 맞춘다.
-     * 그래야 첫 화면이 "경남 어디가 높고 낮은가"를 보여 준다. 그 뒤 사용자가 지도를 움직인
-     * 것은 존중한다 — 매 렌더마다 다시 맞추면 확대해 둔 화면이 계속 튕겨 나온다.
-     */
-    const boundaryKey = `${boundary.features.length}:${boundary.features[0]?.properties.adm_cd2 ?? ""}`;
-    if (fittedBoundaryRef.current !== boundaryKey) {
-      fittedBoundaryRef.current = boundaryKey;
-      const extent = boundsOf(boundary);
-      if (extent) {
-        if (typeof maps.LatLngBounds === "function" && typeof map.setBounds === "function") {
-          const bounds = new maps.LatLngBounds();
-          bounds.extend(new maps.LatLng(extent.minLat, extent.minLng));
-          bounds.extend(new maps.LatLng(extent.maxLat, extent.maxLng));
-          map.setBounds(bounds);
-        } else {
-          map.setCenter(
-            new maps.LatLng((extent.minLat + extent.maxLat) / 2, (extent.minLng + extent.maxLng) / 2),
-          );
-          map.setLevel?.(GYEONGNAM_LEVEL);
-        }
       }
     }
 

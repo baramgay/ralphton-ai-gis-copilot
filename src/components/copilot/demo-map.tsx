@@ -77,7 +77,7 @@ export function DemoMap({
   const ramp = choroplethRamp(choroplethTheme);
 
   const [hovered, setHovered] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [camera, setCamera] = useState({ extent: "", zoom: 1 });
 
   // 분위수 경계는 지도에 그릴 값 전체로 한 번만 계산한다.
   const scale = useMemo(() => buildScale(scores, choroplethTheme), [scores, choroplethTheme]);
@@ -111,12 +111,17 @@ export function DemoMap({
     const offsetY = (VIEW_HEIGHT - drawnHeight) / 2;
 
     return {
+      extent: `${minLat}:${minLng}:${maxLat}:${maxLng}`,
       point([lng, lat]: Position): [number, number] {
         return [offsetX + (lng - minLng) * scale, offsetY + (maxLat - lat) * scale];
       },
       pixelsPerKm: scale / (111 * Math.cos(((minLat + maxLat) / 2) * (Math.PI / 180))),
     };
   }, [boundary]);
+
+  // 지역 범위가 바뀌면 새 경계 전체를 보이고, 같은 범위의 지표 변경은 수동 확대를 유지한다.
+  if (camera.extent !== projection.extent) setCamera({ extent: projection.extent, zoom: 1 });
+  const zoom = camera.extent === projection.extent ? camera.zoom : 1;
 
   const pathForFeature = (feature: BoundaryFeature) => {
     const polygons =
@@ -319,7 +324,7 @@ export function DemoMap({
           type="button"
           className="grid size-10 place-items-center"
           aria-label="지도 확대"
-          onClick={() => setZoom((current) => Math.min(1.8, current + 0.2))}
+          onClick={() => setCamera((current) => ({ ...current, zoom: Math.min(1.8, current.zoom + 0.2) }))}
         >
           +
         </button>
@@ -328,7 +333,7 @@ export function DemoMap({
           type="button"
           className="grid size-10 place-items-center"
           aria-label="지도 축소"
-          onClick={() => setZoom((current) => Math.max(0.8, current - 0.2))}
+          onClick={() => setCamera((current) => ({ ...current, zoom: Math.max(0.8, current.zoom - 0.2) }))}
         >
           −
         </button>

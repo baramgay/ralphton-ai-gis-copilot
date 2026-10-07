@@ -46,6 +46,7 @@ export type PublishedSnapshotMeta = {
 /** Sync callers must distinguish an empty cache from an unreadable cache. */
 export async function readPublishedSnapshotMetaOrThrow(
   mode: "demo" | "live",
+  signal?: AbortSignal,
 ): Promise<PublishedSnapshotMeta | null> {
   const client = getPublicSupabaseClient();
 
@@ -54,14 +55,15 @@ export async function readPublishedSnapshotMetaOrThrow(
   }
 
   try {
-    const { data, error } = await client
+    const query = client
       .from("data_snapshots")
       .select("payload, created_at, updated_at, source, checksum")
       .eq("is_published", true)
       .eq("mode", mode)
       .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    if (signal) query.abortSignal(signal);
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw new Error("게시 자료를 읽지 못했습니다.");
     if (!data) return null;
@@ -80,12 +82,12 @@ export async function readPublishedSnapshotMetaOrThrow(
   }
 }
 
-/** Public reads preserve the offline demo fallback. */
+/** Public reads stop waiting after four seconds and preserve the cache-miss fallback. */
 export async function readPublishedSnapshotMeta(
   mode: "demo" | "live",
 ): Promise<PublishedSnapshotMeta | null> {
   try {
-    return await readPublishedSnapshotMetaOrThrow(mode);
+    return await readPublishedSnapshotMetaOrThrow(mode, AbortSignal.timeout(4000));
   } catch {
     return null;
   }

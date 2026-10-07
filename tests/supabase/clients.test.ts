@@ -96,16 +96,96 @@ describe('lazy optional Supabase clients', () => {
 });
 
 describe('Supabase cache operations', () => {
-  it('distinguishes no published row from query and validation failures for sync callers', async () => {
+  const cachedRow = {
+    payload: {
+      mode: 'live', referenceMonth: '2026-01',
+      months: ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01'],
+      regions: [], facilities: [], sourceNotes: ['fixture'],
+    },
+    created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', source: 'fixture', checksum: 'a'.repeat(64),
+  };
+
+  it('aborts a stalled public read after four seconds and preserves the null fallback', async () => {
+    vi.useFakeTimers();
+    // Node's native timeout uses internal timers; bind its clock to fake timers while keeping real abort events.
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((delay) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException('fixture timeout', 'TimeoutError')), delay);
+      return controller.signal;
+    });
+    let signal: AbortSignal | undefined;
     const query = {
       select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(),
+      abortSignal: vi.fn((nextSignal: AbortSignal) => { signal = nextSignal; return query; }),
+      maybeSingle: vi.fn(() => new Promise((resolve) => {
+        signal?.addEventListener('abort', () => resolve({ data: null, error: { message: 'fixture abort' } }), { once: true });
+      })),
+    };
+    for (const method of [query.select, query.eq, query.order, query.limit]) method.mockReturnValue(query);
+    supabaseMocks.createClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) });
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'fixture-anon-value');
+    const { readPublishedSnapshotMeta } = await import('@/lib/supabase/public');
+    const settled = vi.fn();
+    const pending = readPublishedSnapshotMeta('live').then((result) => { settled(result); return result; });
+    expect(timeout).toHaveBeenCalledWith(4000);
+
+    await vi.advanceTimersByTimeAsync(3999);
+    expect(settled).not.toHaveBeenCalled();
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toBeNull();
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it('preserves successful published payloads and their source metadata', async () => {
+    const query = {
+      select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), abortSignal: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: cachedRow, error: null }),
+    };
+    for (const method of [query.select, query.eq, query.order, query.limit, query.abortSignal]) method.mockReturnValue(query);
+    supabaseMocks.createClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) });
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'fixture-anon-value');
+    const { readPublishedSnapshotMeta } = await import('@/lib/supabase/public');
+
+    await expect(readPublishedSnapshotMeta('live')).resolves.toEqual({
+      snapshot: cachedRow.payload, createdAt: cachedRow.created_at, updatedAt: cachedRow.updated_at,
+      source: cachedRow.source, checksum: cachedRow.checksum,
+    });
+    expect(query.abortSignal).toHaveBeenCalledOnce();
+  });
+
+  it('keeps sync reads free of the public timeout', async () => {
+    vi.useFakeTimers();
+    const query = {
+      select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), abortSignal: vi.fn(),
+      maybeSingle: vi.fn(() => new Promise((resolve) => {
+        setTimeout(() => resolve({ data: cachedRow, error: null }), 5000);
+      })),
+    };
+    for (const method of [query.select, query.eq, query.order, query.limit, query.abortSignal]) method.mockReturnValue(query);
+    supabaseMocks.createClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) });
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'fixture-anon-value');
+    const { readPublishedSnapshotMetaOrThrow } = await import('@/lib/supabase/public');
+    const pending = readPublishedSnapshotMetaOrThrow('live');
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(pending).resolves.toMatchObject({ snapshot: cachedRow.payload });
+    expect(query.abortSignal).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes no published row from query and validation failures for sync callers', async () => {
+    const query = {
+      select: vi.fn(), eq: vi.fn(), order: vi.fn(), limit: vi.fn(), abortSignal: vi.fn(),
       maybeSingle: vi.fn()
         .mockResolvedValueOnce({ data: null, error: null })
         .mockResolvedValueOnce({ data: null, error: { message: 'private-key upstream' } })
         .mockResolvedValueOnce({ data: { payload: { mode: 'live' } }, error: null })
         .mockResolvedValueOnce({ data: null, error: { message: 'private-key upstream' } }),
     };
-    for (const method of [query.select, query.eq, query.order, query.limit]) method.mockReturnValue(query);
+    for (const method of [query.select, query.eq, query.order, query.limit, query.abortSignal]) method.mockReturnValue(query);
     supabaseMocks.createClient.mockReturnValue({ from: vi.fn().mockReturnValue(query) });
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'fixture-anon-value');
@@ -124,6 +204,8 @@ describe('Supabase cache operations', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('reads only explicitly published snapshots through the anon client', async () => {
@@ -132,12 +214,14 @@ describe('Supabase cache operations', () => {
       eq: vi.fn(),
       order: vi.fn(),
       limit: vi.fn(),
+      abortSignal: vi.fn(),
       maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     };
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
     query.order.mockReturnValue(query);
     query.limit.mockReturnValue(query);
+    query.abortSignal.mockReturnValue(query);
     const client = { from: vi.fn().mockReturnValue(query) };
     supabaseMocks.createClient.mockReturnValue(client);
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');
@@ -158,6 +242,7 @@ describe('Supabase cache operations', () => {
       eq: vi.fn(),
       order: vi.fn(),
       limit: vi.fn(),
+      abortSignal: vi.fn(),
       maybeSingle: vi.fn()
         .mockResolvedValueOnce({ data: { payload: { mode: 'live' } }, error: null })
         .mockRejectedValueOnce(new Error('fixture transport failure')),
@@ -166,6 +251,7 @@ describe('Supabase cache operations', () => {
     query.eq.mockReturnValue(query);
     query.order.mockReturnValue(query);
     query.limit.mockReturnValue(query);
+    query.abortSignal.mockReturnValue(query);
     const client = { from: vi.fn().mockReturnValue(query) };
     supabaseMocks.createClient.mockReturnValue(client);
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://public-project.supabase.co');

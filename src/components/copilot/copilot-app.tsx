@@ -5132,6 +5132,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
           kakaoMapKey={kakaoMapKey}
           boundary={mapBoundary}
           regions={snapshot.regions}
+          regionFilters={analysisRequested ? appliedRegions : []}
           facilities={mapFacilities}
           livePlaces={mapLivePlaces}
           scores={mapScores}
@@ -5180,7 +5181,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
             물금읍"이라는 결론 옆에 엉뚱하게 거창군 북상면이 적힌다.
           */}
           <p className="max-w-[260px] truncate ui-body font-bold text-slate-900">
-            {followSelection && selectedRegion ? compactName(selectedRegion) : "경상남도 전역"}
+            {followSelection && selectedRegion ? compactName(selectedRegion) : analysisRequested && appliedRegions.length ? analysisRegionLabel : "경상남도 전역"}
           </p>
           {isCompareView && focusRegionCodes ? (
             <p className="ui-caption mt-1 font-bold text-amber-800">

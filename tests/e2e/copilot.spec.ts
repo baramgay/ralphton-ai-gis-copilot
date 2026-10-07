@@ -38,6 +38,30 @@ async function selectDataset(page: Page, name: string | RegExp) {
 }
 
 test.describe("AI GIS Copilot core journey", () => {
+  test("양산 지역 분석은 지도 경계를 좁히고 전체 분석으로 복원한다", async ({ page }) => {
+    await page.route("**/v2/maps/sdk.js**", (route) => route.abort());
+    await page.goto("/");
+    await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });
+    const map = page.getByTestId("demo-map");
+    await expect(map).toBeVisible();
+    const paths = map.locator("path[role=button]");
+    const fullCount = await paths.count();
+    await page.getByLabel("분석 질의").fill("양산시 유입인구 많은 읍면동");
+    await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+    await expect.poll(() => paths.count()).toBeLessThan(fullCount);
+    await expect.poll(() => paths.evaluateAll((nodes) => nodes.length > 0 && nodes.every((node) => node.getAttribute("aria-label")?.includes("양산시")))).toBe(true);
+    await expect(page.locator(".map-context-badge")).toContainText("양산시");
+    const fitted = await paths.evaluateAll((nodes) => {
+      const boxes = nodes.map((node) => (node as SVGGraphicsElement).getBBox());
+      return Math.max(...boxes.map((box) => box.x + box.width)) - Math.min(...boxes.map((box) => box.x));
+    });
+    expect(fitted).toBeGreaterThan(300);
+    await page.getByLabel("분석 질의").fill("경상남도 유입인구 많은 읍면동");
+    await page.getByRole("button", { name: "질의 실행", exact: true }).click();
+    await expect(paths).toHaveCount(fullCount);
+    await expect(page.locator(".map-context-badge")).toContainText("경상남도 전역");
+  });
+
   test("경남 지역 정체성과 추천 질문이 실제 김해 분석으로 이어진다", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("copilot-shell")).toBeVisible({ timeout: 60_000 });

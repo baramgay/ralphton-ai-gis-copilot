@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { HoverRow } from "@/lib/gis/hover-caption";
 import type { MapPoint } from "@/lib/gis/map-point";
@@ -13,6 +13,8 @@ type MapCanvasProps = {
   kakaoMapKey: string;
   boundary: BoundaryCollection;
   regions: RegionSeries[];
+  /** 질의에 명시한 분석 범위. 비어 있으면 경남 전체 경계를 유지한다. */
+  regionFilters?: readonly string[];
   facilities: MapPoint[];
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
@@ -57,8 +59,27 @@ export function MapCanvas(props: MapCanvasProps) {
     probePoint,
     probeRadiusKm,
     onProbePoint,
+    regionFilters,
     ...mapProps
   } = props;
+
+  const scopedGeometry = useMemo(() => {
+    const filters = (regionFilters ?? []).map((filter) => filter.replace(/\s+/g, "")).filter(Boolean);
+    if (filters.length === 0) return { boundary: props.boundary, regions: props.regions };
+    const inScope = (code: string, name: string) => filters.some((filter) =>
+      name.replace(/\s+/g, "").includes(filter) || code === filter ||
+      (/^\d{5}(?:\d{5})?$/.test(filter) && (code.startsWith(filter) || filter.startsWith(code))),
+    );
+    return {
+      boundary: {
+        ...props.boundary,
+        features: props.boundary.features.filter((feature) =>
+          inScope(feature.properties.adm_cd2, feature.properties.adm_nm),
+        ),
+      },
+      regions: props.regions.filter((region) => inScope(region.adm_cd2, region.adm_nm)),
+    };
+  }, [props.boundary, props.regions, regionFilters]);
 
   const handleError = useCallback(
     () => {
@@ -90,6 +111,7 @@ export function MapCanvas(props: MapCanvasProps) {
         key={`kakao-${retryToken}`}
         appKey={kakaoMapKey}
         {...mapProps}
+        {...scopedGeometry}
         livePlaces={livePlaces}
         onSelectLivePlace={onSelectLivePlace}
         followSelection={followSelection}
@@ -106,7 +128,7 @@ export function MapCanvas(props: MapCanvasProps) {
 
   return (
     <div className="relative size-full">
-      <DemoMap {...mapProps} />
+      <DemoMap {...mapProps} {...scopedGeometry} />
       {kakaoMapKey ? (
         <div className="map-error-card">
           <p>지도를 불러오지 못했습니다 · 임시 지도로 표시 중</p>

@@ -71,6 +71,8 @@ export interface ParseIntentResult {
     aiAttempted: boolean;
     aiUsed: boolean;
     failures: LlmFailureCode[];
+    /** Reused validated AI interpretation; no new model request for this caller. */
+    cache?: "hit" | "shared";
   };
 }
 

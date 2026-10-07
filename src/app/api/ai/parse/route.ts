@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { parseIntentWithFallbacks } from '@/lib/ai/parse-intent';
+import { createParseIntentCache } from '@/lib/ai/parse-cache';
 import { assessQuerySafety, MAX_QUERY_LENGTH } from '@/lib/analysis/query-rules';
 
 const MAX_BODY_BYTES = 16 * 1024;
 const INVALID_BODY_NOTICE = '요청 본문 형식이 올바르지 않습니다.';
 const BODY_TOO_LARGE_NOTICE = '요청 본문이 너무 큽니다.';
 const UNSAFE_QUERY_NOTICE = '요청한 질의는 처리할 수 없습니다.';
+const parseIntent = createParseIntentCache(parseIntentWithFallbacks);
 
 const ParseRequestSchema = z
   .object({
@@ -99,12 +101,12 @@ export async function POST(request: Request) {
     return errorResponse(UNSAFE_QUERY_NOTICE, 400);
   }
 
-  const result = await parseIntentWithFallbacks(safety.query, {
+  const result = await parseIntent(safety.query, {
     apiKey: process.env.DEEPSEEK_API_KEY,
     baseUrl: process.env.DEEPSEEK_BASE_URL,
     primaryModel: process.env.DEEPSEEK_PRIMARY_MODEL,
     fallbackModel: process.env.DEEPSEEK_JSON_FALLBACK_MODEL,
   });
 
-  return NextResponse.json(result);
+  return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
 }
