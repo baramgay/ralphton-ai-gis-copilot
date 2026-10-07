@@ -18,7 +18,7 @@ export type KakaoMapInstance = {
   setCenter(position: KakaoLatLng): void;
   setLevel?(level: number): void;
   /** 영역 전체가 들어오도록 맞춘다. 화면 비율까지 SDK가 계산한다. */
-  setBounds?(bounds: KakaoLatLngBounds): void;
+  setBounds?(bounds: KakaoLatLngBounds, paddingTop?: number, paddingRight?: number, paddingBottom?: number, paddingLeft?: number): void;
   relayout?(): void;
 };
 

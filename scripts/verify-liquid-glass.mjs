@@ -42,8 +42,8 @@ try {
    return {background:css.backgroundColor,reflection:css.backgroundImage,blur:css.backdropFilter,contrast};
   });
   if(theme==='contrast')assert.equal(panelGlass.blur,'none');
-  else {assert.equal(panelGlass.blur,'blur(28px) saturate(1.75)');assert(panelGlass.background.endsWith(theme==='dark'?'0.76)':'0.72)'),JSON.stringify(panelGlass));assert(panelGlass.contrast>=4.5,JSON.stringify(panelGlass));}
-  if(width>=1200){assert.equal(Math.round(left.width),336);assert.equal(Math.round((await page.locator('.copilot-panel-right').boundingBox()).width),392);}
+  else {assert.equal(panelGlass.blur,'blur(20px) saturate(1.75)');assert(panelGlass.background.endsWith(theme==='dark'?'0.64)':'0.52)'),JSON.stringify(panelGlass));assert(panelGlass.contrast>=4.5,JSON.stringify(panelGlass));}
+  if(width>=1200){assert.equal(Math.round(left.width),324);assert.equal(Math.round((await page.locator('.copilot-panel-right').boundingBox()).width),380);const mapBounds=await page.locator('.copilot-map').boundingBox();assert.equal(mapBounds.x,0);assert.equal(Math.round(mapBounds.width),width);assert(left.x>=mapBounds.x&&left.x+left.width<=mapBounds.x+mapBounds.width);}
   const font=await page.locator('.dataset-selected-description').evaluate(el=>parseFloat(getComputedStyle(el).fontSize));assert(font>=15);
   const change=page.getByRole('button',{name:'자료 변경',exact:true});const changeBounds=await change.boundingBox();const changeCss=await change.evaluate(el=>{const css=getComputedStyle(el);return {height:css.height,minHeight:css.minHeight,transform:css.transform,panelTransform:getComputedStyle(el.closest('.copilot-panel')).transform};});assert(changeBounds.height>=44,JSON.stringify({width,theme,changeBounds,changeCss}));
   await page.emulateMedia({reducedMotion:'reduce'});await change.hover();assert.equal(await change.evaluate(el=>getComputedStyle(el).transform),'none');

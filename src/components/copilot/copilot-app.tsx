@@ -135,6 +135,7 @@ import {
 import {
   LAYOUT_PRESETS,
   PANEL_DEFAULTS,
+  PANEL_LIMITS,
   type LayoutPresetId,
   usePanelLayout,
 } from "./use-panel-layout";
@@ -5125,6 +5126,8 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
           boundary={mapBoundary}
           regions={snapshot.regions}
           regionFilters={mapRegionFilters}
+          cameraPaddingLeft={isNarrow || layout.leftCollapsed ? 0 : layout.left + PANEL_LIMITS.resizer}
+          cameraPaddingRight={isNarrow || layout.rightCollapsed ? 0 : layout.right + PANEL_LIMITS.resizer}
           facilities={mapFacilities}
           livePlaces={mapLivePlaces}
           scores={mapScores}

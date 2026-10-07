@@ -10,7 +10,7 @@ type MapContext = {
   map: KakaoMapInstance;
 };
 
-export function useMapCamera(context: MapContext | null, boundary: BoundaryCollection) {
+export function useMapCamera(context: MapContext | null, boundary: BoundaryCollection, paddingLeft = 0, paddingRight = 0) {
   const fittedRef = useRef<{ map: KakaoMapInstance; extent: string } | null>(null);
 
   useEffect(() => {
@@ -29,18 +29,19 @@ export function useMapCamera(context: MapContext | null, boundary: BoundaryColle
     if (!Number.isFinite(minLat)) return;
 
     const { maps, map } = context;
-    const extent = `${minLat}:${minLng}:${maxLat}:${maxLng}`;
-    // 지표나 색이 바뀌어도 같은 범위에서는 사용자가 움직인 카메라를 유지한다.
+    const extent = `${minLat}:${minLng}:${maxLat}:${maxLng}:${paddingLeft}:${paddingRight}`;
+    // 지표나 색이 바뀌어도 같은 범위·패널 폭에서는 사용자가 움직인 카메라를 유지한다.
     if (fittedRef.current?.map === map && fittedRef.current.extent === extent) return;
     if (maps.LatLngBounds && map.setBounds) {
       const bounds = new maps.LatLngBounds();
       bounds.extend(new maps.LatLng(minLat, minLng));
       bounds.extend(new maps.LatLng(maxLat, maxLng));
-      map.setBounds(bounds);
+      if (paddingLeft || paddingRight) map.setBounds(bounds, 32, paddingRight + 32, 32, paddingLeft + 32);
+      else map.setBounds(bounds);
     } else {
       map.setCenter(new maps.LatLng((minLat + maxLat) / 2, (minLng + maxLng) / 2));
       map.setLevel?.(11);
     }
     fittedRef.current = { map, extent };
-  }, [boundary, context]);
+  }, [boundary, context, paddingLeft, paddingRight]);
 }

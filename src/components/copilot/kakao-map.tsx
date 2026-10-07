@@ -51,6 +51,8 @@ type KakaoMapProps = {
    * 분포를 보여 주는 것이 첫 화면의 일이다.
    */
   followSelection?: boolean;
+  cameraPaddingLeft?: number;
+  cameraPaddingRight?: number;
   /** 반경 원을 그릴지. 2km 반경은 의료 접근성 분석에서만 뜻이 있다. */
   showRadius?: boolean;
   /**
@@ -159,6 +161,8 @@ export function KakaoMap({
   radiusKm,
   showFacilities,
   followSelection = true,
+  cameraPaddingLeft = 0,
+  cameraPaddingRight = 0,
   showRadius = true,
   outlineMode = false,
   showSggLabels = false,
@@ -207,7 +211,7 @@ export function KakaoMap({
     clustererReady: boolean;
   } | null>(null);
   const [status, setStatus] = useState("지도를 연결하는 중…");
-  useMapCamera(context, boundary);
+  useMapCamera(context, boundary, cameraPaddingLeft, cameraPaddingRight);
 
   /*
    * 최신 콜백을 ref에 담아 두는 흔한 수법이다. SDK 로드는 비동기라, 그 사이 부모가 새

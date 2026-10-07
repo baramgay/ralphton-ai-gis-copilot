@@ -15,6 +15,9 @@ type MapCanvasProps = {
   regions: RegionSeries[];
   /** 질의에 명시한 분석 범위. 비어 있으면 경남 전체 경계를 유지한다. */
   regionFilters?: readonly string[];
+  /** 데스크톱 패널 아래를 제외한 지도 영역에 경계를 맞춘다. */
+  cameraPaddingLeft?: number;
+  cameraPaddingRight?: number;
   facilities: MapPoint[];
   livePlaces?: LiveMapPlace[];
   scores: Map<string, number>;
@@ -60,6 +63,8 @@ export function MapCanvas(props: MapCanvasProps) {
     probeRadiusKm,
     onProbePoint,
     regionFilters,
+    cameraPaddingLeft,
+    cameraPaddingRight,
     ...mapProps
   } = props;
 
@@ -115,6 +120,8 @@ export function MapCanvas(props: MapCanvasProps) {
         livePlaces={livePlaces}
         onSelectLivePlace={onSelectLivePlace}
         followSelection={followSelection}
+        cameraPaddingLeft={cameraPaddingLeft}
+        cameraPaddingRight={cameraPaddingRight}
         showRadius={showRadius}
         probeMode={probeMode}
         probePoint={probePoint}

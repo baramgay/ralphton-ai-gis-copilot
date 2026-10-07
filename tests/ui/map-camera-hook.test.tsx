@@ -18,11 +18,26 @@ function context() {
       LatLng: class { constructor(public lat: number, public lng: number) {} },
       LatLngBounds: class { points: object[] = []; extend(point: object) { this.points.push(point); } },
     },
-    map: { setCenter: vi.fn(), setBounds: vi.fn<(bounds: KakaoLatLngBounds) => void>() },
+    map: { setCenter: vi.fn(), setBounds: vi.fn<(bounds: KakaoLatLngBounds, top?: number, right?: number, bottom?: number, left?: number) => void>() },
   };
 }
 
 describe("map scope camera", () => {
+  test("fits between sidebars, preserves unchanged padding, and refits resized or collapsed panels", () => {
+    const engine = context();
+    const area = boundary(128.8, 129.2);
+    const { rerender } = renderHook(({ left, right }) => useMapCamera(engine, area, left, right), {
+      initialProps: { left: 342, right: 398 },
+    });
+    expect(engine.map.setBounds.mock.calls[0].slice(1)).toEqual([32, 430, 32, 374]);
+    rerender({ left: 342, right: 398 });
+    expect(engine.map.setBounds).toHaveBeenCalledTimes(1);
+    rerender({ left: 366, right: 398 });
+    expect(engine.map.setBounds.mock.calls[1].slice(1)).toEqual([32, 430, 32, 398]);
+    rerender({ left: 0, right: 0 });
+    expect(engine.map.setBounds).toHaveBeenCalledTimes(3);
+    expect(engine.map.setBounds.mock.calls[2]).toHaveLength(1);
+  });
   test("fits changed geometry even when feature count and first code match, and restores full extent", () => {
     const engine = context();
     const full = boundary(127, 130);

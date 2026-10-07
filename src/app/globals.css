@@ -101,7 +101,7 @@ html[data-density="compact"] .quick-tile {
   --glass-blur-sm: blur(14px) saturate(150%);
   --glass-text: var(--text-1);
   --panel-glass-reflection: rgb(255 255 255 / 14%);
-  --panel-glass-bg: rgb(255 255 255 / 72%);
+  --panel-glass-bg: rgb(255 255 255 / 52%);
 
   /*
    * 자간은 크기별로 다르다. 큰 글자는 조이고 작은 글자는 벌린다. 전역에 단일
@@ -171,7 +171,7 @@ html[data-theme="dark"] {
   --glass-bg: rgb(13 21 36 / 72%);
   --glass-bg-strong: rgb(10 17 30 / 85%);
   --panel-glass-reflection: rgb(255 255 255 / 3%);
-  --panel-glass-bg: rgb(13 21 36 / 76%);
+  --panel-glass-bg: rgb(13 21 36 / 64%);
   --glass-border: rgb(148 163 184 / 30%);
   --glass-edge: inset 0 1px 0 rgb(255 255 255 / 13%), inset 0 -1px 0 rgb(0 0 0 / 35%);
   --glass-shadow: 0 14px 36px rgb(0 0 0 / 50%), 0 2px 8px rgb(0 0 0 / 35%);
@@ -3710,16 +3710,34 @@ html[data-theme="dark"] .query-hero-notice.is-warn {
 /* 패널 전체를 유리로 만들고, 작은 글자의 색은 투명한 바탕에서도 읽히게 한다. */
 .copilot-panel,
 html[data-theme="dark"] .copilot-panel {
+  --text-2: var(--text-1);
   --text-3: var(--text-2);
   --text-4: var(--text-2);
   background: linear-gradient(135deg, var(--panel-glass-reflection), transparent 32%, var(--panel-glass-reflection) 76%, transparent), var(--panel-glass-bg);
   border-color: var(--glass-border);
   box-shadow: var(--glass-edge), inset 1px 0 0 var(--glass-border), inset -1px 0 0 var(--glass-border), var(--shadow-panel);
-  -webkit-backdrop-filter: blur(28px) saturate(175%);
-  backdrop-filter: blur(28px) saturate(175%);
+  -webkit-backdrop-filter: blur(20px) saturate(175%);
+  backdrop-filter: blur(20px) saturate(175%);
 }
 .copilot-panel-right > .result-header,
 .copilot-panel .result-tabs { background: transparent; }
+@media (min-width: 1200px) {
+  /* 지도가 패널 뒤로 이어져 실제 지도 색과 도형이 유리 바탕에 비친다. */
+  .copilot-map { grid-column: 1 / -1; z-index: 0; }
+  .copilot-panel { margin-block: 12px; border: 1px solid var(--glass-border); border-radius: 18px; }
+  .copilot-panel-left { margin-left: 12px; }
+  .copilot-panel-right { margin-right: 12px; }
+  .copilot-map :is(.map-chip-topleft, .map-chip-fallback, .map-context-badge, .map-error-card) { left: calc(var(--panel-left) + var(--resizer, 6px) + 16px); }
+  .copilot-map :is(.map-chip-topleft, .map-chip-fallback) { max-width: calc(100% - var(--panel-left) - var(--panel-right) - 76px); }
+  .copilot-map :is(.map-context-badge, .map-error-card) { max-width: min(20rem, calc(100% - var(--panel-left) - var(--panel-right) - 32px)); }
+  .copilot-map :is(.map-zoom, .map-legend, .probe-card, .probe-hint) { right: calc(var(--panel-right) + var(--resizer, 6px) + 16px); }
+  .copilot-map :is(.onboard-card, .ux-hint) { left: calc(50% + (var(--panel-left) - var(--panel-right)) / 2); }
+  .copilot-map .onboard-card { width: min(23rem, calc(100% - var(--panel-left) - var(--panel-right) - 32px)); }
+  .copilot-map .probe-card { width: min(19rem, calc(100% - var(--panel-left) - var(--panel-right) - 32px)); }
+  /* 카카오 로고와 축척도 패널 밖에 남긴다. SDK가 함께 생성하는 실제 표시 그룹이다. */
+  .copilot-map [data-map-engine="kakao"] div:has(> div > a[href="http://map.kakao.com/"]) { translate: calc(var(--panel-left) + var(--resizer, 6px)) 0; }
+  .copilot-map [data-testid="demo-map"] > svg { margin-left: calc(var(--panel-left) + var(--resizer, 6px)); width: calc(100% - var(--panel-left) - var(--panel-right) - 2 * var(--resizer, 6px)); }
+}
 .panel-tabs-inner { min-height: 48px; }
 .analysis-step-title, .analysis-method-heading { font-size: 17px; }
 .analysis-step-note, .analysis-context-note, .analysis-scope, .analysis-scope > p, .dataset-selected-provider, .dataset-card-provider { font-size: 13px; line-height: 1.6; }
