@@ -1,9 +1,8 @@
+import { detectRegionFilters } from "./query-regions";
 import type { Facility } from "@/lib/domain/schemas";
 import { matchPlacesInText, type MatchedPlace } from "@/lib/geo/place-index";
 
 import {
-  DISTRICT_ALIASES,
-  DISTRICT_LABELS,
   neutralizeNegatedDirection,
   SGG_CUES,
 } from "./query-catalog-meta";
@@ -68,42 +67,7 @@ function includesAny(text: string, keywords: readonly string[]): boolean {
   return keywords.some((keyword) => text.includes(keyword));
 }
 
-function extractDistricts(text: string): string[] {
-  const labels = [...DISTRICT_LABELS].sort((a, b) => b.length - a.length);
-  const found: string[] = [];
-  const positions: number[] = [];
-  let remaining = text;
-
-  for (const label of labels) {
-    const at = remaining.indexOf(label);
-    if (at < 0) continue;
-    // Map position back to original string roughly via first occurrence of label
-    const originAt = text.indexOf(label);
-    found.push(label);
-    positions.push(originAt >= 0 ? originAt : at);
-    remaining = remaining.split(label).join(" ");
-  }
-
-  // Aliases: "김해" → "김해시", "창원" → "창원시 의창구"
-  const aliasEntries = Object.entries(DISTRICT_ALIASES).sort(
-    (a, b) => b[0].length - a[0].length,
-  );
-  for (const [alias, full] of aliasEntries) {
-    if (found.includes(full)) continue;
-    const at = remaining.indexOf(alias);
-    if (at < 0) continue;
-    const originAt = text.indexOf(alias);
-    found.push(full);
-    positions.push(originAt >= 0 ? originAt : at);
-    remaining = remaining.split(alias).join(" ");
-  }
-
-  // Preserve mention order in the original query (important for compare A vs B)
-  return found
-    .map((label, index) => ({ label, pos: positions[index] ?? 0 }))
-    .sort((a, b) => a.pos - b.pos || a.label.localeCompare(b.label))
-    .map((item) => item.label);
-}
+const extractDistricts = detectRegionFilters;
 
 /**
  * Well-known non-Gyeongnam place names. Used to surface an out-of-scope notice

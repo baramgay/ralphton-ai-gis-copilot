@@ -2,7 +2,8 @@ import { RAG_CORPUS, type RagChunk } from "./corpus";
 import { cosineSimilarity, hashEmbed } from "./hash-embed";
 import { termFrequency, tokenize, tokenizeWords } from "./tokenize";
 import { ragQueryIssue } from "./query-scope";
-import { DISTRICT_ALIASES } from "@/lib/analysis/query-catalog-meta";
+import { DISTRICT_ALIASES, DISTRICT_GROUP_ALIASES } from "@/lib/analysis/query-catalog-meta";
+import { matchingGeographicChunks } from "./geographic-chunks";
 import { getAllPlaces } from "@/lib/geo/place-index";
 
 export type RagHit = {
@@ -136,6 +137,7 @@ const QUERY_STRUCTURE_WORDS = new Set([
 const PLACE_WORDS = new Set(tokenizeWords([
   "경남 경상남도",
   ...Object.keys(DISTRICT_ALIASES), ...Object.values(DISTRICT_ALIASES),
+  ...Object.keys(DISTRICT_GROUP_ALIASES), ...Object.values(DISTRICT_GROUP_ALIASES).flat(),
   ...getAllPlaces().map((place) => `${place.shortName} ${place.adm_nm}`),
 ].join(" ")));
 
@@ -315,6 +317,21 @@ export function buildRagContext(hits: RagHit[], maxChars = 1200): { context: str
     used += separatorLength + block.length;
   }
   return { context: parts.join("\n"), hits: included };
+}
+
+/** Reserve context for registered geographic scope after the strongest subject evidence. */
+export function buildQueryRagContext(query: string, hits: RagHit[], maxChars = 1200): { context: string; hits: RagHit[] } {
+  if (hits.length === 0) return buildRagContext(hits, maxChars);
+  const geographicHits = matchingGeographicChunks(query, RAG_CORPUS).map((chunk) => ({
+    chunk,
+    score: 1,
+    reasons: ["registered-geographic-scope"],
+  }));
+  const geographyIds = new Set(geographicHits.map((hit) => hit.chunk.id));
+  const subjectHits = hits.filter((hit) => !geographyIds.has(hit.chunk.id));
+  return buildRagContext([
+    ...subjectHits.slice(0, 1), ...geographicHits, ...subjectHits.slice(1),
+  ], maxChars);
 }
 
 export function formatRagContext(hits: RagHit[], maxChars = 1200): string {

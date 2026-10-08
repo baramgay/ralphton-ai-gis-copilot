@@ -6,7 +6,7 @@
 import type { AnalysisIntent } from "@/lib/analysis/intent-schema";
 import type { EmbeddingClientDeps } from "./embeddings";
 import type { RagAugmentation } from "./augment";
-import { buildRagContext } from "./retrieve";
+import { buildQueryRagContext } from "./retrieve";
 import { retrieveRagChunksWithRemote } from "./retrieve-remote";
 
 export async function augmentQueryWithRagRemote(
@@ -25,7 +25,7 @@ export async function augmentQueryWithRagRemote(
     { query, limit: 4, boostTags },
     extras?.embedDeps,
   );
-  const { hits, context } = buildRagContext(retrieved);
+  const { hits, context } = buildQueryRagContext(query, retrieved);
   return {
     hits,
     context,

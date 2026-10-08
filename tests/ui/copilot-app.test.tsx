@@ -2297,6 +2297,100 @@ describe("CopilotApp", () => {
     expect(document.body.textContent).toMatch(/카드소비 · 카드매출 레이어로 전환했습니다/);
   }, 20_000);
 
+  test.each([
+    ["그중 생활인구 높은 곳", "masan"],
+    ["진주 카드매출 높은 지역", "jinju"],
+    ["인구 많은 동", "province"],
+  ])("마산 카드매출 다음 질문 %s의 지역 범위를 정확히 반영한다", async (nextQuery, scope) => {
+    const places = [
+      { code: "4812551000", name: "창원시 마산합포구 가포동", value: 100 },
+      { code: "4812752000", name: "창원시 마산회원구 회원1동", value: 200 },
+      { code: "4812351000", name: "창원시 성산구 반송동", value: 900 },
+      { code: "4817051000", name: "진주시 천전동", value: 800 },
+    ];
+    const baseFetch = fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/ai/parse")) return new Response(JSON.stringify({
+        intent: { tool: "rankPopulationSize", filters: {} },
+        notice: "질문을 분석에 반영했습니다.",
+      }), { status: 200 });
+      const response = await baseFetch(input, init);
+      if (url.includes("/api/data/snapshot")) return new Response(JSON.stringify({
+        ...snapshot,
+        regions: places.map((place) => ({
+          ...snapshot.regions[0], adm_cd2: place.code, adm_nm: `경상남도 ${place.name}`,
+          population: snapshot.months.map(() => place.value * 10),
+        })),
+      }), { status: 200 });
+      if (url.includes("administrative-dong")) return new Response(JSON.stringify({
+        ...boundary,
+        features: places.map((place) => ({
+          ...boundary.features[0],
+          properties: { ...boundary.features[0].properties, adm_cd2: place.code, adm_nm: `경상남도 ${place.name}` },
+        })),
+      }), { status: 200 });
+      if (!url.includes("/data/layers/nh-consumption.json") && !url.includes("/data/layers/skt-living.json")) return response;
+      const cube = await response.json();
+      const template = cube.cells[0];
+      cube.cells = places.map((place) => ({
+        ...template, code: place.code, name: place.name,
+        series: Object.fromEntries(Object.keys(template.series).map((key) => [key, cube.months.map(() => place.value)])),
+      }));
+      return new Response(JSON.stringify(cube), { status: 200 });
+    }));
+    render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
+    await screen.findByTestId("demo-map-badge");
+    const input = screen.getByRole("textbox", { name: "분석 질의" });
+    const run = (query: string) => {
+      fireEvent.change(input, { target: { value: query } });
+      fireEvent.click(screen.getByRole("button", { name: "질의 실행" }));
+    };
+    run("마산 카드매출 높은 지역");
+    await waitFor(() => {
+      const panel = screen.getByTestId("result-panel");
+      expect(panel).toHaveTextContent("마산합포구 가포동");
+      expect(panel).toHaveTextContent("마산회원구 회원1동");
+      expect(panel).not.toHaveTextContent("성산구 반송동");
+      expect(panel).not.toHaveTextContent("진주시 천전동");
+    });
+    expect(screen.getByTestId("analysis-scope")).toHaveTextContent("마산합포구");
+    expect(screen.getByTestId("analysis-scope")).toHaveTextContent("마산회원구");
+    run(nextQuery);
+    await waitFor(() => {
+      const panel = screen.getByTestId("result-panel");
+      if (scope === "province") {
+        expect(screen.getByTestId("executed-analysis-context")).toHaveTextContent("경상남도 전체");
+        expect(panel).toHaveTextContent("성산구 반송동");
+        expect(panel).toHaveTextContent("진주시 천전동");
+      } else if (scope === "jinju") {
+        expect(screen.getByTestId("analysis-scope")).toHaveTextContent("진주시");
+        expect(panel).toHaveTextContent("진주시 천전동");
+        expect(panel).not.toHaveTextContent("마산합포구 가포동");
+        expect(panel).not.toHaveTextContent("마산회원구 회원1동");
+      } else {
+        expect(panel).toHaveTextContent("생활인구");
+        expect(screen.getByTestId("analysis-scope")).toHaveTextContent("마산합포구");
+        expect(screen.getByTestId("analysis-scope")).toHaveTextContent("마산회원구");
+        expect(panel).toHaveTextContent("마산합포구 가포동");
+        expect(panel).toHaveTextContent("마산회원구 회원1동");
+        expect(panel).not.toHaveTextContent("성산구 반송동");
+        expect(panel).not.toHaveTextContent("진주시 천전동");
+      }
+    });
+    fireEvent.click(screen.getByTestId("export-csv"));
+    const csv = vi.mocked(downloadTextFile).mock.calls.at(-1)![1];
+    if (scope === "masan") {
+      expect(csv).toContain("마산합포구 가포동");
+      expect(csv).toContain("마산회원구 회원1동");
+      expect(csv).not.toContain("성산구 반송동");
+    } else {
+      expect(csv).toContain("진주시 천전동");
+      if (scope === "jinju") expect(csv).not.toContain("마산합포구 가포동");
+      else expect(csv).toContain("성산구 반송동");
+    }
+  }, 30_000);
+
   test("수동 자료 변경은 실제 전체 범위를 표시하고 실행한 질문만 비운다", async () => {
     render(<CopilotApp boundaryVersion="20260701" kakaoMapKey="" />);
     await screen.findByTestId("demo-map-badge");

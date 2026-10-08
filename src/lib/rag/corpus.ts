@@ -7,6 +7,7 @@
  * 레이어가 늘면 코퍼스도 같이 자란다.
  */
 import { buildCatalogRagChunks } from "./catalog-chunks";
+import { buildGeographicRagChunks } from "./geographic-chunks";
 
 export type RagChunk = {
   id: string;
@@ -81,7 +82,7 @@ export const CURATED_RAG_CORPUS: RagChunk[] = [
   {
     id: "tool-compare-detail",
     title: "지역 비교·상세",
-    body: "구·군 2곳 비교는 compareRegions(합산 롤업). 한 지역 현황·상세는 getRegionDetails. 창원→창원시 의창구, 김해→김해시처럼 별칭을 정규화합니다.",
+    body: "구·군 2곳 비교는 compareRegions(합산 롤업). 한 지역 현황·상세는 getRegionDetails. 창원→창원시 전체(5개 구), 김해→김해시처럼 별칭을 정규화합니다. 마산은 창원시 마산합포구와 창원시 마산회원구를 함께 포함합니다.",
     tags: ["compareRegions", "getRegionDetails", "region"],
     keywords: ["비교", "vs", "상세", "현황", "어때", "창원", "김해"],
   },
@@ -190,7 +191,7 @@ export const RAG_CORPUS: RagChunk[] = (() => {
   const seen = new Set<string>();
   const merged: RagChunk[] = [];
 
-  for (const chunk of [...CURATED_RAG_CORPUS, ...buildCatalogRagChunks()]) {
+  for (const chunk of [...CURATED_RAG_CORPUS, ...buildCatalogRagChunks(), ...buildGeographicRagChunks()]) {
     if (seen.has(chunk.id)) continue;
     seen.add(chunk.id);
     merged.push(chunk);

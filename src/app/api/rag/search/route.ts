@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { assessQuerySafety, MAX_QUERY_LENGTH } from "@/lib/analysis/query-rules";
-import { buildRagContext } from "@/lib/rag/retrieve";
+import { buildQueryRagContext } from "@/lib/rag/retrieve";
 import { getEmbedCacheMeta } from "@/lib/rag/embed-cache";
 import { retrieveRagChunksWithRemote } from "@/lib/rag/retrieve-remote";
 
@@ -58,10 +58,11 @@ export async function POST(request: Request) {
     embedDeps,
   );
 
-  const { hits: includedHits, context } = buildRagContext(rawHits);
+  const { hits: includedHits, context } = buildQueryRagContext(safety.query, rawHits);
   const includedIds = new Set(includedHits.map((hit) => hit.chunk.id));
   // Registered subject priority precedes the hybrid score. Clients must preserve this returned order.
-  const hits = rawHits.map((hit) => ({
+  const candidates = [...includedHits, ...rawHits.filter((hit) => !includedIds.has(hit.chunk.id))];
+  const hits = candidates.map((hit) => ({
     id: hit.chunk.id,
     title: hit.chunk.title,
     body: hit.chunk.body,

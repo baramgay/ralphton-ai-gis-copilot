@@ -1,5 +1,7 @@
 "use client";
 
+import { contextualizeRegionQuery, detectRegionFilters } from "@/lib/analysis/query-regions";
+
 import {
   useCallback,
   useEffect,
@@ -3335,12 +3337,13 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
   const runQueryText = async (raw: string, trackUsage = true) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
+    const scopedQuery = contextualizeRegionQuery(trimmed, appliedRegions, dongNamesForQuery);
     const requestId = ++queryRequestIdRef.current;
     if (trackUsage) beginUsageAnalysis();
     else usageAnalysisRef.current = null;
     setPendingCubeQuery(null);
     setIsParsing(false);
-    const regionAssessment = assessQueryRegions(trimmed);
+    const regionAssessment = assessQueryRegions(scopedQuery);
     if (regionAssessment.notice) {
       setParseStage("idle");
       setQueryNotice(regionAssessment.notice);
@@ -3356,6 +3359,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       setLastExecutedQuery(trimmed);
       setAnsweredLastQuery(true);
       setLastIntent(null);
+      setLayerRegionFilters(detectRegionFilters(scopedQuery, dongNamesForQuery));
       setExplicitCount(detectResultCount(trimmed));
       setResultLimit(detectResultCount(trimmed) ?? RESULT_PAGE_STEP);
       setPercentLimit(detectPercentLimit(trimmed));
@@ -3461,7 +3465,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
     const publicFirst = prefersPublicTool(trimmed);
 
     // 두 지표의 변화를 겹쳐 묻는 질의를 먼저 본다. 지표가 둘이라 단일 추세보다 구체적이다.
-    const trendCross = publicFirst ? null : resolveTrendCrossQuery(trimmed, /격자|블록/.test(trimmed)
+    const trendCross = publicFirst ? null : resolveTrendCrossQuery(scopedQuery, /격자|블록/.test(trimmed)
       ? CROSS_LAYERS.filter((layer) => layer.id.startsWith("kcb-grid"))
       : CROSS_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
@@ -3486,7 +3490,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
 
     // 추세 질의("카드매출 늘어나는 동")를 먼저 본다. 값의 크기가 아니라 변화를 묻는
     // 표현이므로 단일 시점 라우팅으로 넘기면 "많은 곳"과 구별되지 않는다.
-    const trendMatch = publicFirst ? null : resolveTrendQuery(trimmed, PRIVATE_NL_LAYERS, {
+    const trendMatch = publicFirst ? null : resolveTrendQuery(scopedQuery, PRIVATE_NL_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
       dongNames: dongNamesForQuery,
     });
@@ -3521,7 +3525,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
      */
     const multi = publicFirst
       ? null
-      : resolveMultiQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
+      : resolveMultiQuery(scopedQuery, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (multi) {
       rememberQuery(trimmed);
       if (runMulti(multi)) { applyQueryState(); return; }
@@ -3543,7 +3547,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
      */
     const stats = publicFirst
       ? null
-      : resolveStatsQuery(trimmed, crossLayers, {
+      : resolveStatsQuery(scopedQuery, crossLayers, {
           adminLevelFallback: fallbackAdminLevel,
           dongNames: dongNamesForQuery,
         });
@@ -3564,7 +3568,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
 
     const cross = publicFirst
       ? null
-      : resolveCrossQuery(trimmed, crossLayers, { adminLevelFallback: fallbackAdminLevel });
+      : resolveCrossQuery(scopedQuery, crossLayers, { adminLevelFallback: fallbackAdminLevel });
     if (cross) {
       rememberQuery(trimmed);
       if (runCross(cross)) { applyQueryState(); return; }
@@ -3583,7 +3587,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
     // layer metric ("생활인구", "유동인구", …), switch the active choropleth layer instead
     // of falling through to the public tool-registry (which would misroute "생활인구" to the
     // public 인구 ranking because "생활인구" contains "인구"). Synchronous, no network.
-    const layerMatch = publicFirst ? null : resolveLayerQuery(trimmed, PRIVATE_NL_LAYERS, {
+    const layerMatch = publicFirst ? null : resolveLayerQuery(scopedQuery, PRIVATE_NL_LAYERS, {
       adminLevelFallback: fallbackAdminLevel,
       // 행정동 이름을 넘겨 "물금읍 생활인구"처럼 동을 지정한 질의를 그 동으로 좁힌다.
       dongNames: dongNamesForQuery,
@@ -3627,7 +3631,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       const response = await fetch("/api/ai/parse", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query: trimmed }),
+        body: JSON.stringify({ query: scopedQuery }),
       });
       const data = (await response.json()) as {
         intent?: AnalysisIntent | null;
@@ -3646,7 +3650,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
        */
       if (!data.intent?.tool && data.metricHint) {
         const hinted = resolveLayerQuery(
-          `${trimmed} ${data.metricHint.metricLabel}`,
+          `${scopedQuery} ${data.metricHint.metricLabel}`,
           PRIVATE_NL_LAYERS,
           { adminLevelFallback: fallbackAdminLevel, dongNames: dongNamesForQuery },
         );
@@ -3709,6 +3713,7 @@ export function CopilotApp({ boundaryVersion, kakaoMapKey = "", analyticsEnabled
       setActiveLayerId("medical");
       setCustomAnalysis(nextView);
       setLastIntent(mergedIntent);
+      setLayerRegionFilters(mergedIntent.filters.compare ?? mergedIntent.filters.regions ?? []);
       setSelectedFacilityId(exactResult.filteredFacilities[0]?.id ?? null);
       setSelectedLivePlace(null);
       const nextRegionCode =

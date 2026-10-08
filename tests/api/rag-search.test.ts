@@ -30,3 +30,16 @@ it("returns empty evidence rather than fabricated support", async () => {
   expect(body.citations).toEqual([]);
   expect(body.context).toBe("");
 });
+
+it("shows the same two-district scope evidence as the parser for Masan card sales", async () => {
+  const response = await POST(new Request("http://localhost/api/rag/search", {
+    method: "POST", body: JSON.stringify({ query: "마산 카드매출 높은 지역", useRemoteEmbed: false }),
+  }));
+  const body = await response.json();
+  expect(body.hits[0].tags).not.toContain("geography");
+  expect(body.citations.some((citation: { id: string }) => citation.id === "geography-group-마산")).toBe(true);
+  expect(body.context).toContain("마산합포구");
+  expect(body.context).toContain("마산회원구");
+  expect(body.hits.filter((hit: { inContext: boolean }) => hit.inContext).map((hit: { id: string }) => hit.id))
+    .toEqual(body.citations.map((citation: { id: string }) => citation.id));
+});
